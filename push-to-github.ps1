@@ -1,82 +1,94 @@
-# V-DEPLOY-1730-001
-<#
-.SYNOPSIS
-    Automates adding, committing, and pushing all project changes
-    to the 'ahshaikh/PreIPOsip2Gemini' repository.
-.DESCRIPTION
-    This script intelligently handles the Git workflow:
-    1.  Checks if Git is installed.
-    2.  Initializes a Git repository if it doesn't exist.
-    3.  Verifies the 'origin' remote URL. If it's wrong, it updates it. If it doesn't exist, it adds it.
-    4.  Stages all new, modified, and deleted files.
-    5.  Commits the changes using the message you provide.
-    6.  Pushes the commit to the 'main' branch.
-.PARAMETER CommitMessage
-    (Required) The commit message for this batch of changes.
-.EXAMPLE
-    # Run this from your PowerShell terminal in the project root
-    .\push-to-github.ps1 -CommitMessage "feat: Initial commit of all 200+ files"
-.EXAMPLE
-    # A shorter, positional version
-    .\push-to-github.ps1 "fix: Updated login controller logic"
-#>
-[CmdletBinding()]
-param (
-    [Parameter(Mandatory=$true, Position=0)]
-    [string]$CommitMessage
-)
+# push-to-github.ps1
+#
+# This script initializes a Git repository, connects to a GitHub remote,
+# and pushes the entire project (backend, frontend, docs) to the main branch.
+#
+# RUN IN: PowerShell (as Admin or with execution policy set)
+# USAGE: .\push-to-github.ps1
 
-# --- 1. Configuration ---
-$RemoteName = "origin"
-$BranchName = "main"
-$RemoteRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini.git"
+# --- Configuration ---
+$GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
+$CommitMessage = "Initial project commit: Full-stack build (Phases 1-8)"
+# ---------------------
 
-# --- 2. Script Execution ---
-Write-Host "Starting Git push automation for PreIPOsip..." -ForegroundColor Cyan
+function Get-GitCredential {
+    param (
+        [string]$Message
+    )
+    Write-Host $Message
+    Write-Host "NOTE: Paste your token. It will be hidden (no characters will appear)." -ForegroundColor Yellow
+    $credential = $host.ui.ReadLineAsSecureString()
+    return [System.Runtime.InteropServices.Marshal]::PtrToStringAuto(
+        [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($credential)
+    )
+}
 
-# Check for Git
+# --- Script ---
+Write-Host "Starting Git deployment for PreIPOsip.com..." -ForegroundColor Green
+
+# 1. Check if Git is installed
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-    Write-Error "Git is not installed or not found in your PATH. Please install Git and try again."
-    return
+    Write-Host "ERROR: Git is not installed or not found in your PATH." -ForegroundColor Red
+    Write-Host "Please install Git for Windows and try again."
+    pause
+    exit
 }
 
-# Check if it's a Git repository
-if (-not (Test-Path -Path ".git")) {
-    Write-Host "Not a Git repository. Initializing..." -ForegroundColor Yellow
+# 2. Check if already a Git repository
+if (Test-Path ".git") {
+    Write-Host "Git repository already initialized."
+} else {
+    Write-Host "Initializing new Git repository..."
     git init
+    if ($?) { Write-Host "Git init successful." -ForegroundColor Green }
 }
 
-# Check and configure remote 'origin'
-$currentRemote = git remote -v | Where-Object { $_ -like "$RemoteName`t*" }
-
-if ($currentRemote -and ($currentRemote -notlike "*$RemoteRepoURL*")) {
-    Write-Host "Updating incorrect remote '$RemoteName' URL..." -ForegroundColor Yellow
-    git remote set-url $RemoteName $RemoteRepoURL
-} elseif (-not $currentRemote) {
-    Write-Host "Adding new remote '$RemoteName'..." -ForegroundColor Yellow
-    git remote add $RemoteName $RemoteRepoURL
-} else {
-    Write-Host "Remote '$RemoteName' is
-    correctly configured." -ForegroundColor Green
-}
-
-Write-Host "Staging all files..."
+# 3. Add all files
+Write-Host "Adding all project files to staging..."
 git add .
+Write-Host "Files staged." -ForegroundColor Green
 
-Write-Host "Committing changes with message: '$CommitMessage'"
+# 4. Create initial commit
+Write-Host "Creating initial commit..."
 git commit -m $CommitMessage
+Write-Host "Commit created: '$CommitMessage'" -ForegroundColor Green
 
-# Check if commit was successful (e.g., if there were no changes)
-if ($LASTEXITCODE -ne 0) {
-    Write-Warning "Commit failed. This may be because there are no changes to commit."
-    return
-}
+# 5. Set default branch to 'main'
+git branch -M main
+Write-Host "Default branch set to 'main'."
 
-Write-Host "Pushing to $RemoteName $BranchName..." -ForegroundColor Cyan
-git push $RemoteName $BranchName
-
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "✅ Successfully pushed to $RemoteRepoURL" -ForegroundColor Green
+# 6. Check for remote
+$remote = git remote
+if ($remote -like "*origin*") {
+    Write-Host "Remote 'origin' already exists."
 } else {
-    Write-Error "Push failed. Please check your credentials (you may need a Personal Access Token), network connection, and repository permissions."
+    Write-Host "Connecting to remote: $GithubRepoURL"
+    git remote add origin $GithubRepoURL
+    if ($?) { Write-Host "Remote added successfully." -ForegroundColor Green }
 }
+
+# 7. Get Credentials & Push
+Write-Host "Preparing to push to $GithubRepoURL"
+Write-Host "You will be prompted for your GitHub Personal Access Token (PAT)."
+
+try {
+    $Token = Get-GitCredential -Message "Enter your GitHub PAT:"
+
+    # We must re-build the URL to include the token for the push
+    # Format: https://<TOKEN>@github.com/user/repo.git
+    $PaddedURL = $GithubRepoURL.Insert(8, "$Token@")
+
+    Write-Host "Pushing to 'origin main'..."
+    git push -u $PaddedURL main
+
+    if ($?) {
+        Write-Host "SUCCESS: Project has been pushed to GitHub." -ForegroundColor Green
+    } else {
+        Write-Host "ERROR: Push failed. Check your token and repository URL." -ForegroundColor Red
+    }
+} catch {
+    Write-Host "An error occurred during push: $_" -ForegroundColor Red
+}
+
+Write-Host "Script finished. Press Enter to exit."
+pause
