@@ -1,0 +1,33 @@
+// V-PHASE1-1730-007
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     * This table will store OTPs for email and mobile verification.
+     */
+    public function up(): void
+    {
+        Schema::create('otps', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->string('type'); // 'email' or 'mobile'
+            $table->string('otp_code');
+            $table->timestamp('expires_at');
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('otps');
+    }
+};

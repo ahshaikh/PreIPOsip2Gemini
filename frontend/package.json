@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "@tanstack/react-query": "^5.90.7",
+    "axios": "^1.13.2",
+    "lucide-react": "^0.553.0",
+    "shadcn-ui": "^0.9.5",
+    "tailwindcss-animate": "^1.0.7"
+  }
+}
