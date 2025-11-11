@@ -4,7 +4,10 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "dev": "vite"
+        "dev": "next dev",
+        "preview": "vite preview",
+        "watch": "vite build --watch",
+        "start": "concurrently \"npm run dev\" \"npm run watch\" "
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",
