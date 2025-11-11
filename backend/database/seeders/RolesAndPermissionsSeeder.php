@@ -1,47 +1,61 @@
-// V-PHASE1-1730-023
 <?php
+// V-PHASE1-1730-023
 
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
     public function run(): void
     {
         // Reset cached roles and permissions
-        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // Create Roles
-        $superAdmin = Role::create(['name' => 'super-admin']);
-        $admin = Role::create(['name' => 'admin']);
-        $support = Role::create(['name' => 'support']);
-        $finance = Role::create(['name' => 'finance']);
-        $user = Role::create(['name' => 'user']);
+        // Define roles
+        $roles = ['super-admin', 'admin', 'support', 'finance', 'user'];
+        $roleInstances = [];
 
-        // Create Permissions (example for Phase 1)
-        Permission::create(['name' => 'access admin panel']);
-        Permission::create(['name' => 'manage users']);
-        Permission::create(['name' => 'manage kyc']);
-        Permission::create(['name' => 'manage plans']);
-        
+        foreach ($roles as $roleName) {
+            $roleInstances[$roleName] = Role::firstOrCreate([
+                'name' => $roleName,
+                'guard_name' => 'web',
+            ]);
+        }
+
+        // Define permissions
+        $permissions = [
+            'access admin panel',
+            'manage users',
+            'manage kyc',
+            'manage plans',
+        ];
+
+        foreach ($permissions as $permissionName) {
+            Permission::firstOrCreate([
+                'name' => $permissionName,
+                'guard_name' => 'web',
+            ]);
+        }
+
         // Assign permissions to roles
-        $admin->givePermissionTo([
+        $roleInstances['admin']->givePermissionTo([
             'access admin panel',
             'manage users',
             'manage kyc',
             'manage plans',
         ]);
-        
-        $support->givePermissionTo([
+
+        $roleInstances['support']->givePermissionTo([
             'access admin panel',
             'manage users',
             'manage kyc',
         ]);
 
-        // Super-admin gets all permissions implicitly
-        $superAdmin->givePermissionTo(Permission::all());
+        // Super-admin gets all permissions
+        $roleInstances['super-admin']->syncPermissions(Permission::all());
     }
 }

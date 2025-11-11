@@ -1,5 +1,5 @@
-// V-PHASE2-1730-029
 <?php
+// V-PHASE2-1730-029
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
