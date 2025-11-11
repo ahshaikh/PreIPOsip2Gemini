@@ -8,7 +8,7 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "Initial project commit: Full-stack build (Phases 1-8)"
+$CommitMessage = "Initial project commit: Full-stack build (All 8 Phases)"
 # ---------------------
 
 function Get-GitCredential {
