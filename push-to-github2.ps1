@@ -8,10 +8,14 @@
 
 # --- Configuration ---
 <<<<<<< HEAD
+<<<<<<< HEAD
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
 =======
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip"
 >>>>>>> d773781 (Initial project commit: Full-stack build (Phases 1-8))
+=======
+$GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
+>>>>>>> c727fff (Initial project commit: Full-stack build (Phases 1-8))
 $CommitMessage = "Initial project commit: Full-stack build (Phases 1-8)"
 # ---------------------
 
