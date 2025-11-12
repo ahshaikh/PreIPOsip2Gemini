@@ -1,17 +1,17 @@
-// V-PHASE4-1730-112
+// V-PHASE4-1730-112 (REVISED)
 'use client';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner"; // <-- IMPORT FROM SONNER
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export default function SignupPage() {
   const router = useRouter();
-  const { toast } = useToast();
+  // const { toast } = useToast(); // <-- REMOVED
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -34,8 +34,7 @@ export default function SignupPage() {
 
     try {
       const response = await api.post('/register', formData);
-      toast({
-        title: "Registration Successful",
+      toast.success("Registration Successful", { // <-- REVISED
         description: "Please check your email/SMS to verify your account.",
       });
       // Redirect to a verification page
@@ -44,10 +43,8 @@ export default function SignupPage() {
       if (error.response?.status === 422) {
         setErrors(error.response.data.errors);
       } else {
-        toast({
-          title: "Registration Failed",
+        toast.error("Registration Failed", { // <-- REVISED
           description: error.response?.data?.message || "An error occurred.",
-          variant: "destructive",
         });
       }
     } finally {
@@ -75,7 +72,8 @@ export default function SignupPage() {
         <div className="space-y-2">
           <Label htmlFor="mobile">Mobile Number</Label>
           <Input id="mobile" value={formData.mobile} onChange={handleChange} required />
-          {errors.mobile && <p className="text-sm text-destructive">{errors.mobile[0]}</Fp>}
+          {/* THE ORIGINAL <Fp> TYPO IS HERE, NOW FIXED TO </p> */}
+          {errors.mobile && <p className="text-sm text-destructive">{errors.mobile[0]}</p>}
         </div>
         {/* Password */}
         <div className="space-y-2">

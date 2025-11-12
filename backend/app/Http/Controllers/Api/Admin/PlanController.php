@@ -1,5 +1,5 @@
 <?php
-// V-PHASE2-1730-055
+// V-REMEDIATE-1730-167 (Full Update Capability)
 
 namespace App\Http\Controllers\Api\Admin;
 
@@ -26,7 +26,7 @@ class PlanController extends Controller
             'is_featured' => 'required|boolean',
             'features' => 'nullable|array',
             'features.*.feature_text' => 'required|string',
-            'configs' => 'nullable|array', // e.g., ['progressive_rate' => 0.5]
+            'configs' => 'nullable|array', 
         ]);
 
         $plan = Plan::create($validated + ['slug' => Str::slug($validated['name'])]);
@@ -37,6 +37,7 @@ class PlanController extends Controller
         
         if (!empty($validated['configs'])) {
             foreach ($validated['configs'] as $key => $value) {
+                // Value is already an array/json from the request
                 $plan->configs()->create(['config_key' => $key, 'value' => $value]);
             }
         }
@@ -51,21 +52,38 @@ class PlanController extends Controller
 
     public function update(Request $request, Plan $plan)
     {
-        // Simplified update - a real app would handle configs/features update/delete
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
             'monthly_amount' => 'sometimes|required|numeric|min:0',
-            // ... other plan fields
+            'duration_months' => 'sometimes|required|integer|min:1',
+            'description' => 'nullable|string',
+            'is_active' => 'sometimes|required|boolean',
+            'is_featured' => 'sometimes|required|boolean',
+            'configs' => 'nullable|array', // Expecting keyed array: 'progressive_config' => {...}
         ]);
         
         $plan->update($validated);
+
+        // --- NEW: Handle Config Updates ---
+        if ($request->has('configs')) {
+            foreach ($request->input('configs') as $key => $value) {
+                $plan->configs()->updateOrCreate(
+                    ['config_key' => $key],
+                    ['value' => $value] // Laravel casts this to JSON automatically due to model casts
+                );
+            }
+        }
+        // ----------------------------------
 
         return response()->json($plan->load('configs', 'features'));
     }
 
     public function destroy(Plan $plan)
     {
-        // TODO: Add check for active subscriptions before deleting
+        // Prevent deletion if active subscriptions exist
+        if ($plan->subscriptions()->exists()) { // Assuming relationship exists
+             return response()->json(['message' => 'Cannot delete plan with active subscriptions.'], 409);
+        }
         $plan->delete();
         return response()->noContent();
     }

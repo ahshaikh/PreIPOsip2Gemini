@@ -1,5 +1,5 @@
 <?php
-// V-PHASE3-1730-085
+// V-PHASE3-1730-085 (REVISED)
 
 namespace App\Jobs;
 
@@ -9,7 +9,7 @@ use App\Models\BonusTransaction;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate::Queue\InteractsWithQueue;
+use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
@@ -31,16 +31,21 @@ class ProcessReferralJob implements ShouldQueue
             return; // No pending referral found
         }
         
-        $referrer = $referral->referrer;
+        $referrer = $referral->referrer->load('subscription.plan.configs');
+        
+        if (!$referrer->subscription) {
+            Log::warning("Referrer {$referrer->id} has no subscription. Cannot process referral bonus.");
+            return;
+        }
 
         // 1. Mark referral as completed
         $referral->update(['status' => 'completed', 'completed_at' => now()]);
 
         // 2. Award one-time bonus to referrer
-        $bonusAmount = setting('referral_bonus_amount', 500); // Configurable
+        $bonusAmount = setting('referral_bonus_amount', 500); // This can stay a global setting
         BonusTransaction::create([
             'user_id' => $referrer->id,
-            'subscription_id' => $referrer->subscription->id, // Assumes referrer has one
+            'subscription_id' => $referrer->subscription->id,
             'type' => 'referral',
             'amount' => $bonusAmount,
             'description' => "Referral bonus for {$this->referredUser->username}",
@@ -58,14 +63,21 @@ class ProcessReferralJob implements ShouldQueue
     {
         $count = $referrer->referrals()->where('status', 'completed')->count();
         
-        // Get tiers from settings (Configurable Logic Builder)
-        $tiers = setting('referral_tiers', [
+        // --- THIS IS THE FIX ---
+        // Get tiers from the PLAN config, not the global settings
+        $config = $referrer->subscription->plan->configs
+            ->where('config_key', 'referral_tiers')
+            ->first();
+
+        // Fallback to a default if config is missing
+        $defaultTiers = [
             ['count' => 0, 'multiplier' => 1.0],
             ['count' => 3, 'multiplier' => 1.5],
             ['count' => 5, 'multiplier' => 2.0],
-            ['count' => 10, 'multiplier' => 2.5],
-            ['count' => 20, 'multiplier' => 3.0],
-        ]);
+        ];
+        
+        $tiers = $config ? $config->value : $defaultTiers;
+        // --- END OF FIX ---
 
         $newMultiplier = 1.0;
         foreach ($tiers as $tier) {
@@ -75,5 +87,6 @@ class ProcessReferralJob implements ShouldQueue
         }
         
         $referrer->subscription->update(['bonus_multiplier' => $newMultiplier]);
+        Log::info("Referrer {$referrer->id} multiplier updated to {$newMultiplier}x");
     }
 }

@@ -1,5 +1,5 @@
 <?php
-// V-PHASE3-1730-087
+// V-REMEDIATE-1730-174 (FINAL CONSOLIDATED)
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -19,6 +19,9 @@ use App\Http\Controllers\Api\User\PortfolioController;
 use App\Http\Controllers\Api\User\BonusController;
 use App\Http\Controllers\Api\User\ReferralController;
 use App\Http\Controllers\Api\User\WalletController;
+use App\Http\Controllers\Api\User\SupportTicketController as UserSupportTicketController;
+use App\Http\Controllers\Api\User\LuckyDrawController as UserLuckyDrawController;
+use App\Http\Controllers\Api\User\ProfitShareController as UserProfitShareController;
 
 // Admin Controllers
 use App\Http\Controllers\Api\Admin\AdminDashboardController;
@@ -31,8 +34,10 @@ use App\Http\Controllers\Api\Admin\SettingsController;
 use App\Http\Controllers\Api\Admin\PageController;
 use App\Http\Controllers\Api\Admin\EmailTemplateController;
 use App\Http\Controllers\Api\Admin\WithdrawalController;
-use App\Http\Controllers\Api\Admin\LuckyDrawController;
-use App\Http\Controllers\Api\Admin\ProfitShareController;
+use App\Http\Controllers\Api\Admin\LuckyDrawController as AdminLuckyDrawController;
+use App\Http\Controllers\Api\Admin\ProfitShareController as AdminProfitShareController;
+use App\Http\Controllers\Api\Admin\ReportController;
+use App\Http\Controllers\Api\Admin\SupportTicketController as AdminSupportTicketController;
 
 // Webhook Controller
 use App\Http\Controllers\Api\WebhookController;
@@ -43,11 +48,14 @@ Route::prefix('v1')->group(function () {
     // --- Public Authentication Routes ---
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
-    // ... (other auth routes)
+    Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
+    Route::post('/password/forgot', [PasswordResetController::class, 'sendResetLink']);
+    Route::post('/password/reset', [PasswordResetController::class, 'reset']);
 
     // --- Public Data Routes ---
     Route::get('/plans', [PublicPlanController::class, 'index']);
-    // ... (other public routes)
+    Route::get('/plans/{slug}', [PublicPlanController::class, 'show']);
+    Route::get('/page/{slug}', [PublicPageController::class, 'show']);
 
     // --- Webhook Routes ---
     Route::post('/webhooks/razorpay', [WebhookController::class, 'handleRazorpay']);
@@ -64,7 +72,6 @@ Route::prefix('v1')->group(function () {
             Route::get('/kyc', [KycController::class, 'show']);
             Route::post('/kyc', [KycController::class, 'store']);
             
-            // --- NEW IN PHASE 3 ---
             Route::get('/subscription', [SubscriptionController::class, 'show']);
             Route::post('/subscription', [SubscriptionController::class, 'store']);
             
@@ -78,35 +85,64 @@ Route::prefix('v1')->group(function () {
             Route::get('/wallet', [WalletController::class, 'show']);
             Route::post('/wallet/deposit/initiate', [WalletController::class, 'initiateDeposit']);
             Route::post('/wallet/withdraw', [WalletController::class, 'requestWithdrawal']);
-            // --- END NEW ---
+	    Route::post('/security/password', [SecurityController::class, 'updatePassword']);
+            
+            // Support Tickets
+            Route::apiResource('/support-tickets', UserSupportTicketController::class)->only(['index', 'store', 'show']);
+            Route::post('/support-tickets/{supportTicket}/reply', [UserSupportTicketController::class, 'reply']);
+            
+            // Lucky Draw
+            Route::get('/lucky-draws', [UserLuckyDrawController::class, 'index']);
+            
+            // Profit Sharing
+            Route::get('/profit-sharing', [UserProfitShareController::class, 'index']);
         });
 
         // --- Admin Routes ---
         Route::prefix('admin')->middleware(['role:admin|super-admin'])->group(function () {
             Route::get('/dashboard', [AdminDashboardController::class, 'index']);
+            Route::get('/reports/financial-summary', [ReportController::class, 'getFinancialSummary']);
             
+            // User Management ("God Mode" Routes)
             Route::apiResource('/users', AdminUserController::class);
+            Route::post('/users/{user}/suspend', [AdminUserController::class, 'suspend']);
+            Route::post('/users/{user}/adjust-balance', [AdminUserController::class, 'adjustBalance']); // <-- New route
+            
+            // KYC Management
             Route::apiResource('/kyc-queue', KycQueueController::class)->only(['index', 'show']);
             Route::post('/kyc-queue/{id}/approve', [KycQueueController::class, 'approve']);
             Route::post('/kyc-queue/{id}/reject', [KycQueueController::class, 'reject']);
 
+            // Business Management
             Route::apiResource('/plans', PlanController::class);
             Route::apiResource('/products', ProductController::class);
             Route::apiResource('/bulk-purchases', BulkPurchaseController::class);
+            
+            // CMS & Settings
             Route::apiResource('/pages', PageController::class);
             Route::apiResource('/email-templates', EmailTemplateController::class);
             Route::get('/settings', [SettingsController::class, 'index']);
             Route::put('/settings', [SettingsController::class, 'update']);
 
-            // --- NEW IN PHASE 3 ---
+            // Withdrawal Management
             Route::get('/withdrawal-queue', [WithdrawalController::class, 'index']);
             Route::post('/withdrawal-queue/{withdrawal}/approve', [WithdrawalController::class, 'approve']);
             Route::post('/withdrawal-queue/{withdrawal}/complete', [WithdrawalController::class, 'complete']);
             Route::post('/withdrawal-queue/{withdrawal}/reject', [WithdrawalController::class, 'reject']);
             
-            Route::apiResource('/lucky-draws', LuckyDrawController::class);
-            Route::apiResource('/profit-sharing', ProfitShareController::class);
-            // --- END NEW ---
+            // Lucky Draws
+            Route::apiResource('/lucky-draws', AdminLuckyDrawController::class)->only(['index', 'store', 'show']);
+            Route::post('/lucky-draws/{luckyDraw}/execute', [AdminLuckyDrawController::class, 'executeDraw']);
+            
+            // Profit Sharing
+            Route::apiResource('/profit-sharing', AdminProfitShareController::class)->only(['index', 'store', 'show']);
+            Route::post('/profit-sharing/{profitShare}/calculate', [AdminProfitShareController::class, 'calculate']);
+            Route::post('/profit-sharing/{profitShare}/distribute', [AdminProfitShareController::class, 'distribute']);
+            
+            // Support Tickets
+            Route::apiResource('/support-tickets', AdminSupportTicketController::class)->only(['index', 'show']);
+            Route::post('/support-tickets/{supportTicket}/reply', [AdminSupportTicketController::class, 'reply']);
+            Route::put('/support-tickets/{supportTicket}/status', [AdminSupportTicketController::class, 'updateStatus']);
         });
     });
 });

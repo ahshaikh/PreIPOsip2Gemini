@@ -1,4 +1,4 @@
-// V-PHASE6-1730-128
+// V-PHASE6-1730-128 (REVISED)
 'use client';
 
 import {
@@ -10,14 +10,14 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner"; // <-- IMPORT FROM SONNER
 import api from "@/lib/api";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { Label } from "../ui/label";
 
 export function KycVerificationModal({ kycId, onClose }: { kycId: number, onClose: () => void }) {
-  const { toast } = useToast();
+  // const { toast } = useToast(); // <-- REMOVED
   const [reason, setReason] = useState('');
 
   const { data: kyc, isLoading } = useQuery({
@@ -28,22 +28,22 @@ export function KycVerificationModal({ kycId, onClose }: { kycId: number, onClos
   const approveMutation = useMutation({
     mutationFn: () => api.post(`/admin/kyc-queue/${kycId}/approve`),
     onSuccess: () => {
-      toast({ title: "KYC Approved", variant: "success" });
+      toast.success("KYC Approved"); // <-- REVISED
       onClose();
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.response?.data?.message, variant: "destructive" });
+      toast.error("Error", { description: error.response?.data?.message }); // <-- REVISED
     }
   });
 
   const rejectMutation = useMutation({
     mutationFn: (reason: string) => api.post(`/admin/kyc-queue/${kycId}/reject`, { reason }),
     onSuccess: () => {
-      toast({ title: "KYC Rejected" });
+      toast.success("KYC Rejected"); // <-- REVISED
       onClose();
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.response?.data?.message, variant: "destructive" });
+      toast.error("Error", { description: error.response?.data?.message }); // <-- REVISED
     }
   });
 
@@ -81,14 +81,12 @@ export function KycVerificationModal({ kycId, onClose }: { kycId: number, onClos
           {kyc.documents.map((doc: any) => (
             <div key={doc.id}>
               <Label className="capitalize">{doc.doc_type.replace('_', ' ')}</Label>
-              {/* In a real app, this would be a secure link to S3 or Storage */}
               <p><a href={`/storage/${doc.file_path}`} target="_blank" rel="noreferrer" className="text-blue-500 underline">View Document</a></p>
             </div>
           ))}
         </div>
       </div>
       
-      {/* Rejection Reason */}
       <div className="space-y-2 mt-4">
         <Label htmlFor="reason">Rejection Reason (if rejecting)</Label>
         <Textarea id="reason" value={reason} onChange={(e) => setReason(e.target.value)} />
@@ -103,7 +101,7 @@ export function KycVerificationModal({ kycId, onClose }: { kycId: number, onClos
           {rejectMutation.isPending ? "Rejecting..." : "Reject"}
         </Button>
         <Button 
-          variant="success"
+          variant="default"
           onClick={() => approveMutation.mutate()}
           disabled={approveMutation.isPending}
         >

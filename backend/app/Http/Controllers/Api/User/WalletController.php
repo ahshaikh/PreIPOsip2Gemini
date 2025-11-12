@@ -14,6 +14,16 @@ class WalletController extends Controller
 {
     public function show(Request $request)
     {
+
+	// --- REMEDIATION (SEC-2) ---
+        if (!setting('withdrawal_enabled', true)) {
+            return response()->json(['message' => 'Withdrawals are temporarily disabled.'], 403);
+        }
+        // --- END REMEDIATION ---
+
+        $user = $request->user();
+        $wallet = $user->wallet;
+
         $wallet = Wallet::firstOrCreate(['user_id' => $request->user()->id]);
         $transactions = $wallet->transactions()->latest()->paginate(20);
 

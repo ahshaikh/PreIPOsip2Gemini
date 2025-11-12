@@ -1,50 +1,44 @@
-// V-PHASE5-1730-118
+// V-PHASE5-1730-118 (REVISED)
 'use client';
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner"; // <-- IMPORT FROM SONNER
 import api from "@/lib/api";
 import { usePlans } from "@/lib/hooks";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useRouter } from "next/navigation";
 
-// This is a global declaration for Razorpay
 declare var Razorpay: any;
 
 export default function SubscriptionPage() {
-  const { toast } = useToast();
+  // const { toast } = useToast(); // <-- REMOVED
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  // 1. Fetch user's subscription
   const { data: sub, isLoading: isSubLoading } = useQuery({
     queryKey: ['subscription'],
     queryFn: async () => (await api.get('/user/subscription')).data,
-    retry: false, // Don't retry on 404
+    retry: false,
   });
 
-  // 2. Fetch all available plans
   const { data: plans } = usePlans();
   
-  // 3. Mutation to create a subscription
   const createSubMutation = useMutation({
     mutationFn: (planId: number) => api.post('/user/subscription', { plan_id: planId }),
     onSuccess: () => {
-      toast({ title: "Subscribed!", description: "Please make your first payment." });
+      toast.success("Subscribed!", { description: "Please make your first payment." }); // <-- REVISED
       queryClient.invalidateQueries({ queryKey: ['subscription'] });
     },
     onError: (error: any) => {
-      toast({ title: "Subscription Failed", description: error.response?.data?.message, variant: "destructive" });
+      toast.error("Subscription Failed", { description: error.response?.data?.message }); // <-- REVISED
     }
   });
 
-  // 4. Mutation to initiate a payment
   const paymentMutation = useMutation({
     mutationFn: (paymentId: number) => api.post('/user/payment/initiate', { payment_id: paymentId }),
     onSuccess: (response) => {
-      // 5. Open Razorpay checkout
       const data = response.data;
       const options = {
         key: data.razorpay_key,
@@ -54,10 +48,7 @@ export default function SubscriptionPage() {
         description: data.description,
         order_id: data.order_id,
         handler: function (response: any) {
-          // 6. Verify payment
-          toast({ title: "Payment Successful!", description: "Verifying payment..." });
-          // In a real app, we'd verify this, but we'll trust the webhook
-          // and just invalidate the queries.
+          toast.success("Payment Successful!", { description: "Verifying payment..." }); // <-- REVISED
           queryClient.invalidateQueries({ queryKey: ['subscription'] });
           queryClient.invalidateQueries({ queryKey: ['portfolio'] });
           queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
@@ -69,13 +60,12 @@ export default function SubscriptionPage() {
       rzp.open();
     },
     onError: (error: any) => {
-      toast({ title: "Payment Failed", description: error.response?.data?.message, variant: "destructive" });
+      toast.error("Payment Failed", { description: error.response?.data?.message }); // <-- REVISED
     }
   });
 
   if (isSubLoading) return <div>Loading subscription...</div>;
 
-  // --- RENDER STATE: NO SUBSCRIPTION ---
   if (!sub) {
     return (
       <Card>
@@ -108,7 +98,6 @@ export default function SubscriptionPage() {
     );
   }
 
-  // --- RENDER STATE: ACTIVE SUBSCRIPTION ---
   const pendingPayment = sub.payments.find((p: any) => p.status === 'pending');
 
   return (

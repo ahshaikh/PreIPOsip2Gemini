@@ -1,4 +1,4 @@
-// V-PHASE6-1730-130
+// V-PHASE6-1730-130 (REVISED)
 'use client';
 
 import {
@@ -12,13 +12,13 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner"; // <-- IMPORT FROM SONNER
 import api from "@/lib/api";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 
 export function WithdrawalProcessModal({ withdrawal, onClose }: { withdrawal: any, onClose: () => void }) {
-  const { toast } = useToast();
+  // const { toast } = useToast(); // <-- REMOVED
   const [step, setStep] = useState(withdrawal.status === 'pending' ? 'approve' : 'complete');
   const [reason, setReason] = useState('');
   const [utr, setUtr] = useState('');
@@ -26,7 +26,7 @@ export function WithdrawalProcessModal({ withdrawal, onClose }: { withdrawal: an
   const approveMutation = useMutation({
     mutationFn: () => api.post(`/admin/withdrawal-queue/${withdrawal.id}/approve`),
     onSuccess: () => {
-      toast({ title: "Withdrawal Approved", description: "Ready to be processed.", variant: "success" });
+      toast.success("Withdrawal Approved", { description: "Ready to be processed." }); // <-- REVISED
       setStep('complete');
     },
   });
@@ -34,7 +34,7 @@ export function WithdrawalProcessModal({ withdrawal, onClose }: { withdrawal: an
   const rejectMutation = useMutation({
     mutationFn: (reason: string) => api.post(`/admin/withdrawal-queue/${withdrawal.id}/reject`, { reason }),
     onSuccess: () => {
-      toast({ title: "Withdrawal Rejected", description: "Funds returned to user." });
+      toast.success("Withdrawal Rejected", { description: "Funds returned to user." }); // <-- REVISED
       onClose();
     },
   });
@@ -42,7 +42,7 @@ export function WithdrawalProcessModal({ withdrawal, onClose }: { withdrawal: an
   const completeMutation = useMutation({
     mutationFn: (utr: string) => api.post(`/admin/withdrawal-queue/${withdrawal.id}/complete`, { utr_number: utr }),
     onSuccess: () => {
-      toast({ title: "Withdrawal Completed!", description: "Funds have been processed.", variant: "success" });
+      toast.success("Withdrawal Completed!", { description: "Funds have been processed." }); // <-- REVISED
       onClose();
     },
   });
@@ -73,7 +73,7 @@ export function WithdrawalProcessModal({ withdrawal, onClose }: { withdrawal: an
               Reject
             </Button>
             <Button 
-              variant="success"
+              variant="default"
               onClick={() => approveMutation.mutate()}
               disabled={approveMutation.isPending}
             >

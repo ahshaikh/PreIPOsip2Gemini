@@ -1,11 +1,11 @@
-// V-PHASE4-1730-101
+// V-PHASE4-1730-101 (REVISED)
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/shared/Providers';
 import { Navbar } from '@/components/shared/Navbar';
 import { Footer } from '@/components/shared/Footer';
-import { Toaster } from '@/components/ui/toaster';
+import { Toaster } from '@/components/ui/sonner'; // <-- IMPORT FROM SONNER
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -28,7 +28,7 @@ export default function RootLayout({
             <main className="flex-grow">{children}</main>
             <Footer />
           </div>
-          <Toaster />
+          <Toaster richColors /> {/* <-- ADD THIS COMPONENT */}
         </Providers>
       </body>
     </html>
