@@ -1,4 +1,5 @@
-// V-PHASE5-1730-114
+<?php
+// V-PHASE5-1730-114 (REVISED v3)
 'use client';
 
 import Link from 'next/link';
@@ -14,6 +15,8 @@ import {
   Users,
   LifeBuoy,
   User,
+  Ticket,
+  PieChart, // <-- 1. IMPORT NEW ICON
 } from 'lucide-react';
 
 const navItems = [
@@ -24,6 +27,8 @@ const navItems = [
   { href: '/bonuses', label: 'My Bonuses', icon: Gift },
   { href: '/referrals', label: 'My Referrals', icon: Users },
   { href: '/wallet', label: 'My Wallet', icon: Wallet },
+  { href: '/lucky-draws', label: 'Lucky Draw', icon: Ticket },
+  { href: '/profit-sharing', label: 'Profit Sharing', icon: PieChart }, // <-- 2. ADD THIS LINK
   { href: '/support', label: 'Support', icon: LifeBuoy },
   { href: '/profile', label: 'Profile', icon: User },
 ];

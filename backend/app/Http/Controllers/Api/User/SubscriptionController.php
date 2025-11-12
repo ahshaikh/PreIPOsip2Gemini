@@ -16,6 +16,17 @@ class SubscriptionController extends Controller
      */
     public function show(Request $request)
     {
+
+	// --- REMEDIATION (SEC-2) ---
+        if (!setting('investment_enabled', true)) {
+            return response()->json(['message' => 'New investments are temporarily disabled.'], 403);
+        }
+        // --- END REMEDIATION ---
+
+	$user = $request->user();
+
+        // 1. Validate request
+
         $subscription = Subscription::where('user_id', $request->user()->id)
             ->with('plan.features', 'payments')
             ->first();

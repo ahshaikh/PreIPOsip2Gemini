@@ -1,10 +1,10 @@
-// V-PHASE4-1730-113
+// V-PHASE4-1730-113 (REVISED)
 'use client';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner"; // <-- IMPORT FROM SONNER
 import api from "@/lib/api";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -12,7 +12,7 @@ import { useState } from "react";
 export default function VerifyPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { toast } = useToast();
+  // const { toast } = useToast(); // <-- REMOVED
   
   const userId = searchParams.get('user_id');
   
@@ -30,23 +30,19 @@ export default function VerifyPage() {
         type: type,
         otp: otp
       });
-      toast({
-        title: `${type === 'email' ? 'Email' : 'Mobile'} Verified!`,
+      toast.success(`${type === 'email' ? 'Email' : 'Mobile'} Verified!`, { // <-- REVISED
         description: `Your ${type} has been successfully verified.`,
       });
       if (type === 'email') setEmailOtp('VERIFIED');
       if (type === 'mobile') setMobileOtp('VERIFIED');
       
-      // Check if both are now verified
       if ((type === 'email' && mobileOtp === 'VERIFIED') || (type === 'mobile' && emailOtp === 'VERIFIED')) {
-        toast({ title: "Account Activated!", description: "Please log in." });
+        toast.success("Account Activated!", { description: "Please log in." }); // <-- REVISED
         router.push('/login');
       }
     } catch (error: any) {
-      toast({
-        title: "Verification Failed",
+      toast.error("Verification Failed", { // <-- REVISED
         description: error.response?.data?.message || "Invalid or expired OTP.",
-        variant: "destructive",
       });
     } finally {
       setIsLoading(false);

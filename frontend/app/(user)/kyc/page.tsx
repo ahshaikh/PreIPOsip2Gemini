@@ -1,17 +1,17 @@
-// V-PHASE5-1730-117
+// V-PHASE5-1730-117 (REVISED)
 'use client';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner"; // <-- IMPORT FROM SONNER
 import api from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 export default function KycPage() {
-  const { toast } = useToast();
+  // const { toast } = useToast(); // <-- REMOVED
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     pan_number: '',
@@ -32,7 +32,6 @@ export default function KycPage() {
     queryKey: ['kycData'],
     queryFn: async () => {
       const { data } = await api.get('/user/kyc');
-      // Pre-fill form if data exists
       setFormData({
         pan_number: data.pan_number || '',
         aadhaar_number: data.aadhaar_number || '',
@@ -47,15 +46,13 @@ export default function KycPage() {
   const mutation = useMutation({
     mutationFn: (kycFormData: FormData) => api.post('/user/kyc', kycFormData),
     onSuccess: () => {
-      toast({ title: "KYC Submitted!", description: "Your documents are now under review." });
+      toast.success("KYC Submitted!", { description: "Your documents are now under review." }); // <-- REVISED
       queryClient.invalidateQueries({ queryKey: ['kycData'] });
       queryClient.invalidateQueries({ queryKey: ['kycStatus'] });
     },
     onError: (error: any) => {
-      toast({
-        title: "Submission Failed",
+      toast.error("Submission Failed", { // <-- REVISED
         description: error.response?.data?.message || "Please check your inputs.",
-        variant: "destructive",
       });
     }
   });
@@ -74,12 +71,10 @@ export default function KycPage() {
     e.preventDefault();
     const kycFormData = new FormData();
     
-    // Append text data
     Object.entries(formData).forEach(([key, value]) => {
       kycFormData.append(key, value);
     });
     
-    // Append files
     Object.entries(files).forEach(([key, value]) => {
       if (value) {
         kycFormData.append(key, value as File);

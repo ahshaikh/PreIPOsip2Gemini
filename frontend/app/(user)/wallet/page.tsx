@@ -1,4 +1,4 @@
-// V-PHASE5-1730-122
+// V-PHASE5-1730-122 (REVISED)
 'use client';
 
 import { Button } from "@/components/ui/button";
@@ -7,16 +7,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner"; // <-- IMPORT FROM SONNER
 import api from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 export default function WalletPage() {
-  const { toast } = useToast();
+  // const { toast } = useToast(); // <-- REMOVED
   const queryClient = useQueryClient();
   const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [bankDetails, setBankDetails] = useState(''); // Simplified to a JSON string
+  const [bankDetails, setBankDetails] = useState(''); 
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['wallet'],
@@ -24,25 +25,28 @@ export default function WalletPage() {
   });
   
   const mutation = useMutation({
-    mutationFn: (data: { amount: number, bank_details: string }) => 
+    mutationFn: (data: { amount: number, bank_details: any }) => // <-- Changed to any
       api.post('/user/wallet/withdraw', data),
     onSuccess: () => {
-      toast({ title: "Withdrawal Request Submitted", description: "Your request is pending approval." });
+      toast.success("Withdrawal Request Submitted", { description: "Your request is pending approval." }); // <-- REVISED
       queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      setIsDialogOpen(false); // Close dialog on success
     },
     onError: (error: any) => {
-      toast({ title: "Withdrawal Failed", description: error.response?.data?.message, variant: "destructive" });
+      toast.error("Withdrawal Failed", { description: error.response?.data?.message }); // <-- REVISED
     }
   });
 
   const handleWithdraw = () => {
+    let parsedBankDetails;
     try {
-      // In a real app, this would be a structured form for bank details
-      const parsedBankDetails = JSON.parse(bankDetails);
-      mutation.mutate({ amount: parseFloat(withdrawAmount), bank_details: parsedBankDetails });
+      // In a real app, this would be a structured form
+      parsedBankDetails = JSON.parse(bankDetails);
     } catch (e) {
-      toast({ title: "Invalid Bank Details", description: "Please enter valid JSON.", variant: "destructive" });
+      toast.error("Invalid Bank Details", { description: "Please enter valid JSON." }); // <-- REVISED
+      return;
     }
+    mutation.mutate({ amount: parseFloat(withdrawAmount), bank_details: parsedBankDetails });
   };
 
   if (isLoading) return <div>Loading wallet...</div>;
@@ -72,7 +76,7 @@ export default function WalletPage() {
         <Card className="md:col-span-1 flex items-center justify-center">
           <CardContent className="pt-6 flex gap-4">
             <Button disabled>Add Money</Button>
-            <Dialog>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline">Withdraw</Button>
               </DialogTrigger>

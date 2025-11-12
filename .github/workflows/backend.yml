@@ -1,0 +1,80 @@
+# V-DEPLOY-1730-009
+name: Backend CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+    paths: [ 'backend/**' ] # Only run when backend code changes
+  pull_request:
+    branches: [ "main" ]
+    paths: [ 'backend/**' ]
+
+jobs:
+  test:
+    name: Run PHPUnit Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: preiposip_test
+          MYSQL_ROOT_PASSWORD: password
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.3'
+        extensions: pdo_mysql
+
+    - name: Set up project
+      run: |
+        cd backend
+        cp .env.example .env
+        sed -i 's/DB_CONNECTION=mysql/DB_CONNECTION=mysql/g' .env
+        sed -i 's/DB_HOST=127.0.0.1/DB_HOST=127.0.0.1/g' .env
+        sed -i 's/DB_PORT=3306/DB_PORT=3306/g' .env
+        sed -i 's/DB_DATABASE=preiposip/DB_DATABASE=preiposip_test/g' .env
+        sed -i 's/DB_USERNAME=root/DB_USERNAME=root/g' .env
+        sed -i 's/DB_PASSWORD=/DB_PASSWORD=password/g' .env
+        composer install --no-interaction --no-progress
+        php artisan key:generate
+        php artisan migrate --seed
+
+    - name: Run Tests
+      run: |
+        cd backend
+        php artisan test
+  
+  # --- DEPLOYMENT JOB (Example) ---
+  # This job will only run on a push to the 'main' branch
+  deploy:
+    name: Deploy to Production
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: SSH and Deploy
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: ${{ secrets.DO_USERNAME }}
+          key: ${{ secrets.DO_SSH_KEY }}
+          script: |
+            cd /var/www/preiposip
+            git pull origin main
+            cd backend
+            composer install --no-dev --optimize-autoloader
+            php artisan migrate --force
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:clear
+            php artisan queue:restart

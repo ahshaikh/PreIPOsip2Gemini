@@ -25,6 +25,14 @@ class AuthController extends Controller
      */
     public function register(RegisterRequest $request)
     {
+
+	// --- REMEDIATION (SEC-2) ---
+        // Check if registration is enabled before doing anything.
+        if (!setting('registration_enabled', true)) {
+            return response()->json(['message' => 'Registrations are currently closed by the administrator.'], 403);
+        }
+        // --- END REMEDIATION ---
+
         $referralCode = strtoupper(Str::random(8));
         // Ensure it's unique
         while (User::where('referral_code', $referralCode)->exists()) {
@@ -139,7 +147,7 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Login successful.',
             'token' => $token,
-            'user' => $user->load('profile', 'kyc'),
+            'user' => $user->load('profile', 'kyc', 'roles:name'),
         ]);
     }
 
