@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\KycSubmitRequest;
 use App\Models\UserKyc;
 use App\Models\KycDocument;
+use App\Services\VerificationService; // Added this
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -20,6 +21,49 @@ class KycController extends Controller
         $kyc = $request->user()->kyc()->with('documents')->first();
         return response()->json($kyc);
     }
+
+public function verifyPan(Request $request, VerificationService $service)
+    {
+        $request->validate([
+            'pan_number' => 'required|regex:/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/',
+            'full_name' => 'required|string',
+        ]);
+
+        $result = $service->verifyPan($request->pan_number, $request->full_name);
+
+        if ($result['valid']) {
+            // Auto-save if valid
+            $request->user()->kyc()->update([
+                'pan_number' => $request->pan_number,
+                // We could add a 'pan_verified' flag column here in a future migration
+            ]);
+            return response()->json(['message' => 'PAN Verified', 'data' => $result]);
+        }
+
+        return response()->json(['message' => 'PAN Verification Failed', 'error' => $result['error'] ?? 'Unknown error'], 400);
+    }
+
+    public function verifyBank(Request $request, VerificationService $service)
+    {
+        $request->validate([
+            'account_number' => 'required|string',
+            'ifsc' => 'required|string',
+            'full_name' => 'required|string',
+        ]);
+
+        $result = $service->verifyBank($request->account_number, $request->ifsc, $request->full_name);
+
+        if ($result['valid']) {
+            $request->user()->kyc()->update([
+                'bank_account' => $request->account_number,
+                'bank_ifsc' => $request->ifsc,
+            ]);
+            return response()->json(['message' => 'Bank Account Verified', 'data' => $result]);
+        }
+
+        return response()->json(['message' => 'Bank Verification Failed', 'error' => $result['error']], 400);
+    }
+
 
     /**
      * Submit KYC documents.

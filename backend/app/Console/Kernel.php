@@ -1,13 +1,13 @@
 <?php
-// V-REMEDIATE-1730-165
+// V-FINAL-1730-280
 
 namespace App\Console;
 
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
-
-// --- 1. IMPORT THE NEW COMMAND ---
 use App\Console\Commands\ProcessCelebrationBonuses;
+use App\Console\Commands\ProcessAutoDebits;
+use App\Console\Commands\GenerateSitemap; // <-- IMPORT
 
 class Kernel extends ConsoleKernel
 {
@@ -16,14 +16,13 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // $schedule->command('inspire')->hourly();
-        
-        // --- 2. ADD THE NEW SCHEDULE ---
+        // Existing schedules
         $schedule->command(ProcessCelebrationBonuses::class)->dailyAt('08:00');
-
-        // TODO: Add schedules for other missing jobs like:
-        // $schedule->command('app:run-monthly-lucky-draw')->monthlyOn(28, '23:00');
-        // $schedule->command('app:calculate-quarterly-profit')->quarterly();
+        $schedule->command('app:process-auto-debits')->dailyAt('09:00');
+        
+        // --- NEW: Sitemap Generation ---
+        $schedule->command(GenerateSitemap::class)->dailyAt('03:00');
+        // -------------------------------
     }
 
     /**

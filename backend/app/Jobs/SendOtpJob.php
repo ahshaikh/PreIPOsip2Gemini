@@ -1,16 +1,18 @@
 <?php
-// V-PHASE1-1730-022
+// V-FINAL-1730-232
 
 namespace App\Jobs;
 
 use App\Models\User;
 use App\Models\Otp;
+use App\Services\SmsService; // <-- IMPORT
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class SendOtpJob implements ShouldQueue
 {
@@ -21,9 +23,8 @@ class SendOtpJob implements ShouldQueue
         protected string $type // 'email' or 'mobile'
     ) {}
 
-    public function handle(): void
+    public function handle(SmsService $smsService): void
     {
-        // In a real app, use a service for this
         $otpCode = rand(100000, 999999);
         
         Otp::create([
@@ -34,11 +35,18 @@ class SendOtpJob implements ShouldQueue
         ]);
 
         if ($this->type === 'email') {
-            // TODO: Integrate Mail::send Mailable
-            Log::info("Sending EMAIL OTP to {$this->user->email}: {$otpCode}");
-        } elseif ($this->type === 'mobile') {
-            // TODO: Integrate MSG91 or Twilio API
-            Log::info("Sending SMS OTP to {$this->user->mobile}: {$otpCode}");
+            // In a real app, create a Mailable for this
+            // Mail::to($this->user->email)->send(new OtpMail($otpCode));
+            Log::info("EMAIL OTP for {$this->user->email}: {$otpCode}");
+        } 
+        elseif ($this->type === 'mobile') {
+            // --- UPDATED LOGIC ---
+            $message = "Your OTP for PreIPO SIP is {$otpCode}. Valid for 10 mins.";
+            // Pass a specific DLT template ID if you have one in settings
+            $templateId = setting('msg91_otp_template_id', null); 
+            
+            $smsService->send($this->user->mobile, $message, $templateId);
+            // ---------------------
         }
     }
 }

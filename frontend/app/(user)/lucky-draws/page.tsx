@@ -1,4 +1,4 @@
-<?php
+
 // V-REMEDIATE-1730-158
 'use client';
 

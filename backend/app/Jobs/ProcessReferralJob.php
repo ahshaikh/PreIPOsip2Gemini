@@ -1,11 +1,12 @@
 <?php
-// V-PHASE3-1730-085 (REVISED)
+// V-FINAL-1730-273 (Campaign Logic Added)
 
 namespace App\Jobs;
 
 use App\Models\User;
 use App\Models\Referral;
 use App\Models\BonusTransaction;
+use App\Models\ReferralCampaign; // <-- IMPORT
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -28,48 +29,68 @@ class ProcessReferralJob implements ShouldQueue
                             ->first();
 
         if (!$referral) {
-            return; // No pending referral found
+            return; 
         }
         
         $referrer = $referral->referrer->load('subscription.plan.configs');
         
         if (!$referrer->subscription) {
-            Log::warning("Referrer {$referrer->id} has no subscription. Cannot process referral bonus.");
+            Log::warning("Referrer {$referrer->id} has no subscription.");
             return;
         }
 
         // 1. Mark referral as completed
         $referral->update(['status' => 'completed', 'completed_at' => now()]);
 
-        // 2. Award one-time bonus to referrer
-        $bonusAmount = setting('referral_bonus_amount', 500); // This can stay a global setting
+        // --- CAMPAIGN LOGIC START ---
+        // Check if a campaign is active right now
+        $activeCampaign = ReferralCampaign::running()->first();
+        
+        $baseBonus = setting('referral_bonus_amount', 500);
+        $finalBonus = $baseBonus;
+        $description = "Referral bonus for {$this->referredUser->username}";
+
+        // If campaign active, add extra bonus
+        if ($activeCampaign) {
+            $finalBonus += $activeCampaign->bonus_amount;
+            $description .= " (Includes '{$activeCampaign->name}' Bonus)";
+        }
+        // --- CAMPAIGN LOGIC END ---
+
+        // 2. Award Bonus
         BonusTransaction::create([
             'user_id' => $referrer->id,
             'subscription_id' => $referrer->subscription->id,
             'type' => 'referral',
-            'amount' => $bonusAmount,
-            'description' => "Referral bonus for {$this->referredUser->username}",
+            'amount' => $finalBonus,
+            'description' => $description,
         ]);
         
-        // TODO: Credit this to referrer's wallet
+        // Credit Wallet
+        $referrer->wallet->increment('balance', $finalBonus);
 
-        // 3. Recalculate referrer's multiplier
-        $this->updateMultiplier($referrer);
+        // 3. Update Multiplier
+        $this->updateMultiplier($referrer, $activeCampaign);
         
-        Log::info("Referral completed for {$this->referredUser->username}. Referrer: {$referrer->username}");
+        Log::info("Referral processed. Bonus: {$finalBonus}");
     }
 
-    private function updateMultiplier(User $referrer)
+    private function updateMultiplier(User $referrer, ?ReferralCampaign $campaign)
     {
+        // If campaign is active, it overrides standard tiers
+        if ($campaign && $campaign->multiplier > 1.0) {
+            $referrer->subscription->update(['bonus_multiplier' => $campaign->multiplier]);
+            Log::info("Referrer {$referrer->id} multiplier set to CAMPAIGN level: {$campaign->multiplier}x");
+            return;
+        }
+
+        // Otherwise, use standard plan tiers
         $count = $referrer->referrals()->where('status', 'completed')->count();
         
-        // --- THIS IS THE FIX ---
-        // Get tiers from the PLAN config, not the global settings
         $config = $referrer->subscription->plan->configs
             ->where('config_key', 'referral_tiers')
             ->first();
 
-        // Fallback to a default if config is missing
         $defaultTiers = [
             ['count' => 0, 'multiplier' => 1.0],
             ['count' => 3, 'multiplier' => 1.5],
@@ -77,7 +98,6 @@ class ProcessReferralJob implements ShouldQueue
         ];
         
         $tiers = $config ? $config->value : $defaultTiers;
-        // --- END OF FIX ---
 
         $newMultiplier = 1.0;
         foreach ($tiers as $tier) {
@@ -87,6 +107,5 @@ class ProcessReferralJob implements ShouldQueue
         }
         
         $referrer->subscription->update(['bonus_multiplier' => $newMultiplier]);
-        Log::info("Referrer {$referrer->id} multiplier updated to {$newMultiplier}x");
     }
 }

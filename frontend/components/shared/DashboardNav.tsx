@@ -1,4 +1,3 @@
-<?php
 // V-PHASE5-1730-114 (REVISED v3)
 'use client';
 
