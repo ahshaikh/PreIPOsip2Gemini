@@ -1,4 +1,3 @@
-<?php
 // V-REMEDIATE-1730-152
 'use client';
 

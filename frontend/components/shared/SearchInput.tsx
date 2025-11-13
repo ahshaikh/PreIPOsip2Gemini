@@ -3,7 +3,7 @@
 
 import { Input } from "@/components/ui/input";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useDebouncedCallback } from "use-debounce"; // You might need to install this: npm i use-debounce
+import { useDebouncedCallback } from "use-debounce";
 import { Search } from "lucide-react";
 
 export function SearchInput({ placeholder = "Search..." }: { placeholder?: string }) {
@@ -19,7 +19,7 @@ export function SearchInput({ placeholder = "Search..." }: { placeholder?: strin
     }
     params.set('page', '1'); // Reset to page 1 on new search
     router.push(`?${params.toString()}`);
-  }, 300);
+  }, 300); // 300ms debounce
 
   return (
     <div className="relative w-full max-w-sm">

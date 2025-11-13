@@ -1,8 +1,9 @@
-// V-PHASE5-1730-115
+// V-FINAL-1730-237 (NotificationBell Integrated)
 'use client';
 
 import { DashboardNav } from '@/components/shared/DashboardNav';
 import { Button } from '@/components/ui/button';
+import { NotificationBell } from '@/components/shared/NotificationBell';
 import api from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -27,11 +28,9 @@ export default function DashboardLayout({
       }
       
       try {
-        // We set the token in the login page, so this request should be authenticated
         const response = await api.get('/user/profile');
         setUser(response.data);
       } catch (error) {
-        // Token is invalid or expired
         localStorage.removeItem('auth_token');
         router.push('/login');
       } finally {
@@ -42,7 +41,11 @@ export default function DashboardLayout({
   }, [router]);
 
   const handleLogout = async () => {
-    await api.post('/logout');
+    try {
+        await api.post('/logout');
+    } catch (e) {
+        // Ignore logout errors
+    }
     localStorage.removeItem('auth_token');
     router.push('/login');
   };
@@ -59,11 +62,20 @@ export default function DashboardLayout({
     <div className="container mx-auto py-8">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
         <aside className="md:col-span-1">
-          <div className="mb-4 p-4 rounded-lg bg-muted">
-            <h3 className="font-semibold">{user.profile.first_name || user.username}</h3>
-            <p className="text-sm text-muted-foreground">{user.email}</p>
+          {/* --- UPDATED HEADER WITH BELL --- */}
+          <div className="mb-4 p-4 rounded-lg bg-muted flex items-center justify-between">
+            <div className="overflow-hidden">
+                <h3 className="font-semibold truncate">{user.profile?.first_name || user.username}</h3>
+                <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+            </div>
+            <div className="flex-shrink-0 ml-2">
+                <NotificationBell />
+            </div>
           </div>
+          {/* ------------------------------- */}
+          
           <DashboardNav />
+          
           <Button variant="ghost" onClick={handleLogout} className="w-full justify-start mt-4">
             <LogOut className="mr-3 h-5 w-5" />
             Logout

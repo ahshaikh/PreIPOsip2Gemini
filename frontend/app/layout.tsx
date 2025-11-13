@@ -1,13 +1,15 @@
-// V-PHASE4-1730-101 (REVISED)
+// V-FINAL-1730-282 (Updated with Chat Widget)
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/shared/Providers';
 import { Navbar } from '@/components/shared/Navbar';
 import { Footer } from '@/components/shared/Footer';
-import { Toaster } from '@/components/ui/sonner'; // <-- IMPORT FROM SONNER
+import { Toaster } from '@/components/ui/sonner';
+import { CookieConsent } from '@/components/shared/CookieConsent';
+import { LiveChatWidget } from '@/components/shared/LiveChatWidget'; // <-- IMPORT
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ['latin'], weight: ['300', '400', '500', '600', '700', '800', '900'] });
 
 export const metadata: Metadata = {
   title: 'PreIPO SIP - Invest in Pre-IPOs with Zero Fees',
@@ -28,7 +30,9 @@ export default function RootLayout({
             <main className="flex-grow">{children}</main>
             <Footer />
           </div>
-          <Toaster richColors /> {/* <-- ADD THIS COMPONENT */}
+          <CookieConsent />
+          <LiveChatWidget /> {/* <-- ADD WIDGET HERE */}
+          <Toaster richColors />
         </Providers>
       </body>
     </html>

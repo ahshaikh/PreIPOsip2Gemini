@@ -2,7 +2,7 @@
 'use client';
 
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 interface PaginationProps {
@@ -13,13 +13,9 @@ interface PaginationProps {
     to: number;
     total: number;
   };
-  links: {
-    prev: string | null;
-    next: string | null;
-  };
 }
 
-export function PaginationControls({ meta, links }: PaginationProps) {
+export function PaginationControls({ meta }: PaginationProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -40,8 +36,16 @@ export function PaginationControls({ meta, links }: PaginationProps) {
         <Button
           variant="outline"
           size="sm"
+          onClick={() => handlePageChange(1)}
+          disabled={meta.current_page === 1}
+        >
+          <ChevronsLeft className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => handlePageChange(meta.current_page - 1)}
-          disabled={!links.prev}
+          disabled={meta.current_page === 1}
         >
           <ChevronLeft className="h-4 w-4" />
           Previous
@@ -53,10 +57,18 @@ export function PaginationControls({ meta, links }: PaginationProps) {
           variant="outline"
           size="sm"
           onClick={() => handlePageChange(meta.current_page + 1)}
-          disabled={!links.next}
+          disabled={meta.current_page === meta.last_page}
         >
           Next
           <ChevronRight className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handlePageChange(meta.last_page)}
+          disabled={meta.current_page === meta.last_page}
+        >
+          <ChevronsRight className="h-4 w-4" />
         </Button>
       </div>
     </div>

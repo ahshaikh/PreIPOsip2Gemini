@@ -1,24 +1,29 @@
 <?php
-// V-REMEDIATE-1730-172 (God Mode Enabled)
+// V-FINAL-1730-216 (Bulk & Import/Export Added)
 
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\UserProfile;
+use App\Models\UserKyc;
+use App\Models\Wallet;
 use App\Models\Transaction;
+use App\Models\BonusTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdminUserController extends Controller
 {
-    /**
-     * Display a listing of users.
-     */
+    // ... (index, show, update, suspend methods remain same as before, included below for completeness) ...
+
     public function index(Request $request)
     {
         $query = User::role('user')->with('profile', 'kyc', 'wallet');
 
-        // Search functionality
         if ($request->has('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
@@ -28,73 +33,37 @@ class AdminUserController extends Controller
             });
         }
 
-        $users = $query->latest()->paginate(setting('records_per_page', 25));
-            
-        return response()->json($users);
+        return $query->latest()->paginate(setting('records_per_page', 25));
     }
 
-    /**
-     * Display the specified user with ALL details ("God View").
-     */
     public function show(User $user)
     {
-        // Load every relationship relevant to admin oversight
         $user->load([
-            'profile', 
-            'kyc.documents', 
-            'wallet.transactions', 
-            'subscription.plan', 
-            'activityLogs' => function($query) {
-                $query->latest()->limit(50);
-            },
-            'referrals',
-            'tickets'
+            'profile', 'kyc.documents', 'wallet.transactions', 
+            'subscription.plan', 'activityLogs', 'referrals', 'tickets'
         ]);
-        
         return response()->json($user);
     }
 
-    /**
-     * Update the specified user's admin-level details.
-     */
     public function update(Request $request, User $user)
     {
-        $validated = $request->validate([
-            'status' => 'required|in:active,suspended,blocked',
-            // Add other editable fields if necessary
-        ]);
-        
+        $validated = $request->validate(['status' => 'required|in:active,suspended,blocked']);
         $user->update($validated);
-        
-        return response()->json([
-            'message' => 'User status updated.',
-            'user' => $user,
-        ]);
+        return response()->json(['message' => 'User status updated.', 'user' => $user]);
     }
 
-    /**
-     * Suspend a user (Quick Action).
-     */
     public function suspend(Request $request, User $user)
     {
         $request->validate(['reason' => 'required|string|max:255']);
-        
         $user->update(['status' => 'suspended']);
-        
-        // Log this action
         $user->activityLogs()->create([
             'action' => 'admin_suspended',
             'description' => 'Suspended by admin: ' . $request->reason,
             'ip_address' => $request->ip()
         ]);
-
         return response()->json(['message' => 'User has been suspended.']);
     }
 
-    /**
-     * "God Mode" Wallet Adjustment.
-     * Allows admin to manually credit or debit a user's wallet.
-     */
     public function adjustBalance(Request $request, User $user)
     {
         $validated = $request->validate([
@@ -103,35 +72,143 @@ class AdminUserController extends Controller
             'description' => 'required|string|max:255',
         ]);
 
-        $wallet = $user->wallet; // Assumes wallet exists (created in seeders/registration)
+        $wallet = $user->wallet;
 
         DB::transaction(function () use ($wallet, $user, $validated) {
             $amount = $validated['amount'];
-            
             if ($validated['type'] === 'debit') {
-                if ($wallet->balance < $amount) {
-                    abort(400, "Insufficient funds for debit.");
-                }
+                if ($wallet->balance < $amount) abort(400, "Insufficient funds.");
                 $wallet->decrement('balance', $amount);
-                $transactionAmount = -$amount; // Negative for debit
+                $txnAmount = -$amount;
             } else {
                 $wallet->increment('balance', $amount);
-                $transactionAmount = $amount; // Positive for credit
+                $txnAmount = $amount;
             }
 
-            // Create the transaction record
             Transaction::create([
                 'user_id' => $user->id,
                 'wallet_id' => $wallet->id,
                 'type' => 'admin_adjustment',
-                'amount' => $transactionAmount,
+                'amount' => $txnAmount,
                 'balance_after' => $wallet->balance,
-                'description' => "Admin Adjustment: " . $validated['description'],
-                'reference_type' => User::class, // Linked to the admin user logically
+                'description' => "Admin: " . $validated['description'],
+                'reference_type' => User::class,
                 'reference_id' => auth()->id(),
             ]);
         });
 
-        return response()->json(['message' => 'Wallet balance adjusted successfully.', 'new_balance' => $wallet->balance]);
+        return response()->json(['message' => 'Balance adjusted.', 'new_balance' => $wallet->balance]);
+    }
+
+    // --- NEW: Bulk Actions ---
+    public function bulkAction(Request $request)
+    {
+        $validated = $request->validate([
+            'user_ids' => 'required|array',
+            'user_ids.*' => 'exists:users,id',
+            'action' => 'required|in:activate,suspend,bonus',
+            'data' => 'nullable|array' // e.g., amount for bonus
+        ]);
+
+        $count = count($validated['user_ids']);
+
+        if ($validated['action'] === 'bonus') {
+            $amount = $validated['data']['amount'] ?? 0;
+            if ($amount <= 0) return response()->json(['message' => 'Invalid bonus amount'], 400);
+
+            foreach ($validated['user_ids'] as $id) {
+                // Create simple bonus
+                BonusTransaction::create([
+                    'user_id' => $id,
+                    'type' => 'manual_bonus',
+                    'amount' => $amount,
+                    'subscription_id' => 0, // Placeholder
+                    'description' => 'Bulk Bonus Award'
+                ]);
+                // Credit Wallet
+                $user = User::find($id);
+                if ($user && $user->wallet) {
+                    $user->wallet->increment('balance', $amount);
+                }
+            }
+            return response()->json(['message' => "Bonus of $amount awarded to $count users."]);
+        }
+
+        // Status changes
+        $status = $validated['action'] === 'activate' ? 'active' : 'suspended';
+        User::whereIn('id', $validated['user_ids'])->update(['status' => $status]);
+
+        return response()->json(['message' => "$count users updated to $status."]);
+    }
+
+    // --- NEW: Import CSV ---
+    public function import(Request $request)
+    {
+        $request->validate(['file' => 'required|file|mimes:csv,txt']);
+
+        $file = $request->file('file');
+        $handle = fopen($file->getPathname(), 'r');
+        $header = fgetcsv($handle); // Skip header
+
+        $imported = 0;
+        DB::beginTransaction();
+        try {
+            while (($row = fgetcsv($handle)) !== false) {
+                // Assuming CSV: Username, Email, Mobile
+                if (count($row) < 3) continue;
+                
+                $user = User::create([
+                    'username' => $row[0],
+                    'email' => $row[1],
+                    'mobile' => $row[2],
+                    'password' => Hash::make('Welcome123'), // Default password
+                    'referral_code' => Str::upper(Str::random(8)),
+                    'status' => 'active'
+                ]);
+                
+                UserProfile::create(['user_id' => $user->id]);
+                UserKyc::create(['user_id' => $user->id]);
+                Wallet::create(['user_id' => $user->id]);
+                $user->assignRole('user');
+                
+                $imported++;
+            }
+            DB::commit();
+            fclose($handle);
+            return response()->json(['message' => "Imported $imported users successfully."]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Import failed: ' . $e->getMessage()], 500);
+        }
+    }
+
+    // --- NEW: Export CSV ---
+    public function export()
+    {
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="users_export.csv"',
+        ];
+
+        $callback = function() {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['ID', 'Username', 'Email', 'Mobile', 'Status', 'Joined At']);
+
+            User::role('user')->chunk(100, function($users) use ($handle) {
+                foreach ($users as $user) {
+                    fputcsv($handle, [
+                        $user->id, 
+                        $user->username, 
+                        $user->email, 
+                        $user->mobile, 
+                        $user->status, 
+                        $user->created_at
+                    ]);
+                }
+            });
+            fclose($handle);
+        };
+
+        return new StreamedResponse($callback, 200, $headers);
     }
 }

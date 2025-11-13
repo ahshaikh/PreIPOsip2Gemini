@@ -1,15 +1,23 @@
 <?php
-// V-REMEDIATE-1730-167 (Full Update Capability)
+// V-REMEDIATE-1730-189 (Auto-Debit Integrated)
 
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
+use App\Services\RazorpayService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class PlanController extends Controller
 {
+    protected $razorpay;
+
+    public function __construct(RazorpayService $razorpay)
+    {
+        $this->razorpay = $razorpay;
+    }
+
     public function index()
     {
         return Plan::with('configs', 'features')->latest()->get();
@@ -37,10 +45,13 @@ class PlanController extends Controller
         
         if (!empty($validated['configs'])) {
             foreach ($validated['configs'] as $key => $value) {
-                // Value is already an array/json from the request
                 $plan->configs()->create(['config_key' => $key, 'value' => $value]);
             }
         }
+
+        // --- NEW: Sync with Razorpay ---
+        $this->razorpay->createPlan($plan);
+        // -------------------------------
         
         return response()->json($plan->load('configs', 'features'), 201);
     }
@@ -59,29 +70,30 @@ class PlanController extends Controller
             'description' => 'nullable|string',
             'is_active' => 'sometimes|required|boolean',
             'is_featured' => 'sometimes|required|boolean',
-            'configs' => 'nullable|array', // Expecting keyed array: 'progressive_config' => {...}
+            'configs' => 'nullable|array',
         ]);
         
         $plan->update($validated);
 
-        // --- NEW: Handle Config Updates ---
+        // If amount changed, we might need a new Razorpay plan ID, 
+        // but Razorpay doesn't allow editing plans. For V1, we won't re-sync on edit 
+        // to avoid breaking existing subscriptions.
+
         if ($request->has('configs')) {
             foreach ($request->input('configs') as $key => $value) {
                 $plan->configs()->updateOrCreate(
                     ['config_key' => $key],
-                    ['value' => $value] // Laravel casts this to JSON automatically due to model casts
+                    ['value' => $value]
                 );
             }
         }
-        // ----------------------------------
 
         return response()->json($plan->load('configs', 'features'));
     }
 
     public function destroy(Plan $plan)
     {
-        // Prevent deletion if active subscriptions exist
-        if ($plan->subscriptions()->exists()) { // Assuming relationship exists
+        if ($plan->subscriptions()->exists()) {
              return response()->json(['message' => 'Cannot delete plan with active subscriptions.'], 409);
         }
         $plan->delete();

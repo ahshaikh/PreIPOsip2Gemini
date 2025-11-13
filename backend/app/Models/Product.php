@@ -30,6 +30,11 @@ class Product extends Model
         'description' => 'json',
         'expected_ipo_date' => 'date',
     ];
+    
+    public function priceHistory()
+    {
+        return $this->hasMany(ProductPriceHistory::class)->orderBy('recorded_at', 'asc');
+    }
 
     public function bulkPurchases(): HasMany
     {

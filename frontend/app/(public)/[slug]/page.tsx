@@ -1,54 +1,72 @@
 // V-POLISH-1730-181
 'use client';
 
-import { notFound } from "next/navigation";
+import { notFound, useParams } from "next/navigation";
 import api from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "next/navigation";
+import { useEffect } from "react";
+import { toast } from "sonner";
 
 export default function DynamicPage() {
   const params = useParams();
   const slug = params.slug as string;
 
   const { data: page, isLoading, error } = useQuery({
-    queryKey: ['page', slug],
+    queryKey: ['publicPage', slug],
     queryFn: async () => {
       try {
         const { data } = await api.get(`/page/${slug}`);
         return data;
       } catch (e) {
-        return null;
+        throw new Error('Page not found');
       }
     },
-    retry: false
+    enabled: !!slug,
+    retry: false,
   });
 
-  if (isLoading) return <div className="container py-20">Loading...</div>;
-  
-  if (error || !page) {
-    // In a real app, you might redirect to 404
-    return <div className="container py-20 text-center">Page Not Found</div>;
-  }
+  useEffect(() => {
+    if (error) {
+      toast.error("Page not found");
+      notFound();
+    }
+  }, [error]);
 
-  // Handle JSON content or plain text
-  let contentHtml = '';
+  if (isLoading) return <div className="container py-20 text-center">Loading...</div>;
+  if (!page) return notFound();
+
+  // Handle simple string content
   if (typeof page.content === 'string') {
-    contentHtml = page.content;
-  } else if (page.content && page.content.sections) {
-    // Basic JSON renderer for the CMS structure
-    // You can expand this to render fancy Hero/Feature blocks based on type
-    contentHtml = page.content.sections.map((s: any) => `
-      <div class="mb-8">
-        ${s.title ? `<h2 class="text-2xl font-bold mb-4">${s.title}</h2>` : ''}
-        <div class="prose max-w-none">${s.text || ''}</div>
+    return (
+      <div className="container py-20 max-w-3xl">
+        <h1 className="text-4xl font-bold mb-8">{page.title}</h1>
+        <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: page.content }} />
       </div>
-    `).join('');
+    );
+  }
+  
+  // Handle JSON content from our CMS
+  if (typeof page.content === 'object' && page.content.sections) {
+    return (
+      <div className="container py-20 max-w-3xl">
+        <h1 className="text-4xl font-bold mb-8">{page.title}</h1>
+        <div className="space-y-6">
+          {page.content.sections.map((section: any, index: number) => (
+            <div key={index} className="prose max-w-none">
+              {section.title && <h2 className="text-2xl font-bold">{section.title}</h2>}
+              {section.text && <p>{section.text}</p>}
+              {/* This can be expanded to render other block types */}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="container py-20">
       <h1 className="text-4xl font-bold mb-8">{page.title}</h1>
-      <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: contentHtml }} />
+      <p className="text-muted-foreground">This page has not been configured yet.</p>
     </div>
   );
 }

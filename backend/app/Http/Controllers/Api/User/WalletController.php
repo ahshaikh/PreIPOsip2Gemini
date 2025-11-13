@@ -1,5 +1,5 @@
 <?php
-// V-PHASE3-1730-094
+// V-REMEDIATE-1730-257 (Auto-Withdrawal Added)
 
 namespace App\Http\Controllers\Api\User;
 
@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Wallet;
 use App\Models\Transaction;
 use App\Models\Withdrawal;
+use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -14,16 +15,6 @@ class WalletController extends Controller
 {
     public function show(Request $request)
     {
-
-	// --- REMEDIATION (SEC-2) ---
-        if (!setting('withdrawal_enabled', true)) {
-            return response()->json(['message' => 'Withdrawals are temporarily disabled.'], 403);
-        }
-        // --- END REMEDIATION ---
-
-        $user = $request->user();
-        $wallet = $user->wallet;
-
         $wallet = Wallet::firstOrCreate(['user_id' => $request->user()->id]);
         $transactions = $wallet->transactions()->latest()->paginate(20);
 
@@ -35,61 +26,75 @@ class WalletController extends Controller
     
     public function initiateDeposit(Request $request)
     {
-        // TODO: Create a 'deposits' table and logic
-        // This would be similar to PaymentController@initiate
         return response()->json(['message' => 'Deposit feature not implemented.'], 501);
     }
 
     public function requestWithdrawal(Request $request)
     {
-        $user = $request->user();
-        $wallet = $user->wallet;
-
+        // 1. Validate
+        $min = setting('min_withdrawal_amount', 1000);
         $validated = $request->validate([
-            'amount' => 'required|numeric|min:' . setting('min_withdrawal_amount', 1000),
-            'bank_details' => 'required|json', // Simple for now
+            'amount' => "required|numeric|min:$min",
+            'bank_details' => 'required|array', // Expecting JSON object from frontend
         ]);
         
+        $user = $request->user();
+        $wallet = $user->wallet;
         $amount = $validated['amount'];
-        $fee = 0; // Configurable
+        $fee = 0; 
         $netAmount = $amount - $fee;
 
         if ($wallet->balance < $amount) {
             return response()->json(['message' => 'Insufficient balance.'], 400);
         }
 
+        // 2. Check Auto-Approval Rules (FSD-WITHDRAW-004)
+        // Rule 1: Amount threshold (e.g., <= 5000)
+        $autoApproveLimit = setting('auto_approval_max_amount', 5000);
+        $isSmallAmount = $amount <= $autoApproveLimit;
+
+        // Rule 2: User trust (e.g., > 5 successful payments)
+        $successfulPayments = Payment::where('user_id', $user->id)->where('status', 'paid')->count();
+        $isTrustedUser = $successfulPayments >= 5;
+
+        // Determine Status
+        $initialStatus = ($isSmallAmount && $isTrustedUser) ? 'approved' : 'pending';
+
         try {
-            DB::transaction(function () use ($wallet, $user, $amount, $netAmount, $validated) {
-                // 1. Lock balance
+            DB::transaction(function () use ($wallet, $user, $amount, $netAmount, $validated, $initialStatus, $fee) {
+                // Lock balance
                 $wallet->decrement('balance', $amount);
                 $wallet->increment('locked_balance', $amount);
 
-                // 2. Create withdrawal request
+                // Create withdrawal
                 Withdrawal::create([
                     'user_id' => $user->id,
                     'wallet_id' => $wallet->id,
                     'amount' => $amount,
-                    'fee' => 0,
+                    'fee' => $fee,
                     'net_amount' => $netAmount,
-                    'status' => 'pending',
+                    'status' => $initialStatus,
                     'bank_details' => $validated['bank_details'],
+                    // If auto-approved, we could set admin_id to null or a system bot ID
                 ]);
                 
-                // 3. Create a transaction record
                 Transaction::create([
                     'user_id' => $user->id,
                     'wallet_id' => $wallet->id,
                     'type' => 'withdrawal_request',
                     'amount' => -$amount,
                     'balance_after' => $wallet->balance,
-                    'description' => 'Withdrawal request created',
+                    'description' => "Withdrawal request ($initialStatus)",
                 ]);
             });
         } catch (\Exception $e) {
             return response()->json(['message' => 'Error processing request.'], 500);
         }
         
-        // TODO: Notify admin
-        return response()->json(['message' => 'Withdrawal request submitted for approval.']);
+        $message = $initialStatus === 'approved' 
+            ? 'Withdrawal auto-approved! Funds will be processed shortly.' 
+            : 'Withdrawal request submitted for approval.';
+
+        return response()->json(['message' => $message]);
     }
 }
