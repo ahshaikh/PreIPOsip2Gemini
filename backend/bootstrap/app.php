@@ -1,11 +1,12 @@
 <?php
-// V-FINAL-1730-269 (FIXED - No CORS method)
+// V-FINAL-1730-269 (No CORS) | V-FINAL-1730-420 (Permission Added) | V-FINAL-1730-438 (Corrected) | V-FINAL-1730-447 (IP Whitelist Added)
 
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use App\Http\Middleware\AdminIpRestriction;
+use App\Http\Middleware\AdminIpRestriction; // <-- 1. IMPORT
 use App\Http\Middleware\CheckMaintenanceMode;
+use App\Http\Middleware\CheckPermission;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -15,18 +16,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // --- SECURITY MIDDLEWARE ---
         
-        // 1. Global Maintenance Check (Runs on every request)
         $middleware->append(CheckMaintenanceMode::class);
 
-        // 2. Admin IP Check (Aliased for use in routes)
         $middleware->alias([
-            'admin.ip' => AdminIpRestriction::class,
+            'admin.ip' => AdminIpRestriction::class, // <-- 2. ADD ALIAS
+            'permission' => CheckPermission::class,
         ]);
-        
-        // NOTE: CORS is handled automatically by Laravel reading 'config/cors.php'.
-        // Do NOT add $middleware->cors() here.
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

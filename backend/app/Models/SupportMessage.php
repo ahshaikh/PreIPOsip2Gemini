@@ -1,5 +1,5 @@
 <?php
-// V-REMEDIATE-1730-148
+// V-REMEDIATE-1730-148 (Created) | V-FINAL-1730-380 (Verified)
 
 namespace App\Models;
 
@@ -13,7 +13,7 @@ class SupportMessage extends Model
 
     protected $fillable = [
         'support_ticket_id',
-        'user_id',
+        'user_id', // This is the author
         'is_admin_reply',
         'message',
         'attachments',
@@ -21,6 +21,7 @@ class SupportMessage extends Model
 
     protected $casts = [
         'attachments' => 'json',
+        'is_admin_reply' => 'boolean',
     ];
 
     /**
@@ -32,9 +33,9 @@ class SupportMessage extends Model
     }
 
     /**
-     * Get the user who wrote the message.
+     * Get the user who wrote the message (aliased as 'sender').
      */
-    public function author(): BelongsTo
+    public function sender(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
     }

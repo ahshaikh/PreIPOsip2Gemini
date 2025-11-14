@@ -1,4 +1,4 @@
-// V-REMEDIATE-1730-169
+// V-REMEDIATE-1730-169 (Created) | V-FINAL-1730-370 (Block Editor UI)
 'use client';
 
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,60 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { PlusCircle, Edit, FileText } from "lucide-react";
+import { PlusCircle, Edit, FileText, Trash2, GripVertical } from "lucide-react";
 import { useState } from "react";
+
+// The component for editing a single block
+function BlockEditor({ block, onUpdate, onDelete }: { block: any, onUpdate: (data: any) => void, onDelete: () => void }) {
+    if (block.type === 'heading') {
+        return (
+            <div className="border p-4 rounded-lg bg-muted/20 space-y-2">
+                <Label>Block: Heading</Label>
+                <Input 
+                    value={block.text} 
+                    onChange={(e) => onUpdate({ ...block, text: e.target.value })}
+                    placeholder="Enter heading text..."
+                />
+                <Button variant="destructive" size="sm" onClick={onDelete}>Delete Block</Button>
+            </div>
+        );
+    }
+    
+    if (block.type === 'text') {
+        return (
+            <div className="border p-4 rounded-lg bg-muted/20 space-y-2">
+                <Label>Block: Text</Label>
+                <Textarea 
+                    value={block.content} 
+                    onChange={(e) => onUpdate({ ...block, content: e.target.value })}
+                    placeholder="Enter paragraph text..."
+                    rows={5}
+                />
+                <Button variant="destructive" size="sm" onClick={onDelete}>Delete Block</Button>
+            </div>
+        );
+    }
+
+    if (block.type === 'image') {
+        return (
+            <div className="border p-4 rounded-lg bg-muted/20 space-y-2">
+                <Label>Block: Image</Label>
+                <Input 
+                    value={block.src} 
+                    onChange={(e) => onUpdate({ ...block, src: e.target.value })}
+                    placeholder="Enter image URL..."
+                />
+                <Input 
+                    value={block.alt} 
+                    onChange={(e) => onUpdate({ ...block, alt: e.target.value })}
+                    placeholder="Enter alt text..."
+                />
+                <Button variant="destructive" size="sm" onClick={onDelete}>Delete Block</Button>
+            </div>
+        );
+    }
+    return null;
+}
 
 export default function CmsSettingsPage() {
   const queryClient = useQueryClient();
@@ -22,8 +74,9 @@ export default function CmsSettingsPage() {
 
   // Form State
   const [title, setTitle] = useState('');
-  const [content, setContent] = useState(''); // Simple text for now, can be JSON later
+  const [slug, setSlug] = useState('');
   const [status, setStatus] = useState('draft');
+  const [contentBlocks, setContentBlocks] = useState<any[]>([]);
 
   const { data, isLoading } = useQuery({
     queryKey: ['adminPages'],
@@ -53,36 +106,44 @@ export default function CmsSettingsPage() {
   });
 
   const resetForm = () => {
-    setTitle(''); setContent(''); setStatus('draft'); setEditingPage(null);
+    setTitle(''); setSlug(''); setStatus('draft'); setEditingPage(null); setContentBlocks([]);
   };
 
   const handleEdit = (page: any) => {
     setEditingPage(page);
     setTitle(page.title);
-    // If content is JSON, stringify it, otherwise use as is
-    setContent(typeof page.content === 'object' ? JSON.stringify(page.content, null, 2) : page.content);
+    setSlug(page.slug);
     setStatus(page.status);
+    setContentBlocks(page.content || []); // Load blocks
     setIsDialogOpen(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Try to parse content as JSON if it looks like it
-    let finalContent = content;
-    try {
-        finalContent = JSON.parse(content);
-    } catch (e) {
-        // keep as string
-    }
-
-    const payload = { title, content: finalContent, status };
+    const payload = { title, slug, content: contentBlocks, status };
 
     if (editingPage) {
       updateMutation.mutate({ ...payload, id: editingPage.id });
     } else {
       createMutation.mutate(payload);
     }
+  };
+
+  // --- Block Handlers ---
+  const addBlock = (type: string) => {
+    let newBlock = {};
+    if (type === 'heading') newBlock = { id: Date.now(), type: 'heading', text: '' };
+    if (type === 'text') newBlock = { id: Date.now(), type: 'text', content: '' };
+    if (type === 'image') newBlock = { id: Date.now(), type: 'image', src: '', alt: '' };
+    setContentBlocks([...contentBlocks, newBlock]);
+  };
+  
+  const updateBlock = (id: number, data: any) => {
+    setContentBlocks(contentBlocks.map(b => (b.id === id ? data : b)));
+  };
+
+  const deleteBlock = (id: number) => {
+    setContentBlocks(contentBlocks.filter(b => b.id !== id));
   };
 
   return (
@@ -99,15 +160,19 @@ export default function CmsSettingsPage() {
           <DialogContent className="max-w-3xl">
             <DialogHeader>
               <DialogTitle>{editingPage ? 'Edit Page' : 'Create New Page'}</DialogTitle>
-              <DialogDescription>Define page content. Use JSON for structured layouts.</DialogDescription>
+              <DialogDescription>Use the block editor to build your page.</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2 col-span-1">
                   <Label>Page Title</Label>
                   <Input value={title} onChange={(e) => setTitle(e.target.value)} required />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 col-span-1">
+                  <Label>Slug</Label>
+                  <Input value={slug} onChange={(e) => setSlug(e.target.value)} required placeholder="/about-us" />
+                </div>
+                <div className="space-y-2 col-span-1">
                   <Label>Status</Label>
                   <Select value={status} onValueChange={setStatus}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -118,16 +183,28 @@ export default function CmsSettingsPage() {
                   </Select>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label>Content (JSON or HTML)</Label>
-                <Textarea 
-                  value={content} 
-                  onChange={(e) => setContent(e.target.value)} 
-                  rows={15} 
-                  className="font-mono text-xs"
-                  placeholder='{"sections": [{"type": "hero", "text": "Welcome"}]}'
-                />
+              
+              <hr />
+              <Label className="text-lg font-semibold">Page Content</Label>
+              <div className="space-y-4 max-h-[50vh] overflow-y-auto p-4 border rounded-md">
+                {contentBlocks.length === 0 && <p className="text-center text-muted-foreground">Click "Add Block" to start.</p>}
+                {contentBlocks.map((block, index) => (
+                  <BlockEditor 
+                    key={block.id} 
+                    block={block}
+                    onUpdate={(data) => updateBlock(block.id, data)}
+                    onDelete={() => deleteBlock(block.id)}
+                  />
+                ))}
               </div>
+              
+              <div className="flex gap-2 justify-center">
+                <Button type="button" variant="outline" onClick={() => addBlock('heading')}>+ Heading</Button>
+                <Button type="button" variant="outline" onClick={() => addBlock('text')}>+ Text Block</Button>
+                <Button type="button" variant="outline" onClick={() => addBlock('image')}>+ Image</Button>
+              </div>
+
+              <hr />
               <Button type="submit" className="w-full" disabled={createMutation.isPending || updateMutation.isPending}>
                 {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save Page"}
               </Button>

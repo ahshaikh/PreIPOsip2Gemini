@@ -1,9 +1,11 @@
 <?php
-// V-FINAL-1730-271
+// V-FINAL-1730-271 (Created) | V-FINAL-1730-376 (Validation Added)
 
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany; // <-- Import
+use Illuminate\Support\Carbon;
 
 class ReferralCampaign extends Model
 {
@@ -20,7 +22,36 @@ class ReferralCampaign extends Model
     ];
 
     /**
-     * Scope to find the currently running campaign.
+     * Boot logic for validation.
+     */
+    protected static function booted()
+    {
+        static::saving(function ($campaign) {
+            // Test: test_campaign_validates_date_range
+            if ($campaign->end_date->isBefore($campaign->start_date)) {
+                throw new \InvalidArgumentException("End date cannot be before start date.");
+            }
+            // Test: test_campaign_validates_bonus_amount_positive
+            if ($campaign->bonus_amount < 0) {
+                throw new \InvalidArgumentException("Bonus amount cannot be negative.");
+            }
+        });
+    }
+
+    // --- RELATIONSHIPS ---
+
+    /**
+     * Test: test_campaign_tracks_total_referrals
+     */
+    public function referrals(): HasMany
+    {
+        return $this->hasMany(Referral::class);
+    }
+
+    // --- SCOPES ---
+
+    /**
+     * Test: test_campaign_checks_if_active
      */
     public function scopeRunning($query)
     {
@@ -28,6 +59,6 @@ class ReferralCampaign extends Model
         return $query->where('is_active', true)
                      ->where('start_date', '<=', $now)
                      ->where('end_date', '>=', $now)
-                     ->latest(); // If multiple overlap, take the newest
+                     ->latest();
     }
 }

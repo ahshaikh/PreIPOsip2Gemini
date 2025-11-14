@@ -1,4 +1,4 @@
-// V-FINAL-1730-278
+// V-FINAL-1730-278 (Created) | V-FINAL-1730-451 (Health/Log Links)
 'use client';
 
 import Link from 'next/link';
@@ -26,7 +26,9 @@ import {
   Menu,
   Megaphone,
   Palette,
-  Zap // <-- IMPORTED ZAP
+  Zap,
+  Activity, // <-- IMPORT
+  Database  // <-- IMPORT
 } from 'lucide-react';
 
 const navItems = [
@@ -46,7 +48,7 @@ const settingsNav = [
     { href: '/admin/settings/plans', label: 'Plan Management', icon: Package },
     { href: '/admin/settings/products', label: 'Product Management', icon: ShoppingCart },
     { href: '/admin/settings/bonuses', label: 'Bonus Config', icon: Gift },
-    { href: '/admin/settings/referral-campaigns', label: 'Referral Campaigns', icon: Zap }, // <-- ADDED WITH ZAP
+    { href: '/admin/settings/referral-campaigns', label: 'Referral Campaigns', icon: Zap },
     { href: '/admin/settings/roles', label: 'Role Management', icon: ShieldCheck },
     { href: '/admin/settings/compliance', label: 'Compliance', icon: ShieldCheck },
     { href: '/admin/settings/cms', label: 'CMS / Pages', icon: FileText },
@@ -56,6 +58,10 @@ const settingsNav = [
     { href: '/admin/settings/blog', label: 'Blog Manager', icon: BookOpen },
     { href: '/admin/settings/faq', label: 'FAQ Manager', icon: HelpCircle },
     { href: '/admin/settings/notifications', label: 'Notifications', icon: Mail },
+    // --- NEW LINKS ---
+    { href: '/admin/settings/system-health', label: 'System Health', icon: Activity },
+    { href: '/admin/settings/activity', label: 'Global Audit Log', icon: FileText },
+    { href: '/admin/settings/backups', label: 'Backups', icon: Database },
 ];
 
 export function AdminNav() {

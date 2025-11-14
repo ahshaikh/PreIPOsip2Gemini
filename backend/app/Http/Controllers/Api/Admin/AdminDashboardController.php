@@ -1,32 +1,47 @@
 <?php
-// V-PHASE2-1730-052
-
+// V-FINAL-1730-465 (Created)
 
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Payment;
 use App\Models\User;
+use App\Models\Subscription;
 use App\Models\UserKyc;
-// ... other models
+use App\Models\Withdrawal;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class AdminDashboardController extends Controller
 {
     /**
-     * Get dashboard metrics.
+     * FSD-ADMIN-001: Aggregate key statistics for the dashboard.
      */
-    public function index()
+    public function index(Request $request)
     {
-        // This will be built out more in later phases
-        $totalUsers = User::role('user')->count();
-        $pendingKyc = UserKyc::where('status', 'submitted')->count();
-        // $pendingWithdrawals = Withdrawal::where('status', 'pending')->count();
+        $stats = Cache::remember('admin_dashboard_kpis', 60, function () {
+            // 60-second cache to prevent DB hammering
 
-        return response()->json([
-            'totalUsers' => $totalUsers,
-            'pendingKyc' => $pendingKyc,
-            'pendingWithdrawals' => 0, // Placeholder
-            'totalInvested' => 0, // Placeholder
-        ]);
+            // 1. Total Revenue
+            $totalRevenue = Payment::where('status', 'paid')->sum('amount');
+
+            // 2. Total Users
+            $totalUsers = User::role('user')->count();
+
+            // 3. Pending KYC
+            $pendingKyc = UserKyc::where('status', 'submitted')->count();
+
+            // 4. Pending Withdrawals
+            $pendingWithdrawals = Withdrawal::where('status', 'pending')->count();
+
+            return [
+                'total_revenue' => (float) $totalRevenue,
+                'total_users' => $totalUsers,
+                'pending_kyc' => $pendingKyc,
+                'pending_withdrawals' => $pendingWithdrawals,
+            ];
+        });
+
+        return response()->json($stats);
     }
 }

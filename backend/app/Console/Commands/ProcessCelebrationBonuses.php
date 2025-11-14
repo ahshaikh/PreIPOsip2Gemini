@@ -1,5 +1,5 @@
 <?php
-// V-REMEDIATE-1730-164
+// V-FINAL-1730-348 (Created) | V-FINAL-1730-457 (WalletService Refactor)
 
 namespace App\Console\Commands;
 
@@ -8,109 +8,99 @@ use App\Models\User;
 use App\Models\UserProfile;
 use App\Models\Subscription;
 use App\Models\BonusTransaction;
-use Illuminate\Support\Facades\Log;
+use App\Models\CelebrationEvent;
+use App\Services\WalletService; // <-- IMPORT
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ProcessCelebrationBonuses extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
     protected $signature = 'app:process-celebration-bonuses';
+    protected $description = 'Awards birthday, anniversary, and festival bonuses.';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Checks for user birthdays and subscription anniversaries and awards bonuses.';
-
-    /**
-     * Execute the console command.
-     */
-    public function handle()
+    public function handle(WalletService $walletService)
     {
-        if (!setting('celebration_bonus_enabled', true)) {
-            $this->info('Celebration Bonus module is disabled.');
-            return 0;
-        }
-
+        if (!setting('celebration_bonus_enabled', true)) return;
         $today = Carbon::today();
-        $this->processBirthdayBonuses($today);
-        $this->processAnniversaryBonuses($today);
         
-        $this->info('Celebration bonuses processed successfully.');
+        $this->processBirthdayBonuses($today, $walletService);
+        $this.processAnniversaryBonuses($today, $walletService);
+        $this.processFestivalBonuses($today, $walletService);
+        
+        $this.info('Celebration bonuses processed successfully.');
         return 0;
     }
 
-    private function processBirthdayBonuses(Carbon $today)
+    private function processBirthdayBonuses(Carbon $today, WalletService $walletService)
     {
-        $this->info('Processing birthday bonuses...');
-        
-        $users = UserProfile::whereMonth('dob', $today->month)
+        $birthdays = UserProfile::whereMonth('dob', $today->month)
                             ->whereDay('dob', $today->day)
-                            ->with('user.subscription.plan.configs')
+                            ->whereHas('user.subscription', fn($q) => $q->where('status', 'active'))
+                            ->with('user.subscription.plan.configs', 'user.wallet')
                             ->get();
 
-        foreach ($users as $profile) {
-            $user = $profile->user;
-            if (!$user || !$user->subscription) continue;
-
-            $config = $user->subscription->plan->configs
-                ->where('config_key', 'celebration_bonus_config')
-                ->first();
-
-            $amount = $config ? ($config->value['birthday_amount'] ?? 50) : 50; // Default 50
-
-            BonusTransaction::create([
-                'user_id' => $user->id,
-                'subscription_id' => $user->subscription->id,
-                'type' => 'celebration',
-                'amount' => $amount,
-                'description' => 'Happy Birthday! Here is your bonus.',
-            ]);
-            
-            // TODO: Credit wallet
-            Log::info("Birthday bonus of {$amount} processed for user {$user->id}");
+        foreach ($birthdays as $profile) {
+            $config = $profile->user->subscription->plan->getConfig('celebration_bonus_config');
+            $amount = $config['birthday_amount'] ?? 50;
+            $this->awardBonus($profile->user, $amount, 'celebration', "Happy Birthday!", $walletService);
         }
     }
 
-    private function processAnniversaryBonuses(Carbon $today)
+    private function processAnniversaryBonuses(Carbon $today, WalletService $walletService)
     {
-        $this->info('Processing anniversary bonuses...');
-
         $subscriptions = Subscription::where('status', 'active')
-            ->whereMonth('start_date', $today->month)
-            ->whereDay('start_date', $today->day)
-            ->whereYear('start_date', '<', $today->year) // Don't run on the day they signed up
-            ->with('user', 'plan.configs')
-            ->get();
+                                     ->whereMonth('start_date', $today->month)
+                                     ->whereDay('start_date', $today->day)
+                                     ->whereYear('start_date', '<', $today->year)
+                                     ->with('user.wallet', 'plan.configs')
+                                     ->get();
             
         foreach ($subscriptions as $sub) {
-            $user = $sub->user;
             $yearsActive = $sub->start_date->diffInYears($today);
+            $config = $sub->plan->getConfig('celebration_bonus_config');
+            $baseAmount = $config['anniversary_amount'] ?? 100;
+            $amount = $baseAmount * $yearsActive; 
+            $this->awardBonus($sub->user, $amount, 'celebration', "Happy {$yearsActive} Year Anniversary!", $walletService);
+        }
+    }
 
-            $config = $sub->plan->configs
-                ->where('config_key', 'celebration_bonus_config')
-                ->first();
+    private function processFestivalBonuses(Carbon $today, WalletService $walletService)
+    {
+        $events = CelebrationEvent::activeToday($today)->get();
+        if ($events->isEmpty()) return;
+
+        foreach ($events as $event) {
+            $subscriptions = Subscription::where('status', 'active')
+                                ->with('user.wallet', 'plan')
+                                ->get();
+
+            foreach ($subscriptions as $sub) {
+                $planKey = $sub->plan->slug ?? 'plan_a';
+                $amount = $event->bonus_amount_by_plan[$planKey] ?? 0;
                 
-            $amount = $config ? ($config->value['anniversary_amount'] ?? 100) : 100; // Default 100
-            
-            // Optional: Milestone for anniversary
-            $amount *= $yearsActive; 
+                if ($amount > 0) {
+                    $this->awardBonus($sub->user, $amount, 'celebration', "Happy {$event->name}!", $walletService);
+                }
+            }
+        }
+    }
 
-            BonusTransaction::create([
+    private function awardBonus($user, $amount, $type, $msg, WalletService $walletService)
+    {
+        if (!$user || !$user->subscription || !$user->wallet) return;
+
+        DB::transaction(function() use ($user, $amount, $type, $msg, $walletService) {
+            $bonus = BonusTransaction::create([
                 'user_id' => $user->id,
-                'subscription_id' => $sub->id,
-                'type' => 'celebration',
+                'subscription_id' => $user->subscription->id,
+                'type' => $type,
                 'amount' => $amount,
-                'description' => "Happy {$yearsActive} Year Anniversary!",
+                'description' => $msg,
             ]);
 
-            // TODO: Credit wallet
-            Log::info("Anniversary bonus of {$amount} processed for user {$user->id}");
-        }
+            // Use the service to deposit
+            $walletService->deposit($user, $amount, 'bonus_credit', $msg, $bonus);
+        });
     }
 }

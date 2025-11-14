@@ -1,5 +1,5 @@
 <?php
-// V-FINAL-1730-279
+// V-FINAL-1730-279 (Created) | V-FINAL-1730-430 
 
 namespace App\Console\Commands;
 
@@ -11,29 +11,36 @@ use Illuminate\Support\Facades\File;
 
 class GenerateSitemap extends Command
 {
+    /**
+     * The name and signature of the console command.
+     */
     protected $signature = 'sitemap:generate';
+
+    /**
+     * The console command description.
+     */
     protected $description = 'Generate the sitemap.xml file for SEO';
 
+    /**
+     * Execute the console command.
+     */
     public function handle()
     {
-        $this->info('Generating sitemap...');
+        $this->info('Generating sitemap.xml...');
 
         $baseUrl = rtrim(env('FRONTEND_URL'), '/');
         $urls = [];
 
-        // 1. Static Pages
+        // --- 1. Static Pages ---
         $staticPages = [
             '/', 
-            '/about', 
-            '/how-it-works', 
             '/plans', 
-            '/products', 
+            '/how-it-works', 
             '/calculator', 
-            '/faq', 
+            '/products', 
             '/blog', 
-            '/contact', 
-            '/privacy', 
-            '/terms',
+            '/faq', 
+            '/contact',
             '/login',
             '/signup'
         ];
@@ -47,7 +54,7 @@ class GenerateSitemap extends Command
             ];
         }
 
-        // 2. Dynamic CMS Pages
+        // --- 2. Dynamic CMS Pages ---
         $pages = Page::where('status', 'published')->get();
         foreach ($pages as $page) {
             $urls[] = [
@@ -58,18 +65,18 @@ class GenerateSitemap extends Command
             ];
         }
 
-        // 3. Products
+        // --- 3. Dynamic Product Pages ---
         $products = Product::where('status', 'active')->get();
         foreach ($products as $product) {
             $urls[] = [
                 'loc' => $baseUrl . '/products/' . $product->slug,
                 'lastmod' => $product->updated_at->format('Y-m-d'),
                 'priority' => '0.9',
-                'changefreq' => 'daily'
+                'changefreq' => 'weekly'
             ];
         }
 
-        // 4. Blog Posts
+        // --- 4. Dynamic Blog Posts ---
         $posts = BlogPost::where('status', 'published')->get();
         foreach ($posts as $post) {
             $urls[] = [
@@ -80,7 +87,7 @@ class GenerateSitemap extends Command
             ];
         }
 
-        // Build XML
+        // --- Build XML ---
         $xml = '<?xml version="1.0" encoding="UTF-8"?>';
         $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
         
@@ -95,7 +102,7 @@ class GenerateSitemap extends Command
         
         $xml .= '</urlset>';
 
-        // Save to public folder
+        // Save to public folder (accessible by Google)
         File::put(public_path('sitemap.xml'), $xml);
 
         $this->info('sitemap.xml generated successfully at ' . public_path('sitemap.xml'));

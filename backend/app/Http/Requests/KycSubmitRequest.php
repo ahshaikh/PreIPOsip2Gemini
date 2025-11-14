@@ -1,31 +1,42 @@
 <?php
-// V-PHASE1-1730-021
+// V-PHASE1-1730-021 (Created) | V-FINAL-1730-424 (Logic Upgraded)
 
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Models\UserKyc; // <-- IMPORT MODEL FOR REGEX
 
 class KycSubmitRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return true; // Authorization is handled by auth:sanctum middleware
     }
 
     public function rules(): array
     {
+        // Use the centralized Regex from the model for consistency
+        $panRegex = UserKyc::PAN_REGEX;
+        
+        // This is a simplified 12-digit regex for input, as Aadhaar can have spaces
+        $aadhaarRegex = '/^[0-9\s]{12,15}$/'; 
+        
+        $ifscRegex = '/^[A-Z]{4}0[A-Z0-9]{6}$/';
+
         return [
-            'pan_number' => 'required|string|regex:/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/',
-            'aadhaar_number' => 'required|string|regex:/^[0-9]{12}$/',
-            'demat_account' => 'required|string|max:100',
-            'bank_account' => 'required|string|max:50',
-            'bank_ifsc' => 'required|string|regex:/^[A-Z]{4}0[A-Z0-9]{6}$/',
+            // --- Text Fields ---
+            'pan_number' => ['required', 'string', "regex:{$panRegex}"],
+            'aadhaar_number' => ['required', 'string', "regex:{$aadhaarRegex}"],
+            'demat_account' => 'required|string|min:8|max:100',
+            'bank_account' => 'required|string|min:9|max:50',
+            'bank_ifsc' => ['required', 'string', "regex:{$ifscRegex}"],
             
-            'aadhaar_front' => 'required|file|mimes:jpg,png,pdf|max:5120', // 5MB
-            'aadhaar_back' => 'required|file|mimes:jpg,png,pdf|max:5120',
-            'pan' => 'required|file|mimes:jpg,png,pdf|max:5120',
-            'bank_proof' => 'required|file|mimes:jpg,png,pdf|max:5120',
-            'demat_proof' => 'required|file|mimes:jpg,png,pdf|max:5120',
+            // --- File Uploads (FSD-KYC-001) ---
+            'aadhaar_front' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120', // 5MB
+            'aadhaar_back' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'pan' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'bank_proof' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'demat_proof' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ];
     }
 }

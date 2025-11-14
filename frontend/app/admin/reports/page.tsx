@@ -1,4 +1,4 @@
-// V-FINAL-1730-223 (Advanced Reporting Hub)
+// V-FINAL-1730-310 (P&L Added)
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -9,27 +9,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
-import { DollarSign, Users, Package, CreditCard, Download, TrendingUp, AlertCircle } from "lucide-react";
+import { DollarSign, Users, Package, CreditCard, Download, TrendingUp, AlertCircle, FileText } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useState } from "react";
 
 export default function AdvancedReportsPage() {
   const [isDownloading, setIsDownloading] = useState(false);
-  const [exportFormat, setExportFormat] = useState('xlsx');
+  const [exportFormat, setExportFormat] = useState('csv'); // Changed default to CSV for speed
 
-  // 1. Fetch Financial Summary (Existing)
+  // 1. Fetch Financial Summary
   const { data: financials } = useQuery({
     queryKey: ['adminFinancialSummary'],
     queryFn: async () => (await api.get('/admin/reports/financial-summary')).data,
   });
 
-  // 2. Fetch User Analytics (New)
+  // 2. Fetch User Analytics
   const { data: userStats } = useQuery({
     queryKey: ['adminUserAnalytics'],
     queryFn: async () => (await api.get('/admin/reports/analytics/users')).data,
   });
 
-  // 3. Fetch Product Performance (New)
+  // 3. Fetch Product Performance
   const { data: productStats } = useQuery({
     queryKey: ['adminProductStats'],
     queryFn: async () => (await api.get('/admin/reports/analytics/products')).data,
@@ -68,7 +68,7 @@ export default function AdvancedReportsPage() {
           <Select value={exportFormat} onValueChange={setExportFormat}>
             <SelectTrigger className="w-[100px] h-8"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="xlsx">Excel</SelectItem>
+              <SelectItem value="csv">CSV</SelectItem>
               <SelectItem value="pdf">PDF</SelectItem>
             </SelectContent>
           </Select>
@@ -100,7 +100,17 @@ export default function AdvancedReportsPage() {
               </CardHeader>
               <CardContent><div className="text-2xl font-bold">{financials?.kpis.total_investments || 0}</div></CardContent>
             </Card>
-            {/* Add more KPIs if needed */}
+            <Card className="bg-blue-50 border-blue-200">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-blue-800">P&L Statement</CardTitle>
+                <FileText className="h-4 w-4 text-blue-600" />
+              </CardHeader>
+              <CardContent>
+                <Button size="sm" className="w-full mt-1" onClick={() => handleExport('p-and-l')} disabled={isDownloading}>
+                  Download Report
+                </Button>
+              </CardContent>
+            </Card>
           </div>
 
           <Card>
@@ -215,24 +225,24 @@ export default function AdvancedReportsPage() {
           <div className="grid md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>GST Report</CardTitle>
-                <CardDescription>Export payment data for GST filing (GSTR-1).</CardDescription>
+                <CardTitle>GST Report (GSTR-1)</CardTitle>
+                <CardDescription>Export payment data for GST filing.</CardDescription>
               </CardHeader>
               <CardContent>
                 <Button className="w-full" onClick={() => handleExport('gst')} disabled={isDownloading}>
-                  <Download className="mr-2 h-4 w-4" /> Download GST Report
+                  <Download className="mr-2 h-4 w-4" /> Download GST CSV
                 </Button>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>TDS Report</CardTitle>
-                <CardDescription>Export withdrawal data for TDS filing (Form 26Q).</CardDescription>
+                <CardTitle>TDS Report (Form 26Q)</CardTitle>
+                <CardDescription>Export withdrawal data for TDS filing.</CardDescription>
               </CardHeader>
               <CardContent>
                 <Button className="w-full" onClick={() => handleExport('tds')} disabled={isDownloading}>
-                  <Download className="mr-2 h-4 w-4" /> Download TDS Report
+                  <Download className="mr-2 h-4 w-4" /> Download TDS CSV
                 </Button>
               </CardContent>
             </Card>
