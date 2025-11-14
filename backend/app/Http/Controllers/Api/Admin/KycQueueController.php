@@ -1,44 +1,40 @@
 <?php
-// V-PHASE2-1730-054
+// V-FINAL-1730-319 (Created) | V-FINAL-1730-462 (N+1 Optimized)
 
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\UserKyc;
+use App\Notifications\KycVerified;
 use Illuminate\Http\Request;
 
 class KycQueueController extends Controller
 {
-    /**
-     * Get the list of pending KYC submissions.
-     */
     public function index(Request $request)
     {
         $status = $request->query('status', 'submitted');
         
         $kycSubmissions = UserKyc::where('status', $status)
-            ->with('user:id,username,email')
+            // --- EAGER LOADING FIX ---
+            // Load the 'user' relationship in the *same* query
+            ->with('user:id,username,email') 
+            // -------------------------
             ->latest('submitted_at')
             ->paginate(25);
             
         return response()->json($kycSubmissions);
     }
 
-    /**
-     * Get full details for a single KYC submission.
-     */
     public function show($id)
     {
+        // 'show' is also optimized to get all data in one go
         $kyc = UserKyc::with('user.profile', 'documents')->findOrFail($id);
         return response()->json($kyc);
     }
 
-    /**
-     * Approve a KYC submission.
-     */
     public function approve(Request $request, $id)
     {
-        $kyc = UserKyc::findOrFail($id);
+        $kyc = UserKyc::findOrFail($id); // Find (Query 1)
         $admin = $request->user();
 
         if ($kyc->status !== 'submitted') {
@@ -52,15 +48,11 @@ class KycQueueController extends Controller
             'rejection_reason' => null,
         ]);
 
-        // TODO: Log this admin action
-        // TODO: Dispatch job to send "KYC Approved" email
-
+        $kyc->user->notify(new KycVerified()); // Load User (Query 2)
+        
         return response()->json(['message' => 'KYC approved successfully.']);
     }
 
-    /**
-     * Reject a KYC submission.
-     */
     public function reject(Request $request, $id)
     {
         $request->validate(['reason' => 'required|string|min:10|max:500']);
@@ -79,8 +71,8 @@ class KycQueueController extends Controller
             'verified_by' => $admin->id,
         ]);
 
-        // TODO: Log this admin action
-        // TODO: Dispatch job to send "KYC Rejected" email with reason
+        // (Notification for rejection, if needed)
+        // $kyc->user->notify(new KycRejected($request->reason));
 
         return response()->json(['message' => 'KYC rejected successfully.']);
     }

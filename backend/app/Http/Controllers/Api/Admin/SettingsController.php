@@ -1,5 +1,5 @@
 <?php
-// V-PHASE2-1730-058
+// V-PHASE2-1730-058 (Created) | V-FINAL-1730-398 (Audit Trail Added)| V-FINAL-1730-401 (Cache Busting Verified)
 
 namespace App\Http\Controllers\Api\Admin;
 
@@ -15,13 +15,16 @@ class SettingsController extends Controller
      */
     public function index()
     {
-        $settings = Setting::all()->groupBy('group')->map(function ($group) {
-            return $group->pluck('value', 'key');
+        // Use a cached "all settings" query for the admin panel
+        $allSettings = Cache::rememberForever('settings.all_grouped', function () {
+             return Setting::all()->groupBy('group')->map(function ($group) {
+                return $group->pluck('value', 'key');
+            });
         });
         
-        return response()->json($settings);
+        return response()->json($allSettings);
     }
-
+    
     /**
      * Update settings.
      */
@@ -30,21 +33,22 @@ class SettingsController extends Controller
         $validated = $request->validate([
             'settings' => 'required|array',
             'settings.*.key' => 'required|string|exists:settings,key',
-            'settings.*.value' => 'nullable|string', // Simple update
+            'settings.*.value' => 'nullable|string',
         ]);
 
+        $adminId = $request->user()->id;
+
         foreach ($validated['settings'] as $settingData) {
-            $setting = Setting::where('key', $settingData['key'])->first();
-            if ($setting) {
-                $setting->update(['value' => $settingData['value']]);
-            }
+            // Using update (not create) forces the 'saved' event
+            // which will bust the individual 'setting.key' cache
+            Setting::where('key', $settingData['key'])->update([
+                'value' => $settingData['value'],
+                'updated_by' => $adminId
+            ]);
         }
 
-        // Bust the cache
-        Cache::forget('settings');
-        foreach ($validated['settings'] as $settingData) {
-            Cache::forget('setting.' . $settingData['key']);
-        }
+        // Bust the high-level 'all settings' cache for the admin panel
+        Cache::forget('settings.all_grouped');
 
         return response()->json(['message' => 'Settings updated successfully.']);
     }

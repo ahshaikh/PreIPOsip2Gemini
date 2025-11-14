@@ -1,5 +1,5 @@
 <?php
-// V-PHASE3-1730-083 (REVISED)
+// V-FINAL-1730-343 (Advanced Progressive Logic)
 
 namespace App\Services;
 
@@ -10,11 +10,6 @@ use Illuminate\Support\Facades\Log;
 
 class BonusCalculatorService
 {
-    /**
-     * Main orchestrator to calculate all bonus types.
-     * This is the new, configurable engine.
-     * Returns the total bonus amount.
-     */
     public function calculateAndAwardBonuses(Payment $payment): float
     {
         $subscription = $payment->subscription->load('plan.configs');
@@ -22,51 +17,10 @@ class BonusCalculatorService
         $plan = $subscription->plan;
         
         $totalBonus = 0;
-        $multiplier = $subscription->bonus_multiplier; // Get the user's referral multiplier (e.g., 1.5)
-
-	// ---
-        // REMEDIATION (SEC-2): Add checks for each bonus toggle
-        // ---
+        $multiplier = (float) $subscription->bonus_multiplier;
 
         // 1. Progressive Monthly Bonus
-        if (setting('progressive_bonus_enabled', true)) { // <-- CHECK
-            $progressiveBonus = $this->calculateProgressive($payment, $plan, $multiplier);
-            if ($progressiveBonus > 0) {
-                $totalBonus += $progressiveBonus;
-                $this->createBonusTransaction($payment, 'progressive', $progressiveBonus, $multiplier, 'Progressive Monthly Bonus');
-            }
-        }
-        
-        // 2. Milestone Bonus
-        if (setting('milestone_bonus_enabled', true)) { // <-- CHECK
-            $milestoneBonus = $this->calculateMilestone($payment, $plan, $multiplier);
-            if ($milestoneBonus > 0) {
-                $totalBonus += $milestoneBonus;
-                $this->createBonusTransaction($payment, 'milestone', $milestoneBonus, $multiplier, 'Milestone Bonus');
-            }
-        }
-
-        // 3. Consistency Bonus
-        if (setting('consistency_bonus_enabled', true) && $payment->is_on_time) { // <-- CHECK
-            $consistencyBonus = $this->calculateConsistency($payment, $plan);
-            if ($consistencyBonus > 0) {
-                $totalBonus += $consistencyBonus;
-                $this->createBonusTransaction($payment, 'consistency', $consistencyBonus, 1.0, 'On-Time Payment Bonus');
-            }
-        }
-        
-        Log::info("Total bonus calculated for Payment {$payment->id}: {$totalBonus}");
-        return $totalBonus;
-    	}
-
-	// ... (rest of the file is unchanged) ...
-
-        // ---
-        // DEVIATION FIX: Removed the hardcoded 10% stub.
-        // $totalBonus = $payment->amount * 0.10; // [DELETED]
-        // ---
-
-        // 1. Progressive Monthly Bonus [cite: 417-418]
+        // Check Global Toggle first
         if (setting('progressive_bonus_enabled', true)) {
             $progressiveBonus = $this->calculateProgressive($payment, $plan, $multiplier);
             if ($progressiveBonus > 0) {
@@ -75,7 +29,7 @@ class BonusCalculatorService
             }
         }
         
-        // 2. Milestone Bonus [cite: 417-418]
+        // 2. Milestone Bonus
         if (setting('milestone_bonus_enabled', true)) {
             $milestoneBonus = $this->calculateMilestone($payment, $plan, $multiplier);
             if ($milestoneBonus > 0) {
@@ -84,7 +38,7 @@ class BonusCalculatorService
             }
         }
 
-        // 3. Consistency Bonus [cite: 417-418]
+        // 3. Consistency Bonus
         if (setting('consistency_bonus_enabled', true) && $payment->is_on_time) {
             $consistencyBonus = $this->calculateConsistency($payment, $plan);
             if ($consistencyBonus > 0) {
@@ -97,9 +51,6 @@ class BonusCalculatorService
         return $totalBonus;
     }
 
-    /**
-     * Helper to load the plan's JSON config.
-     */
     private function getPlanConfig($plan, $key, $default = null)
     {
         $config = $plan->configs->where('config_key', $key)->first();
@@ -107,83 +58,91 @@ class BonusCalculatorService
     }
 
     /**
-     * 1. Calculates Progressive Bonus
+     * 1. Calculates Progressive Bonus with Advanced Rules
      */
     private function calculateProgressive(Payment $payment, $plan, $multiplier): float
     {
         $config = $this->getPlanConfig($plan, 'progressive_config', [
-            'rate' => 0.5, 'start_month' => 4
+            'rate' => 0.5, 
+            'start_month' => 4,
+            'max_percentage' => 20, // Default Cap
+            'overrides' => [] // Default no overrides
         ]);
         
-        $month = $payment->subscription->payments()->where('status', 'paid')->count();
+        $month = $payment->subscription->payments()
+            ->where('status', 'paid')
+            ->count();
         
-        if ($month < $config['start_month']) {
+        $startMonth = (int) $config['start_month'];
+        
+        // Rule 1: Not awarded before start month
+        if ($month < $startMonth) {
             return 0;
         }
         
-        $base = $payment->amount;
-        $rate = $config['rate'] / 100; // Convert 0.5 to 0.005
-        
-        // Formula: (month - start_month + 1) * rate * base_amount * multiplier
-        $bonus = ($month - $config['start_month'] + 1) * $rate * $base * $multiplier;
+        // Rule 2: Check for Month Override
+        // Overrides are stored as [month_number => rate]
+        $overrides = $config['overrides'] ?? [];
+        $baseRate = 0;
+
+        if (isset($overrides[$month])) {
+            // Use the specific rate for this month
+            $baseRate = (float) $overrides[$month];
+        } else {
+            // Use standard linear formula
+            // Rate grows by 'rate' amount each month after start
+            // e.g. Month 4 (Start 4) = 1 * 0.5% = 0.5%
+            // e.g. Month 5 = 2 * 0.5% = 1.0%
+            $growthFactor = $month - $startMonth + 1;
+            $baseRate = $growthFactor * ((float) $config['rate']);
+        }
+
+        // Rule 3: Cap at Maximum Percentage
+        $maxPercent = $config['max_percentage'] ?? 100;
+        if ($baseRate > $maxPercent) {
+            $baseRate = $maxPercent;
+        }
+
+        // Rule 4: Calculate Amount
+        // Bonus = (Rate / 100) * Payment Amount * Multiplier
+        $base = (float) $payment->amount;
+        $bonus = ($baseRate / 100) * $base * $multiplier;
         
         return round($bonus, 2);
     }
     
-    /**
-     * 2. Calculates Milestone Bonus
-     */
     private function calculateMilestone(Payment $payment, $plan, $multiplier): float
     {
-        $config = $this->getPlanConfig($plan, 'milestone_config', [
-            ['month' => 12, 'amount' => 500],
-            ['month' => 24, 'amount' => 1000],
-            ['month' => 36, 'amount' => 2000]
-        ]);
-        
+        $config = $this->getPlanConfig($plan, 'milestone_config', []);
         $month = $payment->subscription->payments()->where('status', 'paid')->count();
         
         foreach ($config as $milestone) {
-            if ($month === $milestone['month']) {
-                // Check for consecutive payments
+            if ($month === (int)$milestone['month']) {
                 if ($payment->subscription->consecutive_payments_count >= $month) {
-                    return $milestone['amount'] * $multiplier;
+                    return ((float)$milestone['amount']) * $multiplier;
                 }
             }
         }
-        
         return 0;
     }
 
-    /**
-     * 3. Calculates Consistency Bonus
-     */
     private function calculateConsistency(Payment $payment, $plan): float
     {
-        $config = $this->getPlanConfig($plan, 'consistency_config', [
-            'amount_per_payment' => 10, // Default 10 INR
-            'streaks' => [
-                ['months' => 6, 'multiplier' => 3],
-                ['months' => 12, 'multiplier' => 5]
-            ]
-        ]);
-        
-        $bonus = $config['amount_per_payment'];
+        $config = $this->getPlanConfig($plan, 'consistency_config', ['amount_per_payment' => 0]);
+        $bonus = (float) $config['amount_per_payment'];
         $streak = $payment->subscription->consecutive_payments_count;
 
-        foreach ($config['streaks'] as $streakRule) {
-            if ($streak === $streakRule['months']) {
-                $bonus *= $streakRule['multiplier'];
-                break; // Apply highest matching streak
+        if (isset($config['streaks']) && is_array($config['streaks'])) {
+            foreach ($config['streaks'] as $streakRule) {
+                if ($streak === (int)$streakRule['months']) {
+                    $bonus *= (float)$streakRule['multiplier'];
+                    break;
+                }
             }
         }
-        
         return $bonus;
     }
 
-    /**
-     * Helper to write to the database.
-     */
     private function createBonusTransaction(Payment $payment, string $type, float $amount, float $multiplier, string $description): void
     {
         BonusTransaction::create([

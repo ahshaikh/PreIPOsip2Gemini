@@ -1,5 +1,5 @@
 <?php
-// V-PHASE3-1730-070
+// V-PHASE3-1730-070 (Created) | V-FINAL-1730-363 (Refactored)
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -14,11 +14,20 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->foreignId('lucky_draw_id')->constrained()->onDelete('cascade');
             $table->foreignId('payment_id')->constrained()->onDelete('cascade');
-            $table->string('entry_code')->unique();
+            
+            // New structure: one row per user/draw
+            $table->integer('base_entries')->default(0);
+            $table->integer('bonus_entries')->default(0);
+
+            // Winner info
             $table->boolean('is_winner')->default(false);
             $table->integer('prize_rank')->nullable();
             $table->decimal('prize_amount', 10, 2)->nullable();
+            
             $table->timestamps();
+
+            // Ensure a user can only have one entry row per draw
+            $table->unique(['user_id', 'lucky_draw_id']);
         });
     }
 

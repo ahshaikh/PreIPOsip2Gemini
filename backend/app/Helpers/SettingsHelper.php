@@ -1,30 +1,39 @@
 <?php
-// V-PHASE2-1730-048
-
+// V-PHASE2-1730-031 (Created) | V-FINAL-1730-048 | V-FINAL-1730-400 (Caching Implemented)
 
 use App\Models\Setting;
 use Illuminate\Support\Facades\Cache;
 
 if (!function_exists('setting')) {
     /**
-     * Get a setting value from the database.
-     * Caches the setting for performance.
+     * Get a setting value by key.
+     *
+     * This function is the core of the configurable system.
+     * 1. It checks the cache for the key.
+     * 2. If not found, it queries the DB *once*.
+     * 3. It stores the result in the cache forever.
+     * 4. It returns the value, cast to its proper type (bool, int, etc.).
      */
-    function setting(string $key, $default = null)
+    function setting($key, $default = null)
     {
-        return Cache::rememberForever('setting.' . $key, function () use ($key, $default) {
-            $setting = Setting::where('key', $key)->first();
+        $cacheKey = 'setting.' . $key;
+
+        try {
+            $setting = Cache::rememberForever($cacheKey, function () use ($key) {
+                return Setting::where('key', $key)->first();
+            });
+
             if (!$setting) {
-                return $default;
+                return $default; // Not found, return default
             }
 
-            // Cast to correct type
-            return match ($setting->type) {
-                'boolean' => (bool) $setting->value,
-                'number' => (int) $setting->value,
-                'json' => json_decode($setting->value, true),
-                default => $setting->value,
-            };
-        });
+            // Return the 'value' accessor, which handles casting
+            return $setting->value;
+
+        } catch (\Exception $e) {
+            // DB might not be ready (e.g., during migration)
+            \Illuminate\Support\Facades\Log::error("Could not retrieve setting '{$key}': " . $e->getMessage());
+            return $default;
+        }
     }
 }

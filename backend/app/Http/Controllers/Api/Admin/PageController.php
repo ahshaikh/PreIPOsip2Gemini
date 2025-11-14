@@ -1,5 +1,5 @@
 <?php
-// V-PHASE2-1730-059
+// V-PHASE2-1730-059 (Created) | V-FINAL-1730-369 (Block Editor Logic)
 
 namespace App\Http\Controllers\Api\Admin;
 
@@ -19,12 +19,12 @@ class PageController extends Controller
     {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
-            'content' => 'nullable|json',
-            'seo_meta' => 'nullable|json',
+            'slug' => 'required|string|unique:pages,slug',
+            'content' => 'nullable|array', // Expecting an array of blocks
             'status' => 'required|in:draft,published',
         ]);
         
-        $page = Page::create($validated + ['slug' => Str::slug($validated['title'])]);
+        $page = Page::create($validated);
         return response()->json($page, 201);
     }
 
@@ -37,8 +37,7 @@ class PageController extends Controller
     {
         $validated = $request->validate([
             'title' => 'sometimes|required|string|max:255',
-            'content' => 'nullable|json',
-            'seo_meta' => 'nullable|json',
+            'content' => 'nullable|array', // Expecting an array of blocks
             'status' => 'sometimes|required|in:draft,published',
         ]);
         

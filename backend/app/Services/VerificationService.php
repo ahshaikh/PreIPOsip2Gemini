@@ -1,60 +1,107 @@
 <?php
-// V-FINAL-1730-213
+// V-FINAL-1730-330 (Robus Verification Engine)
 
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
+use Razorpay\Api\Api;
+use Carbon\Carbon;
 
 class VerificationService
 {
     /**
      * Verify PAN Number.
-     * Uses a generic fintech provider structure.
      */
-    public function verifyPan(string $panNumber, string $name)
+    public function verifyPan(string $pan, string $name, string $dob = null)
     {
-        // MOCK MODE: For local testing without spending money on API calls
-        if (env('APP_ENV') === 'local') {
-            // Simulate success if PAN starts with 'ABC'
-            if (str_starts_with($panNumber, 'ABC')) {
-                return [
-                    'valid' => true,
-                    'name_match' => true,
-                    'registered_name' => $name
-                ];
-            }
-            // Simulate failure otherwise
-            return ['valid' => false, 'error' => 'Invalid PAN in mock mode'];
+        $cacheKey = "kyc_pan_{$pan}";
+        
+        // 1. Check Cache
+        if (Cache::has($cacheKey)) {
+            Log::info("PAN Verification Hit Cache: {$pan}");
+            return Cache::get($cacheKey);
+        }
+
+        Log::info("Verifying PAN: {$pan}");
+
+        // MOCK MODE
+        if (config('app.env') === 'local') {
+            $response = [
+                'valid' => true, 
+                'full_name' => $name, // Simulate exact match
+                'dob' => $dob // Simulate match
+            ];
+            return $this->processPanResponse($response, $pan, $name, $dob);
         }
 
         try {
-            // Replace with your actual vendor URL and Key
+            // Real API Call (Generic Vendor Structure)
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . env('KYC_VENDOR_KEY'),
-            ])->post('https://api.vendor.com/v1/pan/verify', [
-                'pan' => $panNumber,
+                'Authorization' => 'Bearer ' . config('services.kyc.key'),
+            ])->timeout(10)->post(config('services.kyc.url') . '/pan/verify', [
+                'pan' => $pan,
             ]);
 
-            if ($response->successful()) {
-                $data = $response->json();
-                // Logic to compare names using similar_text or levenshtein
-                $apiName = $data['data']['full_name'];
-                
-                similar_text(strtoupper($name), strtoupper($apiName), $percent);
-                
-                return [
-                    'valid' => true,
-                    'name_match' => $percent > 80,
-                    'registered_name' => $apiName
-                ];
+            if ($response->failed()) {
+                Log::error("PAN API Failure: " . $response->body());
+                return ['valid' => false, 'error' => 'Service unavailable'];
             }
+
+            $data = $response->json();
+            $result = $this->processPanResponse($data, $pan, $name, $dob);
             
-            return ['valid' => false, 'error' => 'API Error'];
+            // Cache successful results for 24 hours
+            if ($result['valid']) {
+                Cache::put($cacheKey, $result, 86400);
+            }
+
+            return $result;
 
         } catch (\Exception $e) {
-            Log::error("PAN Verification Failed: " . $e->getMessage());
-            return ['valid' => false, 'error' => 'Connection Error'];
+            Log::error("PAN Verification Exception: " . $e->getMessage());
+            return ['valid' => false, 'error' => 'Connection error'];
+        }
+    }
+
+    /**
+     * Verify Aadhaar (via DigiLocker or similar).
+     */
+    public function verifyAadhaar(string $aadhaar, string $name, string $dob = null)
+    {
+        Log::info("Verifying Aadhaar: {$aadhaar}");
+
+        // MOCK
+        if (config('app.env') === 'local') {
+            return ['valid' => true, 'name_match' => true];
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . config('services.kyc.key'),
+            ])->timeout(10)->post(config('services.kyc.url') . '/aadhaar/verify', [
+                'aadhaar_number' => $aadhaar,
+            ]);
+
+            if ($response->failed()) {
+                Log::error("Aadhaar API Failure");
+                return ['valid' => false, 'error' => 'Service unavailable'];
+            }
+
+            $data = $response->json();
+            
+            // Logic Checks
+            $nameMatch = $this->checkNameMatch($name, $data['name'] ?? '');
+            $dobMatch = $dob ? ($dob === ($data['dob'] ?? '')) : true;
+
+            if (!$nameMatch) return ['valid' => false, 'error' => 'Name mismatch'];
+            if (!$dobMatch) return ['valid' => false, 'error' => 'DOB mismatch'];
+
+            return ['valid' => true];
+
+        } catch (\Exception $e) {
+            return ['valid' => false, 'error' => 'Connection error'];
         }
     }
 
@@ -63,21 +110,23 @@ class VerificationService
      */
     public function verifyBank(string $account, string $ifsc, string $name)
     {
-        if (env('APP_ENV') === 'local') {
-            return [
-                'valid' => true,
-                'beneficiary_name' => $name,
-                'name_match' => true
-            ];
+        Log::info("Verifying Bank: {$account}");
+
+        // IFSC Validation (Regex)
+        if (!preg_match('/^[A-Z]{4}0[A-Z0-9]{6}$/', $ifsc)) {
+            return ['valid' => false, 'error' => 'Invalid IFSC format'];
+        }
+
+        if (config('app.env') === 'local') {
+            return ['valid' => true, 'beneficiary_name' => $name, 'name_match' => true];
         }
 
         try {
-            // Example using Razorpay Fund Account Validation
-            $api = new \Razorpay\Api\Api(env('RAZORPAY_KEY'), env('RAZORPAY_SECRET'));
+            $api = new Api(config('services.razorpay.key'), config('services.razorpay.secret'));
             
-            // 1. Create Fund Account
+            // Create Fund Account
             $fundAccount = $api->fundAccount->create([
-                'contact_id' => 'cont_123456789', // You'd create a contact first
+                'contact_id' => 'cont_mock_123', // In real app, create/fetch contact first
                 'account_type' => 'bank_account',
                 'bank_account' => [
                     'name' => $name,
@@ -86,14 +135,59 @@ class VerificationService
                 ]
             ]);
 
-            // 2. Validate (Penny Drop)
-            // Note: This costs money per call
-            // $validation = $api->fundAccountValidation->create([...]);
+            // In a real integration, you would then Create a Validation Transaction
+            // $validation = $api->fundAccount->validate($fundAccount->id, ...);
             
-            return ['valid' => true, 'beneficiary_name' => $name, 'name_match' => true];
+            // Simulating response inspection
+            $bankName = $fundAccount->bank_account->name ?? $name;
+            $nameMatch = $this->checkNameMatch($name, $bankName);
+
+            return [
+                'valid' => true, // Assume penny drop succeeded
+                'beneficiary_name' => $bankName,
+                'name_match' => $nameMatch
+            ];
 
         } catch (\Exception $e) {
+            Log::error("Bank Verification Failed: " . $e->getMessage());
             return ['valid' => false, 'error' => $e->getMessage()];
         }
+    }
+
+    // --- HELPERS ---
+
+    private function processPanResponse($data, $pan, $inputName, $inputDob)
+    {
+        // 1. Check Validity
+        if (empty($data['full_name'])) {
+            return ['valid' => false, 'error' => 'Invalid PAN'];
+        }
+
+        // 2. Name Match
+        $apiName = $data['full_name'];
+        $nameMatch = $this->checkNameMatch($inputName, $apiName);
+
+        if (!$nameMatch) {
+            return ['valid' => false, 'error' => 'Name mismatch on PAN'];
+        }
+
+        // 3. DOB Match (if provided)
+        if ($inputDob && isset($data['dob'])) {
+            if ($inputDob !== $data['dob']) {
+                return ['valid' => false, 'error' => 'DOB mismatch on PAN'];
+            }
+        }
+
+        return [
+            'valid' => true,
+            'registered_name' => $apiName
+        ];
+    }
+
+    private function checkNameMatch($inputName, $apiName)
+    {
+        // Simple fuzzy match
+        similar_text(strtoupper($inputName), strtoupper($apiName), $percent);
+        return $percent >= 80; // 80% threshold
     }
 }

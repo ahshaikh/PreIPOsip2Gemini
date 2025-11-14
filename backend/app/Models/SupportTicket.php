@@ -1,5 +1,5 @@
 <?php
-// V-REMEDIATE-1730-147
+// V-REMEDIATE-1730-147 (Created) | V-FINAL-1730-379 (Logic Upgraded)
 
 namespace App\Models;
 
@@ -7,10 +7,21 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SupportTicket extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes; // Added SoftDeletes for good practice
+
+    // --- Constants for Validation ---
+    const STATUS_OPEN = 'open';
+    const STATUS_WAITING_USER = 'waiting_for_user';
+    const STATUS_RESOLVED = 'resolved';
+
+    const PRIORITY_LOW = 'low';
+    const PRIORITY_MEDIUM = 'medium';
+    const PRIORITY_HIGH = 'high';
 
     protected $fillable = [
         'user_id',
@@ -19,13 +30,15 @@ class SupportTicket extends Model
         'category',
         'priority',
         'status',
-        'resolved_by',
+        'resolved_by', // Admin who resolved it
         'resolved_at',
     ];
 
     protected $casts = [
         'resolved_at' => 'datetime',
     ];
+
+    // --- RELATIONSHIPS ---
 
     /**
      * Get the user who owns the ticket.
@@ -46,8 +59,20 @@ class SupportTicket extends Model
     /**
      * Get the admin who resolved the ticket.
      */
-    public function resolver(): BelongsTo
+    public function resolvedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'resolved_by');
+    }
+
+    // --- SCOPES ---
+
+    /**
+     * Finds tickets that were resolved (but not closed)
+     * more than 7 days ago.
+     */
+    public function scopeAutoClose(Builder $query, $days = 7): void
+    {
+        $query->where('status', self::STATUS_RESOLVED)
+              ->where('resolved_at', '<=', now()->subDays($days));
     }
 }

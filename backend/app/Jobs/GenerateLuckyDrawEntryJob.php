@@ -1,17 +1,16 @@
 <?php
-// V-PHASE3-1730-086
+// V-FINAL-1730-301 | V-FINAL-1730-365-Refactored | V-FINAL-1730-367 (Refactored to use Service)
 
 namespace App\Jobs;
 
 use App\Models\Payment;
-use App\Models\LuckyDraw;
-use App\Models\LuckyDrawEntry;
-use Illuminate\Bus\Queueable;
+use App\Services\LuckyDrawService; // <-- IMPORT
+use Illuminate.Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Str;
+use Illuminate.Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 
 class GenerateLuckyDrawEntryJob implements ShouldQueue
 {
@@ -21,32 +20,15 @@ class GenerateLuckyDrawEntryJob implements ShouldQueue
     {
     }
 
-    public function handle(): void
+    /**
+     * Execute the job.
+     */
+    public function handle(LuckyDrawService $luckyDrawService): void
     {
-        if (!setting('lucky_draw_enabled', true)) {
-            return;
-        }
-
-        $currentDraw = LuckyDraw::where('status', 'open')
-                                ->where('draw_date', '>=', now())
-                                ->first();
-        
-        if (!$currentDraw) {
-            return; // No active draw
-        }
-
-        // Get entry count from plan config
-        $plan = $this->payment->subscription->plan;
-        $config = $plan->configs->where('config_key', 'lucky_draw_entries')->first();
-        $entryCount = $config ? $config->value['count'] : 1; // Default to 1
-
-        for ($i = 0; $i < $entryCount; $i++) {
-            LuckyDrawEntry::create([
-                'user_id' => $this->payment->user_id,
-                'lucky_draw_id' => $currentDraw->id,
-                'payment_id' => $this->payment->id,
-                'entry_code' => Str::random(8), // Unique code
-            ]);
+        try {
+            $luckyDrawService->allocateEntries($this->payment);
+        } catch (\Exception $e) {
+            Log::error("Failed to allocate lucky draw entries: " . $e->getMessage());
         }
     }
 }

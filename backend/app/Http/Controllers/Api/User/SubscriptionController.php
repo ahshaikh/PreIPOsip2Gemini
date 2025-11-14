@@ -1,25 +1,28 @@
 <?php
-// V-FINAL-1730-262 (Lifecycle Management Added)
+// V-FINAL-1730-262 (Created) | V-FINAL-1730-451 (Service Refactor)
 
 namespace App\Http\Controllers\Api\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Services\SubscriptionService; // <-- IMPORT
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\DB;
 
 class SubscriptionController extends Controller
 {
-    /**
-     * Show the user's active subscription.
-     */
+    protected $service;
+    public function __construct(SubscriptionService $service)
+    {
+        $this->service = $service;
+    }
+
     public function show(Request $request)
     {
         $subscription = Subscription::where('user_id', $request->user()->id)
             ->with('plan.features', 'payments')
-            ->latest() // Get the most recent one
+            ->latest()
             ->first();
 
         if (!$subscription) {
@@ -28,147 +31,85 @@ class SubscriptionController extends Controller
         return response()->json($subscription);
     }
 
-    /**
-     * Create a new subscription.
-     */
     public function store(Request $request)
     {
         if (!setting('investment_enabled', true)) {
             return response()->json(['message' => 'New investments are temporarily disabled.'], 403);
         }
-
-        $user = $request->user();
+        
         $validated = $request->validate(['plan_id' => 'required|exists:plans,id']);
-        
-        if ($user->kyc->status !== 'verified') {
-            return response()->json(['message' => 'KYC must be verified to start a subscription.'], 403);
-        }
-        
-        // Check if user already has an ACTIVE or PAUSED subscription
-        if (Subscription::where('user_id', $user->id)->whereIn('status', ['active', 'paused'])->exists()) {
-            return response()->json(['message' => 'You already have an active subscription. Please upgrade/downgrade instead.'], 400);
-        }
-        
+        $user = $request->user();
         $plan = Plan::findOrFail($validated['plan_id']);
 
-        $subscription = Subscription::create([
-            'user_id' => $user->id,
-            'plan_id' => $plan->id,
-            'subscription_code' => 'SUB-' . Str::random(10),
-            'status' => 'active',
-            'start_date' => now(),
-            'end_date' => now()->addMonths($plan->duration_months),
-            'next_payment_date' => now(),
-        ]);
-
-        // Create the first payment record
-        $subscription->payments()->create([
-            'user_id' => $user->id,
-            'amount' => $plan->monthly_amount,
-            'status' => 'pending',
-        ]);
-
-        return response()->json([
-            'message' => 'Subscription created. Please complete the first payment.',
-            'subscription' => $subscription,
-        ], 201);
+        try {
+            $subscription = $this->service->createSubscription($user, $plan);
+            return response()->json([
+                'message' => 'Subscription created. Please complete the first payment.',
+                'subscription' => $subscription,
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 400);
+        }
     }
 
-    /**
-     * FSD-PLAN-004: Change Plan (Upgrade/Downgrade)
-     */
     public function changePlan(Request $request)
     {
         $validated = $request->validate(['new_plan_id' => 'required|exists:plans,id']);
         $user = $request->user();
         $sub = Subscription::where('user_id', $user->id)->where('status', 'active')->firstOrFail();
-        
         $newPlan = Plan::findOrFail($validated['new_plan_id']);
-        
-        if ($sub->plan_id === $newPlan->id) {
-            return response()->json(['message' => 'You are already subscribed to this plan.'], 400);
+
+        try {
+            if ($newPlan->monthly_amount > $sub->plan->monthly_amount) {
+                $prorated = $this->service->upgradePlan($sub, $newPlan);
+                return response()->json(['message' => "Plan upgraded. Pro-rata charge: ₹{$prorated}"]);
+            } else {
+                $this->service->downgradePlan($sub, $newPlan);
+                return response()->json(['message' => 'Plan downgraded. Changes effective next cycle.']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 400);
         }
-
-        // Logic: Change is effective immediately for FUTURE payments.
-        // We do not recalculate past bonuses to keep it simple for V1.
-        
-        $sub->update([
-            'plan_id' => $newPlan->id,
-            // We might want to reset end_date or keep it same. 
-            // FSD implies simplified flow: just change the billing amount.
-        ]);
-
-        // Update any PENDING payment to the new amount
-        $pendingPayment = $sub->payments()->where('status', 'pending')->first();
-        if ($pendingPayment) {
-            $pendingPayment->update(['amount' => $newPlan->monthly_amount]);
-        }
-
-        return response()->json(['message' => "Plan changed to {$newPlan->name}. Next payment will be ₹{$newPlan->monthly_amount}."]);
     }
 
-    /**
-     * FSD-PLAN-005: Pause Subscription
-     */
     public function pause(Request $request)
     {
         $validated = $request->validate(['months' => 'required|integer|min:1|max:3']);
         $user = $request->user();
         $sub = Subscription::where('user_id', $user->id)->where('status', 'active')->firstOrFail();
 
-        $months = $validated['months'];
-        
-        // Shift dates
-        $newNextPayment = $sub->next_payment_date->addMonths($months);
-        $newEndDate = $sub->end_date->addMonths($months);
-
-        $sub->update([
-            'status' => 'paused',
-            'pause_start_date' => now(),
-            'pause_end_date' => now()->addMonths($months),
-            'next_payment_date' => $newNextPayment,
-            'end_date' => $newEndDate
-        ]);
-
-        return response()->json(['message' => "Subscription paused for $months months. Next payment due: " . $newNextPayment->toDateString()]);
+        try {
+            $this->service->pauseSubscription($sub, $validated['months']);
+            return response()->json(['message' => "Subscription paused for {$validated['months']} months."]);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 400);
+        }
     }
 
-    /**
-     * Resume Subscription (Manual or Auto)
-     */
     public function resume(Request $request)
     {
         $user = $request->user();
         $sub = Subscription::where('user_id', $user->id)->where('status', 'paused')->firstOrFail();
 
-        $sub->update([
-            'status' => 'active',
-            'pause_start_date' => null,
-            'pause_end_date' => null,
-            // We don't pull back the dates, we just resume from current state
-        ]);
-
-        return response()->json(['message' => 'Subscription resumed successfully.']);
+        try {
+            $this->service->resumeSubscription($sub);
+            return response()->json(['message' => 'Subscription resumed.']);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 400);
+        }
     }
 
-    /**
-     * FSD-PLAN-006: Cancel Subscription
-     */
     public function cancel(Request $request)
     {
         $validated = $request->validate(['reason' => 'required|string|max:255']);
         $user = $request->user();
         $sub = Subscription::where('user_id', $user->id)->whereIn('status', ['active', 'paused'])->firstOrFail();
 
-        $sub->update([
-            'status' => 'cancelled',
-            'cancelled_at' => now(),
-            'cancellation_reason' => $validated['reason']
-        ]);
-
-        // Optional: Cancel any pending payments
-        $sub->payments()->where('status', 'pending')->update(['status' => 'failed']);
-
-        return response()->json(['message' => 'Subscription cancelled. Your portfolio remains active.']);
+        try {
+            $this->service->cancelSubscription($sub, $validated['reason']);
+            return response()->json(['message' => 'Subscription cancelled.']);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 400);
+        }
     }
 }

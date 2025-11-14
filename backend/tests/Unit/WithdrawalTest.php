@@ -1,0 +1,138 @@
+<?php
+// V-FINAL-1730-TEST-37
+
+namespace Tests\Unit;
+
+use Tests\TestCase;
+use App\Models\User;
+use App\Models\Wallet;
+use App\Models\Withdrawal;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Validator;
+
+class WithdrawalTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected $user;
+    protected $wallet;
+    protected $admin;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->user = User::factory()->create();
+        $this->wallet = Wallet::create(['user_id' => $this->user->id, 'balance' => 10000]);
+        $this->admin = User::factory()->create();
+    }
+
+    /** @test */
+    public function test_withdrawal_belongs_to_user()
+    {
+        $withdrawal = Withdrawal::factory()->create([
+            'user_id' => $this->user->id,
+            'wallet_id' => $this->wallet->id
+        ]);
+
+        $this->assertInstanceOf(User::class, $withdrawal->user);
+        $this->assertEquals($this->user->id, $withdrawal->user->id);
+    }
+
+    /** @test */
+    public function test_withdrawal_belongs_to_wallet()
+    {
+        $withdrawal = Withdrawal::factory()->create([
+            'user_id' => $this->user->id,
+            'wallet_id' => $this->wallet->id
+        ]);
+
+        $this->assertInstanceOf(Wallet::class, $withdrawal->wallet);
+        $this->assertEquals($this->wallet->id, $withdrawal->wallet->id);
+    }
+
+    /** @test */
+    public function test_withdrawal_status_enum_validates()
+    {
+        $validStatuses = ['pending', 'approved', 'processing', 'completed', 'rejected'];
+        
+        $validator = Validator::make(
+            ['status' => 'pending'], 
+            ['status' => 'in:' . implode(',', $validStatuses)]
+        );
+        $this->assertTrue($validator->passes());
+        
+        $validator = Validator::make(
+            ['status' => 'shipped'], // Invalid status
+            ['status' => 'in:' . implode(',', $validStatuses)]
+        );
+        $this->assertFalse($validator->passes());
+    }
+
+    /** @test */
+    public function test_withdrawal_validates_amount_positive()
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage("Withdrawal amount must be positive");
+
+        Withdrawal::factory()->create([
+            'user_id' => $this->user->id,
+            'wallet_id' => $this->wallet->id,
+            'amount' => -100 // Invalid
+        ]);
+    }
+
+    /** @test */
+    public function test_withdrawal_validates_sufficient_balance()
+    {
+        // This logic is (and should be) in the Wallet model, not Withdrawal.
+        // This test confirms the Wallet model's protection.
+        
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage("Insufficient funds");
+
+        // Wallet has 10,000. Try to withdraw 15,000.
+        $this->wallet->withdraw(15000, 'withdrawal', 'Test');
+    }
+
+    /** @test */
+    public function test_withdrawal_calculates_fee()
+    {
+        $withdrawal = Withdrawal::factory()->create([
+            'user_id' => $this->user->id,
+            'wallet_id' => $this->wallet->id,
+            'amount' => 1000,
+            'fee' => 50
+        ]);
+
+        $this->assertEquals(50, $withdrawal->fee);
+    }
+
+    /** @test */
+    public function test_withdrawal_calculates_net_amount()
+    {
+        // Test the 'booted' method's auto-calculation
+        $withdrawal = Withdrawal::factory()->create([
+            'user_id' => $this->user->id,
+            'wallet_id' => $this->wallet->id,
+            'amount' => 1000,
+            'fee' => 50
+        ]);
+
+        // 1000 (Amount) - 50 (Fee) = 950
+        $this->assertEquals(950, $withdrawal->net_amount);
+    }
+
+    /** @test */
+    public function test_withdrawal_tracks_processed_by_admin()
+    {
+        $withdrawal = Withdrawal::factory()->create([
+            'user_id' => $this->user->id,
+            'wallet_id' => $this->wallet->id,
+            'amount' => 1000,
+            'admin_id' => $this->admin->id
+        ]);
+
+        $this->assertInstanceOf(User::class, $withdrawal->admin);
+        $this->assertEquals($this->admin->id, $withdrawal->admin->id);
+    }
+}

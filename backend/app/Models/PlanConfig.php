@@ -1,6 +1,5 @@
 <?php
-// V-PHASE2-1730-038
-
+// V-FINAL-1730-332
 
 namespace App\Models;
 
@@ -15,7 +14,7 @@ class PlanConfig extends Model
     protected $fillable = ['plan_id', 'config_key', 'value'];
 
     protected $casts = [
-        'value' => 'json',
+        'value' => 'json', // Critical for storing complex rules
     ];
 
     public function plan(): BelongsTo

@@ -1,5 +1,5 @@
 <?php
-// V-FINAL-1730-216 (Bulk & Import/Export Added)
+// V-REMEDIATE-1730-172 (Created) | V-FINAL-1730-294 (SEC-2 Fix Applied) | V-FINAL-1730-446 (WalletService Refactor)
 
 namespace App\Http\Controllers\Api\Admin;
 
@@ -10,6 +10,8 @@ use App\Models\UserKyc;
 use App\Models\Wallet;
 use App\Models\Transaction;
 use App\Models\BonusTransaction;
+use App\Http\Requests\Admin\AdjustBalanceRequest;
+use App\Services\WalletService; // <-- Service for secure transactions
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -18,118 +20,188 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdminUserController extends Controller
 {
-    // ... (index, show, update, suspend methods remain same as before, included below for completeness) ...
+    protected $walletService;
 
+    // Inject the WalletService for secure balance adjustments
+    public function __construct(WalletService $walletService)
+    {
+        $this->walletService = $walletService;
+    }
+
+    /**
+     * Display a listing of users with search and pagination.
+     */
     public function index(Request $request)
     {
         $query = User::role('user')->with('profile', 'kyc', 'wallet');
 
+        // Search functionality
         if ($request->has('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
                 $q->where('username', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('mobile', 'like', "%{$search}%");
+                  ->orWhere('mobile', 'like', "%{$search}%")
+                  ->orWhereHas('profile', function($profileQuery) use ($search) {
+                      $profileQuery->where('first_name', 'like', "%{$search}%")
+                                   ->orWhere('last_name', 'like', "%{$search}%");
+                  });
             });
         }
 
-        return $query->latest()->paginate(setting('records_per_page', 25));
+        $users = $query->latest()
+            ->paginate(setting('records_per_page', 25))
+            ->appends($request->only('search')); // Append search query to pagination links
+            
+        return response()->json($users);
     }
 
+    /**
+     * Store a new user (created by Admin).
+     */
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'username' => 'required|string|alpha_dash|min:3|max:50|unique:users,username',
+            'email'    => 'required|string|email|max:255|unique:users,email',
+            'mobile'   => 'required|string|regex:/^[0-9]{10}$/|unique:users,mobile',
+            'password' => 'required|string|min:8',
+            'role'     => 'required|string|exists:roles,name',
+        ]);
+
+        $user = DB::transaction(function () use ($validated) {
+            $user = User::create([
+                'username' => $validated['username'],
+                'email' => $validated['email'],
+                'mobile' => $validated['mobile'],
+                'password' => Hash::make($validated['password']),
+                'status' => 'active',
+                'email_verified_at' => now(),
+                'mobile_verified_at' => now(),
+            ]);
+
+            UserProfile::create(['user_id' => $user->id]);
+            UserKyc::create(['user_id' => $user->id, 'status' => 'pending']);
+            Wallet::create(['user_id' => $user->id]);
+            $user->assignRole($validated['role']);
+            
+            return $user;
+        });
+
+        return response()->json($user, 201);
+    }
+
+    /**
+     * Display the specified user with ALL details ("God View").
+     */
     public function show(User $user)
     {
+        // Load every relationship relevant to admin oversight
         $user->load([
-            'profile', 'kyc.documents', 'wallet.transactions', 
-            'subscription.plan', 'activityLogs', 'referrals', 'tickets'
+            'profile', 
+            'kyc.documents', 
+            'wallet.transactions' => fn($q) => $q->latest()->limit(20), 
+            'subscription.plan', 
+            'activityLogs' => fn($q) => $q->latest()->limit(50),
+            'referrals',
+            'tickets' => fn($q) => $q->latest()->limit(10)
         ]);
+        
         return response()->json($user);
     }
 
+    /**
+     * Update the specified user's admin-level details.
+     */
     public function update(Request $request, User $user)
     {
-        $validated = $request->validate(['status' => 'required|in:active,suspended,blocked']);
+        $validated = $request->validate([
+            'status' => 'required|in:active,suspended,blocked',
+            // Add other editable fields if necessary
+        ]);
+        
         $user->update($validated);
-        return response()->json(['message' => 'User status updated.', 'user' => $user]);
+        
+        return response()->json([
+            'message' => 'User status updated.',
+            'user' => $user,
+        ]);
     }
 
+    /**
+     * Suspend a user (Quick Action).
+     */
     public function suspend(Request $request, User $user)
     {
         $request->validate(['reason' => 'required|string|max:255']);
+        
         $user->update(['status' => 'suspended']);
+        
+        // Log this action
         $user->activityLogs()->create([
             'action' => 'admin_suspended',
             'description' => 'Suspended by admin: ' . $request->reason,
             'ip_address' => $request->ip()
         ]);
+
         return response()->json(['message' => 'User has been suspended.']);
     }
 
-    public function adjustBalance(Request $request, User $user)
+    /**
+     * "God Mode" Wallet Adjustment. Uses the secure WalletService.
+     */
+    public function adjustBalance(AdjustBalanceRequest $request, User $user)
     {
-        $validated = $request->validate([
-            'type' => 'required|in:credit,debit',
-            'amount' => 'required|numeric|min:1',
-            'description' => 'required|string|max:255',
-        ]);
+        $validated = $request->validated();
+        $amount = (float)$validated['amount'];
+        $description = "Admin Adjustment: " . $validated['description'];
+        $admin = $request->user();
 
-        $wallet = $user->wallet;
-
-        DB::transaction(function () use ($wallet, $user, $validated) {
-            $amount = $validated['amount'];
-            if ($validated['type'] === 'debit') {
-                if ($wallet->balance < $amount) abort(400, "Insufficient funds.");
-                $wallet->decrement('balance', $amount);
-                $txnAmount = -$amount;
+        try {
+            if ($validated['type'] === 'credit') {
+                $this->walletService->deposit($user, $amount, 'admin_adjustment', $description, $admin);
             } else {
-                $wallet->increment('balance', $amount);
-                $txnAmount = $amount;
+                // false = immediate debit, not a withdrawal request
+                $this->walletService->withdraw($user, $amount, 'admin_adjustment', $description, $admin, false); 
             }
 
-            Transaction::create([
-                'user_id' => $user->id,
-                'wallet_id' => $wallet->id,
-                'type' => 'admin_adjustment',
-                'amount' => $txnAmount,
-                'balance_after' => $wallet->balance,
-                'description' => "Admin: " . $validated['description'],
-                'reference_type' => User::class,
-                'reference_id' => auth()->id(),
-            ]);
-        });
+            return response()->json(['message' => 'Wallet balance adjusted successfully.', 'new_balance' => $user->wallet->fresh()->balance]);
 
-        return response()->json(['message' => 'Balance adjusted.', 'new_balance' => $wallet->balance]);
+        } catch (\Exception $e) {
+            // Catches "Insufficient funds" or other errors from the service
+            return response()->json(['message' => $e->getMessage()], 400);
+        }
     }
 
-    // --- NEW: Bulk Actions ---
+    /**
+     * Perform a bulk action on multiple users.
+     */
     public function bulkAction(Request $request)
     {
         $validated = $request->validate([
             'user_ids' => 'required|array',
             'user_ids.*' => 'exists:users,id',
             'action' => 'required|in:activate,suspend,bonus',
-            'data' => 'nullable|array' // e.g., amount for bonus
+            'data' => 'nullable|array'
         ]);
 
         $count = count($validated['user_ids']);
+        $admin = $request->user();
 
         if ($validated['action'] === 'bonus') {
             $amount = $validated['data']['amount'] ?? 0;
             if ($amount <= 0) return response()->json(['message' => 'Invalid bonus amount'], 400);
 
-            foreach ($validated['user_ids'] as $id) {
-                // Create simple bonus
-                BonusTransaction::create([
-                    'user_id' => $id,
-                    'type' => 'manual_bonus',
-                    'amount' => $amount,
-                    'subscription_id' => 0, // Placeholder
-                    'description' => 'Bulk Bonus Award'
-                ]);
-                // Credit Wallet
-                $user = User::find($id);
-                if ($user && $user->wallet) {
-                    $user->wallet->increment('balance', $amount);
-                }
+            $users = User::whereIn('id', $validated['user_ids'])->get();
+            foreach ($users as $user) {
+                // Use the secure service to award the bonus
+                $this->walletService->deposit(
+                    $user, 
+                    $amount, 
+                    'manual_bonus', 
+                    'Bulk Bonus Award', 
+                    $admin
+                );
             }
             return response()->json(['message' => "Bonus of $amount awarded to $count users."]);
         }
@@ -141,7 +213,9 @@ class AdminUserController extends Controller
         return response()->json(['message' => "$count users updated to $status."]);
     }
 
-    // --- NEW: Import CSV ---
+    /**
+     * Import users from a CSV file.
+     */
     public function import(Request $request)
     {
         $request->validate(['file' => 'required|file|mimes:csv,txt']);
@@ -162,12 +236,14 @@ class AdminUserController extends Controller
                     'email' => $row[1],
                     'mobile' => $row[2],
                     'password' => Hash::make('Welcome123'), // Default password
-                    'referral_code' => Str::upper(Str::random(8)),
-                    'status' => 'active'
+                    'referral_code' => Str::upper(Str::random(10)),
+                    'status' => 'active',
+                    'email_verified_at' => now(), // Pre-verify imported users
+                    'mobile_verified_at' => now(),
                 ]);
                 
                 UserProfile::create(['user_id' => $user->id]);
-                UserKyc::create(['user_id' => $user->id]);
+                UserKyc::create(['user_id' => $user->id, 'status' => 'pending']);
                 Wallet::create(['user_id' => $user->id]);
                 $user->assignRole('user');
                 
@@ -182,7 +258,9 @@ class AdminUserController extends Controller
         }
     }
 
-    // --- NEW: Export CSV ---
+    /**
+     * Export users to a CSV file.
+     */
     public function export()
     {
         $headers = [
@@ -194,7 +272,7 @@ class AdminUserController extends Controller
             $handle = fopen('php://output', 'w');
             fputcsv($handle, ['ID', 'Username', 'Email', 'Mobile', 'Status', 'Joined At']);
 
-            User::role('user')->chunk(100, function($users) use ($handle) {
+            User::role('user')->with('profile')->chunk(200, function($users) use ($handle) {
                 foreach ($users as $user) {
                     fputcsv($handle, [
                         $user->id, 
@@ -202,7 +280,7 @@ class AdminUserController extends Controller
                         $user->email, 
                         $user->mobile, 
                         $user->status, 
-                        $user->created_at
+                        $user->created_at->toDateTimeString()
                     ]);
                 }
             });

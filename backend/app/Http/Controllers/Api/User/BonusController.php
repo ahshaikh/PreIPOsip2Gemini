@@ -1,28 +1,42 @@
 <?php
-// V-PHASE3-1730-092
+// V-FINAL-1730-463 (Created)
 
 namespace App\Http\Controllers\Api\User;
 
 use App\Http\Controllers\Controller;
-use App\Models\BonusTransaction;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class BonusController extends Controller
 {
+    /**
+     * FSD-BONUS-001: Get bonus summary and recent transactions.
+     */
     public function index(Request $request)
     {
-        $bonuses = BonusTransaction::where('user_id', $request->user()->id)
+        $user = $request->user();
+
+        // 1. Get total earned (sum of all positive bonuses)
+        $totalEarned = $user->bonuses()
+            ->where('amount', '>', 0)
+            ->sum('amount');
+
+        // 2. Get totals grouped by type
+        $breakdown = $user->bonuses()
+            ->where('amount', '>', 0)
+            ->groupBy('type')
+            ->select('type', DB::raw('SUM(amount) as total_amount'))
+            ->pluck('total_amount', 'type');
+
+        // 3. Get recent transactions (paginated)
+        $recent = $user->bonuses()
             ->latest()
             ->paginate(20);
-            
-        $summary = BonusTransaction::where('user_id', $request->user()->id)
-            ->groupBy('type')
-            ->selectRaw('type, SUM(amount) as total')
-            ->pluck('total', 'type');
-            
+
         return response()->json([
-            'summary' => $summary,
-            'transactions' => $bonuses,
+            'total_earned' => (float) $totalEarned,
+            'breakdown' => $breakdown,
+            'recent_transactions' => $recent,
         ]);
     }
 }

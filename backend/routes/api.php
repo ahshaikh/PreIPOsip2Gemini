@@ -1,5 +1,5 @@
 <?php
-// V-FINAL-1730-277
+// V-REMEDIATE-1730-087 (Created) | V-FINAL-1730-421 (Granular Perms) | V-FINAL-1730-435 (Security Hardened) | V-FINAL-1730-443 (SEC-8 Applied)
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\Public\PageController as PublicPageController;
 use App\Http\Controllers\Api\Admin\FaqController as PublicFaqController;
 use App\Http\Controllers\Api\Admin\BlogPostController as PublicBlogController;
 use App\Http\Controllers\Api\Public\GlobalSettingsController;
+use App\Http\Controllers\Api\Public\ProductDataController;
 
 // User Controllers
 use App\Http\Controllers\Api\User\ProfileController;
@@ -42,6 +43,7 @@ use App\Http\Controllers\Api\Admin\WithdrawalController;
 use App\Http\Controllers\Api\Admin\LuckyDrawController as AdminLuckyDrawController;
 use App\Http\Controllers\Api\Admin\ProfitShareController as AdminProfitShareController;
 use App\Http\Controllers\Api\Admin\ReportController;
+use App\Http\Controllers\Api\Admin\AdvancedReportController;
 use App\Http\Controllers\Api\Admin\SupportTicketController as AdminSupportTicketController;
 use App\Http\Controllers\Api\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Api\Admin\FaqController as AdminFaqController;
@@ -49,23 +51,28 @@ use App\Http\Controllers\Api\Admin\BlogPostController as AdminBlogController;
 use App\Http\Controllers\Api\Admin\RoleController;
 use App\Http\Controllers\Api\Admin\CmsController;
 use App\Http\Controllers\Api\Admin\ThemeSeoController;
-use App\Http\Controllers\Api\Admin\ReferralCampaignController; // <-- IMPORTED
+use App\Http\Controllers\Api\Admin\ReferralCampaignController;
+use App\Http\Controllers\Api\Admin\SystemHealthController;
+use App\Http\Controllers\Api\Admin\AdminActivityController;
+use App\Http\Controllers\Api\Admin\BackupController;
 
-// Invoice Controller
+// Invoice & Webhook
 use App\Http\Controllers\Api\InvoiceController;
-
-// Webhook Controller
 use App\Http\Controllers\Api\WebhookController;
+use App\Http\Controllers\Api\NotificationController;
 
 
 Route::prefix('v1')->group(function () {
 
-    // --- Public Authentication Routes ---
-    Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login', [AuthController::class, 'login']);
-    Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
-    Route::post('/password/forgot', [PasswordResetController::class, 'sendResetLink']);
-    Route::post('/password/reset', [PasswordResetController::class, 'reset']);
+    // --- Public Authentication Routes (SEC-1 & SEC-8 Throttled) ---
+    // Use the custom 'login' limiter from RouteServiceProvider
+    Route::middleware('throttle:login')->group(function () {
+        Route::post('/register', [AuthController::class, 'register']);
+        Route::post('/login', [AuthController::class, 'login']);
+        Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
+        Route::post('/password/forgot', [PasswordResetController::class, 'sendResetLink']);
+        Route::post('/password/reset', [PasswordResetController::class, 'reset']);
+    });
 
     // --- Public Data Routes ---
     Route::get('/plans', [PublicPlanController::class, 'index']);
@@ -75,7 +82,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/public/blog', [PublicBlogController::class, 'publicIndex']);
     Route::get('/public/blog/{slug}', [PublicBlogController::class, 'publicShow']);
     Route::get('/global-settings', [GlobalSettingsController::class, 'index']);
-    Route::get('/products/{slug}/history', [\App\Http\Controllers\Api\Public\ProductDataController::class, 'getPriceHistory']);
+    Route::get('/products/{slug}/history', [ProductDataController::class, 'getPriceHistory']);
 
     // --- Webhook Routes ---
     Route::post('/webhooks/razorpay', [WebhookController::class, 'handleRazorpay']);
@@ -87,17 +94,21 @@ Route::prefix('v1')->group(function () {
 
         // === USER ROUTES ===
         Route::prefix('user')->group(function () {
+            // Profile & Security
             Route::get('/profile', [ProfileController::class, 'show']);
             Route::put('/profile', [ProfileController::class, 'update']);
             Route::post('/security/password', [SecurityController::class, 'updatePassword']);
             Route::get('/security/export-data', [PrivacyController::class, 'export']);
             Route::post('/security/delete-account', [PrivacyController::class, 'deleteAccount']);
             
+            // KYC
             Route::get('/kyc', [KycController::class, 'show']);
             Route::post('/kyc', [KycController::class, 'store']);
             Route::post('/kyc/verify-pan', [KycController::class, 'verifyPan']);
             Route::post('/kyc/verify-bank', [KycController::class, 'verifyBank']);
+            Route::get('/kyc-documents/{id}/view', [KycController::class, 'viewDocument']);
             
+            // Subscriptions
             Route::get('/subscription', [SubscriptionController::class, 'show']);
             Route::post('/subscription', [SubscriptionController::class, 'store']);
             Route::post('/subscription/change-plan', [SubscriptionController::class, 'changePlan']);
@@ -105,107 +116,119 @@ Route::prefix('v1')->group(function () {
             Route::post('/subscription/resume', [SubscriptionController::class, 'resume']);
             Route::post('/subscription/cancel', [SubscriptionController::class, 'cancel']);
             
+            // Payments
             Route::post('/payment/initiate', [PaymentController::class, 'initiate']);
             Route::post('/payment/verify', [PaymentController::class, 'verify']);
             Route::post('/payment/manual', [PaymentController::class, 'submitManual']);
             Route::get('/payments/{payment}/invoice', [InvoiceController::class, 'download']);
 
+            // Portfolio & Bonuses
             Route::get('/portfolio', [PortfolioController::class, 'index']);
             Route::get('/bonuses', [BonusController::class, 'index']);
             Route::get('/referrals', [ReferralController::class, 'index']);
             
+            // Wallet
             Route::get('/wallet', [WalletController::class, 'show']);
             Route::post('/wallet/deposit/initiate', [WalletController::class, 'initiateDeposit']);
             Route::post('/wallet/withdraw', [WalletController::class, 'requestWithdrawal']);
             
+            // Support
             Route::apiResource('/support-tickets', UserSupportTicketController::class)->only(['index', 'store', 'show']);
             Route::post('/support-tickets/{supportTicket}/reply', [UserSupportTicketController::class, 'reply']);
             
+            // Bonus Modules
             Route::get('/lucky-draws', [UserLuckyDrawController::class, 'index']);
             Route::get('/profit-sharing', [UserProfitShareController::class, 'index']);
             
-            Route::get('/notifications', [App\Http\Controllers\Api\NotificationController::class, 'index']);
-            Route::post('/notifications/{id}/read', [App\Http\Controllers\Api\NotificationController::class, 'markAsRead']);
+            // Notifications
+            Route::get('/notifications', [NotificationController::class, 'index']);
+            Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
         });
 
         // === ADMIN ROUTES ===
-        Route::prefix('admin')->middleware(['role:admin|super-admin'])->group(function () {
+        Route::prefix('admin')->middleware(['role:admin|super-admin', 'admin.ip'])->group(function () {
+            
             Route::get('/dashboard', [AdminDashboardController::class, 'index']);
             
             // Reports & Health
-            Route::get('/reports/financial-summary', [ReportController::class, 'getFinancialSummary']);
-            Route::get('/reports/analytics/users', [App\Http\Controllers\Api\Admin\AdvancedReportController::class, 'getUserAnalytics']);
-            Route::get('/reports/analytics/products', [App\Http\Controllers\Api\Admin\AdvancedReportController::class, 'getProductPerformance']);
-            Route::get('/reports/download', [App\Http\Controllers\Api\Admin\AdvancedReportController::class, 'exportReport']);
-            Route::get('/system/health', [App\Http\Controllers\Api\Admin\SystemHealthController::class, 'index']);
-            Route::get('/system/activity-logs', [App\Http\Controllers\Api\Admin\AdminActivityController::class, 'index']);
-            Route::get('/system/backup/db', [App\Http\Controllers\Api\Admin\BackupController::class, 'downloadDbDump']);
+            Route::get('/reports/financial-summary', [ReportController::class, 'getFinancialSummary'])->middleware('permission:reports.view_financial');
+            Route::get('/reports/analytics/users', [AdvancedReportController::class, 'getUserAnalytics'])->middleware('permission:reports.view_user');
+            Route::get('/reports/analytics/products', [AdvancedReportController::class, 'getProductPerformance'])->middleware('permission:products.view');
+            Route::get('/reports/download', [AdvancedReportController::class, 'exportReport'])->middleware('permission:reports.export');
+            Route::get('/system/health', [SystemHealthController::class, 'index'])->middleware('permission:system.view_health');
+            Route::get('/system/activity-logs', [AdminActivityController::class, 'index'])->middleware('permission:system.view_logs');
+            Route::get('/system/backup/db', [BackupController::class, 'downloadDbDump'])->middleware('permission:system.manage_backups');
+            Route::get('/inventory/summary', [ReportController::class, 'getInventorySummary'])->middleware('permission:products.view');
             
             // User Management
-            Route::apiResource('/users', AdminUserController::class);
-            Route::post('/users/bulk-action', [AdminUserController::class, 'bulkAction']);
-            Route::post('/users/import', [AdminUserController::class, 'import']);
-            Route::get('/users/export/csv', [AdminUserController::class, 'export']);
-            Route::post('/users/{user}/suspend', [AdminUserController::class, 'suspend']);
-            Route::post('/users/{user}/adjust-balance', [AdminUserController::class, 'adjustBalance']);
-            Route::apiResource('/roles', RoleController::class);
+            Route::get('/users', [AdminUserController::class, 'index'])->middleware('permission:users.view');
+            Route::post('/users', [AdminUserController::class, 'store'])->middleware('permission:users.create');
+            Route::get('/users/{user}', [AdminUserController::class, 'show'])->middleware('permission:users.view');
+            Route::put('/users/{user}', [AdminUserController::class, 'update'])->middleware('permission:users.edit');
+            Route::post('/users/bulk-action', [AdminUserController::class, 'bulkAction'])->middleware('permission:users.edit');
+            Route::post('/users/import', [AdminUserController::class, 'import'])->middleware('permission:users.create');
+            Route::get('/users/export/csv', [AdminUserController::class, 'export'])->middleware('permission:users.view');
+            Route::post('/users/{user}/suspend', [AdminUserController::class, 'suspend'])->middleware('permission:users.suspend');
+            Route::post('/users/{user}/adjust-balance', [AdminUserController::class, 'adjustBalance'])->middleware('permission:users.adjust_wallet');
+            Route::apiResource('/roles', RoleController::class)->middleware('permission:users.manage_roles');
             
             // KYC Management
-            Route::apiResource('/kyc-queue', KycQueueController::class)->only(['index', 'show']);
-            Route::post('/kyc-queue/{id}/approve', [KycQueueController::class, 'approve']);
-            Route::post('/kyc-queue/{id}/reject', [KycQueueController::class, 'reject']);
+            Route::get('/kyc-queue', [KycQueueController::class, 'index'])->middleware('permission:kyc.view_queue');
+            Route::get('/kyc-queue/{id}', [KycQueueController::class, 'show'])->middleware('permission:kyc.view_queue');
+            Route::post('/kyc-queue/{id}/approve', [KycQueueController::class, 'approve'])->middleware('permission:kyc.approve');
+            Route::post('/kyc-queue/{id}/reject', [KycQueueController::class, 'reject'])->middleware('permission:kyc.reject');
 
             // Business Management
-            Route::apiResource('/plans', PlanController::class);
-            Route::apiResource('/products', ProductController::class);
-            Route::apiResource('/bulk-purchases', BulkPurchaseController::class);
+            Route::apiResource('/plans', PlanController::class)->middleware('permission:plans.edit');
+            Route::apiResource('/products', ProductController::class)->middleware('permission:products.edit');
+            Route::apiResource('/bulk-purchases', BulkPurchaseController::class)->middleware('permission:products.edit');
             
             // CMS & Settings
-            Route::apiResource('/pages', PageController::class);
-            Route::apiResource('/email-templates', EmailTemplateController::class);
-            Route::apiResource('/faqs', AdminFaqController::class);
-            Route::apiResource('/blog-posts', AdminBlogController::class);
-            Route::apiResource('/referral-campaigns', ReferralCampaignController::class); // <-- NEW ROUTE
+            Route::apiResource('/pages', PageController::class)->middleware('permission:settings.manage_cms');
+            Route::apiResource('/email-templates', EmailTemplateController::class)->middleware('permission:settings.manage_notifications');
+            Route::apiResource('/faqs', AdminFaqController::class)->middleware('permission:settings.manage_cms');
+            Route::apiResource('/blog-posts', AdminBlogController::class)->middleware('permission:settings.manage_cms');
+            Route::apiResource('/referral-campaigns', ReferralCampaignController::class)->middleware('permission:bonuses.manage_campaigns');
             
-            Route::get('/settings', [SettingsController::class, 'index']);
-            Route::put('/settings', [SettingsController::class, 'update']);
+            Route::get('/settings', [SettingsController::class, 'index'])->middleware('permission:settings.view_system');
+            Route::put('/settings', [SettingsController::class, 'update'])->middleware('permission:settings.edit_system');
             
             // Marketing CMS
-            Route::get('/menus', [CmsController::class, 'getMenus']);
-            Route::put('/menus/{menu}', [CmsController::class, 'updateMenu']);
-            Route::get('/banners', [CmsController::class, 'getBanners']);
-            Route::post('/banners', [CmsController::class, 'storeBanner']);
-            Route::put('/banners/{banner}', [CmsController::class, 'updateBanner']);
-            Route::delete('/banners/{banner}', [CmsController::class, 'destroyBanner']);
-            Route::post('/theme/update', [ThemeSeoController::class, 'updateTheme']);
-            Route::post('/seo/update', [ThemeSeoController::class, 'updateSeo']);
+            Route::get('/menus', [CmsController::class, 'getMenus'])->middleware('permission:settings.manage_cms');
+            Route::put('/menus/{menu}', [CmsController::class, 'updateMenu'])->middleware('permission:settings.manage_cms');
+            Route::get('/banners', [CmsController::class, 'getBanners'])->middleware('permission:settings.manage_cms');
+            Route::post('/banners', [CmsController::class, 'storeBanner'])->middleware('permission:settings.manage_cms');
+            Route::put('/banners/{banner}', [CmsController::class, 'updateBanner'])->middleware('permission:settings.manage_cms');
+            Route::delete('/banners/{banner}', [CmsController::class, 'destroyBanner'])->middleware('permission:settings.manage_cms');
+            Route::post('/theme/update', [ThemeSeoController::class, 'updateTheme'])->middleware('permission:settings.manage_theme');
+            Route::post('/seo/update', [ThemeSeoController::class, 'updateSeo'])->middleware('permission:settings.manage_theme');
 
             // Payment Management
-            Route::get('/payments', [AdminPaymentController::class, 'index']);
-            Route::post('/payments/offline', [AdminPaymentController::class, 'storeOffline']);
-            Route::post('/payments/{payment}/refund', [AdminPaymentController::class, 'refund']);
-            Route::post('/payments/{payment}/approve', [AdminPaymentController::class, 'approveManual']);
-            Route::post('/payments/{payment}/reject', [AdminPaymentController::class, 'rejectManual']);
-            Route::get('/payments/{payment}/invoice', [InvoiceController::class, 'download']);
+            Route::get('/payments', [AdminPaymentController::class, 'index'])->middleware('permission:payments.view');
+            Route::post('/payments/offline', [AdminPaymentController::class, 'storeOffline'])->middleware('permission:payments.offline_entry');
+            Route::post('/payments/{payment}/refund', [AdminPaymentController::class, 'refund'])->middleware('permission:payments.refund');
+            Route::post('/payments/{payment}/approve', [AdminPaymentController::class, 'approveManual'])->middleware('permission:payments.approve');
+            Route::post('/payments/{payment}/reject', [AdminPaymentController::class, 'rejectManual'])->middleware('permission:payments.approve');
+            Route::get('/payments/{payment}/invoice', [InvoiceController::class, 'download'])->middleware('permission:payments.view');
 
             // Withdrawals
-            Route::get('/withdrawal-queue', [WithdrawalController::class, 'index']);
-            Route::post('/withdrawal-queue/{withdrawal}/approve', [WithdrawalController::class, 'approve']);
-            Route::post('/withdrawal-queue/{withdrawal}/complete', [WithdrawalController::class, 'complete']);
-            Route::post('/withdrawal-queue/{withdrawal}/reject', [WithdrawalController::class, 'reject']);
+            Route::get('/withdrawal-queue', [WithdrawalController::class, 'index'])->middleware('permission:withdrawals.view_queue');
+            Route::post('/withdrawal-queue/{withdrawal}/approve', [WithdrawalController::class, 'approve'])->middleware('permission:withdrawals.approve');
+            Route::post('/withdrawal-queue/{withdrawal}/complete', [WithdrawalController::class, 'complete'])->middleware('permission:withdrawals.complete');
+            Route::post('/withdrawal-queue/{withdrawal}/reject', [WithdrawalController::class, 'reject'])->middleware('permission:withdrawals.reject');
             
             // Bonus Modules
-            Route::apiResource('/lucky-draws', AdminLuckyDrawController::class)->only(['index', 'store', 'show']);
-            Route::post('/lucky-draws/{luckyDraw}/execute', [AdminLuckyDrawController::class, 'executeDraw']);
+            Route::apiResource('/lucky-draws', AdminLuckyDrawController::class)->middleware('permission:bonuses.manage_config');
+            Route::post('/lucky-draws/{luckyDraw}/execute', [AdminLuckyDrawController::class, 'executeDraw'])->middleware('permission:bonuses.manage_config');
             
-            Route::apiResource('/profit-sharing', AdminProfitShareController::class)->only(['index', 'store', 'show']);
-            Route::post('/profit-sharing/{profitShare}/calculate', [AdminProfitShareController::class, 'calculate']);
-            Route::post('/profit-sharing/{profitShare}/distribute', [AdminProfitShareController::class, 'distribute']);
+            Route::apiResource('/profit-sharing', AdminProfitShareController::class)->middleware('permission:bonuses.manage_config');
+            Route::post('/profit-sharing/{profitShare}/calculate', [AdminProfitShareController::class, 'calculate'])->middleware('permission:bonuses.manage_config');
+            Route::post('/profit-sharing/{profitShare}/distribute', [AdminProfitShareController::class, 'distribute'])->middleware('permission:bonuses.manage_config');
             
             // Support
-            Route::apiResource('/support-tickets', AdminSupportTicketController::class)->only(['index', 'show']);
-            Route::post('/support-tickets/{supportTicket}/reply', [AdminSupportTicketController::class, 'reply']);
-            Route::put('/support-tickets/{supportTicket}/status', [AdminSupportTicketController::class, 'updateStatus']);
+            Route::apiResource('/support-tickets', AdminSupportTicketController::class)->middleware('permission:users.view');
+            Route::post('/support-tickets/{supportTicket}/reply', [AdminSupportTicketController::class, 'reply'])->middleware('permission:users.edit');
+            Route::put('/support-tickets/{supportTicket}/status', [AdminSupportTicketController::class, 'updateStatus'])->middleware('permission:users.edit');
         });
     });
 });
