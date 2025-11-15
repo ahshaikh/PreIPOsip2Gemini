@@ -1,5 +1,5 @@
 <?php
-// V-PHASE1-1730-008 (Created) | V-FINAL-1730-321 | V-FINAL-1730-394 (Notif Prefs Added)
+// V-PHASE1-1730-008 (Created) | V-FINAL-1730-321 | V-FINAL-1730-394 (Notif Prefs Added) | V-FINAL-1730-468 (2FA Added)
 
 namespace App\Models;
 
@@ -13,6 +13,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Support\Str;
+use PragmaRX\Google2FA\Google2FA;
 
 class User extends Authenticatable
 {
@@ -28,12 +29,16 @@ class User extends Authenticatable
         'status',
         'email_verified_at',
         'mobile_verified_at',
-        'two_fa_enabled'
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'two_factor_confirmed_at',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
     ];
 
     protected $casts = [
@@ -41,12 +46,10 @@ class User extends Authenticatable
         'mobile_verified_at' => 'datetime',
         'last_login_at' => 'datetime',
         'password' => 'hashed',
-        'two_fa_enabled' => 'boolean',
+        'two_factor_confirmed_at' => 'datetime',
+        'two_factor_recovery_codes' => 'array',
     ];
-
-    /**
-     * The "booted" method of the model.
-     */
+    
     protected static function booted()
     {
         static::creating(function ($user) {
@@ -59,45 +62,53 @@ class User extends Authenticatable
         });
     }
 
+    // --- 2FA HELPERS ---
+    
+    /**
+     * Get the QR Code URL for the authenticator app.
+     */
+    public function getTwoFactorQrCodeUrl(): string
+    {
+        $google2fa = app(Google2FA::class);
+        $companyName = setting('site_name', 'PreIPO SIP');
+        
+        return $google2fa->getQRCodeUrl(
+            $companyName,
+            $this->email,
+            decrypt($this->two_factor_secret)
+        );
+    }
+
+    /**
+     * Verify a 2FA code.
+     */
+    public function verifyTwoFactorCode(string $code): bool
+    {
+        $google2fa = app(Google2FA::class);
+        
+        return $google2fa->verifyKey(
+            decrypt($this->two_factor_secret),
+            $code
+        );
+    }
+
+    /**
+     * Replace a used recovery code.
+     */
+    public function replaceRecoveryCode($code)
+    {
+        $codes = $this->two_factor_recovery_codes ?? [];
+        
+        $this->forceFill([
+            'two_factor_recovery_codes' => collect($codes)->filter(fn ($c) => !hash_equals($c, $code))->all(),
+        ])->save();
+    }
+
     // --- RELATIONSHIPS ---
 
-    public function profile(): HasOne
-    {
-        return $this->hasOne(UserProfile::class);
-    }
-
-    public function kyc(): HasOne
-    {
-        return $this->hasOne(UserKyc::class);
-    }
-
-    public function wallet(): HasOne
-    {
-        return $this->hasOne(Wallet::class);
-    }
-    
-    /**
-     * NEW: User's notification preferences.
-     */
-    public function notificationPreferences(): HasMany
-    {
-        return $this->hasMany(UserNotificationPreference::class);
-    }
-    
-    /**
-     * Helper to check a specific preference.
-     */
-    public function canReceiveNotification(string $key): bool
-    {
-        $pref = $this->notificationPreferences
-                     ->where('preference_key', $key)
-                     ->first();
-        
-        // Default to TRUE (opt-out)
-        return $pref ? $pref->is_enabled : true;
-    }
-
-    // ... (all other relationships: activityLogs, otps, tickets, etc. remain here) ...
+    public function profile(): HasOne { return $this->hasOne(UserProfile::class); }
+    public function kyc(): HasOne { return $this->hasOne(UserKyc::class); }
+    public function wallet(): HasOne { return $this->hasOne(Wallet::class); }
     public function activityLogs(): HasMany { return $this->hasMany(ActivityLog::class); }
     public function otps(): HasMany { return $this->hasMany(Otp::class); }
     public function tickets(): HasMany { return $this->hasMany(SupportTicket::class); }
@@ -107,4 +118,9 @@ class User extends Authenticatable
     public function bonuses(): HasMany { return $this->hasMany(BonusTransaction::class); }
     public function referrals(): HasMany { return $this->hasMany(Referral::class, 'referrer_id'); }
     public function referrer(): HasOne { return $this->hasOne(Referral::class, 'referred_id'); }
+    public function notificationPreferences(): HasMany { return $this->hasMany(UserNotificationPreference::class); }
+    public function canReceiveNotification(string $key): bool {
+        $pref = $this->notificationPreferences->where('preference_key', $key)->first();
+        return $pref ? $pref->is_enabled : true;
+    }
 }

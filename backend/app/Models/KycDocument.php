@@ -1,5 +1,5 @@
 <?php
-// V-FINAL-1730-329 (Logic Upgraded)
+// V-FINAL-1730-329 (Logic Upgraded)| V-FINAL-1730-474 (Processing Status Added)
 
 namespace App\Models;
 
@@ -29,6 +29,7 @@ class KycDocument extends Model
         'file_name',
         'mime_type',
         'status',
+	'processing_status', // <-- NEW: API status (pending, verified, failed)
         'verified_by',
         'verified_at',
         'verification_notes'
