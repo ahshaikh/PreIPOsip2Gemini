@@ -1,4 +1,5 @@
-// V-FINAL-1730-310 (P&L Added)
+<?php
+// V-FINAL-1730-223 (Created) | V-FINAL-1730-488 (Full Report Suite)
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -9,13 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
-import { DollarSign, Users, Package, CreditCard, Download, TrendingUp, AlertCircle, FileText } from "lucide-react";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { DollarSign, Users, Package, CreditCard, Download, TrendingUp, AlertCircle, FileText, BarChart } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useState } from "react";
 
 export default function AdvancedReportsPage() {
   const [isDownloading, setIsDownloading] = useState(false);
-  const [exportFormat, setExportFormat] = useState('csv'); // Changed default to CSV for speed
+  const [exportFormat, setExportFormat] = useState('csv');
 
   // 1. Fetch Financial Summary
   const { data: financials } = useQuery({
@@ -95,57 +96,69 @@ export default function AdvancedReportsPage() {
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Investments</CardTitle>
-                <CreditCard className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
-              <CardContent><div className="text-2xl font-bold">{financials?.kpis.total_investments || 0}</div></CardContent>
+              <CardContent><div className="text-2xl font-bold">{financials?.kpis.total_users || 0}</div></CardContent>
             </Card>
-            <Card className="bg-blue-50 border-blue-200">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-blue-800">P&L Statement</CardTitle>
-                <FileText className="h-4 w-4 text-blue-600" />
+                <CardTitle className="text-sm font-medium">Pending KYC</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
+              <CardContent><div className="text-2xl font-bold">{financials?.kpis.pending_kyc || 0}</div></CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pending Withdrawals</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent><div className="text-2xl font-bold">{financials?.kpis.pending_withdrawals || 0}</div></CardContent>
+            </Card>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader><CardTitle>Revenue Trend (30 Days)</CardTitle></CardHeader>
+              <CardContent className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={financials?.charts.daily_revenue || []}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip formatter={(value: any) => `₹${value.toLocaleString()}`} />
+                    <Line type="monotone" dataKey="total" stroke="#8884d8" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle>Profit & Loss (This Year)</CardTitle></CardHeader>
               <CardContent>
-                <Button size="sm" className="w-full mt-1" onClick={() => handleExport('p-and-l')} disabled={isDownloading}>
-                  Download Report
+                <Button className="w-full" onClick={() => handleExport('p-and-l')} disabled={isDownloading}>
+                  <Download className="mr-2 h-4 w-4" /> Download P&L Statement
                 </Button>
               </CardContent>
             </Card>
           </div>
-
-          <Card>
-            <CardHeader><CardTitle>Revenue Trend (30 Days)</CardTitle></CardHeader>
-            <CardContent className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={financials?.charts.daily_revenue || []}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip formatter={(value: any) => `₹${value}`} />
-                  <Line type="monotone" dataKey="total" stroke="#8884d8" strokeWidth={2} />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
         </TabsContent>
 
         {/* --- TAB 2: USER ANALYTICS --- */}
         <TabsContent value="users" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Users</CardTitle></CardHeader>
-              <CardContent><div className="text-2xl font-bold">{financials?.kpis.total_users || 0}</div></CardContent>
+              <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">KYC Verified</CardTitle></CardHeader>
+              <CardContent><div className="text-2xl font-bold">{userStats?.kyc_percentage || 0}%</div></CardContent>
             </Card>
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Churn Rate</CardTitle></CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Churn Rate (This Year)</CardTitle></CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-destructive">{userStats?.churn_rate || 0}%</div>
-                <p className="text-xs text-muted-foreground">Based on cancelled subscriptions</p>
+                <div className="text-2xl font-bold text-destructive">{userStats?.retention_metrics.churn_rate || 0}%</div>
               </CardContent>
             </Card>
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Active Subscribers</CardTitle></CardHeader>
-              <CardContent><div className="text-2xl font-bold">{userStats?.active_subscribers || 0}</div></CardContent>
+              <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Users Lost (This Year)</CardTitle></CardHeader>
+              <CardContent><div className="text-2xl font-bold">{userStats?.retention_metrics.users_lost || 0}</div></CardContent>
             </Card>
           </div>
 
@@ -176,27 +189,23 @@ export default function AdvancedReportsPage() {
             <CardHeader><CardTitle>Product Performance</CardTitle></CardHeader>
             <CardContent>
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Sector</TableHead>
-                    <TableHead>Total Inventory</TableHead>
-                    <TableHead>Sold Value</TableHead>
-                    <TableHead>Sold %</TableHead>
-                    <TableHead>Investors</TableHead>
-                  </TableRow>
-                </TableHeader>
+                <TableHeader><TableRow>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Total Inventory</TableHead>
+                  <TableHead>Sold Value</TableHead>
+                  <TableHead>Sold %</TableHead>
+                  <TableHead>Investors</TableHead>
+                </TableRow></TableHeader>
                 <TableBody>
                   {productStats?.map((p: any) => (
                     <TableRow key={p.id}>
                       <TableCell className="font-medium">{p.name}</TableCell>
-                      <TableCell>{p.sector}</TableCell>
                       <TableCell>₹{p.total_inventory.toLocaleString()}</TableCell>
                       <TableCell>₹{p.sold_value.toLocaleString()}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <div className="w-full bg-gray-200 rounded-full h-2.5 w-[60px]">
-                            <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${Math.min(p.sold_percentage, 100)}%` }}></div>
+                            <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${p.sold_percentage}%` }}></div>
                           </div>
                           <span className="text-xs">{p.sold_percentage}%</span>
                         </div>
@@ -216,21 +225,21 @@ export default function AdvancedReportsPage() {
             <CardContent className="flex items-start gap-4 pt-6">
               <AlertCircle className="h-6 w-6 text-amber-600 mt-1" />
               <div>
-                <h3 className="font-semibold text-amber-800">Compliance Notice</h3>
-                <p className="text-sm text-amber-700">Ensure all GST and TDS reports are filed by the 10th of every month. These exports contain all necessary fields for government filing.</p>
+                <h3 className="font-semibold text-amber-800">Compliance Center</h3>
+                <p className="text-sm text-amber-700">Download reports for tax filing and internal audits. Ensure all data is verified before submitting to authorities.</p>
               </div>
             </CardContent>
           </Card>
 
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-3 gap-6">
             <Card>
               <CardHeader>
                 <CardTitle>GST Report (GSTR-1)</CardTitle>
-                <CardDescription>Export payment data for GST filing.</CardDescription>
+                <CardDescription>Export all sales (payments) for GST filing.</CardDescription>
               </CardHeader>
               <CardContent>
                 <Button className="w-full" onClick={() => handleExport('gst')} disabled={isDownloading}>
-                  <Download className="mr-2 h-4 w-4" /> Download GST CSV
+                  <Download className="mr-2 h-4 w-4" /> Download GST Report
                 </Button>
               </CardContent>
             </Card>
@@ -238,11 +247,23 @@ export default function AdvancedReportsPage() {
             <Card>
               <CardHeader>
                 <CardTitle>TDS Report (Form 26Q)</CardTitle>
-                <CardDescription>Export withdrawal data for TDS filing.</CardDescription>
+                <CardDescription>Export all payouts (withdrawals) for TDS filing.</CardDescription>
               </CardHeader>
               <CardContent>
                 <Button className="w-full" onClick={() => handleExport('tds')} disabled={isDownloading}>
-                  <Download className="mr-2 h-4 w-4" /> Download TDS CSV
+                  <Download className="mr-2 h-4 w-4" /> Download TDS Report
+                </Button>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Global Audit Trail</CardTitle>
+                <CardDescription>Export a full log of all system and admin actions.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button className="w-full" onClick={() => handleExport('audit-trail')} disabled={isDownloading}>
+                  <Download className="mr-2 h-4 w-4" /> Download Audit Log
                 </Button>
               </CardContent>
             </Card>
