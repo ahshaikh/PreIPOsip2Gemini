@@ -1,10 +1,30 @@
 <?php
-// V-PHASE1-1730-019 (Created) | V-FINAL-1730-423 (Security Upgraded)
+// V-PHASE1-1730-019 (Created) | V-FINAL-1730-482 (Referral Fix)
 
-namespace App\Http\Requests;
+namespace App\HttpHttp\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rules\Password; // <-- IMPORT
+use Illuminate\Validation\Rules\Password;
+use App\Models\User; // <-- IMPORT
+use Illuminate\Contracts\Validation\Rule; // <-- IMPORT
+
+/**
+ * Custom Rule for case-insensitive referral code check
+ */
+class CaseInsensitiveReferralCode implements Rule
+{
+    public function passes($attribute, $value)
+    {
+        // FSD-MKTG-010: "Referral codes must be case-insensitive"
+        return User::whereRaw('BINARY referral_code = ?', [strtoupper($value)])->exists();
+    }
+
+    public function message()
+    {
+        return 'The selected referral code is invalid.';
+    }
+}
+
 
 class RegisterRequest extends FormRequest
 {
@@ -20,7 +40,6 @@ class RegisterRequest extends FormRequest
             'email'    => 'required|string|email|max:255|unique:users,email',
             'mobile'   => 'required|string|regex:/^[0-9]{10}$/|unique:users,mobile',
             
-            // --- UPGRADED RULE (FSD-SYS-106) ---
             'password' => [
                 'required', 
                 'confirmed', 
@@ -30,9 +49,13 @@ class RegisterRequest extends FormRequest
                     ->numbers()
                     ->symbols()
             ],
-            // ---------------------------------
             
-            'referral_code' => 'nullable|string|exists:users,referral_code',
+            // --- UPDATED RULE (Case-Insensitive) ---
+            'referral_code' => [
+                'nullable',
+                'string',
+                new CaseInsensitiveReferralCode() // Use custom rule
+            ],
         ];
     }
 }

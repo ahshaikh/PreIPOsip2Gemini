@@ -45,7 +45,7 @@ use App\Http\Controllers\Api\Admin\WithdrawalController;
 use App\Http\Controllers\Api\Admin\LuckyDrawController as AdminLuckyDrawController;
 use App\Http\Controllers\Api\Admin\ProfitShareController as AdminProfitShareController;
 use App\Http\Controllers\Api\Admin\ReportController;
-use App\Http\Controllers\Api\Admin\AdvancedReportController;
+use App\Http\Controllers\Api\Admin\AdvancedReportController; // <-- IMPORT
 use App\Http\Controllers\Api\Admin\SupportTicketController as AdminSupportTicketController;
 use App\Http\Controllers\Api\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Api\Admin\FaqController as AdminFaqController;

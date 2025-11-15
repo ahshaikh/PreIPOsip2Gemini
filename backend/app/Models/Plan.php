@@ -1,5 +1,5 @@
 <?php
-// V-FINAL-1730-331 (Upgraded Logic)
+// V-FINAL-1730-331 (Created) | V-FINAL-1730-482 (Scheduling Added)
 
 namespace App\Models;
 
@@ -23,12 +23,20 @@ class Plan extends Model
         'is_active',
         'is_featured',
         'display_order',
+        'available_from', // <-- NEW
+        'available_until', // <-- NEW
+        'max_subscriptions_per_user',
+        'allow_pause',
+        'max_pause_count',
+        'max_pause_duration_months',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'is_featured' => 'boolean',
         'monthly_amount' => 'decimal:2',
+        'available_from' => 'datetime', // <-- NEW
+        'available_until' => 'datetime', // <-- NEW
     ];
 
     /**
@@ -70,6 +78,24 @@ class Plan extends Model
         $query->where('is_active', true);
     }
 
+    /**
+     * NEW: Scope for public-facing plan lists.
+     * FSD-PLAN-010: Enforce availability dates.
+     */
+    public function scopePubliclyAvailable(Builder $query): void
+    {
+        $now = now();
+        $query->where('is_active', true)
+              // 1. Either available_from is null OR it's in the past
+              ->where(function ($q) use ($now) {
+                  $q->whereNull('available_from')->orWhere('available_from', '<=', $now);
+              })
+              // 2. Either available_until is null OR it's in the future
+              ->where(function ($q) use ($now) {
+                  $q->whereNull('available_until')->orWhere('available_until', '>=', $now);
+              });
+    }
+
     // --- ACCESSORS & HELPERS ---
 
     /**
@@ -87,7 +113,6 @@ class Plan extends Model
      */
     public function getConfig(string $key, $default = null)
     {
-        // Use the relation if loaded to avoid N+1 queries
         $config = $this->relationLoaded('configs')
             ? $this->configs->firstWhere('config_key', $key)
             : $this->configs()->where('config_key', $key)->first();
