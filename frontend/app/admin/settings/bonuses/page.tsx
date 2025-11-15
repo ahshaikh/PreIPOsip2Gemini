@@ -1,4 +1,4 @@
-// V-REMEDIATE-1730-168
+// V-REMEDIATE-1730-168 (Created) | V-FINAL-1730-476 (36-Month Override Table)
 'use client';
 
 import { Button } from "@/components/ui/button";
@@ -7,11 +7,161 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { Plus, Trash2, Save } from "lucide-react";
+
+/**
+ * NEW: Progressive Bonus Table Component
+ * This renders the 36-month override table as per FSD-PLAN-006
+ */
+function ProgressiveBonusTable({ config, onChange }: { config: any, onChange: (key: string, value: any) => void }) {
+  const [months, setMonths] = useState<number[]>([]);
+  const [baseRate, setBaseRate] = useState(0.5);
+  const [startMonth, setStartMonth] = useState(4);
+  const [maxPercent, setMaxPercent] = useState(20);
+
+  // De-serialize the config object into a 36-month array
+  useEffect(() => {
+    const overrides = config?.overrides || {};
+    const rate = config?.rate || 0.5;
+    const start = config?.start_month || 4;
+    const max = config?.max_percentage || 20;
+
+    setBaseRate(rate);
+    setStartMonth(start);
+    setMaxPercent(max);
+
+    const newMonths = Array.from({ length: 36 }, (_, i) => {
+      const month = i + 1;
+      // If an override is set for this month, use it.
+      // Otherwise, calculate the linear rate.
+      if (overrides[month]) {
+        return overrides[month];
+      }
+      if (month < start) {
+        return 0;
+      }
+      const val = (month - start + 1) * rate;
+      return Math.min(val, max);
+    });
+    setMonths(newMonths);
+  }, [config]);
+
+  const handleMonthChange = (index: number, value: string) => {
+    const newMonths = [...months];
+    newMonths[index] = parseFloat(value) || 0;
+    setMonths(newMonths);
+    
+    // Serialize back into the 'overrides' object
+    const newOverrides: { [key: number]: number } = {};
+    newMonths.forEach((rate, i) => {
+      newOverrides[i + 1] = rate;
+    });
+    
+    onChange('progressive_config', {
+      ...config,
+      overrides: newOverrides
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <CardDescription>
+        Set a specific bonus percentage for each month. This overrides the linear formula.
+      </CardDescription>
+      <div className="grid grid-cols-3 gap-4">
+        <div className="space-y-2">
+            <Label>Base Rate (%) (Used for linear calc)</Label>
+            <Input 
+                type="number" 
+                step="0.1"
+                value={baseRate} 
+                onChange={(e) => {
+                    setBaseRate(parseFloat(e.target.value));
+                    onChange('progressive_config', { ...config, rate: parseFloat(e.target.value) });
+                }}
+            />
+        </div>
+        <div className="space-y-2">
+            <Label>Start Month (For linear calc)</Label>
+            <Input 
+                type="number" 
+                value={startMonth} 
+                onChange={(e) => {
+                    setStartMonth(parseInt(e.target.value));
+                    onChange('progressive_config', { ...config, start_month: parseInt(e.target.value) });
+                }}
+            />
+        </div>
+        <div className="space-y-2">
+            <Label>Max % Cap (For linear calc)</Label>
+            <Input 
+                type="number" 
+                value={maxPercent} 
+                onChange={(e) => {
+                    setMaxPercent(parseInt(e.target.value));
+                    onChange('progressive_config', { ...config, max_percentage: parseInt(e.target.value) });
+                }}
+            />
+        </div>
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Month</TableHead>
+            <TableHead>Override Rate (%)</TableHead>
+            <TableHead>Month</TableHead>
+            <TableHead>Override Rate (%)</TableHead>
+            <TableHead>Month</TableHead>
+            <TableHead>Override Rate (%)</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {Array.from({ length: 12 }).map((_, i) => (
+            <TableRow key={i}>
+              <TableCell className="font-medium">{i + 1}</TableCell>
+              <TableCell>
+                <Input 
+                  type="number" 
+                  step="0.1" 
+                  value={months[i] || 0} 
+                  onChange={(e) => handleMonthChange(i, e.target.value)}
+                  className="h-8"
+                />
+              </TableCell>
+              <TableCell className="font-medium">{i + 13}</TableCell>
+              <TableCell>
+                <Input 
+                  type="number" 
+                  step="0.1" 
+                  value={months[i + 12] || 0} 
+                  onChange={(e) => handleMonthChange(i + 12, e.target.value)}
+                  className="h-8"
+                />
+              </TableCell>
+              <TableCell className="font-medium">{i + 25}</TableCell>
+              <TableCell>
+                <Input 
+                  type="number" 
+                  step="0.1" 
+                  value={months[i + 24] || 0} 
+                  onChange={(e) => handleMonthChange(i + 24, e.target.value)}
+                  className="h-8"
+                />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+// --- END NEW COMPONENT ---
+
 
 export default function BonusSettingsPage() {
   const queryClient = useQueryClient();
@@ -37,7 +187,7 @@ export default function BonusSettingsPage() {
     if (selectedPlanId && plans) {
       const plan = plans.find((p: any) => p.id.toString() === selectedPlanId);
       if (plan) {
-        // Transform the array of config objects into a key-value map for easier editing
+        // Transform the array of config objects into a key-value map
         const configMap: any = {};
         plan.configs.forEach((c: any) => {
           configMap[c.config_key] = c.value;
@@ -78,8 +228,6 @@ export default function BonusSettingsPage() {
     const newArray = [...(configs[key] || [])];
     newArray[index] = { ...newArray[index], [field]: value };
     
-    // Special case for configs stored directly as arrays vs inside an object
-    // Our seeder stored milestones directly as array, refer to PlanSeeder
     setConfigs((prev: any) => ({
       ...prev,
       [key]: newArray
@@ -99,6 +247,14 @@ export default function BonusSettingsPage() {
     setConfigs((prev: any) => ({
       ...prev,
       [key]: current.filter((_: any, i: number) => i !== index)
+    }));
+  };
+  
+  // Handler for the Progressive Config
+  const handleProgressiveChange = (key: string, value: any) => {
+    setConfigs((prev: any) => ({
+        ...prev,
+        [key]: value
     }));
   };
 
@@ -141,33 +297,17 @@ export default function BonusSettingsPage() {
           <TabsTrigger value="lucky_draw">Lucky Draw</TabsTrigger>
         </TabsList>
 
-        {/* 1. Progressive Bonus */}
+        {/* 1. Progressive Bonus (REPLACED) */}
         <TabsContent value="progressive">
           <Card>
             <CardHeader>
               <CardTitle>Progressive Monthly Bonus</CardTitle>
-              <CardDescription>Bonus increases every month based on a fixed rate.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Monthly Rate (%)</Label>
-                  <Input 
-                    type="number" 
-                    step="0.1"
-                    value={configs.progressive_config?.rate || 0} 
-                    onChange={(e) => updateConfig('progressive_config', 'rate', parseFloat(e.target.value))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Start Month</Label>
-                  <Input 
-                    type="number" 
-                    value={configs.progressive_config?.start_month || 4} 
-                    onChange={(e) => updateConfig('progressive_config', 'start_month', parseInt(e.target.value))}
-                  />
-                </div>
-              </div>
+              <ProgressiveBonusTable 
+                config={configs.progressive_config} 
+                onChange={handleProgressiveChange} 
+              />
             </CardContent>
           </Card>
         </TabsContent>

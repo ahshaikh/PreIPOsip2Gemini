@@ -1,5 +1,5 @@
 <?php
-// V-REMEDIATE-1730-087 (Created) | V-FINAL-1730-421 (Granular Perms) | V-FINAL-1730-435 (Security Hardened) | V-FINAL-1730-443 (SEC-8 Applied)
+// V-REMEDIATE-1730-087 (Created) | V-FINAL-1730-421 (Granular Perms) | V-FINAL-1730-435 (Security Hardened) | V-FINAL-1730-443 (SEC-8 Applied) | V-FINAL-1730-471 (2FA Routes Added)
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Route;
 // Auth & Public Controllers
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\PasswordResetController;
+use App\Http\Controllers\Api\SocialLoginController; // <-- IMPORT
 use App\Http\Controllers\Api\Public\PlanController as PublicPlanController;
 use App\Http\Controllers\Api\Public\PageController as PublicPageController;
 use App\Http\Controllers\Api\Admin\FaqController as PublicFaqController;
@@ -28,6 +29,7 @@ use App\Http\Controllers\Api\User\LuckyDrawController as UserLuckyDrawController
 use App\Http\Controllers\Api\User\ProfitShareController as UserProfitShareController;
 use App\Http\Controllers\Api\User\SecurityController;
 use App\Http\Controllers\Api\User\PrivacyController;
+use App\Http\Controllers\Api\User\TwoFactorAuthController;
 
 // Admin Controllers
 use App\Http\Controllers\Api\Admin\AdminDashboardController;
@@ -65,16 +67,21 @@ use App\Http\Controllers\Api\NotificationController;
 Route::prefix('v1')->group(function () {
 
     // --- Public Authentication Routes (SEC-1 & SEC-8 Throttled) ---
-    // Use the custom 'login' limiter from RouteServiceProvider
     Route::middleware('throttle:login')->group(function () {
         Route::post('/register', [AuthController::class, 'register']);
-        Route::post('/login', [AuthController::class, 'login']);
+        Route::post('/login', [AuthController::class, 'login']); // Step 1
+        Route::post('/login/2fa', [AuthController::class, 'verifyTwoFactor']); // Step 2
         Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
         Route::post('/password/forgot', [PasswordResetController::class, 'sendResetLink']);
         Route::post('/password/reset', [PasswordResetController::class, 'reset']);
     });
 
-    // --- Public Data Routes ---
+// --- NEW: Social Login Routes ---
+    Route::get('/auth/google/redirect', [SocialLoginController::class, 'redirectToGoogle']);
+    Route::get('/auth/google/callback', [SocialLoginController::class, 'handleGoogleCallback']);
+    // ---------------------------------
+
+    // --- Public Data Routes (Default 'api' throttle) ---
     Route::get('/plans', [PublicPlanController::class, 'index']);
     Route::get('/plans/{slug}', [PublicPlanController::class, 'show']);
     Route::get('/page/{slug}', [PublicPageController::class, 'show']);
@@ -84,8 +91,11 @@ Route::prefix('v1')->group(function () {
     Route::get('/global-settings', [GlobalSettingsController::class, 'index']);
     Route::get('/products/{slug}/history', [ProductDataController::class, 'getPriceHistory']);
 
-    // --- Webhook Routes ---
+    // --- Webhook Routes (No throttle) ---
     Route::post('/webhooks/razorpay', [WebhookController::class, 'handleRazorpay']);
+
+    // --- KYC CALLBACK (Public, as it's from DigiLocker) ---
+    Route::get('/kyc/digilocker/callback', [KycController::class, 'handleDigiLockerCallback']);
 
     // --- Authenticated User Routes ---
     Route::middleware('auth:sanctum')->group(function () {
@@ -101,12 +111,21 @@ Route::prefix('v1')->group(function () {
             Route::get('/security/export-data', [PrivacyController::class, 'export']);
             Route::post('/security/delete-account', [PrivacyController::class, 'deleteAccount']);
             
+            // 2FA Management
+            Route::get('/2fa/status', [TwoFactorAuthController::class, 'status']);
+            Route::post('/2fa/enable', [TwoFactorAuthController::class, 'enable']);
+            Route::post('/2fa/confirm', [TwoFactorAuthController::class, 'confirm']);
+            Route::post('/2fa/disable', [TwoFactorAuthController::class, 'disable']);
+            
             // KYC
             Route::get('/kyc', [KycController::class, 'show']);
             Route::post('/kyc', [KycController::class, 'store']);
             Route::post('/kyc/verify-pan', [KycController::class, 'verifyPan']);
             Route::post('/kyc/verify-bank', [KycController::class, 'verifyBank']);
             Route::get('/kyc-documents/{id}/view', [KycController::class, 'viewDocument']);
+
+	    // --- NEW: DigiLocker Flow ---
+            Route::get('/kyc/digilocker/redirect', [KycController::class, 'redirectToDigiLocker']);
             
             // Subscriptions
             Route::get('/subscription', [SubscriptionController::class, 'show']);
@@ -146,6 +165,9 @@ Route::prefix('v1')->group(function () {
         });
 
         // === ADMIN ROUTES ===
+        // 1. Must be authenticated
+        // 2. Must have 'admin' or 'super-admin' role
+        // 3. Must pass IP Whitelist
         Route::prefix('admin')->middleware(['role:admin|super-admin', 'admin.ip'])->group(function () {
             
             Route::get('/dashboard', [AdminDashboardController::class, 'index']);
@@ -161,15 +183,14 @@ Route::prefix('v1')->group(function () {
             Route::get('/inventory/summary', [ReportController::class, 'getInventorySummary'])->middleware('permission:products.view');
             
             // User Management
-            Route::get('/users', [AdminUserController::class, 'index'])->middleware('permission:users.view');
+            Route::apiResource('/users', AdminUserController::class)->except(['store', 'update']);
             Route::post('/users', [AdminUserController::class, 'store'])->middleware('permission:users.create');
-            Route::get('/users/{user}', [AdminUserController::class, 'show'])->middleware('permission:users.view');
             Route::put('/users/{user}', [AdminUserController::class, 'update'])->middleware('permission:users.edit');
             Route::post('/users/bulk-action', [AdminUserController::class, 'bulkAction'])->middleware('permission:users.edit');
             Route::post('/users/import', [AdminUserController::class, 'import'])->middleware('permission:users.create');
             Route::get('/users/export/csv', [AdminUserController::class, 'export'])->middleware('permission:users.view');
             Route::post('/users/{user}/suspend', [AdminUserController::class, 'suspend'])->middleware('permission:users.suspend');
-            Route::post('/users/{user}/adjust-balance', [AdminUserController::class, 'adjustBalance'])->middleware('permission:users.adjust_wallet');
+Route::post('/users/{user}/adjust-balance', [AdminUserController::class, 'adjustBalance'])->middleware('permission:users.adjust_wallet');
             Route::apiResource('/roles', RoleController::class)->middleware('permission:users.manage_roles');
             
             // KYC Management
