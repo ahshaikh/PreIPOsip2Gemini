@@ -1,5 +1,5 @@
 <?php
-// V-FINAL-1730-344 (5-Tier Referral Logic)
+// V-FINAL-1730-344 (5-Tier Referral Logic) | V-FINAL-1730-621 (JSON Encode Fix)
 
 namespace Database\Seeders;
 
@@ -19,8 +19,6 @@ class PlanSeeder extends Seeder
                 'duration_months' => 36,
                 'description' => 'Perfect for new investors.',
                 'display_order' => 1,
-                'birthday_bonus' => 50,
-                'anniversary_bonus' => 100,
             ],
             [
                 'name' => 'Plan B - Wealth Builder',
@@ -29,8 +27,6 @@ class PlanSeeder extends Seeder
                 'description' => 'Our most popular plan.',
                 'is_featured' => true,
                 'display_order' => 2,
-                'birthday_bonus' => 100,
-                'anniversary_bonus' => 250,
             ],
             [
                 'name' => 'Plan C - Growth Accelerator',
@@ -38,8 +34,6 @@ class PlanSeeder extends Seeder
                 'duration_months' => 36,
                 'description' => 'For serious investors.',
                 'display_order' => 3,
-                'birthday_bonus' => 200,
-                'anniversary_bonus' => 500,
             ],
             [
                 'name' => 'Plan D - Elite Platinum',
@@ -47,24 +41,32 @@ class PlanSeeder extends Seeder
                 'duration_months' => 36,
                 'description' => 'Maximum bonus potential.',
                 'display_order' => 4,
-                'birthday_bonus' => 500,
-                'anniversary_bonus' => 1000,
             ],
         ];
 
-        // --- UPDATED: 5-Tier Referral Structure ---
-        $defaultReferralTiers = json_encode([
+        // --- DEFINE THE CONFIGS AS PHP ARRAYS ---
+        $defaultReferralTiers = [
             ['count' => 0, 'multiplier' => 1.0],
             ['count' => 3, 'multiplier' => 1.5],
             ['count' => 5, 'multiplier' => 2.0],
             ['count' => 10, 'multiplier' => 2.5],
             ['count' => 20, 'multiplier' => 3.0],
-        ]);
-        // ------------------------------------------
+        ];
+        
+        $progressiveConfig = ['rate' => 0.5, 'start_month' => 4, 'max_percentage' => 20, 'overrides' => []];
+        $milestoneConfig = [['month' => 12, 'amount' => 500], ['month' => 24, 'amount' => 1000], ['month' => 36, 'amount' => 2000]];
+        $consistencyConfig = ['amount_per_payment' => 10, 'streaks' => [['months' => 6, 'multiplier' => 3]]];
 
         foreach ($plans as $planData) {
-            $planAttributes = Arr::except($planData, ['birthday_bonus', 'anniversary_bonus']);
-            $plan = Plan::create($planAttributes + ['slug' => Str::slug($planData['name'])]);
+            $plan = Plan::create([
+                'name' => $planData['name'],
+                'slug' => Str::slug($planData['name']),
+                'monthly_amount' => $planData['monthly_amount'],
+                'duration_months' => $planData['duration_months'],
+                'description' => $planData['description'],
+                'is_featured' => $planData['is_featured'] ?? false,
+                'display_order' => $planData['display_order'],
+            ]);
             
             $plan->features()->createMany([
                 ['feature_text' => '10% Guaranteed Bonus'],
@@ -72,17 +74,14 @@ class PlanSeeder extends Seeder
                 ['feature_text' => 'Zero Exit Fees'],
             ]);
 
-            $celebrationConfig = json_encode([
-                'birthday_amount' => $planData['birthday_bonus'],
-                'anniversary_amount' => $planData['anniversary_bonus'],
-            ]);
-
+            // --- THE FIX: Use json_encode() to store as JSON strings ---
             $plan->configs()->createMany([
-                ['config_key' => 'progressive_config', 'value' => json_encode(['rate' => 0.5, 'start_month' => 4])],
-                ['config_key' => 'milestone_config', 'value' => json_encode([['month' => 12, 'amount' => 500], ['month' => 24, 'amount' => 1000]])],
+                ['config_key' => 'progressive_config', 'value' => json_encode($progressiveConfig)],
+                ['config_key' => 'milestone_config', 'value' => json_encode($milestoneConfig)],
+                ['config_key' => 'consistency_config', 'value' => json_encode($consistencyConfig)],
                 ['config_key' => 'lucky_draw_entries', 'value' => json_encode(['count' => $planData['display_order'] * 2])],
-                ['config_key' => 'referral_tiers', 'value' => $defaultReferralTiers], // Use new 5-tier config
-                ['config_key' => 'celebration_bonus_config', 'value' => $celebrationConfig],
+                ['config_key' => 'referral_tiers', 'value' => json_encode($defaultReferralTiers)],
+                ['config_key' => 'profit_share', 'value' => json_encode(['percentage' => ($planData['display_order'] * 5)])]
             ]);
         }
     }

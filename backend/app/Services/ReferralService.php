@@ -1,5 +1,5 @@
 <?php
-// V-FINAL-1730-345 (5-Tier Logic)
+// V-FINAL-1730-345 (5-Tier Logic) | V-FINAL-1730-620 (JSON Decode Fix)
 
 namespace App\Services;
 
@@ -32,12 +32,10 @@ class ReferralService
         // 2. Calculate Standard Tier
         $count = $referrer->referrals()->where('status', 'completed')->count();
         
-        // Get tiers from Plan Config
         $config = $referrer->subscription->plan->configs
             ->where('config_key', 'referral_tiers')
             ->first();
 
-        // --- UPDATED: 5-Tier Default Fallback ---
         $defaultTiers = [
             ['count' => 0, 'multiplier' => 1.0],
             ['count' => 3, 'multiplier' => 1.5],
@@ -45,9 +43,11 @@ class ReferralService
             ['count' => 10, 'multiplier' => 2.5],
             ['count' => 20, 'multiplier' => 3.0],
         ];
-        // ---------------------------------------
         
-        $tiers = $config ? $config->value : $defaultTiers;
+        // --- THE FIX ---
+        // $config->value is a JSON string, we must decode it.
+        $tiers = $config ? json_decode($config->value, true) : $defaultTiers;
+        // ---------------
 
         // 3. Determine Highest Applicable Multiplier
         usort($tiers, fn($a, $b) => $b['count'] <=> $a['count']);

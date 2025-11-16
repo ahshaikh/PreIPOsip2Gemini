@@ -1,5 +1,5 @@
 <?php
-// V-PHASE2-1730-024
+// V-DEPLOY-1730-002 (Created) | V-PHASE2-1730-024 | V-FINAL-1730-610 (Consolidated)
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -7,19 +7,15 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     * This is the core table for the configurable engine.
-     */
     public function up(): void
     {
         Schema::create('settings', function (Blueprint $table) {
             $table->id();
             $table->string('key')->unique();
-            $table->text('value')->nullable();
-            $table->string('group')->default('system'); // e.g., 'system', 'security', 'bonuses'
-            $table->string('type')->default('string'); // string, number, boolean, json
-            $table->timestamps();
+            $table->longText('value')->nullable();
+            $table->string('type')->default('string');
+            $table->string('group')->default('system');
+            $table->foreignId('updated_by')->nullable()->constrained('users')->onDelete('set null');
         });
     }
 
