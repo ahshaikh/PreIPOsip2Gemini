@@ -1,11 +1,11 @@
 <?php
-// V-FINAL-1730-300 | V-FINAL-1730-373 (Refactored)
+// V-FINAL-1730-300 | V-FINAL-1730-373 (Refactored) | V-FINAL-1730-568 (Service Injected) | V-FINAL-1730-574 (Adjust/Reverse)
 
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ProfitShare;
-use App\Services\ProfitShareService; // <-- IMPORT
+use App\Services\ProfitShareService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -19,7 +19,7 @@ class ProfitShareController extends Controller
 
     public function index()
     {
-        return ProfitShare::latest()->paginate(25);
+        return ProfitShare::with('admin:id,username')->latest()->paginate(25);
     }
 
     public function store(Request $request)
@@ -42,7 +42,8 @@ class ProfitShareController extends Controller
 
     public function show(ProfitShare $profitShare)
     {
-        return $profitShare->load('distributions.user:id,username');
+        // Load the distributions and the associated user
+        return $profitShare->load('distributions.user:id,username,email');
     }
 
     /**
@@ -53,7 +54,7 @@ class ProfitShareController extends Controller
         try {
             $result = $this->service->calculateDistribution($profitShare);
             return response()->json([
-                'message' => 'Calculation complete.',
+                'message' => 'Calculation complete. Ready to distribute.',
                 'data' => $result
             ]);
         } catch (\Exception $e) {
@@ -69,6 +70,47 @@ class ProfitShareController extends Controller
         try {
             $this->service->distributeToWallets($profitShare, $request->user());
             return response()->json(['message' => 'Profit share distributed successfully.']);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * NEW: Manually adjust a single user's share.
+     */
+    public function adjust(Request $request, ProfitShare $profitShare)
+    {
+        $validated = $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'amount' => 'required|numeric|min:0',
+            'reason' => 'required|string',
+        ]);
+        
+        try {
+            $this->service->manualAdjustment(
+                $profitShare,
+                $validated['user_id'],
+                $validated['amount'],
+                $validated['reason']
+            );
+            return response()->json(['message' => 'Adjustment saved.']);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * NEW: Reverse an entire distribution.
+     */
+    public function reverse(Request $request, ProfitShare $profitShare)
+    {
+        $validated = $request->validate([
+            'reason' => 'required|string|min:10',
+        ]);
+        
+        try {
+            $this->service->reverseDistribution($profitShare, $validated['reason']);
+            return response()->json(['message' => 'Distribution reversed successfully.']);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 500);
         }

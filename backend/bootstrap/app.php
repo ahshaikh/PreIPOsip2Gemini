@@ -1,12 +1,14 @@
 <?php
-// V-FINAL-1730-269 (No CORS) | V-FINAL-1730-420 (Permission Added) | V-FINAL-1730-438 (Corrected) | V-FINAL-1730-447 (IP Whitelist Added)
+// V-FINAL-1730-269 (No CORS) | V-FINAL-1730-420 (Permission Add) | V-FINAL-1730-438 | V-FINAL-1730-447 IP Whitelist | V-FINAL-1730-533 (Redirects Added) | V-FINAL-1730-562 (Legal Middleware)
 
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use App\Http\Middleware\AdminIpRestriction; // <-- 1. IMPORT
+use App\HttpHttp\Middleware\AdminIpRestriction;
 use App\Http\Middleware\CheckMaintenanceMode;
 use App\Http\Middleware\CheckPermission;
+use App\Http\Middleware\RedirectMiddleware;
+use App\Http\Middleware\EnsureLegalAcceptance; // <-- 1. IMPORT
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,11 +19,15 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         
-        $middleware->append(CheckMaintenanceMode::class);
+        $middleware->append([
+            CheckMaintenanceMode::class,
+            RedirectMiddleware::class,
+        ]);
 
         $middleware->alias([
-            'admin.ip' => AdminIpRestriction::class, // <-- 2. ADD ALIAS
+            'admin.ip' => AdminIpRestriction::class,
             'permission' => CheckPermission::class,
+            'legal.accept' => EnsureLegalAcceptance::class, // <-- 2. ADD ALIAS
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

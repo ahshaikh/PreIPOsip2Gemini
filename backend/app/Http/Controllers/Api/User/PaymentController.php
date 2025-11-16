@@ -1,15 +1,16 @@
 <?php
-// V-REMEDIATE-1730-190 (Created) | V-FINAL-1730-426 (Request Validated)
+// V-REMEDIATE-1730-190 (Created) | V-FINAL-1730-426 (Request Validated) | V-FINAL-1730-571 (Mandate Logic Added)
 
-namespace App\Http\Controllers\Api\User;
+namespace App\HttpAdapters\Controllers\Api\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Services\RazorpayService;
-use App\Http\Requests\InitiatePaymentRequest; // <-- 1. IMPORT
-use Illuminate\Http\Request; // <-- Keep for submitManual
+use App\Http\Requests\InitiatePaymentRequest;
+use Illuminate\Http\Request;
 use Razorpay\Api\Api;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Plan; // <-- IMPORT
 
 class PaymentController extends Controller
 {
@@ -22,52 +23,62 @@ class PaymentController extends Controller
 
     /**
      * Initiate a payment.
-     * Handles both One-Time Orders and Recurring Subscription setups.
+     * Handles both One-Time Orders and Recurring Subscription (Mandate) setups.
      */
-    public function initiate(InitiatePaymentRequest $request) // <-- 2. USE THE NEW REQUEST
+    public function initiate(InitiatePaymentRequest $request)
     {
-        $validated = $request->validated(); // Get validated data
-        
+        $validated = $request->validated();
         $payment = Payment::with('subscription.plan')->findOrFail($validated['payment_id']);
         $user = $request->user();
-
-        // --- Dynamic Limits Check (test_validates_amount_positive) ---
+        
+        // --- Dynamic Limits Check ---
         $min = setting('min_payment_amount', 1);
         $max = setting('max_payment_amount', 1000000);
         if ($payment->amount < $min || $payment->amount > $max) {
              return response()->json(['message' => "Payment amount must be between ₹$min and ₹$max."], 400);
         }
-        // ----------------------------------------
 
         $plan = $payment->subscription->plan;
         $isAutoDebit = $request->input('enable_auto_debit', false);
 
         // --- PATH A: AUTO-DEBIT (SUBSCRIPTION) ---
         if ($isAutoDebit) {
-            $rpPlanId = $this->razorpayService->createPlan($plan);
             
-            if (!$rpPlanId) {
-                return response()->json(['message' => 'Auto-debit unavailable for this plan. Contact support.'], 400);
+            // 1. Ensure Plan exists on Razorpay
+            if (!$plan->razorpay_plan_id) {
+                try {
+                    $this->razorpayService->createOrUpdateRazorpayPlan($plan);
+                } catch (\Exception $e) {
+                    return response()->json(['message' => 'Payment provider plan setup failed. Please try again.'], 500);
+                }
             }
 
-            $rpSubId = $this->razorpayService->createSubscription(
-                $rpPlanId, 
-                $plan->duration_months
-            );
-
+            // 2. Create Razorpay Subscription
+            try {
+                $razorpaySub = $this->razorpayService->createRazorpaySubscription(
+                    $plan->razorpay_plan_id,
+                    $user->email,
+                    $plan->duration_months
+                );
+            } catch (\Exception $e) {
+                return response()->json(['message' => 'Mandate creation failed. Please try again.'], 500);
+            }
+            
+            // 3. Save Mandate ID to our DB
             $payment->subscription->update([
                 'is_auto_debit' => true,
-                'razorpay_subscription_id' => $rpSubId
+                'razorpay_subscription_id' => $razorpaySub->id
             ]);
             
-            $payment->update(['gateway_order_id' => $rpSubId]);
+            $payment->update(['gateway_order_id' => $razorpaySub->id]); // Use Sub ID as Order ID
 
+            // 4. Return Subscription ID (not Order ID) to frontend
             return response()->json([
                 'type' => 'subscription',
-                'subscription_id' => $rpSubId,
-                'razorpay_key' => env('RAZORPAY_KEY'),
-                'name' => 'PreIPO SIP Auto-Debit',
-                'description' => 'Setup recurring payment for ' . $plan->name,
+                'subscription_id' => $razorpaySub->id, // This is the mandate
+                'razorpay_key' => setting('razorpay_key_id', env('RAZORPAY_KEY')),
+                'name' => $plan->name . ' (Auto-Debit)',
+                'description' => 'Setup recurring monthly payment',
                 'prefill' => [
                     'name' => $user->profile->first_name . ' ' . $user->profile->last_name,
                     'email' => $user->email,
@@ -77,23 +88,21 @@ class PaymentController extends Controller
         }
 
         // --- PATH B: STANDARD ONE-TIME PAYMENT ---
-        $api = new Api(env('RAZORPAY_KEY'), env('RAZORPAY_SECRET'));
-        
-        $order = $api->order->create([
-            'receipt' => 'payment_' . $payment->id,
-            'amount' => $payment->amount * 100,
-            'currency' => 'INR',
-        ]);
+        try {
+            $order = $this->razorpayService->createOrder($payment->amount, 'payment_' . $payment->id);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Payment gateway failed. Please try again.'], 500);
+        }
         
         $payment->update(['gateway_order_id' => $order->id]);
 
         return response()->json([
             'type' => 'order',
             'order_id' => $order->id,
-            'razorpay_key' => env('RAZORPAY_KEY'),
+            'razorpay_key' => setting('razorpay_key_id', env('RAZORPAY_KEY')),
             'amount' => $payment->amount * 100,
             'name' => 'PreIPO SIP Payment',
-            'description' => 'Payment for ' . $plan->name,
+            'description' => 'One-time payment for ' . $plan->name,
             'prefill' => [
                 'name' => $user->profile->first_name . ' ' . $user->profile->last_name,
                 'email' => $user->email,

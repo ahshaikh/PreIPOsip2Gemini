@@ -1,4 +1,4 @@
-// V-FINAL-1730-278 (Created) | V-FINAL-1730-451 (Health/Log Links)
+// V-FINAL-1730-278 (Created) | V-FINAL-1730-451 (Health/Log Links) | V-FINAL-1730-548 (Captcha Link Added)
 'use client';
 
 import Link from 'next/link';
@@ -27,8 +27,9 @@ import {
   Megaphone,
   Palette,
   Zap,
-  Activity, // <-- IMPORT
-  Database  // <-- IMPORT
+  Activity,
+  Database,
+  Shield // <-- Re-import (or Check)
 } from 'lucide-react';
 
 const navItems = [
@@ -44,21 +45,22 @@ const navItems = [
 ];
 
 const settingsNav = [
-    { href: '/admin/settings/system', label: 'System Toggles', icon: Settings },
+    { href: '/admin/settings/system', label: 'General Settings', icon: Settings },
     { href: '/admin/settings/plans', label: 'Plan Management', icon: Package },
     { href: '/admin/settings/products', label: 'Product Management', icon: ShoppingCart },
     { href: '/admin/settings/bonuses', label: 'Bonus Config', icon: Gift },
     { href: '/admin/settings/referral-campaigns', label: 'Referral Campaigns', icon: Zap },
     { href: '/admin/settings/roles', label: 'Role Management', icon: ShieldCheck },
+    { href: '/admin/settings/ip-whitelist', label: 'IP Whitelist', icon: ShieldCheck },
+    { href: '/admin/settings/captcha', label: 'CAPTCHA', icon: Shield }, // <-- NEW
     { href: '/admin/settings/compliance', label: 'Compliance', icon: ShieldCheck },
     { href: '/admin/settings/cms', label: 'CMS / Pages', icon: FileText },
     { href: '/admin/settings/menus', label: 'Menu Manager', icon: Menu },
     { href: '/admin/settings/banners', label: 'Banners & Popups', icon: Megaphone },
-    { href: '/admin/settings/theme', label: 'Theme & SEO', icon: Palette },
+    { href: '/admin/settings/theme-seo', label: 'Theme & SEO', icon: Palette },
     { href: '/admin/settings/blog', label: 'Blog Manager', icon: BookOpen },
     { href: '/admin/settings/faq', label: 'FAQ Manager', icon: HelpCircle },
     { href: '/admin/settings/notifications', label: 'Notifications', icon: Mail },
-    // --- NEW LINKS ---
     { href: '/admin/settings/system-health', label: 'System Health', icon: Activity },
     { href: '/admin/settings/activity', label: 'Global Audit Log', icon: FileText },
     { href: '/admin/settings/backups', label: 'Backups', icon: Database },

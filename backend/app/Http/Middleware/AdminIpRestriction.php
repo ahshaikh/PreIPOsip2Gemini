@@ -1,5 +1,5 @@
 <?php
-// V-FINAL-1730-265 (Created) | V-FINAL-1730-446 
+// V-FINAL-1730-265 (Created) | V-FINAL-1730-446 | V-FINAL-1730-541 (Upgraded)
 
 namespace App\Http\Middleware;
 
@@ -7,6 +7,8 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
+use App\Models\IpWhitelist;
 
 class AdminIpRestriction
 {
@@ -15,29 +17,29 @@ class AdminIpRestriction
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // 1. Get the whitelist from settings.
-        $whitelistStr = setting('admin_ip_whitelist');
+        // 1. Get the allowed IPs from cache (or DB)
+        $allowedIps = Cache::rememberForever('ip_whitelist.active', function () {
+            return IpWhitelist::where('is_active', true)->pluck('ip_address')->all();
+        });
         
         // 2. If the list is empty, the feature is disabled. Allow request.
-        if (empty($whitelistStr)) {
+        if (empty($allowedIps)) {
             return $next($request);
         }
 
-        // 3. Parse the list
-        $allowedIps = array_map('trim', explode(',', $whitelistStr));
         $clientIp = $request->ip();
 
-        // 4. Check if client IP is in the list
-        if (in_array($clientIp, $allowedIps)) {
+        // 3. Check if client IP is in the list (supports CIDR ranges)
+        if (IpWhitelist::isIpAllowed($clientIp, $allowedIps)) {
             return $next($request);
         }
 
-        // 5. If in local dev, allow loopback
+        // 4. If in local dev, allow loopback
         if (app()->environment('local') && in_array($clientIp, ['127.0.0.1', '::1'])) {
             return $next($request);
         }
 
-        // 6. BLOCK the request
+        // 5. BLOCK the request
         Log::warning("Admin Access Blocked: IP {$clientIp} not in whitelist.", [
             'route' => $request->path()
         ]);

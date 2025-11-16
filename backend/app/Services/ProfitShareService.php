@@ -1,5 +1,5 @@
 <?php
-// V-FINAL-1730-372 (Created) | V-FINAL-1730-451 (Hardened)
+// V-FINAL-1730-372 (Created) | V-FINAL-1730-451 (Hardened) | V-FINAL-1730-567 (Hardened) | V-FINAL-1730-573 (Reversals Added)
 
 namespace App\Services;
 
@@ -8,22 +8,27 @@ use App\Models\Subscription;
 use App\Models\BonusTransaction;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Models\UserProfitShare; // <-- IMPORT
+use App\Services\WalletService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class ProfitShareService
 {
+    protected $walletService;
+    public function __construct(WalletService $walletService)
+    {
+        $this->walletService = $walletService;
+    }
+
     /**
-     * Test: test_calculate_profit_uses_correct_formula
+     * FSD-REPORT-021: Calculate the distribution.
      */
     public function calculateDistribution(ProfitShare $profitShare)
     {
         if ($profitShare->status !== 'pending') {
             throw new \Exception("This period is not pending calculation.");
         }
-
-        // --- V2.0 Safety Check ---
-        // Test: test_profit_share_zero_profit_no_distribution
         if ($profitShare->total_pool <= 0) {
             $profitShare->update(['status' => 'cancelled']);
             throw new \Exception("Total pool is zero or negative. No distribution to calculate.");
@@ -41,12 +46,10 @@ class ProfitShareService
         $userShares = [];
 
         foreach ($subscriptions as $sub) {
-            $investmentWeight = $sub->plan->monthly_amount;
+            $investmentWeight = $sub->amount;
             $totalWeightedInvestment += $investmentWeight;
-            
             $config = $sub->plan->getConfig('profit_share', ['percentage' => 5]);
             $sharePercent = (float)$config['percentage'] / 100;
-            
             $userShares[] = [
                 'user_id' => $sub->user_id,
                 'investment_weight' => $investmentWeight,
@@ -54,14 +57,12 @@ class ProfitShareService
             ];
         }
 
-        // --- V2.0 Safety Check ---
-        // Test: test_profit_share_calculation_formula_division_by_zero
         if ($totalWeightedInvestment == 0) {
             throw new \Exception('No eligible investments found. Division by zero prevented.');
         }
 
         return DB::transaction(function () use ($profitShare, $userShares, $totalWeightedInvestment) {
-            $profitShare->distributions()->delete();
+            $profitShare->distributions()->delete(); // Clear old calculations
             $totalDistributed = 0;
 
             foreach ($userShares as $share) {
@@ -79,14 +80,12 @@ class ProfitShareService
 
             $profitShare->status = 'calculated';
             $profitShare->save();
-
             return ['total_distributed' => $totalDistributed, 'eligible_users' => count($userShares)];
         });
     }
 
     /**
-     * Test: test_distribute_to_wallets_credits_correctly
-     * Test: test_profit_share_tax_deduction_tds
+     * FSD-REPORT-021: Distribute the funds.
      */
     public function distributeToWallets(ProfitShare $profitShare, User $admin)
     {
@@ -97,26 +96,21 @@ class ProfitShareService
         $distributions = $profitShare->distributions()->with('user.wallet', 'user.kyc')->get();
         if ($distributions->isEmpty()) throw new \Exception('No distributions to process.');
         
-        $tdsRate = (float) setting('tds_rate', 0.10); // 10%
+        $tdsRate = (float) setting('tds_rate', 0.10);
+        $tdsThreshold = (float) setting('tds_threshold', 5000);
 
-        return DB::transaction(function () use ($profitShare, $distributions, $admin, $tdsRate) {
-            
+        return DB::transaction(function () use ($profitShare, $distributions, $admin, $tdsRate, $tdsThreshold) {
             foreach ($distributions as $dist) {
                 $user = $dist->user;
                 $wallet = $user->wallet;
                 $grossAmount = $dist->amount;
                 
-                // --- V2.0 Tax Logic ---
-                // FSD-REPORT-017: TDS on bonuses
-                // Apply TDS only if user is PAN verified (required for TDS)
                 $tdsDeducted = 0;
-                if ($user->kyc?->pan_number && $grossAmount > setting('tds_threshold', 5000)) {
+                if ($user->kyc?->pan_number && $grossAmount > $tdsThreshold) {
                     $tdsDeducted = $grossAmount * $tdsRate;
                 }
                 $netAmount = $grossAmount - $tdsDeducted;
-                // ---------------------
 
-                // 1. Create Bonus Transaction (Ledger)
                 $bonus = BonusTransaction::create([
                     'user_id' => $user->id,
                     'subscription_id' => $user->subscription->id,
@@ -126,26 +120,43 @@ class ProfitShareService
                     'description' => "Profit Share: {$profitShare->period_name}",
                 ]);
 
-                // 2. Credit their wallet (Net Amount)
                 if ($netAmount > 0) {
-                    $wallet->deposit(
+                    $this->walletService->deposit(
+                        $user,
                         $netAmount, 
                         'bonus_credit', 
                         "Profit Share: {$profitShare->period_name}", 
                         $bonus
                     );
                 }
-                
                 $dist->update(['bonus_transaction_id' => $bonus->id]);
             }
-
             $profitShare->update(['status' => 'distributed', 'admin_id' => $admin->id]);
-            Log::info("Profit share {$profitShare->id} distributed by Admin {$admin->id}");
         });
     }
 
     /**
-     * Test: test_profit_share_reversal_full
+     * NEW: Manual Adjustment
+     */
+    public function manualAdjustment(ProfitShare $profitShare, int $userId, float $amount, string $reason)
+    {
+        if ($profitShare->status !== 'calculated') {
+            throw new \Exception("Can only adjust a 'calculated' period.");
+        }
+        
+        $user = User::findOrFail($userId);
+        
+        return $profitShare->distributions()->updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'amount' => $amount,
+                'notes' => $reason, // Assumes 'notes' column exists
+            ]
+        );
+    }
+    
+    /**
+     * NEW: Reverse Distribution
      */
     public function reverseDistribution(ProfitShare $profitShare, string $reason)
     {
@@ -164,14 +175,13 @@ class ProfitShareService
                 $bonus = $dist->bonusTransaction;
                 $netAmount = $bonus->net_amount; // Get net amount (Amount - TDS)
                 
-                // --- V2.0 Reversal Logic ---
                 if ($wallet->balance < $netAmount) {
                     Log::error("Reversal Failed: User {$user->id} has insufficient balance (₹{$wallet->balance}) to reverse ₹{$netAmount}");
                     throw new \Exception("Reversal failed: User {$user->id} has insufficient funds.");
                 }
 
                 // 1. Debit from wallet
-                $wallet->withdraw($netAmount, 'reversal', "Reversal: {$reason}", $dist);
+                $this->walletService->withdraw($user, $netAmount, 'reversal', "Reversal: {$reason}", $dist);
                 
                 // 2. Create reversal bonus transaction
                 $bonus->reverse("Reversal: {$reason}");

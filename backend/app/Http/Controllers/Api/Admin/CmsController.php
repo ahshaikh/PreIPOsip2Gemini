@@ -1,5 +1,5 @@
 <?php
-// V-FINAL-1730-242
+// V-FINAL-1730-242 (Created) | V-FINAL-1730-515 | V-FINAL-1730-518 (V2.0 Banners)
 
 namespace App\Http\Controllers\Api\Admin;
 
@@ -9,10 +9,11 @@ use App\Models\MenuItem;
 use App\Models\Banner;
 use App\Models\Redirect;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class CmsController extends Controller
 {
-    // --- MENU MANAGEMENT ---
+    // --- MENU MANAGEMENT (FSD-FRONT-003) ---
     public function getMenus()
     {
         return Menu::with('items')->get();
@@ -20,30 +21,28 @@ class CmsController extends Controller
 
     public function updateMenu(Request $request, Menu $menu)
     {
-        // Expects a full replacement of items for simplicity in reordering
-        $request->validate([
-            'items' => 'array',
+        $validated = $request->validate([
+            'items' => 'required|array',
             'items.*.label' => 'required|string',
             'items.*.url' => 'required|string',
+            'items.*.parent_id' => 'nullable|integer',
         ]);
 
-        // Delete old items (simple strategy for full sync)
-        $menu->items()->delete();
-
-        // Re-create items
-        foreach ($request->items as $index => $item) {
-            $menu->items()->create([
-                'label' => $item['label'],
-                'url' => $item['url'],
-                'display_order' => $index,
-                // Parent/Child logic can be expanded here
-            ]);
-        }
+        DB::transaction(function () use ($menu, $validated) {
+            $menu->items()->delete();
+            foreach ($validated['items'] as $index => $item) {
+                $menu->items()->create([
+                    'label' => $item['label'],
+                    'url' => $item['url'],
+                    'display_order' => $index,
+                ]);
+            }
+        });
 
         return response()->json($menu->load('items'));
     }
 
-    // --- BANNER MANAGEMENT ---
+    // --- BANNER MANAGEMENT (FSD-FRONT-021) ---
     public function getBanners()
     {
         return Banner::orderBy('display_order')->get();
@@ -51,12 +50,18 @@ class CmsController extends Controller
 
     public function storeBanner(Request $request)
     {
+        // V2.0 Validation
         $validated = $request->validate([
             'title' => 'required|string',
-            'type' => 'required|in:top_bar,popup,slide',
-            'content' => 'nullable|string',
-            'link_url' => 'nullable|string',
-            'is_active' => 'boolean'
+            'type' => 'required|in:top_bar,popup',
+            'content' => 'required|string',
+            'link_url' => 'nullable|url',
+            'is_active' => 'boolean',
+            'trigger_type' => 'required|in:load,time_delay,scroll,exit_intent',
+            'trigger_value' => 'required|integer|min:0',
+            'frequency' => 'required|in:always,once_per_session,once_daily,once',
+            'targeting_rules' => 'nullable|array',
+            'style_config' => 'nullable|array',
         ]);
         
         $banner = Banner::create($validated);
@@ -65,7 +70,21 @@ class CmsController extends Controller
 
     public function updateBanner(Request $request, Banner $banner)
     {
-        $banner->update($request->all());
+        // V2.0 Update
+        $validated = $request->validate([
+            'title' => 'required|string',
+            'type' => 'required|in:top_bar,popup',
+            'content' => 'required|string',
+            'link_url' => 'nullable|url',
+            'is_active' => 'boolean',
+            'trigger_type' => 'required|in:load,time_delay,scroll,exit_intent',
+            'trigger_value' => 'required|integer|min:0',
+            'frequency' => 'required|in:always,once_per_session,once_daily,once',
+            'targeting_rules' => 'nullable|array',
+            'style_config' => 'nullable|array',
+        ]);
+        
+        $banner->update($validated);
         return response()->json($banner);
     }
 
@@ -75,7 +94,7 @@ class CmsController extends Controller
         return response()->noContent();
     }
 
-    // --- REDIRECT MANAGEMENT ---
+    // --- REDIRECT MANAGEMENT (FSD-SEO-004) ---
     public function getRedirects()
     {
         return Redirect::latest()->get();

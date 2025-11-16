@@ -14,6 +14,8 @@ use App\Http\Controllers\Api\Admin\FaqController as PublicFaqController;
 use App\Http\Controllers\Api\Admin\BlogPostController as PublicBlogController;
 use App\Http\Controllers\Api\Public\GlobalSettingsController;
 use App\Http\Controllers\Api\Public\ProductDataController;
+use App\Http\Controllers\Api\Admin\KbArticleController; // <-- IMPORT
+use App\Http\Controllers\Api\Admin\KbCategoryController; // <-- IMPORT
 
 // User Controllers
 use App\Http\Controllers\Api\User\ProfileController;
@@ -57,6 +59,7 @@ use App\Http\Controllers\Api\Admin\ReferralCampaignController;
 use App\Http\Controllers\Api\Admin\SystemHealthController;
 use App\Http\Controllers\Api\Admin\AdminActivityController;
 use App\Http\Controllers\Api\Admin\BackupController;
+use App\Http\Controllers\Api\Admin\IpWhitelistController; // <-- IMPORT
 
 // Invoice & Webhook
 use App\Http\Controllers\Api\InvoiceController;
@@ -76,7 +79,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/password/reset', [PasswordResetController::class, 'reset']);
     });
 
-// --- NEW: Social Login Routes ---
+    // --- NEW: Social Login Routes ---
     Route::get('/auth/google/redirect', [SocialLoginController::class, 'redirectToGoogle']);
     Route::get('/auth/google/callback', [SocialLoginController::class, 'handleGoogleCallback']);
     // ---------------------------------
@@ -135,6 +138,9 @@ Route::prefix('v1')->group(function () {
             Route::post('/subscription/resume', [SubscriptionController::class, 'resume']);
             Route::post('/subscription/cancel', [SubscriptionController::class, 'cancel']);
             
+            // FSD-LEGAL-004: Users MUST accept 'risk-disclosure' before paying
+            Route::post('/payment/initiate', [PaymentController::class, 'initiate'])->middleware('legal.accept:risk-disclosure'); // THE GUARD
+
             // Payments
             Route::post('/payment/initiate', [PaymentController::class, 'initiate']);
             Route::post('/payment/verify', [PaymentController::class, 'verify']);
@@ -190,7 +196,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/users/import', [AdminUserController::class, 'import'])->middleware('permission:users.create');
             Route::get('/users/export/csv', [AdminUserController::class, 'export'])->middleware('permission:users.view');
             Route::post('/users/{user}/suspend', [AdminUserController::class, 'suspend'])->middleware('permission:users.suspend');
-Route::post('/users/{user}/adjust-balance', [AdminUserController::class, 'adjustBalance'])->middleware('permission:users.adjust_wallet');
+	    Route::post('/users/{user}/adjust-balance', [AdminUserController::class, 'adjustBalance'])->middleware('permission:users.adjust_wallet');
             Route::apiResource('/roles', RoleController::class)->middleware('permission:users.manage_roles');
             
             // KYC Management
@@ -203,6 +209,10 @@ Route::post('/users/{user}/adjust-balance', [AdminUserController::class, 'adjust
             Route::apiResource('/plans', PlanController::class)->middleware('permission:plans.edit');
             Route::apiResource('/products', ProductController::class)->middleware('permission:products.edit');
             Route::apiResource('/bulk-purchases', BulkPurchaseController::class)->middleware('permission:products.edit');
+
+	    // Knowledge Base Routes
+            Route::apiResource('/kb-categories', KbCategoryController::class)->middleware('permission:settings.manage_cms');
+            Route::apiResource('/kb-articles', KbArticleController::class)->middleware('permission:settings.manage_cms');
             
             // CMS & Settings
             Route::apiResource('/pages', PageController::class)->middleware('permission:settings.manage_cms');
@@ -210,7 +220,7 @@ Route::post('/users/{user}/adjust-balance', [AdminUserController::class, 'adjust
             Route::apiResource('/faqs', AdminFaqController::class)->middleware('permission:settings.manage_cms');
             Route::apiResource('/blog-posts', AdminBlogController::class)->middleware('permission:settings.manage_cms');
             Route::apiResource('/referral-campaigns', ReferralCampaignController::class)->middleware('permission:bonuses.manage_campaigns');
-            
+            Route::get('/pages/{page}/analyze', [PageController::class, 'analyze'])->middleware('permission:settings.manage_cms'); // <-- NEW            
             Route::get('/settings', [SettingsController::class, 'index'])->middleware('permission:settings.view_system');
             Route::put('/settings', [SettingsController::class, 'update'])->middleware('permission:settings.edit_system');
             
@@ -241,7 +251,19 @@ Route::post('/users/{user}/adjust-balance', [AdminUserController::class, 'adjust
             // Bonus Modules
             Route::apiResource('/lucky-draws', AdminLuckyDrawController::class)->middleware('permission:bonuses.manage_config');
             Route::post('/lucky-draws/{luckyDraw}/execute', [AdminLuckyDrawController::class, 'executeDraw'])->middleware('permission:bonuses.manage_config');
-            
+
+	    // UPDATED: Profit Share 
+            Route::apiResource('/profit-sharing', AdminProfitShareController::class)->middleware('permission:bonuses.manage_config');
+            Route::post('/profit-sharing/{profitShare}/calculate', [AdminProfitShareController::class, 'calculate'])->middleware('permission:bonuses.manage_config');
+            Route::post('/profit-sharing/{profitShare}/distribute', [AdminProfitShareController::class, 'distribute'])->middleware('permission:bonuses.manage_config');
+            Route::post('/profit-sharing/{profitShare}/adjust', [AdminProfitShareController::class, 'adjust'])->middleware('permission:bonuses.manage_config');
+            Route::post('/profit-sharing/{profitShare}/reverse', [AdminProfitShareController::class, 'reverse'])->middleware('permission:bonuses.manage_config');
+
+	    // IP Whitelist Routes 
+            Route::apiResource('/ip-whitelist', IpWhitelistController::class)->middleware('permission:system.manage_backups'); // Re-using permission
+
+            // --- NEW: Notification Test Route ---
+            Route::post('/notifications/test-sms', [AdminNotificationController::class, 'sendTestSms'])->middleware('permission:settings.manage_notifications');
             Route::apiResource('/profit-sharing', AdminProfitShareController::class)->middleware('permission:bonuses.manage_config');
             Route::post('/profit-sharing/{profitShare}/calculate', [AdminProfitShareController::class, 'calculate'])->middleware('permission:bonuses.manage_config');
             Route::post('/profit-sharing/{profitShare}/distribute', [AdminProfitShareController::class, 'distribute'])->middleware('permission:bonuses.manage_config');

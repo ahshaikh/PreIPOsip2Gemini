@@ -1,5 +1,5 @@
 <?php
-// V-REMEDIATE-1730-147 (Created) | V-FINAL-1730-379 (Logic Upgraded)
+// V-REMEDIATE-1730-147 (Created) | V-FINAL-1730-379 (Logic Upgraded) | V-FINAL-1730-532 (Agent Relation)
 
 namespace App\Models;
 
@@ -12,12 +12,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SupportTicket extends Model
 {
-    use HasFactory, SoftDeletes; // Added SoftDeletes for good practice
+    use HasFactory, SoftDeletes;
 
     // --- Constants for Validation ---
     const STATUS_OPEN = 'open';
     const STATUS_WAITING_USER = 'waiting_for_user';
     const STATUS_RESOLVED = 'resolved';
+    const STATUS_CLOSED = 'closed';
 
     const PRIORITY_LOW = 'low';
     const PRIORITY_MEDIUM = 'medium';
@@ -30,38 +31,41 @@ class SupportTicket extends Model
         'category',
         'priority',
         'status',
-        'resolved_by', // Admin who resolved it
+        'assigned_to', // <-- NEW (from previous migration)
+        'sla_hours',   // <-- NEW
+        'resolved_by',
         'resolved_at',
+        'closed_at',   // <-- NEW
     ];
 
     protected $casts = [
         'resolved_at' => 'datetime',
+        'closed_at' => 'datetime',
     ];
 
     // --- RELATIONSHIPS ---
 
-    /**
-     * Get the user who owns the ticket.
-     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    /**
-     * Get all messages for the ticket.
-     */
     public function messages(): HasMany
     {
         return $this->hasMany(SupportMessage::class)->orderBy('created_at', 'asc');
     }
 
-    /**
-     * Get the admin who resolved the ticket.
-     */
     public function resolvedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'resolved_by');
+    }
+
+    /**
+     * NEW: The admin/agent this ticket is assigned to.
+     */
+    public function assignedTo(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
     }
 
     // --- SCOPES ---

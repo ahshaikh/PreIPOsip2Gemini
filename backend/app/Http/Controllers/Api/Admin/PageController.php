@@ -1,18 +1,21 @@
 <?php
-// V-PHASE2-1730-059 (Created) | V-FINAL-1730-369 (Block Editor Logic)
+// V-PHASE2-1730-059 (Created) | V-FINAL-1730-369 (Block Editor) | V-FINAL-1730-528 (SEO Analyzer) | V-FINAL-1730-559 (Versioning)
 
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Page;
+use App\Services\SeoAnalyzerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 
 class PageController extends Controller
 {
     public function index()
     {
-        return Page::latest()->get();
+        // Now includes version history
+        return Page::with('versions')->latest()->get();
     }
 
     public function store(Request $request)
@@ -20,34 +23,91 @@ class PageController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'slug' => 'required|string|unique:pages,slug',
-            'content' => 'nullable|array', // Expecting an array of blocks
-            'status' => 'required|in:draft,published',
         ]);
         
-        $page = Page::create($validated);
+        $page = DB::transaction(function() use ($validated, $request) {
+            $page = Page::create($validated + [
+                'status' => 'draft',
+                'content' => [],
+                'current_version' => 1
+            ]);
+            
+            // Create the first version
+            $page->versions()->create([
+                'author_id' => $request->user()->id,
+                'version' => 1,
+                'title' => $page->title,
+                'content' => $page->content,
+            ]);
+            
+            return $page;
+        });
+
         return response()->json($page, 201);
     }
 
     public function show(Page $page)
     {
-        return $page;
+        // Load versions for the editor
+        return $page->load('versions');
     }
 
+    /**
+     * FSD-LEGAL-001: Update a page by publishing a new version.
+     */
     public function update(Request $request, Page $page)
     {
         $validated = $request->validate([
             'title' => 'sometimes|required|string|max:255',
-            'content' => 'nullable|array', // Expecting an array of blocks
+            'content' => 'nullable|array',
             'status' => 'sometimes|required|in:draft,published',
+            'seo_meta' => 'nullable|array',
+            'require_user_acceptance' => 'sometimes|boolean',
+            'change_summary' => 'nullable|string|max:255', // e.g., "Updated clause 5.1"
         ]);
         
-        $page->update($validated);
-        return response()->json($page);
+        DB::transaction(function() use ($page, $validated, $request) {
+            
+            $newVersionNumber = $page->current_version + 1;
+            
+            // 1. Create the new version history
+            $page->versions()->create([
+                'author_id' => $request->user()->id,
+                'version' => $newVersionNumber,
+                'title' => $validated['title'],
+                'content' => $validated['content'],
+                'change_summary' => $validated['change_summary']
+            ]);
+            
+            // 2. Update the "live" page with the new content
+            $page->update([
+                'title' => $validated['title'],
+                'content' => $validated['content'],
+                'status' => $validated['status'],
+                'seo_meta' => $validated['seo_meta'] ?? $page->seo_meta,
+                'current_version' => $newVersionNumber,
+                'require_user_acceptance' => $validated['require_user_acceptance'] ?? $page->require_user_acceptance,
+            ]);
+
+            // 3. If acceptance is required, all users must re-accept
+            if ($page->require_user_acceptance) {
+                // This is a heavy operation, should be a queued job in V2
+                UserLegalAcceptance::where('page_id', $page->id)->delete();
+            }
+        });
+        
+        return response()->json($page->load('versions'));
     }
 
     public function destroy(Page $page)
     {
         $page->delete();
         return response()->noContent();
+    }
+
+    public function analyze(Page $page, SeoAnalyzerService $analyzer)
+    {
+        $report = $analyzer->analyze($page);
+        return response()->json($report);
     }
 }

@@ -1,4 +1,4 @@
-// V-FINAL-1730-263
+// V-FINAL-1730-263 (Created) | V-FINAL-1730-580 (Refund Info)
 'use client';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -110,7 +110,8 @@ export function ManageSubscriptionModal({ isOpen, onClose, currentPlanId, plans,
                 </Select>
                 </div>
                 <Button onClick={() => changePlanMutation.mutate(selectedPlan)} disabled={!selectedPlan || changePlanMutation.isPending} className="w-full">
-                <ArrowUpCircle className="mr-2 h-4 w-4" /> Update Plan
+                <ArrowUpCircle className="mr-2 h-4 w-4" /> 
+                {changePlanMutation.isPending ? "Updating..." : "Update Plan"}
                 </Button>
             </TabsContent>
 
@@ -131,7 +132,8 @@ export function ManageSubscriptionModal({ isOpen, onClose, currentPlanId, plans,
                 </Select>
                 </div>
                 <Button onClick={() => pauseMutation.mutate(pauseMonths)} disabled={pauseMutation.isPending} variant="secondary" className="w-full">
-                <PauseCircle className="mr-2 h-4 w-4" /> Pause Subscription
+                <PauseCircle className="mr-2 h-4 w-4" />
+                {pauseMutation.isPending ? "Pausing..." : "Pause Subscription"}
                 </Button>
             </TabsContent>
 
@@ -141,7 +143,7 @@ export function ManageSubscriptionModal({ isOpen, onClose, currentPlanId, plans,
                 <AlertTriangle className="h-5 w-5 shrink-0" />
                 <div>
                     <p className="font-bold">Warning:</p>
-                    <p>Cancelling stops all future bonuses. Your existing portfolio will remain yours, but you forfeit future milestone rewards.</p>
+                    <p>Cancelling stops all future bonuses. You may be eligible for a pro-rata refund if you are within 7 days of your first payment.</p>
                 </div>
                 </div>
                 <div className="space-y-2">
@@ -149,7 +151,8 @@ export function ManageSubscriptionModal({ isOpen, onClose, currentPlanId, plans,
                 <Textarea value={cancelReason} onChange={e => setCancelReason(e.target.value)} placeholder="Why are you leaving?" />
                 </div>
                 <Button onClick={() => cancelMutation.mutate(cancelReason)} disabled={!cancelReason || cancelMutation.isPending} variant="destructive" className="w-full">
-                <XCircle className="mr-2 h-4 w-4" /> Confirm Cancellation
+                <XCircle className="mr-2 h-4 w-4" />
+                {cancelMutation.isPending ? "Cancelling..." : "Confirm Cancellation"}
                 </Button>
             </TabsContent>
             </Tabs>

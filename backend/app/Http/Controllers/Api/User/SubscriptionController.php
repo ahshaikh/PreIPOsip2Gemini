@@ -1,5 +1,5 @@
 <?php
-// V-FINAL-1730-451 (Created) | V-FINAL-1730-479 (Custom Amount)
+// V-FINAL-1730-451 (Created) | V-FINAL-1730-479 (Custom Amount) | V-FINAL-1730-579 (Refund Logic)
 
 namespace App\Http\Controllers\Api\User;
 
@@ -18,25 +18,19 @@ class SubscriptionController extends Controller
         $this->service = $service;
     }
 
-    /**
-     * Show the user's active subscription.
-     */
     public function show(Request $request)
     {
         $subscription = Subscription::where('user_id', $request->user()->id)
             ->with('plan.features', 'payments')
-            ->latest() // Get the most recent one (active, paused, or cancelled)
+            ->latest()
             ->first();
 
         if (!$subscription) {
-            return response()->json(null, 404); // Send 404, not just a message
+            return response()->json(null, 404);
         }
         return response()->json($subscription);
     }
 
-    /**
-     * Create a new subscription.
-     */
     public function store(Request $request)
     {
         if (!setting('investment_enabled', true)) {
@@ -54,7 +48,6 @@ class SubscriptionController extends Controller
 
         try {
             $subscription = $this->service->createSubscription($user, $plan, $customAmount);
-            
             return response()->json([
                 'message' => 'Subscription created. Please complete the first payment.',
                 'subscription' => $subscription->load('payments'),
@@ -64,9 +57,6 @@ class SubscriptionController extends Controller
         }
     }
 
-    /**
-     * Change (Upgrade/Downgrade) the current plan.
-     */
     public function changePlan(Request $request)
     {
         $validated = $request->validate(['new_plan_id' => 'required|exists:plans,id']);
@@ -89,9 +79,6 @@ class SubscriptionController extends Controller
         }
     }
 
-    /**
-     * Pause the subscription.
-     */
     public function pause(Request $request)
     {
         $validated = $request->validate(['months' => 'required|integer|min:1|max:3']);
@@ -106,9 +93,6 @@ class SubscriptionController extends Controller
         }
     }
 
-    /**
-     * Resume a paused subscription.
-     */
     public function resume(Request $request)
     {
         $user = $request->user();
@@ -122,9 +106,6 @@ class SubscriptionController extends Controller
         }
     }
 
-    /**
-     * Cancel the subscription.
-     */
     public function cancel(Request $request)
     {
         $validated = $request->validate(['reason' => 'required|string|max:255']);
@@ -132,8 +113,14 @@ class SubscriptionController extends Controller
         $sub = Subscription::where('user_id', $user->id)->whereIn('status', ['active', 'paused'])->firstOrFail();
 
         try {
-            $this->service->cancelSubscription($sub, $validated['reason']);
-            return response()->json(['message' => 'Subscription cancelled.']);
+            $refundAmount = $this->service->cancelSubscription($sub, $validated['reason']);
+            
+            $message = 'Subscription cancelled.';
+            if ($refundAmount > 0) {
+                $message .= " A pro-rata refund of ₹{$refundAmount} has been credited to your wallet.";
+            }
+            
+            return response()->json(['message' => $message]);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 400);
         }

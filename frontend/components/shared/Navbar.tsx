@@ -1,4 +1,4 @@
-// V-FINAL-1730-248
+// V-PHASE4-1730-103 (Created) | V-FINAL-1730-523 (Dynamic CMS)
 'use client';
 
 import Link from 'next/link';
@@ -11,32 +11,38 @@ export function Navbar() {
   const { data: settings } = useQuery({
     queryKey: ['globalSettings'],
     queryFn: async () => (await api.get('/global-settings')).data,
-    staleTime: 60000, // Cache for 1 min
+    staleTime: 60000, // Cache for 1 minute
   });
 
+  // FSD-FRONT-003: Dynamic Header Menu
   const headerMenu = settings?.menus?.['header-nav']?.items || [
     { label: 'Home', url: '/' },
     { label: 'Plans', url: '/plans' },
-    // Fallback defaults
+    { label: 'How It Works', url: '/how-it-works' },
   ];
+  
+  // FSD-FRONT-001: Dynamic Logo
+  const logoUrl = settings?.theme?.logo_url;
+  
+  // FSD-FRONT-007: Dynamic Top Bar Banners
+  const topBarBanner = settings?.banners?.find((b: any) => b.type === 'top_bar' && b.is_active);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       
       {/* Dynamic Top Bar Banner */}
-      {settings?.banners?.map((banner: any) => (
-          banner.type === 'top_bar' && (
-              <div key={banner.id} className="bg-primary text-primary-foreground text-center text-sm py-2 px-4">
-                  {banner.content}
-              </div>
-          )
-      ))}
+      {topBarBanner && (
+          <div 
+            className="bg-primary text-primary-foreground text-center text-sm py-2 px-4"
+            dangerouslySetInnerHTML={{ __html: topBarBanner.content }}
+          />
+      )}
 
       <div className="container flex h-14 items-center">
         <div className="mr-4 flex">
           <Link href="/" className="mr-6 flex items-center space-x-2">
-            {settings?.theme?.logo ? (
-                <img src={`${process.env.NEXT_PUBLIC_API_URL}/storage/${settings.theme.logo}`} alt="Logo" className="h-8" />
+            {logoUrl ? (
+                <img src={logoUrl} alt="PreIPO SIP" className="h-8 w-auto" />
             ) : (
                 <span className="font-bold">PreIPO SIP</span>
             )}
