@@ -1,9 +1,10 @@
 <?php
-// V-DEPLOY-1730-007 (Created) | V-FINAL-1730-418 (Perms Added)
+// V-DEPLOY-1730-007 (Created) | V-FINAL-1730-418 (Perms Added) | V-FINAL-1730-600 (Test Seeder)
 
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\App;
 
 class DatabaseSeeder extends Seeder
 {
@@ -12,23 +13,23 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // 1. Roles & Permissions must come first
+        // 1. Core System Seeders (Roles, Settings)
         $this->call(RolesAndPermissionsSeeder::class);
-        $this->call(PermissionSeeder::class); // <-- ADD THIS
+        $this->call(PermissionSeeder::class); // <-- Includes all permissions
+        $this->call(SettingsSeeder::class);   // <-- Includes all settings
 
-        // 2. Settings seeder
-        $this->call(SettingsSeeder::class);
-
-        // 3. User seeder
-        $this->call(UserSeeder::class);
-
-        // 4. Product seeder
-        $this->call(ProductSeeder::class);
-
-        // 5. Plan seeder
+        // 2. Core Content Seeders (Plans, Products, CMS)
         $this->call(PlanSeeder::class);
-        
-        // 6. Homepage Seeder
+        $this->call(ProductSeeder::class);
         $this->call(HomePageSeeder::class);
+
+        // 3. Admin User
+        $this->call(UserSeeder::class); // Creates the Super Admin
+
+        // 4. --- NEW: "Chaos Seeder" ---
+        // Only run this in 'local' or 'staging' environments
+        if (App::environment(['local', 'staging'])) {
+            $this->call(TestDataSetSeeder::class);
+        }
     }
 }
