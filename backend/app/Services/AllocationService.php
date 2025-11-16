@@ -1,5 +1,5 @@
 <?php
-// V-FINAL-1730-351 (Created) | V-FINAL-1730-414 (InventoryService Integrated)
+// V-FINAL-1730-351 (Created) | V-FINAL-1730-414 (InventoryService Integrated) | V-FINAL-1730-585 (Reversal Logic Added)
 
 namespace App\Services;
 
@@ -7,13 +7,12 @@ use App\Models\Payment;
 use App\Models\BulkPurchase;
 use App\Models\UserInvestment;
 use App\Models\ActivityLog;
-use App\Services\InventoryService; // <-- IMPORT
+use App\Services\InventoryService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 
 class AllocationService
 {
-    // Inject the new service
     protected $inventoryService;
     public function __construct(InventoryService $inventoryService)
     {
@@ -25,7 +24,11 @@ class AllocationService
      */
     public function allocateShares(Payment $payment, float $totalInvestmentValue)
     {
-        if ($totalInvestmentValue <= 0) return;
+        if ($totalInvestmentValue <= 0) {
+            Log::info("Allocation skipped for Payment #{$payment->id}: Value is zero.");
+            return;
+        }
+
         $user = $payment->user;
 
         $allocationSuccess = DB::transaction(function () use ($user, $payment, $totalInvestmentValue) {
@@ -36,13 +39,16 @@ class AllocationService
                 ->lockForUpdate() 
                 ->first();
 
-            if (!$purchase) return false;
+            if (!$purchase) {
+                return false; // Signal failure
+            }
 
             $product = $purchase->product;
             if ($product->face_value_per_unit <= 0) return false;
 
             $units = $totalInvestmentValue / $product->face_value_per_unit;
 
+            // 1. Create User Investment Record
             UserInvestment::create([
                 'user_id' => $user->id,
                 'product_id' => $product->id,
@@ -53,23 +59,19 @@ class AllocationService
                 'source' => 'investment_and_bonus',
             ]);
 
+            // 2. Deduct from Inventory
             $purchase->decrement('value_remaining', $totalInvestmentValue);
             
-            // --- AUDIT LOG ---
+            // 3. Audit Log
             ActivityLog::create([
-                'user_id' => $user->id,
-                'action' => 'allocation_success',
-                'target_type' => Payment::class, 'target_id' => $payment->id,
-                'description' => "Allocated {$units} units of {$product->name} (₹{$totalInvestmentValue})",
+                'user_id' => $user->id, 'action' => 'allocation_success', 'target_type' => Payment::class,
+                'target_id' => $payment->id, 'description' => "Allocated {$units} units of {$product->name} (₹{$totalInvestmentValue})",
             ]);
 
-            // --- NEW: LOW STOCK CHECK ---
-            // After allocation, check if this product is now low on stock
+            // 4. Low Stock Check
             if ($this->inventoryService->checkLowStock($product)) {
                 Log::critical("LOW INVENTORY ALERT: Product {$product->name} (ID: {$product->id}) is now below 10% capacity.");
-                // TODO: Dispatch admin notification job
             }
-            // --------------------------
             
             return true;
         });
@@ -82,5 +84,49 @@ class AllocationService
                 'target_id' => $payment->id, 'description' => "Failed to allocate ₹{$totalInvestmentValue}: Insufficient Inventory.",
             ]);
         }
+    }
+
+    /**
+     * NEW: Reverse all allocations associated with a payment.
+     * FSD-PAY-007: reverse_allocation
+     */
+    public function reverseAllocation(Payment $payment, string $reason): void
+    {
+        DB::transaction(function () use ($payment, $reason) {
+            $investments = $payment->investments()->get();
+            
+            if ($investments->isEmpty()) {
+                return; // Nothing to reverse
+            }
+
+            foreach ($investments as $investment) {
+                // 1. Find the inventory pool it came from
+                $purchase = $investment->bulkPurchase()->lockForUpdate()->first();
+
+                if ($purchase) {
+                    // 2. Add the value back to the pool
+                    $purchase->increment('value_remaining', $investment->value_allocated);
+                }
+                
+                // 3. Create a reversal investment (negative)
+                UserInvestment::create([
+                    'user_id' => $investment->user_id,
+                    'product_id' => $investment->product_id,
+                    'payment_id' => $investment->payment_id,
+                    'bulk_purchase_id' => $investment->bulk_purchase_id,
+                    'units_allocated' => -$investment->units_allocated,
+                    'value_allocated' => -$investment->value_allocated,
+                    'source' => 'reversal',
+                ]);
+
+                // 4. Log it
+                ActivityLog::create([
+                    'user_id' => $payment->user_id,
+                    'action' => 'allocation_reversed',
+                    'target_type' => Payment::class, 'target_id' => $payment->id,
+                    'description' => "Reversed allocation of {$investment->units_allocated} units. Reason: {$reason}",
+                ]);
+            }
+        });
     }
 }

@@ -1,5 +1,5 @@
 <?php
-// V-FINAL-1730-357 (Logic Upgraded)
+// V-FINAL-1730-357 (Created) | V-FINAL-1730-497 (TDS Added)
 
 namespace App\Models;
 
@@ -17,6 +17,7 @@ class Withdrawal extends Model
         'wallet_id',
         'amount',
         'fee',
+        'tds_deducted', // <-- NEW
         'net_amount',
         'status',
         'bank_details',
@@ -29,6 +30,7 @@ class Withdrawal extends Model
         'bank_details' => 'json',
         'amount' => 'decimal:2',
         'fee' => 'decimal:2',
+        'tds_deducted' => 'decimal:2', // <-- NEW
         'net_amount' => 'decimal:2',
     ];
 
@@ -38,33 +40,21 @@ class Withdrawal extends Model
     protected static function booted()
     {
         static::saving(function ($withdrawal) {
-            // 1. Validate: Amount must be positive
             if ($withdrawal->amount <= 0) {
                 throw new \InvalidArgumentException("Withdrawal amount must be positive.");
             }
+            if (empty($withdrawal->tds_deducted)) {
+                $withdrawal->tds_deducted = 0;
+            }
             
-            // 2. Calculate: Net Amount
-            $withdrawal->net_amount = $withdrawal->amount - $withdrawal->fee;
+            // Auto-calculate Net Amount
+            $withdrawal->net_amount = $withdrawal->amount - $withdrawal->fee - $withdrawal->tds_deducted;
         });
     }
 
     // --- RELATIONSHIPS ---
 
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
-    }
-
-    public function wallet(): BelongsTo
-    {
-        return $this->belongsTo(Wallet::class);
-    }
-
-    /**
-     * The admin who processed (approved/rejected/completed) this request.
-     */
-    public function admin(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'admin_id');
-    }
+    public function user(): BelongsTo { return $this->belongsTo(User::class); }
+    public function wallet(): BelongsTo { return $this->belongsTo(Wallet::class); }
+    public function admin(): BelongsTo { return $this->belongsTo(User::class, 'admin_id'); }
 }

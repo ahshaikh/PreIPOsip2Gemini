@@ -100,6 +100,22 @@ class AdvancedReportController extends Controller
                 ]);
                 break;
             
+
+	    // AML Report Export 
+            case 'aml':
+                $headings = ['Payment ID', 'User', 'Email', 'User Created', 'Amount', 'Payment Date'];
+                $data = $this.service->getAmlReport()->map(function($p) {
+                    return [
+                        'id' => $p->id,
+                        'user' => $p->user->username,
+                        'email' => $p->user->email,
+                        'user_created' => $p->user->created_at->toDateTimeString(),
+                        'amount' => $p->amount,
+                        'date' => $p->paid_at->toDateTimeString()
+                    ];
+                });
+                break;
+            // -----------------------------
             case 'audit-trail':
                 $headings = ['Time', 'User', 'Action', 'Description', 'IP'];
                 $data = \App\Models\ActivityLog::with('user:id,username')

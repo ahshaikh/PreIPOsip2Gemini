@@ -1,13 +1,15 @@
 <?php
-// V-REMEDIATE-1730-150 (Created) | V-FINAL-1730-531 (Filtering Added)
+// V-REMEDIATE-1730-150 (Created) | V-FINAL-1730-531 (Filtering Added) | V-FINAL-1730-594 (Notify on Reply)
 
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\SupportTicket;
-use App\Models\User; // <-- IMPORT
-use App\Services\SupportService; // <-- IMPORT
+use App\Models\User;
+use App\Services\SupportService;
+use App\Notifications\SupportReplyNotification; // <-- IMPORT
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification; // <-- IMPORT
 
 class SupportTicketController extends Controller
 {
@@ -22,45 +24,27 @@ class SupportTicketController extends Controller
      */
     public function index(Request $request)
     {
-        // --- UPDATED: Advanced Filtering ---
         $query = SupportTicket::query();
 
-        // Filter by Status (e.g., open, resolved)
-        if ($request->has('status')) {
-            $query->where('status', $request->status);
-        }
-
-        // Filter by Category (e.g., 'technical' for Live Chat)
-        if ($request->has('category')) {
-            $query->where('category', $request->category);
-        }
-
-        // Filter by Agent (e.g., admin_id)
-        if ($request->has('agent_id')) {
-            $query->where('assigned_to', $request->agent_id);
-        }
+        if ($request->has('status')) $query->where('status', $request->status);
+        if ($request->has('category')) $query->where('category', $request->category);
+        if ($request->has('agent_id')) $query->where('assigned_to', $request->agent_id);
         
-        // Filter by Date Range
         if ($request->has('start_date') && $request->has('end_date')) {
             $query->whereBetween('created_at', [$request->start_date, $request->end_date]);
         }
         
-        // Search
         if ($request->has('search')) {
             $query->where('subject', 'like', '%' . $request->search . '%');
         }
 
-        $tickets = $query->with('user:id,username,email', 'assignedTo:id,username') // Eager load agent
+        $tickets = $query->with('user:id,username,email', 'assignedTo:id,username')
             ->latest()
             ->paginate(25);
-        // ---------------------------------
             
         return response()->json($tickets);
     }
 
-    /**
-     * Get a single ticket and its messages for an admin.
-     */
     public function show(SupportTicket $supportTicket)
     {
         return $supportTicket->load('messages.author:id,username', 'user.profile');
@@ -75,6 +59,7 @@ class SupportTicketController extends Controller
         
         $validated = $request->validate([
             'message' => 'required|string|min:1',
+            // TODO: Add attachment support
         ]);
 
         $message = $supportTicket->messages()->create([
@@ -83,12 +68,11 @@ class SupportTicketController extends Controller
             'message' => $validated['message'],
         ]);
         
-        // If ticket was "waiting_for_user", change to "open" (admin replied)
-        if ($supportTicket->status === 'waiting_for_user') {
-            $supportTicket->update(['status' => 'open']);
-        }
+        $supportTicket->update(['status' => 'waiting_for_user']); // Admin replied
 
-        // TODO: Dispatch job to notify user of the reply
+        // --- NEW: Notify User (Gap 2 Fix) ---
+        $supportTicket->user->notify(new SupportReplyNotification($supportTicket, $message));
+        // ------------------------------------
 
         return response()->json($message, 201);
     }
@@ -115,9 +99,6 @@ class SupportTicketController extends Controller
         }
 
         $supportTicket->update($statusData);
-        
-        // Log this action
-        // ...
         
         return response()->json(['message' => 'Ticket status updated.']);
     }

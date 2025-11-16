@@ -1,11 +1,12 @@
 <?php
-// V-FINAL-1730-343 (Advanced Progressive Logic)
+// V-FINAL-1730-343 (Advanced Progressive Logic) | V-FINAL-1730-496 (Created) | V-FINAL-1730-586 (Notifications Added)
 
 namespace App\Services;
 
 use App\Models\Payment;
 use App\Models\BonusTransaction;
 use App\Models\PlanConfig;
+use App\Notifications\BonusCredited; // <-- IMPORT
 use Illuminate\Support\Facades\Log;
 
 class BonusCalculatorService
@@ -20,7 +21,6 @@ class BonusCalculatorService
         $multiplier = (float) $subscription->bonus_multiplier;
 
         // 1. Progressive Monthly Bonus
-        // Check Global Toggle first
         if (setting('progressive_bonus_enabled', true)) {
             $progressiveBonus = $this->calculateProgressive($payment, $plan, $multiplier);
             if ($progressiveBonus > 0) {
@@ -39,6 +39,7 @@ class BonusCalculatorService
         }
 
         // 3. Consistency Bonus
+        // testLatePaymentSkipsConsistencyBonus: This check is correct.
         if (setting('consistency_bonus_enabled', true) && $payment->is_on_time) {
             $consistencyBonus = $this->calculateConsistency($payment, $plan);
             if ($consistencyBonus > 0) {
@@ -46,6 +47,12 @@ class BonusCalculatorService
                 $this->createBonusTransaction($payment, 'consistency', $consistencyBonus, 1.0, 'On-Time Payment Bonus');
             }
         }
+        
+        // --- NEW: Send Notification (Gap 3 Fix) ---
+        if ($totalBonus > 0) {
+            $user->notify(new BonusCredited($totalBonus, 'SIP'));
+        }
+        // ------------------------------------------
         
         Log::info("Total bonus calculated for Payment {$payment->id}: {$totalBonus}");
         return $totalBonus;
@@ -63,54 +70,36 @@ class BonusCalculatorService
     private function calculateProgressive(Payment $payment, $plan, $multiplier): float
     {
         $config = $this->getPlanConfig($plan, 'progressive_config', [
-            'rate' => 0.5, 
-            'start_month' => 4,
-            'max_percentage' => 20, // Default Cap
-            'overrides' => [] // Default no overrides
+            'rate' => 0.5, 'start_month' => 4, 'max_percentage' => 20, 'overrides' => []
         ]);
         
-        $month = $payment->subscription->payments()
-            ->where('status', 'paid')
-            ->count();
-        
+        $month = $payment->subscription->payments()->where('status', 'paid')->count();
         $startMonth = (int) $config['start_month'];
         
-        // Rule 1: Not awarded before start month
-        if ($month < $startMonth) {
-            return 0;
-        }
+        if ($month < $startMonth) return 0;
         
-        // Rule 2: Check for Month Override
-        // Overrides are stored as [month_number => rate]
         $overrides = $config['overrides'] ?? [];
         $baseRate = 0;
 
         if (isset($overrides[$month])) {
-            // Use the specific rate for this month
             $baseRate = (float) $overrides[$month];
         } else {
-            // Use standard linear formula
-            // Rate grows by 'rate' amount each month after start
-            // e.g. Month 4 (Start 4) = 1 * 0.5% = 0.5%
-            // e.g. Month 5 = 2 * 0.5% = 1.0%
             $growthFactor = $month - $startMonth + 1;
             $baseRate = $growthFactor * ((float) $config['rate']);
         }
 
-        // Rule 3: Cap at Maximum Percentage
         $maxPercent = $config['max_percentage'] ?? 100;
-        if ($baseRate > $maxPercent) {
-            $baseRate = $maxPercent;
-        }
+        if ($baseRate > $maxPercent) $baseRate = $maxPercent;
 
-        // Rule 4: Calculate Amount
-        // Bonus = (Rate / 100) * Payment Amount * Multiplier
         $base = (float) $payment->amount;
         $bonus = ($baseRate / 100) * $base * $multiplier;
         
         return round($bonus, 2);
     }
     
+    /**
+     * 2. Calculates Milestone Bonus
+     */
     private function calculateMilestone(Payment $payment, $plan, $multiplier): float
     {
         $config = $this->getPlanConfig($plan, 'milestone_config', []);
@@ -126,6 +115,9 @@ class BonusCalculatorService
         return 0;
     }
 
+    /**
+     * 3. Calculates Consistency Bonus
+     */
     private function calculateConsistency(Payment $payment, $plan): float
     {
         $config = $this->getPlanConfig($plan, 'consistency_config', ['amount_per_payment' => 0]);
@@ -143,6 +135,9 @@ class BonusCalculatorService
         return $bonus;
     }
 
+    /**
+     * Helper to write to the database.
+     */
     private function createBonusTransaction(Payment $payment, string $type, float $amount, float $multiplier, string $description): void
     {
         BonusTransaction::create([

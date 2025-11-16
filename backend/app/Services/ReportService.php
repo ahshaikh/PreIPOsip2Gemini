@@ -1,5 +1,5 @@
 <?php
-// V-FINAL-1730-486 (Created)
+// V-FINAL-1730-486 (Created) | V-FINAL-1730-500 (AML Report Added)
 
 namespace App\Services;
 
@@ -11,10 +11,6 @@ use App\Models\Subscription;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
-/**
- * This service centralizes all complex read-only queries for analytics
- * and compliance reporting.
- */
 class ReportService
 {
     /**
@@ -23,19 +19,12 @@ class ReportService
     public function getFinancialSummary($start, $end)
     {
         $revenue = Payment::where('status', 'paid')->whereBetween('paid_at', [$start, $end])->sum('amount');
-        
-        // Expenses are all bonuses paid
         $expenses = BonusTransaction::where('amount', '>', 0)
             ->whereBetween('created_at', [$start, $end])
             ->sum('amount');
-        
         $profit = $revenue - $expenses;
         
-        return [
-            'revenue' => (float) $revenue,
-            'expenses' => (float) $expenses,
-            'profit' => (float) $profit,
-        ];
+        return ['revenue' => (float) $revenue, 'expenses' => (float) $expenses, 'profit' => (float) $profit];
     }
 
     /**
@@ -76,7 +65,6 @@ class ReportService
             ->latest()
             ->get()
             ->map(function($p) {
-                // Assume 18% GST is included in the amount
                 $taxable = (float)$p->amount / 1.18;
                 $gst = (float)$p->amount - $taxable;
                 return [
@@ -96,9 +84,10 @@ class ReportService
      */
     public function getTdsReportData($start, $end)
     {
-        // TDS is on *Withdrawals* (FSD-FIN-005)
+        // Now reads from the pre-calculated column
         return Withdrawal::with(['user:id,username', 'user.kyc:user_id,pan_number'])
             ->where('status', 'completed')
+            ->where('tds_deducted', '>', 0) // Only those with TDS
             ->whereBetween('updated_at', [$start, $end])
             ->latest()
             ->get()
@@ -113,5 +102,25 @@ class ReportService
                     'net_paid' => $w->net_amount
                 ];
             });
+    }
+
+    /**
+     * NEW: FSD-SYS-116: AML Report (Suspicious Payments)
+     */
+    public function getAmlReport()
+    {
+        // Flag if payment > ₹50K and user registered < 7 days ago
+        $threshold = (float) setting('fraud_amount_threshold', 50000);
+        $days = (int) setting('fraud_new_user_days', 7);
+        
+        $flagged = Payment::where('status', 'paid')
+            ->where('amount', '>=', $threshold)
+            ->whereHas('user', function ($q) use ($days) {
+                $q->where('created_at', '>=', now()->subDays($days));
+            })
+            ->with('user:id,username,email,created_at')
+            ->get();
+            
+        return $flagged;
     }
 }

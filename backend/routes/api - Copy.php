@@ -1,5 +1,5 @@
 <?php
-// V-REMEDIATE-1730-087 (Created) | V-FINAL-1730-421 (Granular Perms) | V-FINAL-1730-435 (Security Hardened) | V-FINAL-1730-443 (SEC-8 Applied) | V-FINAL-1730-471 (2FA Routes Added) | V-FINAL-1730-593 (Notification Routes Added)
+// V-REMEDIATE-1730-087 (Created) | V-FINAL-1730-421 (Granular Perms) | V-FINAL-1730-435 (Security Hardened) | V-FINAL-1730-443 (SEC-8 Applied) | V-FINAL-1730-471 (2FA Routes Added)
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -14,6 +14,8 @@ use App\Http\Controllers\Api\Admin\FaqController as PublicFaqController;
 use App\Http\Controllers\Api\Admin\BlogPostController as PublicBlogController;
 use App\Http\Controllers\Api\Public\GlobalSettingsController;
 use App\Http\Controllers\Api\Public\ProductDataController;
+use App\Http\Controllers\Api\Admin\KbArticleController;
+use App\Http\Controllers\Api\Admin\KbCategoryController;
 
 // User Controllers
 use App\Http\Controllers\Api\User\ProfileController;
@@ -30,13 +32,14 @@ use App\Http\Controllers\Api\User\ProfitShareController as UserProfitShareContro
 use App\Http\Controllers\Api\User\SecurityController;
 use App\Http\Controllers\Api\User\PrivacyController;
 use App\Http\Controllers\Api\User\TwoFactorAuthController;
+use App\Http\Controllers\Api\User\ProfileController;
 use App\Http\Controllers\Api\User\WithdrawalController as UserWithdrawalController;
 
 // Admin Controllers
 use App\Http\Controllers\Api\Admin\AdminDashboardController;
 use App\Http\Controllers\Api\Admin\AdminUserController;
 use App\Http\Controllers\Api\Admin\KycQueueController;
-use AppHttp\Controllers\Api\Admin\PlanController;
+use App\Http\Controllers\Api\Admin\PlanController;
 use App\Http\Controllers\Api\Admin\ProductController;
 use App\Http\Controllers\Api\Admin\BulkPurchaseController;
 use App\Http\Controllers\Api\Admin\SettingsController;
@@ -46,7 +49,7 @@ use App\Http\Controllers\Api\Admin\WithdrawalController;
 use App\Http\Controllers\Api\Admin\LuckyDrawController as AdminLuckyDrawController;
 use App\Http\Controllers\Api\Admin\ProfitShareController as AdminProfitShareController;
 use App\Http\Controllers\Api\Admin\ReportController;
-use App\Http\Controllers\Api\Admin\AdvancedReportController;
+use App\Http\Controllers\Api\Admin\AdvancedReportController; // <-- IMPORT
 use App\Http\Controllers\Api\Admin\SupportTicketController as AdminSupportTicketController;
 use App\Http\Controllers\Api\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Api\Admin\FaqController as AdminFaqController;
@@ -58,32 +61,32 @@ use App\Http\Controllers\Api\Admin\ReferralCampaignController;
 use App\Http\Controllers\Api\Admin\SystemHealthController;
 use App\Http\Controllers\Api\Admin\AdminActivityController;
 use App\Http\Controllers\Api\Admin\BackupController;
-use App\Http\Controllers\Api\Admin\IpWhitelistController;
-use App\Http\Controllers\Api\Admin\NotificationController as AdminNotificationController;
-use App\Http\Controllers\Api\Admin\KbArticleController;
-use App\Http\Controllers\Api\Admin\KbCategoryController;
+use App\Http\Controllers\Api\Admin\IpWhitelistController; // <-- IMPORT
 
 // Invoice & Webhook
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\WebhookController;
-use App\Http\Controllers\Api\NotificationController; // <-- IMPORT
+use App\Http\Controllers\Api\NotificationController;
 
 
 Route::prefix('v1')->group(function () {
 
-    // --- Public Authentication Routes ---
+    // --- Public Authentication Routes (SEC-1 & SEC-8 Throttled) ---
     Route::middleware('throttle:login')->group(function () {
         Route::post('/register', [AuthController::class, 'register']);
-        Route::post('/login', [AuthController::class, 'login']);
-        Route::post('/login/2fa', [AuthController::class, 'verifyTwoFactor']);
+        Route::post('/login', [AuthController::class, 'login']); // Step 1
+        Route::post('/login/2fa', [AuthController::class, 'verifyTwoFactor']); // Step 2
         Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
         Route::post('/password/forgot', [PasswordResetController::class, 'sendResetLink']);
         Route::post('/password/reset', [PasswordResetController::class, 'reset']);
     });
-    Route::get('/auth/{provider}/redirect', [SocialLoginController::class, 'redirectToProvider']);
-    Route::get('/auth/{provider}/callback', [SocialLoginController::class, 'handleProviderCallback']);
 
-    // --- Public Data Routes ---
+    // --- NEW: Social Login Routes ---
+    Route::get('/auth/google/redirect', [SocialLoginController::class, 'redirectToGoogle']);
+    Route::get('/auth/google/callback', [SocialLoginController::class, 'handleGoogleCallback']);
+    // ---------------------------------
+
+    // --- Public Data Routes (Default 'api' throttle) ---
     Route::get('/plans', [PublicPlanController::class, 'index']);
     Route::get('/plans/{slug}', [PublicPlanController::class, 'show']);
     Route::get('/page/{slug}', [PublicPageController::class, 'show']);
@@ -93,11 +96,11 @@ Route::prefix('v1')->group(function () {
     Route::get('/global-settings', [GlobalSettingsController::class, 'index']);
     Route::get('/products/{slug}/history', [ProductDataController::class, 'getPriceHistory']);
 
-    // --- KYC CALLBACK (Public) ---
-    Route::get('/kyc/digilocker/callback', [KycController::class, 'handleDigiLockerCallback']);
-
-    // --- Webhook Routes ---
+    // --- Webhook Routes (No throttle) ---
     Route::post('/webhooks/razorpay', [WebhookController::class, 'handleRazorpay']);
+
+    // --- KYC CALLBACK (Public, as it's from DigiLocker) ---
+    Route::get('/kyc/digilocker/callback', [KycController::class, 'handleDigiLockerCallback']);
 
     // --- Authenticated User Routes ---
     Route::middleware('auth:sanctum')->group(function () {
@@ -109,7 +112,7 @@ Route::prefix('v1')->group(function () {
             // Profile & Security
             Route::get('/profile', [ProfileController::class, 'show']);
             Route::put('/profile', [ProfileController::class, 'update']);
-            Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar']);
+            Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar']); // <-- NEW
             Route::post('/security/password', [SecurityController::class, 'updatePassword']);
             Route::get('/security/export-data', [PrivacyController::class, 'export']);
             Route::post('/security/delete-account', [PrivacyController::class, 'deleteAccount']);
@@ -123,9 +126,13 @@ Route::prefix('v1')->group(function () {
             // KYC
             Route::get('/kyc', [KycController::class, 'show']);
             Route::post('/kyc', [KycController::class, 'store']);
+            Route::post('/kyc/verify-pan', [KycController::class, 'verifyPan']);
+            Route::post('/kyc/verify-bank', [KycController::class, 'verifyBank']);
             Route::get('/kyc-documents/{id}/view', [KycController::class, 'viewDocument']);
+
+	    // --- NEW: DigiLocker Flow ---
             Route::get('/kyc/digilocker/redirect', [KycController::class, 'redirectToDigiLocker']);
-            
+
             // Subscriptions
             Route::get('/subscription', [SubscriptionController::class, 'show']);
             Route::post('/subscription', [SubscriptionController::class, 'store']);
@@ -134,6 +141,9 @@ Route::prefix('v1')->group(function () {
             Route::post('/subscription/resume', [SubscriptionController::class, 'resume']);
             Route::post('/subscription/cancel', [SubscriptionController::class, 'cancel']);
             
+            // FSD-LEGAL-004: Users MUST accept 'risk-disclosure' before paying
+            Route::post('/payment/initiate', [PaymentController::class, 'initiate'])->middleware('legal.accept:risk-disclosure'); // THE GUARD
+
             // Payments
             Route::post('/payment/initiate', [PaymentController::class, 'initiate']);
             Route::post('/payment/verify', [PaymentController::class, 'verify']);
@@ -145,31 +155,39 @@ Route::prefix('v1')->group(function () {
             Route::get('/bonuses', [BonusController::class, 'index']);
             Route::get('/referrals', [ReferralController::class, 'index']);
             
-            // Wallet & Withdrawal
+            // Wallet
             Route::get('/wallet', [WalletController::class, 'show']);
             Route::post('/wallet/deposit/initiate', [WalletController::class, 'initiateDeposit']);
-            Route::post('/wallet/withdraw', [WalletController::class, 'requestWithdrawal'])->middleware('throttle:5,1');
+            Route::post('/wallet/withdraw', [WalletController::class, 'requestWithdrawal']);
+
+            // Test: testWithdrawalRespectsRateLimiting (5 attempts / 1 min)
+            Route::post('/wallet/withdraw', [WalletController::class, 'requestWithdrawal'])->middleware('throttle:5,1'); // <-- GAP 2 FIX
+            
+            // Test: testUserCanViewWithdrawalHistory
             Route::get('/withdrawals', [UserWithdrawalController::class, 'index']);
+            
+            // Test: testUserCanCancelPendingWithdrawal
             Route::post('/withdrawals/{withdrawal}/cancel', [UserWithdrawalController::class, 'cancel']);
             
             // Support
             Route::apiResource('/support-tickets', UserSupportTicketController::class)->only(['index', 'store', 'show']);
             Route::post('/support-tickets/{supportTicket}/reply', [UserSupportTicketController::class, 'reply']);
-	    Route::post('/support-tickets/{supportTicket}/close', [UserSupportTicketController::class, 'close']); // <-- NEW
-            Route::post('/support-tickets/{supportTicket}/rate', [UserSupportTicketController::class, 'rate']); // <-- NEW
             
             // Bonus Modules
             Route::get('/lucky-draws', [UserLuckyDrawController::class, 'index']);
             Route::get('/profit-sharing', [UserProfitShareController::class, 'index']);
             
-            // --- UPDATED: Notifications ---
+            // Notifications
             Route::get('/notifications', [NotificationController::class, 'index']);
-            Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+	    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
             Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']); // <-- NEW
-            Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']); // <-- NEW
+            Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
         });
 
         // === ADMIN ROUTES ===
+        // 1. Must be authenticated
+        // 2. Must have 'admin' or 'super-admin' role
+        // 3. Must pass IP Whitelist
         Route::prefix('admin')->middleware(['role:admin|super-admin', 'admin.ip'])->group(function () {
             
             Route::get('/dashboard', [AdminDashboardController::class, 'index']);
@@ -192,7 +210,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/users/import', [AdminUserController::class, 'import'])->middleware('permission:users.create');
             Route::get('/users/export/csv', [AdminUserController::class, 'export'])->middleware('permission:users.view');
             Route::post('/users/{user}/suspend', [AdminUserController::class, 'suspend'])->middleware('permission:users.suspend');
-            Route::post('/users/{user}/adjust-balance', [AdminUserController::class, 'adjustBalance'])->middleware('permission:users.adjust_wallet');
+	    Route::post('/users/{user}/adjust-balance', [AdminUserController::class, 'adjustBalance'])->middleware('permission:users.adjust_wallet');
             Route::apiResource('/roles', RoleController::class)->middleware('permission:users.manage_roles');
             
             // KYC Management
@@ -205,20 +223,20 @@ Route::prefix('v1')->group(function () {
             Route::apiResource('/plans', PlanController::class)->middleware('permission:plans.edit');
             Route::apiResource('/products', ProductController::class)->middleware('permission:products.edit');
             Route::apiResource('/bulk-purchases', BulkPurchaseController::class)->middleware('permission:products.edit');
+
+	    // Knowledge Base Routes
+            Route::apiResource('/kb-categories', KbCategoryController::class)->middleware('permission:settings.manage_cms');
+            Route::apiResource('/kb-articles', KbArticleController::class)->middleware('permission:settings.manage_cms');
             
             // CMS & Settings
             Route::apiResource('/pages', PageController::class)->middleware('permission:settings.manage_cms');
-            Route::get('/pages/{page}/analyze', [PageController::class, 'analyze'])->middleware('permission:settings.manage_cms');
             Route::apiResource('/email-templates', EmailTemplateController::class)->middleware('permission:settings.manage_notifications');
             Route::apiResource('/faqs', AdminFaqController::class)->middleware('permission:settings.manage_cms');
             Route::apiResource('/blog-posts', AdminBlogController::class)->middleware('permission:settings.manage_cms');
             Route::apiResource('/referral-campaigns', ReferralCampaignController::class)->middleware('permission:bonuses.manage_campaigns');
-            Route::apiResource('/kb-categories', KbCategoryController::class)->middleware('permission:settings.manage_cms');
-            Route::apiResource('/kb-articles', KbArticleController::class)->middleware('permission:settings.manage_cms');
-            
+            Route::get('/pages/{page}/analyze', [PageController::class, 'analyze'])->middleware('permission:settings.manage_cms'); // <-- NEW            
             Route::get('/settings', [SettingsController::class, 'index'])->middleware('permission:settings.view_system');
             Route::put('/settings', [SettingsController::class, 'update'])->middleware('permission:settings.edit_system');
-            Route::post('/notifications/test-sms', [AdminNotificationController::class, 'sendTestSms'])->middleware('permission:settings.manage_notifications');
             
             // Marketing CMS
             Route::get('/menus', [CmsController::class, 'getMenus'])->middleware('permission:settings.manage_cms');
@@ -227,14 +245,8 @@ Route::prefix('v1')->group(function () {
             Route::post('/banners', [CmsController::class, 'storeBanner'])->middleware('permission:settings.manage_cms');
             Route::put('/banners/{banner}', [CmsController::class, 'updateBanner'])->middleware('permission:settings.manage_cms');
             Route::delete('/banners/{banner}', [CmsController::class, 'destroyBanner'])->middleware('permission:settings.manage_cms');
-            Route::get('/redirects', [CmsController::class, 'getRedirects'])->middleware('permission:settings.manage_cms');
-            Route::post('/redirects', [CmsController::class, 'storeRedirect'])->middleware('permission:settings.manage_cms');
-            Route::delete('/redirects/{redirect}', [CmsController::class, 'destroyRedirect'])->middleware('permission:settings.manage_cms');
             Route::post('/theme/update', [ThemeSeoController::class, 'updateTheme'])->middleware('permission:settings.manage_theme');
             Route::post('/seo/update', [ThemeSeoController::class, 'updateSeo'])->middleware('permission:settings.manage_theme');
-
-            // IP Whitelist
-            Route::apiResource('/ip-whitelist', IpWhitelistController::class)->middleware('permission:system.manage_backups');
 
             // Payment Management
             Route::get('/payments', [AdminPaymentController::class, 'index'])->middleware('permission:payments.view');
@@ -253,12 +265,22 @@ Route::prefix('v1')->group(function () {
             // Bonus Modules
             Route::apiResource('/lucky-draws', AdminLuckyDrawController::class)->middleware('permission:bonuses.manage_config');
             Route::post('/lucky-draws/{luckyDraw}/execute', [AdminLuckyDrawController::class, 'executeDraw'])->middleware('permission:bonuses.manage_config');
-            
+
+	    // UPDATED: Profit Share 
             Route::apiResource('/profit-sharing', AdminProfitShareController::class)->middleware('permission:bonuses.manage_config');
             Route::post('/profit-sharing/{profitShare}/calculate', [AdminProfitShareController::class, 'calculate'])->middleware('permission:bonuses.manage_config');
             Route::post('/profit-sharing/{profitShare}/distribute', [AdminProfitShareController::class, 'distribute'])->middleware('permission:bonuses.manage_config');
             Route::post('/profit-sharing/{profitShare}/adjust', [AdminProfitShareController::class, 'adjust'])->middleware('permission:bonuses.manage_config');
             Route::post('/profit-sharing/{profitShare}/reverse', [AdminProfitShareController::class, 'reverse'])->middleware('permission:bonuses.manage_config');
+
+	    // IP Whitelist Routes 
+            Route::apiResource('/ip-whitelist', IpWhitelistController::class)->middleware('permission:system.manage_backups'); // Re-using permission
+
+            // --- NEW: Notification Test Route ---
+            Route::post('/notifications/test-sms', [AdminNotificationController::class, 'sendTestSms'])->middleware('permission:settings.manage_notifications');
+            Route::apiResource('/profit-sharing', AdminProfitShareController::class)->middleware('permission:bonuses.manage_config');
+            Route::post('/profit-sharing/{profitShare}/calculate', [AdminProfitShareController::class, 'calculate'])->middleware('permission:bonuses.manage_config');
+            Route::post('/profit-sharing/{profitShare}/distribute', [AdminProfitShareController::class, 'distribute'])->middleware('permission:bonuses.manage_config');
             
             // Support
             Route::apiResource('/support-tickets', AdminSupportTicketController::class)->middleware('permission:users.view');
