@@ -1,4 +1,8 @@
 // V-FINAL-1730-315 (Connected to CMS)
+// C:\PreIPOsip\frontend\app\page.tsx
+
+import Navbar from "@/components/shared/Navbar";
+import Footer from "@/components/shared/Footer";
 
 import Hero from "@/components/features/HeroSection";
 import Comparison from "@/components/features/ComparisonSection";
@@ -11,7 +15,9 @@ import Testimonials from "@/components/features/Testimonials";
 export default function Page() {
   return (
     <div className="bg-white">
+      <Navbar />
 
+      {/* Sections */}
       <Hero />
       <Comparison />
       <Plans />
@@ -20,6 +26,8 @@ export default function Page() {
       <Calculator />
       <Testimonials />
 
+
     </div>
   );
 }
+

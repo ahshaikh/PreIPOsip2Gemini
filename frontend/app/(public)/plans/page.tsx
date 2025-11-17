@@ -1,47 +1,72 @@
-// V-PHASE4-1730-110
+// V-REMEDIATE-1730-167 (Created) | V-FINAL-1730-628 (Pending Plan Link)
 'use client';
 
-import { usePlans } from '@/lib/hooks';
-import { Button } from '@/components/ui/button';
-import Link from 'next/link';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Check } from "lucide-react";
+import api from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
+import Link from 'next/link'; // <-- IMPORT LINK
 
-// Full Plans Page
 export default function PlansPage() {
-  const { data: plans, isLoading, error } = usePlans();
 
-  if (isLoading) return <div className="container py-12">Loading plans...</div>;
-  if (error) return <div className="container py-12">Failed to load plans.</div>;
+  const { data: plans, isLoading } = useQuery({
+    queryKey: ['publicPlans'],
+    queryFn: async () => (await api.get('/plans')).data,
+    staleTime: 1000 * 60 * 5 // 5 minutes
+  });
+
+  if (isLoading) return <div>Loading plans...</div>;
 
   return (
     <div className="container py-20">
-      <h1 className="text-4xl font-bold text-center mb-4">
-        Choose Your Investment Plan
-      </h1>
-      <p className="text-xl text-muted-foreground text-center mb-12">
-        All plans include zero fees, guaranteed bonuses, and full transparency.
-      </p>
-      
-      {/* TODO: Implement the full comparison table */}
+      <div className="text-center max-w-3xl mx-auto mb-16">
+        <h1 className="text-4xl md:text-6xl font-black text-gray-900 mb-4">
+          Find Your Perfect <span className="text-primary">Investment Plan</span>
+        </h1>
+        <p className="text-xl text-muted-foreground">
+          All plans are 100% free. No platform fees, no exit fees.
+          Your investment, your profit, plus our bonuses.
+        </p>
+      </div>
+
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {plans?.map((plan) => (
-          <div key={plan.id} id={plan.slug} className="bg-card border p-6 rounded-lg shadow-sm flex flex-col">
-            <h3 className="text-2xl font-semibold mb-2">{plan.name}</h3>
-            <p className="text-3xl font-bold mb-4">
-              ₹{plan.monthly_amount}<span className="text-base font-normal text-muted-foreground">/month</span>
-            </p>
-            <p className="text-muted-foreground mb-4 h-20">{plan.description}</p>
-            <ul className="space-y-2 mb-6">
-              {plan.features.map((feature) => (
-                <li key={feature.id} className="flex items-center text-sm">
-                  <svg className="w-4 h-4 mr-2 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path></svg>
-                  {feature.feature_text}
-                </li>
-              ))}
-            </ul>
-            <Button className="w-full mt-auto" asChild>
-              <Link href="/signup">Subscribe Now</Link>
-            </Button>
-          </div>
+        {plans?.map((plan: any) => (
+          <Card 
+            key={plan.id} 
+            className={`flex flex-col ${plan.is_featured ? 'border-2 border-primary shadow-2xl' : 'shadow-lg'}`}
+          >
+            {plan.is_featured && (
+              <Badge className="w-fit self-center -mt-3 z-10">Most Popular</Badge>
+            )}
+            <CardHeader className="text-center">
+              <CardTitle className="text-3xl font-bold mb-2">{plan.name}</CardTitle>
+              <p className="text-4xl font-black text-primary">
+                ₹{plan.monthly_amount.toLocaleString('en-IN')}
+                <span className="text-sm font-medium text-muted-foreground">/month</span>
+              </p>
+              <CardDescription>{plan.description}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col flex-grow">
+              <ul className="space-y-3 mb-6 flex-grow">
+                {plan.features.map((feature: any) => (
+                  <li key={feature.id} className="flex items-start">
+                    <Check className="h-5 w-5 text-green-500 mr-2 shrink-0" />
+                    <span className="text-sm text-muted-foreground">{feature.feature_text}</span>
+                  </li>
+                ))}
+              </ul>
+              
+              {/* --- THIS IS THE CHANGE --- */}
+              <Button asChild className="w-full" size="lg">
+                <Link href={`/signup?plan=${plan.slug}`}>
+                  Choose Plan
+                </Link>
+              </Button>
+              {/* ------------------------- */}
+            </CardContent>
+          </Card>
         ))}
       </div>
     </div>

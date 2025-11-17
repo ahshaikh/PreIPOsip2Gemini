@@ -1,5 +1,6 @@
-<?php
+
 // V-PHASE4-1730-111 (Created) | V-FINAL-1730-475 (Social Login UI)
+
 'use client';
 
 import { Button } from "@/components/ui/button";

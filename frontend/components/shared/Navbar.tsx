@@ -1,74 +1,71 @@
-// V-PHASE4-1730-103 (Created) | V-FINAL-1730-523 (Dynamic CMS)
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { useQuery } from '@tanstack/react-query';
-import api from '@/lib/api';
+import { usePathname } from "next/navigation";
+import Link from "next/link";
+import { useState } from "react";
 
-export function Navbar() {
-  // Fetch global settings (menus, logo, etc.)
-  const { data: settings } = useQuery({
-    queryKey: ['globalSettings'],
-    queryFn: async () => (await api.get('/global-settings')).data,
-    staleTime: 60000, // Cache for 1 minute
-  });
+export default function Navbar() {
+  const [open, setOpen] = useState(false);
+  const pathname = usePathname();
 
-  // FSD-FRONT-003: Dynamic Header Menu
-  const headerMenu = settings?.menus?.['header-nav']?.items || [
-    { label: 'Home', url: '/' },
-    { label: 'Plans', url: '/plans' },
-    { label: 'How It Works', url: '/how-it-works' },
-  ];
-  
-  // FSD-FRONT-001: Dynamic Logo
-  const logoUrl = settings?.theme?.logo_url;
-  
-  // FSD-FRONT-007: Dynamic Top Bar Banners
-  const topBarBanner = settings?.banners?.find((b: any) => b.type === 'top_bar' && b.is_active);
+  const isHome = pathname === "/";
+
+  const scrollTo = (id: string) => {
+    if (!isHome) return (window.location.href = `/#${id}`);
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      
-      {/* Dynamic Top Bar Banner */}
-      {topBarBanner && (
-          <div 
-            className="bg-primary text-primary-foreground text-center text-sm py-2 px-4"
-            dangerouslySetInnerHTML={{ __html: topBarBanner.content }}
-          />
-      )}
+    <nav className="fixed w-full bg-white/95 backdrop-blur-sm shadow-sm z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16">
 
-      <div className="container flex h-14 items-center">
-        <div className="mr-4 flex">
-          <Link href="/" className="mr-6 flex items-center space-x-2">
-            {logoUrl ? (
-                <img src={logoUrl} alt="PreIPO SIP" className="h-8 w-auto" />
-            ) : (
-                <span className="font-bold">PreIPO SIP</span>
-            )}
-          </Link>
-          <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
-            {headerMenu.map((link: any, i: number) => (
-              <Link
-                key={i}
-                href={link.url}
-                className="text-foreground/60 transition-colors hover:text-foreground/80"
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-        </div>
-        
-        <div className="flex flex-1 items-center justify-end space-x-2">
-          <Button variant="ghost" asChild>
-            <Link href="/login">Login</Link>
-          </Button>
-          <Button asChild>
-            <Link href="/signup">Sign Up</Link>
-          </Button>
+          {/* LOGO */}
+          <div
+            className="gradient-primary text-white px-4 py-2 rounded-lg font-bold text-xl cursor-pointer"
+            onClick={() => {
+              if (isHome) window.scrollTo({ top: 0, behavior: "smooth" });
+              else window.location.href = "/";
+            }}
+          >
+            PreIPO SIP
+          </div>
+
+          {/* Desktop menu */}
+          <div className="hidden md:flex items-center space-x-8">
+
+            <button onClick={() => scrollTo("features")} className="text-gray-700 hover:text-purple-600">
+              Features
+            </button>
+
+            <button onClick={() => scrollTo("plans")} className="text-gray-700 hover:text-purple-600">
+              Plans
+            </button>
+
+            <button onClick={() => scrollTo("how-it-works")} className="text-gray-700 hover:text-purple-600">
+              How It Works
+            </button>
+
+            <button onClick={() => scrollTo("calculator")} className="text-gray-700 hover:text-purple-600">
+              Calculator
+            </button>
+          </div>
+
+          {/* CTA */}
+          <div className="flex items-center space-x-4">
+            <Link href="/login" className="text-gray-700 hover:text-purple-600 font-semibold">
+              Login
+            </Link>
+
+            <Link href="/signup">
+              <button className="gradient-primary text-white px-6 py-2 rounded-lg font-semibold hover:shadow-lg transition">
+                Start Free →
+              </button>
+            </Link>
+          </div>
         </div>
       </div>
-    </header>
+    </nav>
   );
 }

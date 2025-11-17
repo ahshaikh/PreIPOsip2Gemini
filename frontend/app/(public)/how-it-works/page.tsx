@@ -1,5 +1,5 @@
 // V-FINAL-1730-182
-import { HowItWorks } from '@/components/features/HowItWorks';
+import HowItWorks from '@/components/features/HowItWorks';
 
 export default function HowItWorksPage() {
   return (
