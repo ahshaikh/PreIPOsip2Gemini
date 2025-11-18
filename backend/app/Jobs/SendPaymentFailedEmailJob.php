@@ -16,15 +16,21 @@ class SendPaymentFailedEmailJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public function __construct(public Payment $payment, public string $reason)
-    {
-    }
+    public function __construct(
+        public Payment $payment,
+        public string $reason
+    ) {}
 
-    public function handle(): void
+    public function handle(EmailService $emailService): void
     {
         $user = $this->payment->user;
-        if ($user && $user->email) {
-            Mail::to($user->email)->send(new PaymentFailedMail($this->payment, $this->reason));
-        }
+        
+        $variables = [
+            'amount' => $this->payment->amount,
+            'reason' => $this->reason,
+            'retry_link' => env('FRONTEND_URL') . '/subscription'
+        ];
+
+        $emailService->send($user, 'payment.failed', $variables);
     }
 }

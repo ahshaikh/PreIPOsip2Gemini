@@ -91,7 +91,7 @@ export default function SystemSettingsPage() {
     }));
   };
   
-  const handleSave = ()_ => {
+  const handleSave = () => {
     // Convert the map back into the array format the API expects
     const settingsPayload = Object.values(settingsMap).map(s => ({
       key: s.key,

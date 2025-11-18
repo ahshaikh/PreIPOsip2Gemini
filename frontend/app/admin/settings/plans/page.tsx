@@ -1,4 +1,3 @@
-<?php
 // V-REMEDIATE-1730-131 (Created) | V-FINAL-1730-484 (Scheduling UI)
 'use client';
 
@@ -14,7 +13,7 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Plus, PlusCircle, Edit, Trash2 } from "lucide-react";
 
 // Helper to format date for input
 const formatDateForInput = (date: string | null) => {
