@@ -8,7 +8,7 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "Missing feature commit: Full-stack build"
+$CommitMessage = "Removing Bugs and updating: Full-stack build"
 # ---------------------
 
 function Get-GitCredential {

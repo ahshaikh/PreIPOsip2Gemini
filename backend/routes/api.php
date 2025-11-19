@@ -36,7 +36,7 @@ use App\Http\Controllers\Api\User\WithdrawalController as UserWithdrawalControll
 use App\Http\Controllers\Api\Admin\AdminDashboardController;
 use App\Http\Controllers\Api\Admin\AdminUserController;
 use App\Http\Controllers\Api\Admin\KycQueueController;
-use AppHttp\Controllers\Api\Admin\PlanController;
+use App\Http\Controllers\Api\Admin\PlanController;
 use App\Http\Controllers\Api\Admin\ProductController;
 use App\Http\Controllers\Api\Admin\BulkPurchaseController;
 use App\Http\Controllers\Api\Admin\SettingsController;

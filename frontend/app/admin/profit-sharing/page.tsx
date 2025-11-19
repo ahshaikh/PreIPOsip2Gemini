@@ -39,7 +39,7 @@ function ManagePeriodModal({ period, onClose }: { period: any, onClose: () => vo
   
   const distributeMutation = useMutation({
     mutationFn: () => api.post(`/admin/profit-sharing/${period.id}/distribute`),
-    onSuccess: ()_ => {
+    onSuccess: () => {
       toast.success("Distribution Started!");
       queryClient.invalidateQueries({ queryKey: ['profitShareDetail', period.id] });
       queryClient.invalidateQueries({ queryKey: ['adminProfitSharing'] });
@@ -127,7 +127,7 @@ function ManagePeriodModal({ period, onClose }: { period: any, onClose: () => vo
               <CardContent className="space-y-2">
                 <Label>Reason for Reversal</Label>
                 <Input value={reason} onChange={e => setReason(e.target.value)} placeholder="e.g., Calculation error" />
-                <Button variant="destructive" onClick={()_ => reverseMutation.mutate({ reason })} disabled={reverseMutation.isPending || reason.length < 10}>
+                <Button variant="destructive" onClick={() => reverseMutation.mutate({ reason })} disabled={reverseMutation.isPending || reason.length < 10}>
                   <Undo className="mr-2 h-4 w-4" /> Reverse this Distribution
                 </Button>
               </CardContent>

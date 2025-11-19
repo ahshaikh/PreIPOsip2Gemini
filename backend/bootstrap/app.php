@@ -1,14 +1,14 @@
 <?php
-// V-FINAL-1730-269 (No CORS) | V-FINAL-1730-420 (Permission Add) | V-FINAL-1730-438 | V-FINAL-1730-447 IP Whitelist | V-FINAL-1730-533 (Redirects Added) | V-FINAL-1730-562 (Legal Middleware)
+// V-FINAL-1730-269 | 1730-420 | 1730-438 | 1730-447 | 1730-533 (Redirects Added) | 1730-562 (Legal Middleware) | V-FINAL-1730-652 (Role Middleware Fix)
 
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use App\HttpHttp\Middleware\AdminIpRestriction;
+use App\Http\Middleware\AdminIpRestriction;
 use App\Http\Middleware\CheckMaintenanceMode;
 use App\Http\Middleware\CheckPermission;
 use App\Http\Middleware\RedirectMiddleware;
-use App\Http\Middleware\EnsureLegalAcceptance; // <-- 1. IMPORT
+use App\Http\Middleware\EnsureLegalAcceptance;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -19,15 +19,22 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         
+        // 1. Global Middleware
         $middleware->append([
             CheckMaintenanceMode::class,
             RedirectMiddleware::class,
         ]);
 
+        // 2. Middleware Aliases
         $middleware->alias([
             'admin.ip' => AdminIpRestriction::class,
             'permission' => CheckPermission::class,
-            'legal.accept' => EnsureLegalAcceptance::class, // <-- 2. ADD ALIAS
+            'legal.accept' => EnsureLegalAcceptance::class,
+            
+            // --- THE MISSING ALIASES (Fixes the 500 Error) ---
+            'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
+            'permission_spatie' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+            'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { Textarea } from "@/components/ui/textarea";
 import api from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PlusCircle, Play } from "lucide-react";
@@ -133,34 +134,36 @@ export default function AdminLuckyDrawsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data?.data.map((draw: any) => (
-                  <TableRow key={draw.id}>
-                    <TableCell className="font-medium">{draw.name}</TableCell>
-                    <TableCell>{new Date(draw.draw_date).toLocaleDateString()}</TableCell>
-                    <TableCell>
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                        draw.status === 'open' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-green-100 text-green-800'
-                      }`}>
-                        {draw.status}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {draw.status === 'open' && (
-                        <Button 
-                          variant="destructive" 
-                          size="sm"
-                          onClick={() => handleExecute(draw)}
-                          disabled={executeMutation.isPending}
-                        >
-                          <Play className="mr-2 h-4 w-4" />
-                          Execute Draw
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
+               {(Array.isArray(data?.data) ? data.data : []).map((draw: any) => (
+                 <TableRow key={draw.id}>
+                  <TableCell className="font-medium">{draw.name}</TableCell>
+                  <TableCell>{new Date(draw.draw_date).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                      draw.status === 'open'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-green-100 text-green-800'
+                    }`}>
+                      {draw.status}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    {draw.status === 'open' && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleExecute(draw)}
+                        disabled={executeMutation.isPending}
+                    >
+                        <Play className="mr-2 h-4 w-4" />
+                        Execute Draw
+                      </Button>
+                  )}
+                </TableCell>
+              </TableRow>
+        ))}
+      </TableBody>
+
             </Table>
           )}
         </CardContent>

@@ -19,7 +19,10 @@ export function PaginationControls({ meta }: PaginationProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  if (meta.last_page <= 1) return null;
+  // Fix: Prevent crash if meta is missing or malformed
+  if (!meta || typeof meta.last_page !== "number" || meta.last_page <= 1) {
+    return null;
+  }
 
   const handlePageChange = (page: number) => {
     const params = new URLSearchParams(searchParams.toString());

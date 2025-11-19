@@ -12,7 +12,7 @@ class PortfolioController extends Controller
      * FSD-PORTFOLIO-001: Get aggregated portfolio statistics.
      */
     public function index(Request $request)
-    _    {
+        {
         $user = $request->user();
         
         // 1. Get all investments, eager load the product's current price
@@ -57,7 +57,7 @@ class PortfolioController extends Controller
                 'product_slug' => $first->product->slug,
                 'sector' => $first->product->sector,
                 'total_units' => $totalUnits,
-                'current_value'_ => $currentValue,
+                'current_value' => $currentValue,
                 'cost_basis' => $costBasis,
                 'unrealized_pl' => $pl,
                 'roi_percent' => round($roi, 2),

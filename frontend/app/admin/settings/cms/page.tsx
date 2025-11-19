@@ -236,7 +236,7 @@ export default function CmsSettingsPage() {
                     <TabsContent value="content" className="space-y-4 pt-4">
                         <div className="grid grid-cols-3 gap-4">
                             <div className="space-y-2"><Label>Page Title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
-                            <div classNamea="space-y-2"><Label>Slug (Cannot be changed)</Label><Input value={slug} disabled /></div>
+                            <div className="space-y-2"><Label>Slug (Cannot be changed)</Label><Input value={slug} disabled /></div>
                             <div className="space-y-2"><Label>Status</Label><Select value={status} onValueChange={setStatus}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="draft">Draft</SelectItem><SelectItem value="published">Published</SelectItem></SelectContent></Select></div>
                         </div>
                         <hr />
@@ -280,7 +280,7 @@ export default function CmsSettingsPage() {
             )}
           </DialogContent>
         </Dialog>
-
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>Pages</CardTitle>

@@ -1,4 +1,3 @@
-<?php
 // V-FINAL-1730-223 (Created) | V-FINAL-1730-488 (Full Report Suite)
 'use client';
 
@@ -8,10 +7,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { Textarea } from "@/components/ui/textarea";
 import api from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
-import { DollarSign, Users, Package, CreditCard, Download, TrendingUp, AlertCircle, FileText, BarChart } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { DollarSign, Users, Package, CreditCard, Download, TrendingUp, AlertCircle, FileText } from "lucide-react";
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useState } from "react";
 
 export default function AdvancedReportsPage() {

@@ -1,7 +1,7 @@
 <?php
 // V-REMEDIATE-1730-190 (Created) | V-FINAL-1730-426 (Request Validated) | V-FINAL-1730-571 (Mandate Logic Added)
 
-namespace App\HttpAdapters\Controllers\Api\User;
+namespace App\Http\Controllers\Api\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
