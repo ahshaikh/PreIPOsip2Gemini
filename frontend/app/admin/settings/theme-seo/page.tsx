@@ -25,7 +25,7 @@ export default function ThemeSeoPage() {
       queryFn: async () => (await api.get('/global-settings')).data,
   });
 
-  useEffect(()_ => {
+  useEffect(() => {
       if (data) {
           setPrimaryColor(data.theme?.primary_color || '#667eea');
           setMetaSuffix(data.theme?.meta_title_suffix || '| PreIPO SIP');

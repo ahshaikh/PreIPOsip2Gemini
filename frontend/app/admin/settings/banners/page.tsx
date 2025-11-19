@@ -15,6 +15,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Plus, Megaphone, Trash2, Edit } from "lucide-react";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell, } from "@/components/ui/table";
 
 // --- Form Component ---
 function BannerForm({

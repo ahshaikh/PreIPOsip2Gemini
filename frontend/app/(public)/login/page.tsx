@@ -1,7 +1,6 @@
+'use client';
 
 // V-PHASE4-1730-111 (Created) | V-FINAL-1730-475 (Social Login UI)
-
-'use client';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +9,8 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
+import { useAuth } from "@/context/AuthContext";
 
 // Google Icon
 const GoogleIcon = () => (
@@ -36,7 +36,6 @@ const GoogleIcon = () => (
 
 export default function LoginPage() {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
 
   const [login, setLogin] = useState('');
@@ -48,6 +47,9 @@ export default function LoginPage() {
   const [is2fa, setIs2fa] = useState(false);
   const [userId, setUserId] = useState(null);
   const [otp, setOtp] = useState('');
+
+// Get login function from context
+  const { login: handleAuthSuccess } = useAuth();
 
   // Handle errors from social callback
   useEffect(() => {
@@ -102,16 +104,7 @@ export default function LoginPage() {
     }
   });
 
-  // Helper for all successful auth
-  const handleAuthSuccess = (token: string, user: any) => {
-    localStorage.setItem('auth_token', token);
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    queryClient.invalidateQueries(); // Invalidate all queries to refetch data
-    
-    // Smart Redirect
-    const isAdmin = user.roles && user.roles.some((r: any) => r.name === 'admin' || r.name === 'super-admin');
-    router.push(isAdmin ? '/admin/dashboard' : '/dashboard');
-  };
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

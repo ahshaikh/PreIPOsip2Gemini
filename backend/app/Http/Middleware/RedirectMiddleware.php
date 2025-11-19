@@ -17,6 +17,10 @@ class RedirectMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
+	    // ❗ Skip ALL API routes
+    			if ($request->is('api/*')) {
+        	return $next($request);
+    }
         // We only care about GET requests
         if (!$request->isMethod('get')) {
             return $next($request);

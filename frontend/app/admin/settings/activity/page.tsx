@@ -23,7 +23,7 @@ export default function ActivityLogPage() {
 
   return (
     <div className="space-y-6">
-      <div className.flex.justify-between.items-center>
+      <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Global Activity Audit</h1>
         <SearchInput placeholder="Search logs (e.g., 'kyc_approved' or user email)..." />
       </div>

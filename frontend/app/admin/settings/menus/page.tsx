@@ -49,7 +49,7 @@ export default function MenuManagerPage() {
     }
   });
 
-  const addMenuItem = ()_ => {
+  const addMenuItem = () => {
     setMenuItems([...menuItems, { label: 'New Link', url: '/', display_order: menuItems.length }]);
   };
 
@@ -63,7 +63,7 @@ export default function MenuManagerPage() {
     setMenuItems(menuItems.filter((_, i) => i !== index));
   };
 
-  const handleSave = ()_ => {
+  const handleSave = () => {
     mutation.mutate({ items: menuItems });
   };
 
