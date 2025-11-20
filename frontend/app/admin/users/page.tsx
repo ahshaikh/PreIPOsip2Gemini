@@ -30,7 +30,7 @@ export default function UsersPage() {
 
   const { data: queryData, isLoading } = useQuery({
     queryKey: ['adminUsers', page, search],
-    queryFn: async () => (await api.get(`/admin/users?page=${page}&search=${search}`)).data,
+    queryFn: async () => (await api.get(`/api/v1/admin/users?page=${page}&search=${search}`)).data,
   });
 
   // Mutations

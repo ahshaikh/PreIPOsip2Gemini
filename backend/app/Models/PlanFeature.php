@@ -1,7 +1,6 @@
 <?php
 // V-PHASE2-1730-039
 
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;

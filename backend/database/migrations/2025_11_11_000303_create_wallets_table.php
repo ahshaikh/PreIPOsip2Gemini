@@ -1,5 +1,5 @@
 <?php
-// V-DEPLOY-1730-011 (Created) | V-PHASE3-1730-064 | V-FINAL-1730-615 (Consolidated)
+// V-PHASE3-1730-064 (Created) | V-FINAL-1730-615 (Consolidated)
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -18,6 +18,7 @@ return new class extends Migration
             $table->timestamps();
         });
         
+// V-PHASE3-1730-065
         Schema::create('transactions', function (Blueprint $table) {
             $table->id();
             $table->uuid('transaction_id')->unique();
@@ -38,6 +39,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
+// V-PHASE3-1730-066
         Schema::create('withdrawals', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');

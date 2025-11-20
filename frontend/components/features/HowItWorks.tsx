@@ -1,4 +1,4 @@
-// V-FINAL-1730-314 (Dynamic)
+// V-PHASE4-1730-108 (Created) | V-FINAL-1730-314 (Dynamic)
 import Link from "next/link";
 
 export default function HowItWorks() {

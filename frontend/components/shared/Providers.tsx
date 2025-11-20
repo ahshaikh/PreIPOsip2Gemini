@@ -1,4 +1,4 @@
-// V-PHASE4-1730-102 (Created) | // V-FINAL-1730-657 (Updated)
+// V-PHASE4-1730-102 (Created) | V-FINAL-1730-657 (Updated)
 
 'use client';
 
@@ -21,9 +21,9 @@ const queryClient = new QueryClient({
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
-	<AuthProvider>
-      	{children}
-	</AuthProvider>
+      <AuthProvider>
+        {children}
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

@@ -1,5 +1,5 @@
 <?php
-// V-DEPLOY-1730-013 (Created) | V-PHASE3-1730-066 | V-FINAL-1730-616 (Consolidated)
+// V-PHASE3-1730-067 (Created) | V-FINAL-1730-616 (Consolidated)
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -38,6 +38,7 @@ return new class extends Migration
             $table->timestamps();
         });
         
+// V-PHASE3-1730-068
         Schema::create('referrals', function (Blueprint $table) {
             $table->id();
             $table->foreignId('referrer_id')->constrained('users')->onDelete('cascade');

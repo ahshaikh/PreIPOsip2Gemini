@@ -1,5 +1,5 @@
 <?php
-// V-REMEDIATE-1730-087 (Created) | V-FINAL-1730-421 (Granular Perms) | V-FINAL-1730-435 (Security Hardened) | V-FINAL-1730-443 (SEC-8 Applied) | V-FINAL-1730-471 (2FA Routes Added) | V-FINAL-1730-593 (Notification Routes Added)
+// V-PHASE1-1730-014 (Created) | V-PHASE2-1730-049 | V-PHASE3-1730-087 | V-REMEDIATE-1730-087 | V-FINAL-1730-421 (Granular Perms) | V-FINAL-1730-435 (Security Hardened) | V-FINAL-1730-443 (SEC-8 Applied) | V-FINAL-1730-471 (2FA Routes Added) | V-FINAL-1730-593 (Notification Routes Added)
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -68,6 +68,16 @@ use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\WebhookController;
 use App\Http\Controllers\Api\NotificationController; // <-- IMPORT
 
+/*
+|--------------------------------------------------------------------------
+| API Routes
+|--------------------------------------------------------------------------
+|
+| Here is where you can register API routes for your application. These
+| routes are loaded by the RouteServiceProvider and all of them will
+| be assigned to the "api" middleware group. Make something great!
+|
+*/
 
 Route::prefix('v1')->group(function () {
 

@@ -1,5 +1,5 @@
 <?php
-// V-DEPLOY-1730-008 (Created) | V-PHASE3-1730-061 | V-FINAL-1730-613 (Consolidated)
+// V-PHASE3-1730-061 (Created) | V-FINAL-1730-613 (Consolidated)
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;

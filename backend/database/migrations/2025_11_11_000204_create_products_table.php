@@ -1,5 +1,5 @@
 <?php
-// V-PHASE2-1730-036 (Created) | V-FINAL-1730-494 (Advanced Pricing) | V-FINAL-1730-612 (Consolidated)
+// V-PHASE2-1730-028 (Created) | V-FINAL-1730-494 (Advanced Pricing) | V-FINAL-1730-612 (Consolidated)
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;

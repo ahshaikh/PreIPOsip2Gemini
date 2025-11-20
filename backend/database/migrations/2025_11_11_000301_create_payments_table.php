@@ -1,5 +1,5 @@
 <?php
-// V-PHASE2-1730-048 (Created) | V-PHASE3-1730-062 | V-FINAL-1730-607 (Currency Fix) | V-FINAL-1730-614 (Consolidated)
+// V-PHASE3-1730-062 (Created) | V-FINAL-1730-607 (Currency Fix) | V-FINAL-1730-614 (Consolidated)
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;

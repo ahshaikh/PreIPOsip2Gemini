@@ -47,6 +47,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
+// V-PHASE2-1730-030
         // CMS Pages
         Schema::create('pages', function (Blueprint $table) {
             $table->id();

@@ -1,5 +1,5 @@
 <?php
-// V-DEPLOY-1730-003 (Created) | V-PHASE2-1730-025 | V-FINAL-1730-611 (Consolidated) | V-FINAL-1730-619 (Timestamps Fix)
+// V-PHASE2-1730-025 (Created) | V-FINAL-1730-611 (Consolidated) | V-FINAL-1730-619 (Timestamps Fix)
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -35,6 +35,7 @@ return new class extends Migration
             $table->softDeletes();
         });
 
+// V-PHASE2-1730-027
         Schema::create('plan_features', function (Blueprint $table) {
             $table->id();
             $table->foreignId('plan_id')->constrained()->onDelete('cascade');
@@ -44,6 +45,7 @@ return new class extends Migration
             $table->timestamps(); // <-- THE MISSING LINE
         });
 
+// V-PHASE2-1730-026
         Schema::create('plan_configs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('plan_id')->constrained()->onDelete('cascade');

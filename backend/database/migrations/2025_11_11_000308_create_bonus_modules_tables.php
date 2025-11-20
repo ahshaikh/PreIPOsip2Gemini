@@ -1,5 +1,5 @@
 <?php
-// V-DEPLOY-1730-016 (Created) |  V-PHASE3-1730-069 | V-FINAL-1730-617 (Consolidated)
+// V-PHASE3-1730-069 (Created) | V-FINAL-1730-617 (Consolidated)
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -20,6 +20,7 @@ return new class extends Migration
             $table->softDeletes();
         });
 
+// V-PHASE3-1730-070
         Schema::create('lucky_draw_entries', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
@@ -37,6 +38,7 @@ return new class extends Migration
             $table->unique(['user_id', 'lucky_draw_id']);
         });
 
+// V-PHASE3-1730-071
         // Profit Sharing
         Schema::create('profit_shares', function (Blueprint $table) {
             $table->id();
@@ -50,6 +52,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
+// V-PHASE3-1730-072
         Schema::create('user_profit_shares', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');

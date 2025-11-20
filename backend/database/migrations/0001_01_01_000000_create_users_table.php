@@ -37,6 +37,7 @@ return new class extends Migration
             $table->softDeletes();
         });
 
+// V-PHASE1-1730-003
         // Dependent Tables
         Schema::create('user_profiles', function (Blueprint $table) {
             $table->id();
@@ -54,6 +55,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
+// V-PHASE1-1730-004
         Schema::create('user_kyc', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
@@ -70,6 +72,7 @@ return new class extends Migration
             $table->timestamps();
         });
         
+// V-PHASE1-1730-005
         Schema::create('kyc_documents', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_kyc_id')->constrained('user_kyc')->onDelete('cascade');
@@ -93,6 +96,7 @@ return new class extends Migration
             $table->index(['user_id', 'created_at']);
         });
 
+// V-PHASE1-1730-007
         Schema::create('otps', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');

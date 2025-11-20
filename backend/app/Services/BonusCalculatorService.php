@@ -1,5 +1,5 @@
 <?php
-// V-FINAL-1730-343 (Advanced Progressive Logic) | V-FINAL-1730-496 (Created) | V-FINAL-1730-586 (Notifications Added)
+// V-PHASE3-1730-083 (Created) | V-FINAL-1730-343 (Advanced Progressive Logic) | V-FINAL-1730-496 | V-FINAL-1730-586 (Notifications Added)
 
 namespace App\Services;
 
@@ -11,6 +11,10 @@ use Illuminate\Support\Facades\Log;
 
 class BonusCalculatorService
 {
+    /**
+     * Main orchestrator to calculate all 7 bonus types.
+     * Returns the total bonus amount.
+     */
     public function calculateAndAwardBonuses(Payment $payment): float
     {
         $subscription = $payment->subscription->load('plan.configs');
