@@ -1,4 +1,4 @@
-# push-to-github.ps1
+# push-to-github2.ps1
 #
 # This script initializes a Git repository, connects to a GitHub remote,
 # and pushes the entire project (backend, frontend, docs) to the main branch.
@@ -8,7 +8,7 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "Updated Version Numbering upto Phase 4"
+$CommitMessage = "Updated Version Numbering upto Phase 5"
 # ---------------------
 
 function Get-GitCredential {
