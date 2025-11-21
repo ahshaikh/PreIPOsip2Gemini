@@ -23,6 +23,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+    // Load helper functions
+    require_once app_path('Helpers/SettingsHelper.php');
         // --- SEC-8: PER-USER/IP RATE LIMITING ---
         // This fixes the "Rate limiter [login] is not defined" error
         RateLimiter::for('login', function (Request $request) {

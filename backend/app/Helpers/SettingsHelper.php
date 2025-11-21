@@ -1,6 +1,10 @@
 <?php
 // V-PHASE2-1730-048 (Created) | V-FINAL-1730-400 (Caching Implemented)
 
+// debug: write marker when helper is included (remove after)
+@file_put_contents(__DIR__ . '/../../storage/logs/helper_loaded.log', date('c') . " helper included\n", FILE_APPEND);
+
+
 use App\Models\Setting;
 use Illuminate\Support\Facades\Cache;
 

@@ -1,6 +1,6 @@
 'use client';
-
-// V-PHASE4-1730-111 (Created) | V-FINAL-1730-475 (Social Login UI)
+//C:\PreIPOsip\frontend\app\(public)\login\page.tsx
+// V-PHASE4-1730-111 (Created - Revised) | V-FINAL-1730-475 (Social Login UI)
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,7 +60,7 @@ export default function LoginPage() {
 
   // --- Login Mutation (Step 1) ---
   const loginMutation = useMutation({
-    mutationFn: () => api.post('/login', { login, password }),
+    mutationFn: () => api.post('login', { login, password }),
     onSuccess: (response) => {
       const data = response.data;
       if (data.two_factor_required) {
@@ -81,7 +81,7 @@ export default function LoginPage() {
 
   // --- 2FA Verify Mutation (Step 2) ---
   const twoFaMutation = useMutation({
-    mutationFn: () => api.post('/login/2fa', { user_id: userId, code: otp }),
+    mutationFn: () => api.post('login/2fa', { user_id: userId, code: otp }),
     onSuccess: (response) => {
       handleAuthSuccess(response.data.token, response.data.user);
     },
@@ -93,7 +93,7 @@ export default function LoginPage() {
 
   // --- Social Login Mutation ---
   const googleMutation = useMutation({
-    mutationFn: () => api.get('/auth/google/redirect'),
+    mutationFn: () => api.get('auth/google/redirect'),
     onSuccess: (data) => {
       // Redirect user to Google's auth page
       window.location.href = data.data.redirect_url;

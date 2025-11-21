@@ -1,5 +1,5 @@
 <?php
-// V-PHASE1-1730-015 (Created) | V-FINAL-1730-470 (2FA Logic Added)
+// V-PHASE1-1730-015 (Created) | V-FINAL-1730-470 (2FA Logic Added) | V-FINAL-1730-658 (Setting Helper Fix)
 
 namespace App\Http\Controllers\Api;
 
@@ -12,24 +12,39 @@ use App\Models\UserKyc;
 use App\Models\Wallet;
 use App\Models\Otp;
 use App\Jobs\SendOtpJob;
+use App\Models\Setting; // <-- IMPORT
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use PragmaRX\Google2FA\Google2FA;
-use Illuminate\Support\Collection;
 
 class AuthController extends Controller
 {
+    /**
+     * Get a setting safely without relying on the helper file being loaded.
+     */
+    private function getSettingSafely(string $key, $default = null)
+    {
+        try {
+            // Find the setting and return its raw value (no casting here)
+            return Setting::where('key', $key)->value('value') ?? $default;
+        } catch (\Exception $e) {
+            return $default;
+        }
+    }
+    
     /**
      * Register a new user.
      */
     public function register(RegisterRequest $request)
     {
-        if (!setting('registration_enabled', true)) {
+        // --- FIXED: Use direct model access ---
+        if ($this->getSettingSafely('registration_enabled', 'true') === 'false') {
             return response()->json(['message' => 'Registrations are currently closed.'], 403);
         }
+        // ------------------------------------
 
         $user = User::create([
             'username' => $request->username,
@@ -62,16 +77,15 @@ class AuthController extends Controller
     }
     
     /**
-     * --- 2FA Login Flow (Step 1) ---
+     * User Login (Step 1 or final step if no 2FA).
      */
     public function login(LoginRequest $request)
     {
         $user = $request->authenticate();
         
-        // --- 2FA CHECK (FSD-SEC-009) ---
+        // --- 2FA CHECK ---
         if ($user && $user->two_factor_confirmed_at) {
             // User has 2FA enabled. Do NOT send token.
-            // Send a "challenge" instead.
             return response()->json([
                 'two_factor_required' => true,
                 'user_id' => $user->id,
@@ -94,7 +108,7 @@ class AuthController extends Controller
     }
     
     /**
-     * --- 2FA Login Flow (Step 2) ---
+     * 2FA Login Flow (Step 2).
      */
     public function verifyTwoFactor(Request $request)
     {
@@ -104,7 +118,6 @@ class AuthController extends Controller
         ]);
         
         $user = User::findOrFail($request->user_id);
-        
         $code = $request->code;
         
         // Check standard 6-digit code
@@ -118,7 +131,6 @@ class AuthController extends Controller
                 return response()->json(['message' => 'Invalid 2FA or recovery code.'], 422);
             }
             
-            // It was a recovery code. Burn it.
             $user->replaceRecoveryCode($recoveryCode);
         }
 
@@ -163,7 +175,10 @@ class AuthController extends Controller
             $user->update(['status' => 'active']);
         }
         
-        return response()->json(['message' => $request->type . ' verified successfully.']);
+        return response()->json([
+            'message' => $request->type . ' verified successfully.'
+        ]);
+
     }
 
     /**

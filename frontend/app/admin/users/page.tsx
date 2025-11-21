@@ -1,4 +1,4 @@
-// V-FINAL-1730-218 (Bulk & Import Added)
+// V-PHASE6-1730-126 (Created) | V-FINAL-1730-218 (Bulk & Import Added)
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,7 +30,7 @@ export default function UsersPage() {
 
   const { data: queryData, isLoading } = useQuery({
     queryKey: ['adminUsers', page, search],
-    queryFn: async () => (await api.get(`/api/v1/admin/users?page=${page}&search=${search}`)).data,
+    queryFn: async () => (await api.get(`/admin/users?page=${page}&search=${search}`)).data,
   });
 
   // Mutations

@@ -1,39 +1,41 @@
 <?php
-// V-FINAL-1730-266 (Created) | V-FINAL-1730-422 (Logic Upgraded) | 
-// V-FINAL-1730-626 (Boot-loader Fix) | STABLE-PATCH-2025-11
+// V-FINAL-1730-266 (Created) | V-FINAL-1730-422 (Logic Upgraded) | V-FINAL-1730-626 (Boot-loader Fix)
 
 namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
-use App\Models\Setting;
-use Illuminate\Support\Facades\Cache;
+use App\Models\Setting; // <-- IMPORT
+use Illuminate\Support\Facades\Cache; // <-- IMPORT
 
 class CheckMaintenanceMode
 {
     /**
-     * Local safe version of the setting() helper to avoid bootstrapping issues.
-     * This ensures maintenance mode check works even when global helpers fail.
+     * A local, safe version of the setting() helper to avoid boot-loading issues.
+     * This queries the model directly.
      */
     private function getSetting($key, $default = null)
     {
         try {
+            // Use cache to avoid hitting the DB on every single request
             $setting = Cache::rememberForever('setting.' . $key, function () use ($key) {
                 return Setting::where('key', $key)->first();
             });
 
             if (!$setting) {
-                return $default;
+                return $default; // Not found
             }
-
-            // Cast boolean types manually
+            
+            // Manually cast boolean types
             if ($setting->type === 'boolean') {
                 return in_array($setting->value, ['true', '1', 1, true], true);
             }
-
+            
             return $setting->value;
+
         } catch (\Exception $e) {
+            // Failsafe if DB isn't ready during boot
             return $default;
         }
     }
@@ -43,18 +45,22 @@ class CheckMaintenanceMode
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // 1. Maintenance mode OFF → allow everything
+        // 1. Is Maintenance Mode OFF? If so, let everyone in.
+        // --- USE THE LOCAL getSetting() METHOD ---
         if (!$this->getSetting('maintenance_mode', false)) {
             return $next($request);
         }
-
-        // 2. Admin users bypass maintenance
+        
+        // --- Maintenance Mode is ON ---
+        
         $user = $request->user();
+        
+        // 2. Check for Admin Exemption
         if ($user && $user->hasRole(['admin', 'super-admin'])) {
             return $next($request);
         }
-
-        // 3. IP whitelist support
+        
+        // 3. Check for IP Whitelist Exemption
         $whitelistStr = $this->getSetting('allowed_ips', '');
         if (!empty($whitelistStr)) {
             $allowedIps = array_map('trim', explode(',', $whitelistStr));
@@ -62,22 +68,27 @@ class CheckMaintenanceMode
                 return $next($request);
             }
         }
-
-        // 4. Minimal required API exemptions (SAFE)
+        
+        // 4. Check for Login/Admin Route Exemption
         if (
-            $request->is('api/v1/login')      ||
-            $request->is('api/v1/register')   ||
-            $request->is('api/v1/verify-otp') ||
-            $request->is('api/v1/admin*')     ||
-            $request->is('sanctum/*')
-        ) {
+	    $request->is('api/v1/login')      ||
+	    $request->is('api/v1/register')   ||
+	    $request->is('api/v1/verify-otp') ||
+	    $request->is('api/v1/admin*')     ||
+	    $request->is('sanctum/*')         ||
+	    $request->is('api/v1/*')          // <-- allow all API v1 calls
+         //   $request->is('api/v1/admin/*') ||   // <-- FIXED
+         //   $request->is('api/v1/admin')   ||   // <-- Add this too
+         //   $request->is('api/v1/login')   ||
+         //   $request->is('sanctum/*')
+    ) {
             return $next($request);
-        }
+    }
 
-        // 5. Everything else blocked during maintenance
+        // 5. If none of the above, block the user.
         return response()->json([
             'message' => $this->getSetting('maintenance_message', 'System is down for maintenance. Please try again later.'),
             'maintenance' => true
-        ], 503);
+        ], 503); // 503 Service Unavailable
     }
 }

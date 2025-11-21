@@ -13,7 +13,10 @@ use App\Http\Middleware\CheckPermission;
 use App\Http\Middleware\RedirectMiddleware;
 use App\Http\Middleware\EnsureLegalAcceptance;
 
-return Application::configure(basePath: dirname(__DIR__))
+// ----------------------------------------------------------
+// 1. Build the application instance
+// ----------------------------------------------------------
+$app = Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__ . '/../routes/web.php',
         api: __DIR__ . '/../routes/api.php',
@@ -22,55 +25,44 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
 
-        /*
-        |--------------------------------------------------------------------------
-        | 1. Global Middleware
-        |--------------------------------------------------------------------------
-        | These run on ALL routes (Web + API).
-        | DO NOT put RedirectMiddleware here.
-        */
+        // Global middleware
         $middleware->append([
             CheckMaintenanceMode::class,
         ]);
 
-        /*
-        |--------------------------------------------------------------------------
-        | 2. Web Middleware Group
-        |--------------------------------------------------------------------------
-        | Here we place RedirectMiddleware so redirects apply ONLY to web requests.
-        */
+        // Web middleware
         $middleware->group('web', [
             RedirectMiddleware::class,
         ]);
 
-        /*
-        |--------------------------------------------------------------------------
-        | 3. API Middleware Group
-        |--------------------------------------------------------------------------
-        | API routes must NOT have RedirectMiddleware.
-        */
+        // API middleware
         $middleware->group('api', [
-            // empty unless needed
+            // empty
         ]);
 
-        /*
-        |--------------------------------------------------------------------------
-        | 4. Middleware Aliases
-        |--------------------------------------------------------------------------
-        | All named middleware go here.
-        */
+        // Aliases
         $middleware->alias([
             'admin.ip' => AdminIpRestriction::class,
             'permission' => CheckPermission::class,
             'legal.accept' => EnsureLegalAcceptance::class,
 
-            // Spatie Permissions
+            // Spatie
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission_spatie' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // ...
     })
     ->create();
+
+// ----------------------------------------------------------
+// 2. Load helper files globally
+// ----------------------------------------------------------
+require_once __DIR__ . '/../app/Helpers/SettingsHelper.php';
+
+// ----------------------------------------------------------
+// 3. Return the final application instance
+// ----------------------------------------------------------
+return $app;

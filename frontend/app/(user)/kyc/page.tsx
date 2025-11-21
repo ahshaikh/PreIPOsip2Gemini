@@ -1,6 +1,7 @@
-<?php
-// V-PHASE5-1730-117 (Created) | V-REMEDIATE-1730-214 | V-FINAL-1730-481 (DigiLocker UI)
 'use client';
+
+// V-PHASE5-1730-117 (Created - Revised) | V-REMEDIATE-1730-214 | V-FINAL-1730-481 (DigiLocker UI)
+
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
