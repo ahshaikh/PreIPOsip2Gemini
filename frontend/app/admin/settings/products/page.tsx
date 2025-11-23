@@ -276,14 +276,16 @@ export default function ProductManagerPage() {
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [isCreateMode, setIsCreateMode] = useState(false);
 
   // We fetch the simple list
   const { data: products, isLoading } = useQuery({
     queryKey: ['adminProducts'],
     queryFn: async () => (await api.get('/admin/products')).data,
   });
-  
-  const mutation = useMutation({
+
+  // Update mutation
+  const updateMutation = useMutation({
     mutationFn: (data: any) => api.put(`/admin/products/${editingProduct.id}`, data),
     onSuccess: () => {
       toast.success("Product Updated");
@@ -293,24 +295,72 @@ export default function ProductManagerPage() {
     },
     onError: (e: any) => toast.error("Error", { description: e.response?.data?.message })
   });
-  
+
+  // Create mutation
+  const createMutation = useMutation({
+    mutationFn: (data: any) => api.post('/admin/products', data),
+    onSuccess: () => {
+      toast.success("Product Created");
+      queryClient.invalidateQueries({ queryKey: ['adminProducts'] });
+      setIsDialogOpen(false);
+      setEditingProduct(null);
+      setIsCreateMode(false);
+    },
+    onError: (e: any) => toast.error("Error", { description: e.response?.data?.message })
+  });
+
   const handleSave = (data: any) => {
-    mutation.mutate(data);
+    if (isCreateMode) {
+      createMutation.mutate(data);
+    } else {
+      updateMutation.mutate(data);
+    }
   };
-  
+
   const handleOpenDialog = (product: any) => {
     // Fetch the *full* product data on click, as the list is partial
     api.get(`/admin/products/${product.id}`).then(res => {
         setEditingProduct(res.data); // This now contains all relations
+        setIsCreateMode(false);
         setIsDialogOpen(true);
     });
+  };
+
+  const handleCreateNew = () => {
+    // Initialize with empty product template
+    setEditingProduct({
+      name: '',
+      slug: '',
+      sector: '',
+      description: '',
+      is_active: true,
+      is_featured: false,
+      face_value_per_unit: 0,
+      current_market_price: 0,
+      min_investment: 0,
+      auto_update_price: false,
+      price_api_endpoint: '',
+      highlights: [],
+      founders: [],
+      key_metrics: [],
+      funding_rounds: [],
+      risk_disclosures: [],
+      sebi_approval_number: '',
+      sebi_approval_date: '',
+      regulatory_warnings: '',
+      compliance_notes: '',
+    });
+    setIsCreateMode(true);
+    setIsDialogOpen(true);
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Product Management</h1>
-        {/* TODO: Add "Create" button */}
+        <Button onClick={handleCreateNew}>
+          <Plus className="mr-2 h-4 w-4" /> Create Product
+        </Button>
       </div>
 
       <Card>
@@ -325,6 +375,13 @@ export default function ProductManagerPage() {
                 <TableHead>Actions</TableHead>
               </TableRow></TableHeader>
               <TableBody>
+                {products?.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                      No products found. Click "Create Product" to add your first product.
+                    </TableCell>
+                  </TableRow>
+                )}
                 {products?.map((p: any) => (
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.name}</TableCell>
@@ -343,16 +400,18 @@ export default function ProductManagerPage() {
           )}
         </CardContent>
       </Card>
-      
-      {/* Edit Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) setEditingProduct(null); }}>
+
+      {/* Create/Edit Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) { setEditingProduct(null); setIsCreateMode(false); } }}>
         <DialogContent className="max-w-3xl">
-          <DialogHeader><DialogTitle>Manage Product: {editingProduct?.name}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{isCreateMode ? 'Create New Product' : `Manage Product: ${editingProduct?.name}`}</DialogTitle>
+          </DialogHeader>
           {editingProduct && (
-            <EditProductForm 
-              product={editingProduct} 
-              onSave={handleSave} 
-              onCancel={() => setIsDialogOpen(false)} 
+            <EditProductForm
+              product={editingProduct}
+              onSave={handleSave}
+              onCancel={() => setIsDialogOpen(false)}
             />
           )}
         </DialogContent>
