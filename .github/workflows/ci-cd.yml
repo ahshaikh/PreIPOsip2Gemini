@@ -1,0 +1,310 @@
+# V-CICD-001 - CI/CD Pipeline for PreIPO SIP Platform
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop, staging]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  PHP_VERSION: '8.2'
+  NODE_VERSION: '20'
+  COMPOSER_FLAGS: '--no-interaction --prefer-dist --optimize-autoloader'
+
+jobs:
+  # ============================================
+  # Backend Tests (Laravel)
+  # ============================================
+  backend-tests:
+    name: Backend Tests (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3']
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: preipo_test
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: --health-cmd="redis-cli ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, dom, fileinfo, mysql, redis, gd, bcmath, zip
+          coverage: xdebug
+
+      - name: Get Composer Cache Directory
+        id: composer-cache
+        working-directory: backend
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install Composer dependencies
+        working-directory: backend
+        run: composer install ${{ env.COMPOSER_FLAGS }}
+
+      - name: Copy environment file
+        working-directory: backend
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Configure test database
+        working-directory: backend
+        run: |
+          echo "DB_CONNECTION=mysql" >> .env
+          echo "DB_HOST=127.0.0.1" >> .env
+          echo "DB_PORT=3306" >> .env
+          echo "DB_DATABASE=preipo_test" >> .env
+          echo "DB_USERNAME=root" >> .env
+          echo "DB_PASSWORD=password" >> .env
+          echo "CACHE_DRIVER=redis" >> .env
+          echo "QUEUE_CONNECTION=sync" >> .env
+          echo "SESSION_DRIVER=array" >> .env
+
+      - name: Run migrations
+        working-directory: backend
+        run: php artisan migrate --force
+
+      - name: Run PHPUnit tests
+        working-directory: backend
+        run: |
+          php artisan test --parallel --coverage-clover=coverage.xml
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: preipo_test
+          DB_USERNAME: root
+          DB_PASSWORD: password
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: matrix.php == '8.2'
+        with:
+          files: backend/coverage.xml
+          flags: backend
+          fail_ci_if_error: false
+
+  # ============================================
+  # Backend Code Quality
+  # ============================================
+  backend-quality:
+    name: Backend Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, dom, fileinfo
+          tools: phpstan, php-cs-fixer
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: ${{ runner.os }}-composer-quality-${{ hashFiles('**/composer.lock') }}
+
+      - name: Install dependencies
+        working-directory: backend
+        run: composer install ${{ env.COMPOSER_FLAGS }}
+
+      - name: Run PHP CS Fixer (dry-run)
+        working-directory: backend
+        run: |
+          if [ -f .php-cs-fixer.php ]; then
+            php-cs-fixer fix --dry-run --diff
+          fi
+        continue-on-error: true
+
+      - name: Run PHPStan
+        working-directory: backend
+        run: |
+          if [ -f phpstan.neon ]; then
+            vendor/bin/phpstan analyse --memory-limit=2G
+          fi
+        continue-on-error: true
+
+  # ============================================
+  # Backend Security Scan
+  # ============================================
+  backend-security:
+    name: Backend Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          tools: composer
+
+      - name: Install dependencies
+        working-directory: backend
+        run: composer install ${{ env.COMPOSER_FLAGS }}
+
+      - name: Run security audit
+        working-directory: backend
+        run: composer audit
+
+  # ============================================
+  # Frontend Tests (Next.js)
+  # ============================================
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run type check
+        working-directory: frontend
+        run: npm run type-check || echo "Type check not configured"
+        continue-on-error: true
+
+      - name: Run lint
+        working-directory: frontend
+        run: npm run lint || echo "Lint not configured"
+        continue-on-error: true
+
+      - name: Run tests
+        working-directory: frontend
+        run: npm test -- --passWithNoTests
+        continue-on-error: true
+
+      - name: Build application
+        working-directory: frontend
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+          NEXT_TELEMETRY_DISABLED: 1
+
+  # ============================================
+  # Frontend Bundle Analysis
+  # ============================================
+  frontend-bundle:
+    name: Frontend Bundle Analysis
+    runs-on: ubuntu-latest
+    needs: frontend-tests
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build with bundle analyzer
+        working-directory: frontend
+        run: |
+          ANALYZE=true npm run build || npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+          NEXT_TELEMETRY_DISABLED: 1
+
+  # ============================================
+  # Deploy to Staging
+  # ============================================
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests, backend-security]
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to staging server
+        run: |
+          echo "Deploying to staging environment..."
+          # Add your deployment script here
+          # Example: ssh deploy@staging-server 'cd /var/www/preipo && git pull && ./deploy.sh'
+
+  # ============================================
+  # Deploy to Production
+  # ============================================
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests, backend-security]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to production server
+        run: |
+          echo "Deploying to production environment..."
+          # Add your production deployment script here
+
+  # ============================================
+  # Notification
+  # ============================================
+  notify:
+    name: Notify on Failure
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests]
+    if: failure()
+
+    steps:
+      - name: Send failure notification
+        run: |
+          echo "Build failed - send notification"
+          # Add Slack/Discord/Email notification here

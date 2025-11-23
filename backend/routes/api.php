@@ -106,8 +106,9 @@ Route::prefix('v1')->group(function () {
     // --- KYC CALLBACK (Public) ---
     Route::get('/kyc/digilocker/callback', [KycController::class, 'handleDigiLockerCallback']);
 
-    // --- Webhook Routes ---
-    Route::post('/webhooks/razorpay', [WebhookController::class, 'handleRazorpay']);
+    // --- Webhook Routes (V-SECURITY: Signature verification required) ---
+    Route::post('/webhooks/razorpay', [WebhookController::class, 'handleRazorpay'])
+        ->middleware('webhook.verify:razorpay');
 
     // --- Authenticated User Routes ---
     Route::middleware('auth:sanctum')->group(function () {
@@ -180,7 +181,8 @@ Route::prefix('v1')->group(function () {
         });
 
         // === ADMIN ROUTES ===
-        Route::prefix('admin')->middleware(['role:admin|super-admin', 'admin.ip'])->group(function () {
+        // V-SECURITY-FIX: IP whitelist MUST be checked BEFORE role check
+        Route::prefix('admin')->middleware(['admin.ip', 'role:admin|super-admin'])->group(function () {
             
             Route::get('/dashboard', [AdminDashboardController::class, 'index']);
             

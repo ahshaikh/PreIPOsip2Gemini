@@ -12,6 +12,10 @@ use App\Http\Middleware\CheckMaintenanceMode;
 use App\Http\Middleware\CheckPermission;
 use App\Http\Middleware\RedirectMiddleware;
 use App\Http\Middleware\EnsureLegalAcceptance;
+use App\Http\Middleware\SanitizeInput;
+use App\Http\Middleware\VerifyWebhookSignature;
+use App\Http\Middleware\ConcurrentSessionControl;
+use App\Http\Middleware\ValidateFileUpload;
 
 // ----------------------------------------------------------
 // 1. Build the application instance
@@ -37,7 +41,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
 
         // API middleware
         $middleware->group('api', [
-            // empty
+            SanitizeInput::class, // XSS protection
         ]);
 
         // Aliases
@@ -45,6 +49,9 @@ $app = Application::configure(basePath: dirname(__DIR__))
             'admin.ip' => AdminIpRestriction::class,
             'permission' => CheckPermission::class,
             'legal.accept' => EnsureLegalAcceptance::class,
+            'webhook.verify' => VerifyWebhookSignature::class,
+            'session.control' => ConcurrentSessionControl::class,
+            'file.validate' => ValidateFileUpload::class,
 
             // Spatie
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,

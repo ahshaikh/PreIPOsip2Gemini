@@ -63,17 +63,23 @@ class LuckyDrawService
         }
 
         // 3. Create or Update the single entry row
-        LuckyDrawEntry::updateOrCreate(
+        // V-SECURITY-FIX: Use proper parameterized query instead of string interpolation
+        $entry = LuckyDrawEntry::firstOrCreate(
             [
                 'user_id' => $payment->user_id,
                 'lucky_draw_id' => $currentDraw->id,
             ],
             [
-                'payment_id' => $payment->id, // Track last payment
-                'base_entries' => DB::raw("base_entries + $baseEntries"),
-                'bonus_entries' => DB::raw("bonus_entries + $bonusEntries"),
+                'payment_id' => $payment->id,
+                'base_entries' => 0,
+                'bonus_entries' => 0,
             ]
         );
+
+        // Safely increment using Laravel's increment method
+        $entry->increment('base_entries', (int) $baseEntries);
+        $entry->increment('bonus_entries', (int) $bonusEntries);
+        $entry->update(['payment_id' => $payment->id]);
 
         Log::info("Allocated {$baseEntries}+{$bonusEntries} entries for User #{$payment->user_id} to Draw #{$currentDraw->id}");
     }
