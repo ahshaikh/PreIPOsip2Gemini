@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\User;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str; // V-FIX: Missing import
 use PragmaRX\Google2FA\Google2FA;
 use Illuminate\Support\Collection;
 

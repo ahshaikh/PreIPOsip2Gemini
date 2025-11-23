@@ -16,8 +16,8 @@ class RazorpayService
 
     public function __construct()
     {
-        $this.key = setting('razorpay_key_id', env('RAZORPAY_KEY')); // Use DB setting
-        $this.secret = setting('razorpay_key_secret', env('RAZORPAY_SECRET')); // Use DB setting
+        $this->key = setting('razorpay_key_id', env('RAZORPAY_KEY')); // Use DB setting
+        $this->secret = setting('razorpay_key_secret', env('RAZORPAY_SECRET')); // Use DB setting
         
         if ($this->key && $this->secret) {
             $this->api = new Api($this->key, $this->secret);
@@ -32,7 +32,7 @@ class RazorpayService
     {
         $this->log("Creating Order: Amount={$amount}, Receipt={$receipt}");
         try {
-            $order = $this.api->order->create([
+            $order = $this->api->order->create([
                 'receipt' => (string) $receipt,
                 'amount' => $amount * 100, // Paise
                 'currency' => 'INR',
@@ -88,7 +88,7 @@ class RazorpayService
             return $razorpayPlan->id;
 
         } catch (Exception $e) {
-            $this.log("Plan Sync Failed: " . $e->getMessage(), 'error');
+            $this->log("Plan Sync Failed: " . $e->getMessage(), 'error');
             throw $e;
         }
     }
@@ -114,7 +114,7 @@ class RazorpayService
             return $subscription;
 
         } catch (Exception $e) {
-            $this.log("Subscription Creation Failed: " . $e->getMessage(), 'error');
+            $this->log("Subscription Creation Failed: " . $e->getMessage(), 'error');
             throw $e;
         }
     }

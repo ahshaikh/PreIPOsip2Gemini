@@ -13,6 +13,7 @@ use App\Models\Wallet;
 use App\Models\Otp;
 use App\Jobs\SendOtpJob;
 use App\Models\Setting; // <-- IMPORT
+use App\Services\OtpService; // <-- V-SECURITY-FIX
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -82,7 +83,29 @@ class AuthController extends Controller
     public function login(LoginRequest $request)
     {
         $user = $request->authenticate();
-        
+
+        // --- V-SECURITY-FIX: User Status Validation ---
+        if ($user->status === 'suspended') {
+            return response()->json([
+                'message' => 'Your account has been suspended. Please contact support.'
+            ], 403);
+        }
+
+        if ($user->status === 'banned') {
+            return response()->json([
+                'message' => 'Your account has been permanently banned.'
+            ], 403);
+        }
+
+        if ($user->status === 'pending') {
+            return response()->json([
+                'message' => 'Please verify your email and mobile to activate your account.',
+                'user_id' => $user->id,
+                'verification_required' => true,
+            ], 403);
+        }
+        // --- END Status Validation ---
+
         // --- 2FA CHECK ---
         if ($user && $user->two_factor_confirmed_at) {
             // User has 2FA enabled. Do NOT send token.
@@ -150,35 +173,51 @@ class AuthController extends Controller
 
     /**
      * Verify OTP for new account.
+     * V-SECURITY-FIX: Now actually validates the OTP code using OtpService
      */
-    public function verifyOtp(Request $request)
+    public function verifyOtp(Request $request, OtpService $otpService)
     {
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'type' => 'required|in:email,mobile',
             'otp' => 'required|digits:6',
         ]);
-        
+
         $user = User::find($request->user_id);
-        
-        // Use OtpService... (Assuming OtpService exists)
-        
+
+        // V-SECURITY-FIX: Actually verify the OTP using OtpService
+        try {
+            $isValid = $otpService->verify($user, $request->type, $request->otp);
+
+            if (!$isValid) {
+                return response()->json([
+                    'message' => 'Invalid OTP code. Please try again.'
+                ], 422);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 422);
+        }
+
+        // OTP verified successfully - update the appropriate field
         if ($request->type == 'email') {
             $user->update(['email_verified_at' => now()]);
         }
         if ($request->type == 'mobile') {
             $user->update(['mobile_verified_at' => now()]);
         }
-        
+
         // If both are verified, activate account
+        $user->refresh();
         if ($user->email_verified_at && $user->mobile_verified_at) {
             $user->update(['status' => 'active']);
         }
-        
-        return response()->json([
-            'message' => $request->type . ' verified successfully.'
-        ]);
 
+        return response()->json([
+            'message' => ucfirst($request->type) . ' verified successfully.',
+            'account_activated' => $user->status === 'active'
+        ]);
     }
 
     /**
