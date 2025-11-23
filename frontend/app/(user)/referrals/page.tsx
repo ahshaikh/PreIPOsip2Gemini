@@ -1,104 +1,397 @@
-// V-PHASE5-1730-121
+// V-PHASE5-1730-121 | V-ENHANCED-REFERRALS
 'use client';
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { toast } from "sonner";
 import api from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
-import { Copy, Gift } from "lucide-react";
+import { useState } from "react";
+import {
+  Copy, Gift, Users, TrendingUp, Share2, Link2, Trophy,
+  Facebook, Twitter, Linkedin, Mail, MessageCircle, QrCode,
+  Target, Award, ChevronRight, Sparkles, IndianRupee, Calendar
+} from "lucide-react";
 
 export default function ReferralsPage() {
+  const [activeTab, setActiveTab] = useState('overview');
+  const [showQR, setShowQR] = useState(false);
+
   const { data, isLoading } = useQuery({
     queryKey: ['referrals'],
     queryFn: async () => (await api.get('/user/referrals')).data,
   });
 
-  if (isLoading) return <div>Loading referrals...</div>;
+  // Fetch referral rewards/earnings
+  const { data: rewards } = useQuery({
+    queryKey: ['referralRewards'],
+    queryFn: async () => (await api.get('/user/referrals/rewards')).data,
+  });
+
+  if (isLoading) return <div className="flex items-center justify-center h-64">Loading referrals...</div>;
 
   // Use environment variable for the base URL (SSR-safe with fallback)
   const baseUrl = typeof window !== 'undefined'
     ? window.location.origin
     : process.env.NEXT_PUBLIC_SITE_URL || 'https://preiposip.com';
-  const referralLink = `${baseUrl}/signup?ref=${data?.stats.referral_code}`;
+  const referralLink = `${baseUrl}/signup?ref=${data?.stats?.referral_code}`;
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(referralLink);
+    toast.success("Link Copied!", { description: "Referral link copied to clipboard" });
+  };
+
+  const copyCode = () => {
+    navigator.clipboard.writeText(data?.stats?.referral_code || '');
+    toast.success("Code Copied!", { description: "Referral code copied to clipboard" });
+  };
+
+  // Share functions
+  const shareOnFacebook = () => {
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}`, '_blank');
+  };
+
+  const shareOnTwitter = () => {
+    const text = `Join me on PreIPO SIP and start investing in pre-IPO companies! Use my referral link:`;
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(referralLink)}`, '_blank');
+  };
+
+  const shareOnLinkedIn = () => {
+    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(referralLink)}`, '_blank');
+  };
+
+  const shareOnWhatsApp = () => {
+    const text = `Join me on PreIPO SIP! Use my referral code ${data?.stats?.referral_code} to get started: ${referralLink}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const shareViaEmail = () => {
+    const subject = 'Join me on PreIPO SIP';
+    const body = `Hi,\n\nI've been investing in pre-IPO companies through PreIPO SIP and thought you might be interested too!\n\nUse my referral link to sign up: ${referralLink}\n\nOr use my referral code: ${data?.stats?.referral_code}`;
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  // Calculate next multiplier milestone
+  const completedReferrals = data?.stats?.completed_referrals || 0;
+  const nextMilestone = completedReferrals < 5 ? 5 : completedReferrals < 10 ? 10 : completedReferrals < 25 ? 25 : 50;
+  const progressToNext = (completedReferrals / nextMilestone) * 100;
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">My Referrals</h1>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">My Referrals</h1>
+          <p className="text-muted-foreground">Share your link, earn rewards, and boost your multiplier!</p>
+        </div>
+      </div>
 
-      <Card>
+      {/* Referral Link Card */}
+      <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-background border-primary/20">
         <CardHeader>
-          <CardTitle>Share Your Link</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Share2 className="h-5 w-5" /> Share Your Referral Link
+          </CardTitle>
+          <CardDescription>Earn bonuses when your friends sign up and invest.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p>Share your link to earn bonuses and increase your multiplier!</p>
+          {/* Referral Link */}
           <div className="flex gap-2">
-            <Input value={referralLink} readOnly />
-            <Button onClick={() => navigator.clipboard.writeText(referralLink)}>
-              <Copy className="h-4 w-4" />
+            <Input value={referralLink} readOnly className="font-mono text-sm" />
+            <Button onClick={copyToClipboard}>
+              <Copy className="h-4 w-4 mr-2" /> Copy
+            </Button>
+          </div>
+
+          {/* Referral Code */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Your Code:</span>
+              <Badge variant="secondary" className="font-mono text-lg px-3 py-1">
+                {data?.stats?.referral_code}
+              </Badge>
+              <Button variant="ghost" size="sm" onClick={copyCode}>
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Social Share Buttons */}
+          <div className="flex flex-wrap gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={shareOnWhatsApp} className="bg-green-500/10 hover:bg-green-500/20 border-green-500/30">
+              <MessageCircle className="h-4 w-4 mr-2 text-green-500" /> WhatsApp
+            </Button>
+            <Button variant="outline" size="sm" onClick={shareOnFacebook} className="bg-blue-500/10 hover:bg-blue-500/20 border-blue-500/30">
+              <Facebook className="h-4 w-4 mr-2 text-blue-500" /> Facebook
+            </Button>
+            <Button variant="outline" size="sm" onClick={shareOnTwitter} className="bg-sky-500/10 hover:bg-sky-500/20 border-sky-500/30">
+              <Twitter className="h-4 w-4 mr-2 text-sky-500" /> Twitter
+            </Button>
+            <Button variant="outline" size="sm" onClick={shareOnLinkedIn} className="bg-blue-700/10 hover:bg-blue-700/20 border-blue-700/30">
+              <Linkedin className="h-4 w-4 mr-2 text-blue-700" /> LinkedIn
+            </Button>
+            <Button variant="outline" size="sm" onClick={shareViaEmail}>
+              <Mail className="h-4 w-4 mr-2" /> Email
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Current Multiplier</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{data?.stats.current_multiplier}x</div>
-            <p className="text-xs text-muted-foreground">Applies to progressive & milestone bonuses</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Completed Referrals</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{data?.stats.completed_referrals}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="border-l-4 border-l-blue-500">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Total Referrals</CardTitle>
+            <Users className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{data?.stats.total_referrals}</div>
+            <div className="text-2xl font-bold">{data?.stats?.total_referrals || 0}</div>
+            <p className="text-xs text-muted-foreground">People signed up with your link</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-green-500">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Completed Referrals</CardTitle>
+            <Target className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{completedReferrals}</div>
+            <p className="text-xs text-muted-foreground">Made their first investment</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-yellow-500">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Current Multiplier</CardTitle>
+            <Sparkles className="h-4 w-4 text-yellow-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-600">{data?.stats?.current_multiplier || 1}x</div>
+            <p className="text-xs text-muted-foreground">Applies to your bonuses</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-purple-500">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Total Earned</CardTitle>
+            <IndianRupee className="h-4 w-4 text-purple-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600">
+              ₹{Number(rewards?.total_earned || 0).toLocaleString('en-IN')}
+            </div>
+            <p className="text-xs text-muted-foreground">From referrals</p>
           </CardContent>
         </Card>
       </div>
 
+      {/* Multiplier Progress */}
       <Card>
         <CardHeader>
-          <CardTitle>Your Referral List</CardTitle>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Multiplier Progress</CardTitle>
+              <CardDescription>Increase your multiplier by getting more completed referrals</CardDescription>
+            </div>
+            <Badge variant="outline" className="text-lg px-3 py-1">
+              {data?.stats?.current_multiplier || 1}x
+            </Badge>
+          </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Referred On</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data?.referrals.data.map((ref: any) => (
-                <TableRow key={ref.id}>
-                  <TableCell>{ref.referred.username}</TableCell>
-                  <TableCell>{new Date(ref.created_at).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                      ref.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {ref.status}
-                    </span>
-                  </TableCell>
-                </TableRow>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between text-sm">
+              <span>{completedReferrals} completed</span>
+              <span>{nextMilestone} for next level</span>
+            </div>
+            <Progress value={progressToNext} className="h-3" />
+            <div className="grid grid-cols-4 gap-4 mt-4">
+              {[
+                { referrals: 5, multiplier: '1.5x' },
+                { referrals: 10, multiplier: '2x' },
+                { referrals: 25, multiplier: '2.5x' },
+                { referrals: 50, multiplier: '3x' },
+              ].map((tier) => (
+                <div
+                  key={tier.referrals}
+                  className={`p-3 rounded-lg text-center border ${
+                    completedReferrals >= tier.referrals
+                      ? 'bg-green-500/10 border-green-500/30'
+                      : 'bg-muted/50'
+                  }`}
+                >
+                  <Trophy className={`h-5 w-5 mx-auto mb-1 ${
+                    completedReferrals >= tier.referrals ? 'text-green-500' : 'text-muted-foreground'
+                  }`} />
+                  <p className="text-sm font-bold">{tier.multiplier}</p>
+                  <p className="text-xs text-muted-foreground">{tier.referrals} referrals</p>
+                </div>
               ))}
-            </TableBody>
-          </Table>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tabs for Referrals and Rewards */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="overview">
+            <Users className="mr-2 h-4 w-4" /> Referral List
+          </TabsTrigger>
+          <TabsTrigger value="rewards">
+            <Gift className="mr-2 h-4 w-4" /> Rewards History
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Referral List */}
+        <TabsContent value="overview">
+          <Card>
+            <CardHeader>
+              <CardTitle>Your Referrals</CardTitle>
+              <CardDescription>People who signed up using your referral link</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {(!data?.referrals?.data || data.referrals.data.length === 0) ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium">No Referrals Yet</p>
+                  <p className="text-sm">Share your link to start earning rewards!</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Referred On</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Bonus Earned</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.referrals.data.map((ref: any) => (
+                      <TableRow key={ref.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                              {ref.referred?.username?.charAt(0)?.toUpperCase() || 'U'}
+                            </div>
+                            <span className="font-medium">{ref.referred?.username}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            {new Date(ref.created_at).toLocaleDateString()}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={ref.status === 'completed' ? 'success' : 'secondary'}>
+                            {ref.status === 'completed' ? 'Invested' : 'Pending'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {ref.status === 'completed' ? (
+                            <span className="text-green-600 font-medium">
+                              ₹{Number(ref.bonus_amount || 0).toLocaleString('en-IN')}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">--</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Rewards History */}
+        <TabsContent value="rewards">
+          <Card>
+            <CardHeader>
+              <CardTitle>Rewards History</CardTitle>
+              <CardDescription>All bonuses earned from your referrals</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {(!rewards?.history || rewards.history.length === 0) ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Gift className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium">No Rewards Yet</p>
+                  <p className="text-sm">Complete referrals to start earning!</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Referred User</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rewards.history.map((reward: any) => (
+                      <TableRow key={reward.id}>
+                        <TableCell>
+                          {new Date(reward.created_at).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {reward.type === 'referral_bonus' ? 'Referral' : reward.type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{reward.referred_user || '--'}</TableCell>
+                        <TableCell className="text-right font-medium text-green-600">
+                          +₹{Number(reward.amount).toLocaleString('en-IN')}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={reward.status === 'credited' ? 'success' : 'warning'}>
+                            {reward.status}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* How It Works */}
+      <Card>
+        <CardHeader>
+          <CardTitle>How Referrals Work</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-4 gap-4">
+            {[
+              { step: 1, title: 'Share Your Link', desc: 'Send your unique referral link to friends', icon: Share2 },
+              { step: 2, title: 'They Sign Up', desc: 'Your friend creates an account using your link', icon: Users },
+              { step: 3, title: 'They Invest', desc: 'When they make their first investment, you both earn', icon: Target },
+              { step: 4, title: 'Earn Rewards', desc: 'Get bonuses credited to your wallet automatically', icon: Gift },
+            ].map((item) => (
+              <div key={item.step} className="flex items-start gap-3 p-4 bg-muted/30 rounded-lg">
+                <div className="p-2 bg-primary/10 rounded-full">
+                  <item.icon className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-medium">Step {item.step}: {item.title}</p>
+                  <p className="text-sm text-muted-foreground">{item.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
     </div>
