@@ -1,7 +1,8 @@
-// V-PHASE5-1730-115 (Created) | V-FINAL-1730-237 (NotificationBell Integrated)
+// V-PHASE5-1730-115 (Created) | V-FINAL-1730-237 (NotificationBell Integrated) | V-ENHANCED-USER-NAV
 'use client';
 
 import { DashboardNav } from '@/components/shared/DashboardNav';
+import { UserTopNav } from '@/components/shared/UserTopNav';
 import { Button } from '@/components/ui/button';
 import { NotificationBell } from '@/components/shared/NotificationBell';
 import api from '@/lib/api';
@@ -59,32 +60,37 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-        <aside className="md:col-span-1">
-          {/* --- UPDATED HEADER WITH BELL --- */}
-          <div className="mb-4 p-4 rounded-lg bg-muted flex items-center justify-between">
-            <div className="overflow-hidden">
-                <h3 className="font-semibold truncate">{user.profile?.first_name || user.username}</h3>
-                <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+    <>
+      {/* Top Navigation Bar */}
+      <UserTopNav user={user} />
+
+      <div className="container mx-auto py-8 pt-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <aside className="md:col-span-1">
+            {/* --- UPDATED HEADER WITH BELL --- */}
+            <div className="mb-4 p-4 rounded-lg bg-muted flex items-center justify-between">
+              <div className="overflow-hidden">
+                  <h3 className="font-semibold truncate">{user.profile?.first_name || user.username}</h3>
+                  <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+              </div>
+              <div className="flex-shrink-0 ml-2">
+                  <NotificationBell />
+              </div>
             </div>
-            <div className="flex-shrink-0 ml-2">
-                <NotificationBell />
-            </div>
-          </div>
-          {/* ------------------------------- */}
-          
-          <DashboardNav />
-          
-          <Button variant="ghost" onClick={handleLogout} className="w-full justify-start mt-4">
-            <LogOut className="mr-3 h-5 w-5" />
-            Logout
-          </Button>
-        </aside>
-        <main className="md:col-span-3">
-          {children}
-        </main>
+            {/* ------------------------------- */}
+
+            <DashboardNav />
+
+            <Button variant="ghost" onClick={handleLogout} className="w-full justify-start mt-4">
+              <LogOut className="mr-3 h-5 w-5" />
+              Logout
+            </Button>
+          </aside>
+          <main className="md:col-span-3">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

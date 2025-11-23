@@ -44,6 +44,10 @@ const navItems = [
   { href: '/admin/support', label: 'Support Tickets', icon: LifeBuoy },
 ];
 
+const notificationNav = [
+    { href: '/admin/notifications/push', label: 'Push Notifications', icon: Mail },
+];
+
 const settingsNav = [
     { href: '/admin/settings/system', label: 'General Settings', icon: Settings },
     { href: '/admin/settings/plans', label: 'Plan Management', icon: Package },
@@ -89,7 +93,10 @@ export function AdminNav() {
     <nav className="flex flex-col space-y-1">
       <h4 className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Main</h4>
       {navItems.map(renderLink)}
-      
+
+      <h4 className="px-3 pt-4 pb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Notifications</h4>
+      {notificationNav.map(renderLink)}
+
       <h4 className="px-3 pt-4 pb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Settings</h4>
       {settingsNav.map(renderLink)}
     </nav>
