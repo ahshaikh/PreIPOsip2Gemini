@@ -353,6 +353,283 @@ export default function SystemSettingsPage() {
             </CardContent>
           </Card>
 
+          {/* KYC Document Requirements */}
+          <Card className="border-blue-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-blue-700">
+                <Shield className="h-5 w-5" />
+                Complete KYC Requirements
+              </CardTitle>
+              <CardDescription>
+                Configure which documents users must upload to complete KYC verification
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-4">
+                <div className="p-4 border rounded-lg bg-muted/30">
+                  <h4 className="font-medium mb-3">Required Identity Documents</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-base">Aadhaar Card (Front)</Label>
+                        <p className="text-sm text-muted-foreground">Front side of Aadhaar card with photo and details</p>
+                      </div>
+                      {getSetting('kyc_require_aadhaar_front') ? (
+                        <SettingInput setting={getSetting('kyc_require_aadhaar_front')} onChange={(v) => handleSettingChange('kyc_require_aadhaar_front', v)} />
+                      ) : (
+                        <Switch defaultChecked />
+                      )}
+                    </div>
+                    <Separator />
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-base">Aadhaar Card (Back)</Label>
+                        <p className="text-sm text-muted-foreground">Back side of Aadhaar card with address</p>
+                      </div>
+                      {getSetting('kyc_require_aadhaar_back') ? (
+                        <SettingInput setting={getSetting('kyc_require_aadhaar_back')} onChange={(v) => handleSettingChange('kyc_require_aadhaar_back', v)} />
+                      ) : (
+                        <Switch defaultChecked />
+                      )}
+                    </div>
+                    <Separator />
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-base">PAN Card</Label>
+                        <p className="text-sm text-muted-foreground">Permanent Account Number card for tax purposes</p>
+                      </div>
+                      {getSetting('kyc_require_pan_card') ? (
+                        <SettingInput setting={getSetting('kyc_require_pan_card')} onChange={(v) => handleSettingChange('kyc_require_pan_card', v)} />
+                      ) : (
+                        <Switch defaultChecked />
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 border rounded-lg bg-muted/30">
+                  <h4 className="font-medium mb-3">Required Financial Documents</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-base">Demat Account Sheet</Label>
+                        <p className="text-sm text-muted-foreground">Client Master List (CML) or Demat holding statement</p>
+                      </div>
+                      {getSetting('kyc_require_demat_sheet') ? (
+                        <SettingInput setting={getSetting('kyc_require_demat_sheet')} onChange={(v) => handleSettingChange('kyc_require_demat_sheet', v)} />
+                      ) : (
+                        <Switch defaultChecked />
+                      )}
+                    </div>
+                    <Separator />
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-base">Bank Account Details</Label>
+                        <p className="text-sm text-muted-foreground">Cancelled cheque or bank statement with account details</p>
+                      </div>
+                      {getSetting('kyc_require_bank_details') ? (
+                        <SettingInput setting={getSetting('kyc_require_bank_details')} onChange={(v) => handleSettingChange('kyc_require_bank_details', v)} />
+                      ) : (
+                        <Switch defaultChecked />
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 border rounded-lg bg-muted/30">
+                  <h4 className="font-medium mb-3">KYC Approval Settings</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-base">Enable Auto-Approval</Label>
+                        <p className="text-sm text-muted-foreground">Automatically approve KYC if all documents pass AI verification</p>
+                      </div>
+                      {getSetting('kyc_auto_approval_enabled') ? (
+                        <SettingInput setting={getSetting('kyc_auto_approval_enabled')} onChange={(v) => handleSettingChange('kyc_auto_approval_enabled', v)} />
+                      ) : (
+                        <Switch />
+                      )}
+                    </div>
+                    <Separator />
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-base">Require Admin Approval</Label>
+                        <p className="text-sm text-muted-foreground">Always require manual admin review regardless of auto-verification</p>
+                      </div>
+                      {getSetting('kyc_require_admin_approval') ? (
+                        <SettingInput setting={getSetting('kyc_require_admin_approval')} onChange={(v) => handleSettingChange('kyc_require_admin_approval', v)} />
+                      ) : (
+                        <Switch defaultChecked />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* PMLA Compliance */}
+          <Card className="border-red-200 bg-red-50/50 dark:bg-red-950/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-red-700 dark:text-red-400">
+                <AlertTriangle className="h-5 w-5" />
+                PMLA (Prevention of Money Laundering) Compliance
+              </CardTitle>
+              <CardDescription>
+                Configure anti-money laundering checks and restrictions as per PMLA guidelines
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="p-4 border border-red-200 rounded-lg bg-white dark:bg-background">
+                <h4 className="font-medium mb-3 text-red-700 dark:text-red-400">Deposit Verification</h4>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Verify Deposit Source Account</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Require deposits to come only from the bank account registered in user's KYC
+                      </p>
+                    </div>
+                    {getSetting('pmla_verify_deposit_source') ? (
+                      <SettingInput setting={getSetting('pmla_verify_deposit_source')} onChange={(v) => handleSettingChange('pmla_verify_deposit_source', v)} />
+                    ) : (
+                      <Switch defaultChecked />
+                    )}
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Same Name Verification</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Verify that the depositing account holder name matches user's registered name
+                      </p>
+                    </div>
+                    {getSetting('pmla_same_name_check') ? (
+                      <SettingInput setting={getSetting('pmla_same_name_check')} onChange={(v) => handleSettingChange('pmla_same_name_check', v)} />
+                    ) : (
+                      <Switch defaultChecked />
+                    )}
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Flag Third-Party Deposits</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Automatically flag deposits from accounts not registered with the user
+                      </p>
+                    </div>
+                    {getSetting('pmla_flag_third_party') ? (
+                      <SettingInput setting={getSetting('pmla_flag_third_party')} onChange={(v) => handleSettingChange('pmla_flag_third_party', v)} />
+                    ) : (
+                      <Switch defaultChecked />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 border border-red-200 rounded-lg bg-white dark:bg-background">
+                <h4 className="font-medium mb-3 text-red-700 dark:text-red-400">KYC-Based Restrictions</h4>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Block Deposits Without Complete KYC</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Users cannot deposit funds until all KYC documents are uploaded and approved
+                      </p>
+                    </div>
+                    {getSetting('pmla_block_deposit_no_kyc') ? (
+                      <SettingInput setting={getSetting('pmla_block_deposit_no_kyc')} onChange={(v) => handleSettingChange('pmla_block_deposit_no_kyc', v)} />
+                    ) : (
+                      <Switch defaultChecked />
+                    )}
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Block Withdrawals Without KYC</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Users cannot withdraw funds until KYC is complete and approved
+                      </p>
+                    </div>
+                    {getSetting('pmla_block_withdrawal_no_kyc') ? (
+                      <SettingInput setting={getSetting('pmla_block_withdrawal_no_kyc')} onChange={(v) => handleSettingChange('pmla_block_withdrawal_no_kyc', v)} />
+                    ) : (
+                      <Switch defaultChecked />
+                    )}
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Block Withdrawals for Manual Deposits</Label>
+                      <p className="text-sm text-muted-foreground">
+                        If user made a manual deposit (outside system), block withdrawals until verified
+                      </p>
+                    </div>
+                    {getSetting('pmla_block_withdrawal_manual_deposit') ? (
+                      <SettingInput setting={getSetting('pmla_block_withdrawal_manual_deposit')} onChange={(v) => handleSettingChange('pmla_block_withdrawal_manual_deposit', v)} />
+                    ) : (
+                      <Switch defaultChecked />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 border border-red-200 rounded-lg bg-white dark:bg-background">
+                <h4 className="font-medium mb-3 text-red-700 dark:text-red-400">Transaction Monitoring</h4>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-base">High Value Transaction Threshold (₹)</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Flag transactions above this amount for manual review
+                    </p>
+                    {getSetting('pmla_high_value_threshold') ? (
+                      <SettingInput setting={getSetting('pmla_high_value_threshold')} onChange={(v) => handleSettingChange('pmla_high_value_threshold', v)} />
+                    ) : (
+                      <Input type="number" placeholder="1000000" defaultValue="1000000" className="max-w-[200px]" />
+                    )}
+                  </div>
+                  <Separator />
+                  <div className="space-y-2">
+                    <Label className="text-base">Daily Transaction Limit (₹)</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Maximum total transaction amount allowed per day per user
+                    </p>
+                    {getSetting('pmla_daily_transaction_limit') ? (
+                      <SettingInput setting={getSetting('pmla_daily_transaction_limit')} onChange={(v) => handleSettingChange('pmla_daily_transaction_limit', v)} />
+                    ) : (
+                      <Input type="number" placeholder="5000000" defaultValue="5000000" className="max-w-[200px]" />
+                    )}
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Require Source of Funds Declaration</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Ask users to declare source of funds for large deposits
+                      </p>
+                    </div>
+                    {getSetting('pmla_require_source_declaration') ? (
+                      <SettingInput setting={getSetting('pmla_require_source_declaration')} onChange={(v) => handleSettingChange('pmla_require_source_declaration', v)} />
+                    ) : (
+                      <Switch defaultChecked />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                <p className="text-sm text-red-800 dark:text-red-300 flex items-start gap-2">
+                  <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <span>
+                    <strong>Important:</strong> These settings help comply with the Prevention of Money Laundering Act (PMLA), 2002
+                    and RBI guidelines. Ensure your platform maintains proper audit trails and reports suspicious transactions
+                    to the Financial Intelligence Unit (FIU-IND) as required by law.
+                  </span>
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Fraud Prevention</CardTitle>
@@ -407,6 +684,130 @@ export default function SystemSettingsPage() {
               {renderSettings(['sms_provider', 'msg91_auth_key', 'msg91_sender_id', 'twilio_sid', 'twilio_token', 'twilio_from'])}
             </CardContent>
           </Card>
+
+          {/* Push Notification Credentials */}
+          <Card className="border-orange-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-orange-700">
+                <Bell className="h-5 w-5" />
+                Push Notification Credentials
+              </CardTitle>
+              <CardDescription>Configure Firebase Cloud Messaging (FCM) for push notifications</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="p-4 border rounded-lg bg-muted/30">
+                <h4 className="font-medium mb-3">Firebase Configuration</h4>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Enable Push Notifications</Label>
+                      <p className="text-sm text-muted-foreground">Send push notifications to users' devices</p>
+                    </div>
+                    {getSetting('push_notifications_enabled') ? (
+                      <SettingInput setting={getSetting('push_notifications_enabled')} onChange={(v) => handleSettingChange('push_notifications_enabled', v)} />
+                    ) : (
+                      <Switch />
+                    )}
+                  </div>
+                  <Separator />
+                  <div className="space-y-2">
+                    <Label className="text-base">Firebase Project ID</Label>
+                    <p className="text-sm text-muted-foreground">Your Firebase project identifier</p>
+                    {getSetting('firebase_project_id') ? (
+                      <SettingInput setting={getSetting('firebase_project_id')} onChange={(v) => handleSettingChange('firebase_project_id', v)} />
+                    ) : (
+                      <Input placeholder="my-project-12345" />
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-base">Firebase Server Key</Label>
+                    <p className="text-sm text-muted-foreground">Legacy server key for FCM (Cloud Messaging)</p>
+                    {getSetting('firebase_server_key') ? (
+                      <SettingInput setting={getSetting('firebase_server_key')} onChange={(v) => handleSettingChange('firebase_server_key', v)} />
+                    ) : (
+                      <Input type="password" placeholder="AAAA..." />
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-base">Firebase Sender ID</Label>
+                    <p className="text-sm text-muted-foreground">Unique sender ID for your project</p>
+                    {getSetting('firebase_sender_id') ? (
+                      <SettingInput setting={getSetting('firebase_sender_id')} onChange={(v) => handleSettingChange('firebase_sender_id', v)} />
+                    ) : (
+                      <Input placeholder="123456789012" />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 border rounded-lg bg-muted/30">
+                <h4 className="font-medium mb-3">Web Push (VAPID Keys)</h4>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-base">VAPID Public Key</Label>
+                    <p className="text-sm text-muted-foreground">Public key for web push subscriptions</p>
+                    {getSetting('vapid_public_key') ? (
+                      <SettingInput setting={getSetting('vapid_public_key')} onChange={(v) => handleSettingChange('vapid_public_key', v)} />
+                    ) : (
+                      <Input placeholder="BEl62i..." />
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-base">VAPID Private Key</Label>
+                    <p className="text-sm text-muted-foreground">Private key for signing push messages</p>
+                    {getSetting('vapid_private_key') ? (
+                      <SettingInput setting={getSetting('vapid_private_key')} onChange={(v) => handleSettingChange('vapid_private_key', v)} />
+                    ) : (
+                      <Input type="password" placeholder="..." />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 border rounded-lg bg-muted/30">
+                <h4 className="font-medium mb-3">OneSignal (Alternative)</h4>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Use OneSignal</Label>
+                      <p className="text-sm text-muted-foreground">Use OneSignal instead of Firebase for push notifications</p>
+                    </div>
+                    {getSetting('use_onesignal') ? (
+                      <SettingInput setting={getSetting('use_onesignal')} onChange={(v) => handleSettingChange('use_onesignal', v)} />
+                    ) : (
+                      <Switch />
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-base">OneSignal App ID</Label>
+                    {getSetting('onesignal_app_id') ? (
+                      <SettingInput setting={getSetting('onesignal_app_id')} onChange={(v) => handleSettingChange('onesignal_app_id', v)} />
+                    ) : (
+                      <Input placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-base">OneSignal REST API Key</Label>
+                    {getSetting('onesignal_api_key') ? (
+                      <SettingInput setting={getSetting('onesignal_api_key')} onChange={(v) => handleSettingChange('onesignal_api_key', v)} />
+                    ) : (
+                      <Input type="password" placeholder="..." />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
+                <p className="text-sm text-blue-800 dark:text-blue-300 flex items-start gap-2">
+                  <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <span>
+                    To send push notifications, users must first grant permission in their browser/app.
+                    Configure these credentials from your Firebase Console or OneSignal Dashboard.
+                  </span>
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* --- 5. Advanced --- */}
@@ -428,7 +829,373 @@ export default function SystemSettingsPage() {
                   Modifying advanced settings may affect system stability. Ensure you understand each setting before making changes.
                 </p>
               </div>
-              {/* Add any additional advanced settings here */}
+            </CardContent>
+          </Card>
+
+          {/* API & Integration Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Globe className="h-5 w-5" />
+                API & Integration Settings
+              </CardTitle>
+              <CardDescription>Configure external API integrations and rate limits</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 border rounded-lg bg-muted/30">
+                <h4 className="font-medium mb-3">Rate Limiting</h4>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-base">API Rate Limit (requests/minute)</Label>
+                    <p className="text-sm text-muted-foreground">Maximum API requests per minute per user</p>
+                    {getSetting('api_rate_limit') ? (
+                      <SettingInput setting={getSetting('api_rate_limit')} onChange={(v) => handleSettingChange('api_rate_limit', v)} />
+                    ) : (
+                      <Input type="number" placeholder="100" defaultValue="100" className="max-w-[200px]" />
+                    )}
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Enable API Throttling</Label>
+                      <p className="text-sm text-muted-foreground">Automatically throttle requests exceeding rate limit</p>
+                    </div>
+                    {getSetting('api_throttling_enabled') ? (
+                      <SettingInput setting={getSetting('api_throttling_enabled')} onChange={(v) => handleSettingChange('api_throttling_enabled', v)} />
+                    ) : (
+                      <Switch defaultChecked />
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="p-4 border rounded-lg bg-muted/30">
+                <h4 className="font-medium mb-3">External APIs</h4>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-base">KYC Verification API URL</Label>
+                    <p className="text-sm text-muted-foreground">Third-party KYC verification service endpoint</p>
+                    {getSetting('kyc_api_url') ? (
+                      <SettingInput setting={getSetting('kyc_api_url')} onChange={(v) => handleSettingChange('kyc_api_url', v)} />
+                    ) : (
+                      <Input placeholder="https://api.kycprovider.com/verify" />
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-base">KYC API Key</Label>
+                    {getSetting('kyc_api_key') ? (
+                      <SettingInput setting={getSetting('kyc_api_key')} onChange={(v) => handleSettingChange('kyc_api_key', v)} />
+                    ) : (
+                      <Input type="password" placeholder="..." />
+                    )}
+                  </div>
+                  <Separator />
+                  <div className="space-y-2">
+                    <Label className="text-base">Payment Gateway Webhook URL</Label>
+                    <p className="text-sm text-muted-foreground">URL for receiving payment callbacks</p>
+                    {getSetting('payment_webhook_url') ? (
+                      <SettingInput setting={getSetting('payment_webhook_url')} onChange={(v) => handleSettingChange('payment_webhook_url', v)} />
+                    ) : (
+                      <Input placeholder="https://yoursite.com/api/webhooks/payment" />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Caching & Performance */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                Caching & Performance
+              </CardTitle>
+              <CardDescription>Configure caching and performance optimization settings</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 border rounded-lg bg-muted/30">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Enable Redis Caching</Label>
+                      <p className="text-sm text-muted-foreground">Use Redis for caching frequently accessed data</p>
+                    </div>
+                    {getSetting('redis_caching_enabled') ? (
+                      <SettingInput setting={getSetting('redis_caching_enabled')} onChange={(v) => handleSettingChange('redis_caching_enabled', v)} />
+                    ) : (
+                      <Switch defaultChecked />
+                    )}
+                  </div>
+                  <Separator />
+                  <div className="space-y-2">
+                    <Label className="text-base">Cache TTL (seconds)</Label>
+                    <p className="text-sm text-muted-foreground">Default time-to-live for cached data</p>
+                    {getSetting('cache_ttl') ? (
+                      <SettingInput setting={getSetting('cache_ttl')} onChange={(v) => handleSettingChange('cache_ttl', v)} />
+                    ) : (
+                      <Input type="number" placeholder="3600" defaultValue="3600" className="max-w-[200px]" />
+                    )}
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Enable Query Caching</Label>
+                      <p className="text-sm text-muted-foreground">Cache database query results</p>
+                    </div>
+                    {getSetting('query_caching_enabled') ? (
+                      <SettingInput setting={getSetting('query_caching_enabled')} onChange={(v) => handleSettingChange('query_caching_enabled', v)} />
+                    ) : (
+                      <Switch defaultChecked />
+                    )}
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Enable CDN for Assets</Label>
+                      <p className="text-sm text-muted-foreground">Serve static assets through CDN</p>
+                    </div>
+                    {getSetting('cdn_enabled') ? (
+                      <SettingInput setting={getSetting('cdn_enabled')} onChange={(v) => handleSettingChange('cdn_enabled', v)} />
+                    ) : (
+                      <Switch />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Queue & Background Jobs */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Queue & Background Jobs</CardTitle>
+              <CardDescription>Configure background job processing settings</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 border rounded-lg bg-muted/30">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-base">Queue Driver</Label>
+                    <p className="text-sm text-muted-foreground">Backend for processing background jobs</p>
+                    <Select defaultValue="redis">
+                      <SelectTrigger className="max-w-[200px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sync">Sync (No Queue)</SelectItem>
+                        <SelectItem value="database">Database</SelectItem>
+                        <SelectItem value="redis">Redis</SelectItem>
+                        <SelectItem value="sqs">Amazon SQS</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Separator />
+                  <div className="space-y-2">
+                    <Label className="text-base">Max Job Retries</Label>
+                    <p className="text-sm text-muted-foreground">Maximum retry attempts for failed jobs</p>
+                    {getSetting('max_job_retries') ? (
+                      <SettingInput setting={getSetting('max_job_retries')} onChange={(v) => handleSettingChange('max_job_retries', v)} />
+                    ) : (
+                      <Input type="number" placeholder="3" defaultValue="3" className="max-w-[200px]" />
+                    )}
+                  </div>
+                  <Separator />
+                  <div className="space-y-2">
+                    <Label className="text-base">Job Timeout (seconds)</Label>
+                    <p className="text-sm text-muted-foreground">Maximum execution time for background jobs</p>
+                    {getSetting('job_timeout') ? (
+                      <SettingInput setting={getSetting('job_timeout')} onChange={(v) => handleSettingChange('job_timeout', v)} />
+                    ) : (
+                      <Input type="number" placeholder="60" defaultValue="60" className="max-w-[200px]" />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Logging & Debugging */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Logging & Debugging</CardTitle>
+              <CardDescription>Configure application logging and debugging options</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 border rounded-lg bg-muted/30">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-base">Log Level</Label>
+                    <p className="text-sm text-muted-foreground">Minimum severity level for logging</p>
+                    <Select defaultValue="error">
+                      <SelectTrigger className="max-w-[200px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="debug">Debug (All)</SelectItem>
+                        <SelectItem value="info">Info</SelectItem>
+                        <SelectItem value="warning">Warning</SelectItem>
+                        <SelectItem value="error">Error</SelectItem>
+                        <SelectItem value="critical">Critical Only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Enable Debug Mode</Label>
+                      <p className="text-sm text-muted-foreground text-red-600">WARNING: Never enable in production!</p>
+                    </div>
+                    {getSetting('debug_mode') ? (
+                      <SettingInput setting={getSetting('debug_mode')} onChange={(v) => handleSettingChange('debug_mode', v)} />
+                    ) : (
+                      <Switch />
+                    )}
+                  </div>
+                  <Separator />
+                  <div className="space-y-2">
+                    <Label className="text-base">Log Retention (days)</Label>
+                    <p className="text-sm text-muted-foreground">How long to keep log files</p>
+                    {getSetting('log_retention_days') ? (
+                      <SettingInput setting={getSetting('log_retention_days')} onChange={(v) => handleSettingChange('log_retention_days', v)} />
+                    ) : (
+                      <Input type="number" placeholder="30" defaultValue="30" className="max-w-[200px]" />
+                    )}
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Enable SQL Query Logging</Label>
+                      <p className="text-sm text-muted-foreground">Log all database queries (performance impact)</p>
+                    </div>
+                    {getSetting('sql_logging_enabled') ? (
+                      <SettingInput setting={getSetting('sql_logging_enabled')} onChange={(v) => handleSettingChange('sql_logging_enabled', v)} />
+                    ) : (
+                      <Switch />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Feature Flags */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Feature Flags</CardTitle>
+              <CardDescription>Enable or disable experimental features</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 border rounded-lg bg-muted/30">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Enable Beta Features</Label>
+                      <p className="text-sm text-muted-foreground">Show beta features to all users</p>
+                    </div>
+                    {getSetting('beta_features_enabled') ? (
+                      <SettingInput setting={getSetting('beta_features_enabled')} onChange={(v) => handleSettingChange('beta_features_enabled', v)} />
+                    ) : (
+                      <Switch />
+                    )}
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Enable Dark Mode</Label>
+                      <p className="text-sm text-muted-foreground">Allow users to toggle dark mode</p>
+                    </div>
+                    {getSetting('dark_mode_enabled') ? (
+                      <SettingInput setting={getSetting('dark_mode_enabled')} onChange={(v) => handleSettingChange('dark_mode_enabled', v)} />
+                    ) : (
+                      <Switch defaultChecked />
+                    )}
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Enable Live Chat</Label>
+                      <p className="text-sm text-muted-foreground">Show live chat widget on user dashboard</p>
+                    </div>
+                    {getSetting('live_chat_enabled') ? (
+                      <SettingInput setting={getSetting('live_chat_enabled')} onChange={(v) => handleSettingChange('live_chat_enabled', v)} />
+                    ) : (
+                      <Switch defaultChecked />
+                    )}
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Enable Multi-Language</Label>
+                      <p className="text-sm text-muted-foreground">Allow users to switch languages</p>
+                    </div>
+                    {getSetting('multi_language_enabled') ? (
+                      <SettingInput setting={getSetting('multi_language_enabled')} onChange={(v) => handleSettingChange('multi_language_enabled', v)} />
+                    ) : (
+                      <Switch defaultChecked />
+                    )}
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Enable SIP Calculator</Label>
+                      <p className="text-sm text-muted-foreground">Show SIP calculator on landing page</p>
+                    </div>
+                    {getSetting('sip_calculator_enabled') ? (
+                      <SettingInput setting={getSetting('sip_calculator_enabled')} onChange={(v) => handleSettingChange('sip_calculator_enabled', v)} />
+                    ) : (
+                      <Switch defaultChecked />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Data Management */}
+          <Card className="border-red-300">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-red-700">
+                <AlertTriangle className="h-5 w-5" />
+                Data Management (Danger Zone)
+              </CardTitle>
+              <CardDescription className="text-red-600">
+                These actions are irreversible. Proceed with extreme caution.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 border border-red-200 rounded-lg bg-red-50 dark:bg-red-950/30">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Clear All Caches</Label>
+                      <p className="text-sm text-muted-foreground">Clear Redis, query, and view caches</p>
+                    </div>
+                    <Button variant="outline" className="border-red-300 text-red-600 hover:bg-red-50">
+                      Clear Caches
+                    </Button>
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Regenerate API Keys</Label>
+                      <p className="text-sm text-muted-foreground">Generate new API keys (invalidates existing)</p>
+                    </div>
+                    <Button variant="outline" className="border-red-300 text-red-600 hover:bg-red-50">
+                      Regenerate
+                    </Button>
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">Purge Old Logs</Label>
+                      <p className="text-sm text-muted-foreground">Delete logs older than retention period</p>
+                    </div>
+                    <Button variant="outline" className="border-red-300 text-red-600 hover:bg-red-50">
+                      Purge Logs
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
