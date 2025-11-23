@@ -12,13 +12,8 @@ export default function AdminDashboardPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['adminDashboard'],
     queryFn: async () => {
-        try {
-            const res = await api.get('/admin/dashboard');
-            return res.data;
-        } catch (e) {
-            console.error("Dashboard API Error:", e);
-            throw e;
-        }
+        const res = await api.get('/admin/dashboard');
+        return res.data;
     },
     retry: 1
   });

@@ -26,9 +26,11 @@ class InvoiceController extends Controller
             'plan' => $payment->subscription->plan,
             'company' => [
                 'name' => setting('site_name', 'PreIPO SIP'),
-                'address' => '123 Financial District, Mumbai, India',
-                'gst' => '27AABCU9603R1ZM',
-                'website' => env('FRONTEND_URL')
+                'address' => setting('company_address', ''),
+                'gst' => setting('company_gst_number', ''),
+                'phone' => setting('company_phone', ''),
+                'email' => setting('company_email', ''),
+                'website' => setting('site_url', env('FRONTEND_URL'))
             ]
         ];
 

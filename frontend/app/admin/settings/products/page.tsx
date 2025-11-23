@@ -19,6 +19,13 @@ import { useState, useEffect } from "react";
 import { Plus, Edit, Trash2, GripVertical, Save, AlertTriangle, Shield } from "lucide-react";
 
 /**
+ * Generate a unique ID for array items
+ */
+const generateUniqueId = (): string => {
+    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+};
+
+/**
  * Helper to format date for input[type="date"]
  * (Handles null or undefined values)
  */
@@ -65,7 +72,7 @@ function EditProductForm({ product, onSave, onCancel }: { product: any, onSave: 
     const addArrayItem = (key: string, template: any) => {
         setFormData((prev: any) => ({
             ...prev,
-            [key]: [...(prev[key] || []), template]
+            [key]: [...(prev[key] || []), { ...template, _uid: generateUniqueId() }]
         }));
     };
 
@@ -138,7 +145,7 @@ function EditProductForm({ product, onSave, onCancel }: { product: any, onSave: 
                             <CardHeader><CardTitle>Key Highlights</CardTitle></CardHeader>
                             <CardContent className="space-y-2">
                                 {formData.highlights?.map((item: any, index: number) => (
-                                    <div key={index} className="flex gap-2"><Input value={item.content} onChange={(e) => handleArrayChange('highlights', index, 'content', e.target.value)} /><Button variant="destructive" size="icon" onClick={() => removeArrayItem('highlights', index)}><Trash2 className="h-4 w-4" /></Button></div>
+                                    <div key={item.id || item._uid || `highlight-${index}`} className="flex gap-2"><Input value={item.content} onChange={(e) => handleArrayChange('highlights', index, 'content', e.target.value)} /><Button variant="destructive" size="icon" onClick={() => removeArrayItem('highlights', index)}><Trash2 className="h-4 w-4" /></Button></div>
                                 ))}
                                 <Button variant="outline" size="sm" onClick={() => addArrayItem('highlights', { content: '' })}>+ Add Highlight</Button>
                             </CardContent>
@@ -147,7 +154,7 @@ function EditProductForm({ product, onSave, onCancel }: { product: any, onSave: 
                             <CardHeader><CardTitle>Founders</CardTitle></CardHeader>
                             <CardContent className="space-y-4">
                                 {formData.founders?.map((item: any, index: number) => (
-                                    <div key={index} className="border p-3 rounded-md space-y-2">
+                                    <div key={item.id || item._uid || `founder-${index}`} className="border p-3 rounded-md space-y-2">
                                         <div className="flex justify-between"><Label>Founder #{index + 1}</Label><Button variant="destructive" size="xs" onClick={() => removeArrayItem('founders', index)}>Remove</Button></div>
                                         <div className="grid grid-cols-2 gap-2"><Input placeholder="Name" value={item.name} onChange={(e) => handleArrayChange('founders', index, 'name', e.target.value)} /><Input placeholder="Title" value={item.title} onChange={(e) => handleArrayChange('founders', index, 'title', e.target.value)} /></div>
                                         <Input placeholder="LinkedIn URL" value={item.linkedin_url} onChange={(e) => handleArrayChange('founders', index, 'linkedin_url', e.target.value)} />
@@ -164,7 +171,7 @@ function EditProductForm({ product, onSave, onCancel }: { product: any, onSave: 
                             <CardHeader><CardTitle>Key Metrics</CardTitle></CardHeader>
                             <CardContent className="space-y-2">
                                 {formData.key_metrics?.map((item: any, index: number) => (
-                                    <div key={index} className="flex gap-2">
+                                    <div key={item.id || item._uid || `metric-${index}`} className="flex gap-2">
                                         <Input placeholder="Metric (e.g. Revenue)" value={item.metric_name} onChange={(e) => handleArrayChange('key_metrics', index, 'metric_name', e.target.value)} />
                                         <Input placeholder="Value (e.g. 500)" value={item.value} onChange={(e) => handleArrayChange('key_metrics', index, 'value', e.target.value)} />
                                         <Input placeholder="Unit (e.g. Crores)" value={item.unit} onChange={(e) => handleArrayChange('key_metrics', index, 'unit', e.target.value)} />
@@ -178,7 +185,7 @@ function EditProductForm({ product, onSave, onCancel }: { product: any, onSave: 
                             <CardHeader><CardTitle>Funding Rounds</CardTitle></CardHeader>
                             <CardContent className="space-y-2">
                                 {formData.funding_rounds?.map((item: any, index: number) => (
-                                    <div key={index} className="border p-3 rounded-md space-y-2">
+                                    <div key={item.id || item._uid || `funding-${index}`} className="border p-3 rounded-md space-y-2">
                                         <div className="flex justify-between"><Label>Round #{index + 1}</Label><Button variant="destructive" size="xs" onClick={() => removeArrayItem('funding_rounds', index)}>Remove</Button></div>
                                         <div className="grid grid-cols-2 gap-2"><Input placeholder="Round Name" value={item.round_name} onChange={(e) => handleArrayChange('funding_rounds', index, 'round_name', e.target.value)} /><Input type="date" value={item.date} onChange={(e) => handleArrayChange('funding_rounds', index, 'date', e.target.value)} /></div>
                                         <Input placeholder="Amount" value={item.amount} onChange={(e) => handleArrayChange('funding_rounds', index, 'amount', e.target.value)} />
@@ -196,7 +203,7 @@ function EditProductForm({ product, onSave, onCancel }: { product: any, onSave: 
                             <CardHeader><CardTitle>Risk Disclosures</CardTitle></CardHeader>
                             <CardContent className="space-y-4">
                                 {formData.risk_disclosures?.map((item: any, index: number) => (
-                                    <div key={index} className="border p-3 rounded-md space-y-2">
+                                    <div key={item.id || item._uid || `risk-${index}`} className="border p-3 rounded-md space-y-2">
                                         <div className="flex justify-between"><Label>Risk #{index + 1}</Label><Button variant="destructive" size="xs" onClick={() => removeArrayItem('risk_disclosures', index)}>Remove</Button></div>
                                         <div className="grid grid-cols-2 gap-2">
                                             <Input placeholder="Title" value={item.risk_title} onChange={(e) => handleArrayChange('risk_disclosures', index, 'risk_title', e.target.value)} />
