@@ -28,7 +28,15 @@ class FaqController extends Controller
 
     public function update(Request $request, Faq $faq)
     {
-        $faq->update($request->all());
+        $validated = $request->validate([
+            'question' => 'sometimes|required|string',
+            'answer' => 'sometimes|required|string',
+            'category_id' => 'nullable|integer',
+            'is_active' => 'sometimes|boolean',
+            'sort_order' => 'sometimes|integer'
+        ]);
+
+        $faq->update($validated);
         return response()->json($faq);
     }
 

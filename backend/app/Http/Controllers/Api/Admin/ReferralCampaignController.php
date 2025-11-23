@@ -31,7 +31,16 @@ class ReferralCampaignController extends Controller
 
     public function update(Request $request, ReferralCampaign $referralCampaign)
     {
-        $referralCampaign->update($request->all());
+        $validated = $request->validate([
+            'name' => 'sometimes|required|string|max:255',
+            'start_date' => 'sometimes|required|date',
+            'end_date' => 'sometimes|required|date|after:start_date',
+            'multiplier' => 'sometimes|required|numeric|min:1',
+            'bonus_amount' => 'sometimes|required|numeric|min:0',
+            'is_active' => 'sometimes|boolean'
+        ]);
+
+        $referralCampaign->update($validated);
         return response()->json($referralCampaign);
     }
 

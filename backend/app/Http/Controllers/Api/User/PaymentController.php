@@ -147,10 +147,86 @@ class PaymentController extends Controller
     }
     
     /**
-     * Verify a payment (Stub for frontend logic).
+     * Verify a Razorpay payment after completion.
+     * Validates the payment signature and updates the payment status.
      */
     public function verify(Request $request)
     {
-        return response()->json(['message' => 'Payment status is being confirmed.']);
+        $validated = $request->validate([
+            'payment_id' => 'required|exists:payments,id',
+            'razorpay_payment_id' => 'required|string',
+            'razorpay_order_id' => 'required_without:razorpay_subscription_id|string|nullable',
+            'razorpay_subscription_id' => 'required_without:razorpay_order_id|string|nullable',
+            'razorpay_signature' => 'required|string',
+        ]);
+
+        $payment = Payment::with('subscription')->findOrFail($validated['payment_id']);
+        $user = $request->user();
+
+        // Verify ownership
+        if ($payment->user_id !== $user->id) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        // Prevent double processing
+        if ($payment->status === 'paid') {
+            return response()->json(['message' => 'Payment already verified.', 'status' => 'paid']);
+        }
+
+        try {
+            // Determine if this is an order or subscription payment
+            $isSubscription = !empty($validated['razorpay_subscription_id']);
+
+            if ($isSubscription) {
+                // Verify subscription payment signature
+                $attributes = [
+                    'razorpay_payment_id' => $validated['razorpay_payment_id'],
+                    'razorpay_subscription_id' => $validated['razorpay_subscription_id'],
+                    'razorpay_signature' => $validated['razorpay_signature'],
+                ];
+                $this->razorpayService->getApi()->utility->verifyPaymentSignature($attributes);
+            } else {
+                // Verify order payment signature
+                $attributes = [
+                    'razorpay_order_id' => $validated['razorpay_order_id'],
+                    'razorpay_payment_id' => $validated['razorpay_payment_id'],
+                    'razorpay_signature' => $validated['razorpay_signature'],
+                ];
+                $this->razorpayService->getApi()->utility->verifyPaymentSignature($attributes);
+            }
+
+            // Signature verified - update payment
+            $payment->update([
+                'status' => 'paid',
+                'gateway_payment_id' => $validated['razorpay_payment_id'],
+                'paid_at' => now(),
+            ]);
+
+            // If subscription exists, update its status
+            if ($payment->subscription && $payment->subscription->status === 'pending') {
+                $payment->subscription->update(['status' => 'active']);
+            }
+
+            return response()->json([
+                'message' => 'Payment verified successfully.',
+                'status' => 'paid',
+                'payment_id' => $payment->id,
+            ]);
+
+        } catch (\Razorpay\Api\Errors\SignatureVerificationError $e) {
+            // Signature verification failed
+            $payment->update(['status' => 'failed']);
+
+            return response()->json([
+                'message' => 'Payment verification failed. Invalid signature.',
+                'status' => 'failed',
+            ], 400);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Payment verification error. Please contact support.',
+                'status' => 'error',
+            ], 500);
+        }
     }
 }

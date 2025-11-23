@@ -16,8 +16,12 @@ export default function ReferralsPage() {
   });
 
   if (isLoading) return <div>Loading referrals...</div>;
-  
-  const referralLink = `https://preiposip.com/signup?ref=${data?.stats.referral_code}`;
+
+  // Use environment variable for the base URL (SSR-safe with fallback)
+  const baseUrl = typeof window !== 'undefined'
+    ? window.location.origin
+    : process.env.NEXT_PUBLIC_SITE_URL || 'https://preiposip.com';
+  const referralLink = `${baseUrl}/signup?ref=${data?.stats.referral_code}`;
 
   return (
     <div className="space-y-6">

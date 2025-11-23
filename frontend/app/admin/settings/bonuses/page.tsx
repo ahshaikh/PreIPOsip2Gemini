@@ -238,7 +238,7 @@ export default function BonusSettingsPage() {
     const current = Array.isArray(configs[key]) ? configs[key] : (configs[key]?.value || []);
     setConfigs((prev: any) => ({
       ...prev,
-      [key]: [...current, template]
+      [key]: [...current, { ...template, _uid: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}` }]
     }));
   };
 
@@ -321,7 +321,7 @@ export default function BonusSettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {(configs.milestone_config || []).map((item: any, index: number) => (
-                <div key={index} className="flex gap-4 items-end border-b pb-4">
+                <div key={item.id || item._uid || `milestone-${index}`} className="flex gap-4 items-end border-b pb-4">
                   <div className="flex-1 space-y-2">
                     <Label>Month</Label>
                     <Input 
@@ -359,7 +359,7 @@ export default function BonusSettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {(configs.referral_tiers || []).map((item: any, index: number) => (
-                <div key={index} className="flex gap-4 items-end border-b pb-4">
+                <div key={item.id || item._uid || `referral-${index}`} className="flex gap-4 items-end border-b pb-4">
                   <div className="flex-1 space-y-2">
                     <Label>Min Referrals</Label>
                     <Input 

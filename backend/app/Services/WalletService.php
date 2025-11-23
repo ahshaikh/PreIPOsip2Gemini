@@ -117,4 +117,53 @@ class WalletService
             ]);
         });
     }
+
+    /**
+     * Safely unlock funds from a user's wallet (reverse a pending withdrawal).
+     * Moves funds from locked_balance back to available balance.
+     *
+     * @param User $user
+     * @param float $amount
+     * @param string $type (e.g., 'reversal', 'withdrawal_cancelled')
+     * @param string $description
+     * @param Model|null $reference (e.g., the Withdrawal model)
+     * @return Transaction
+     * @throws \Exception
+     */
+    public function unlockFunds(User $user, float $amount, string $type, string $description, ?Model $reference = null): Transaction
+    {
+        if ($amount <= 0) {
+            throw new \InvalidArgumentException("Unlock amount must be positive.");
+        }
+
+        return DB::transaction(function () use ($user, $amount, $type, $description, $reference) {
+
+            // 1. Lock the wallet row.
+            $wallet = $user->wallet()->lockForUpdate()->first();
+
+            // 2. Check locked balance (This is now concurrency-safe)
+            if ($wallet->locked_balance < $amount) {
+                throw new \Exception("Insufficient locked funds. Locked: ₹{$wallet->locked_balance}");
+            }
+
+            $balance_before = $wallet->balance;
+
+            // 3. Move money from 'locked_balance' back to 'balance'
+            $wallet->decrement('locked_balance', $amount);
+            $wallet->increment('balance', $amount);
+
+            // 4. Create the ledger entry
+            return $wallet->transactions()->create([
+                'user_id' => $user->id,
+                'type' => $type,
+                'status' => 'completed',
+                'amount' => $amount, // Positive (funds returned to available balance)
+                'balance_before' => $balance_before,
+                'balance_after' => $wallet->balance,
+                'description' => $description,
+                'reference_type' => $reference ? get_class($reference) : null,
+                'reference_id' => $reference ? $reference->id : null,
+            ]);
+        });
+    }
 }

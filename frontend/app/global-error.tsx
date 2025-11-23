@@ -4,7 +4,11 @@ import { useEffect } from 'react';
 
 export default function GlobalError({ error, reset }: { error: Error; reset: () => void }) {
   useEffect(() => {
-    console.error('Global Error:', error);
+    // Only log errors in development mode
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Global Error:', error);
+    }
+    // TODO: In production, send to error tracking service (e.g., Sentry)
   }, [error]);
 
   return (

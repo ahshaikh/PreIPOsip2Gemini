@@ -225,35 +225,59 @@ class AdminUserController extends Controller
         $header = fgetcsv($handle); // Skip header
 
         $imported = 0;
+        $skipped = 0;
         DB::beginTransaction();
         try {
             while (($row = fgetcsv($handle)) !== false) {
                 // Assuming CSV: Username, Email, Mobile
-                if (count($row) < 3) continue;
-                
+                if (count($row) < 3) {
+                    $skipped++;
+                    continue;
+                }
+
+                // Skip if user already exists
+                if (User::where('email', $row[1])->orWhere('mobile', $row[2])->exists()) {
+                    $skipped++;
+                    continue;
+                }
+
+                // Generate a secure random password for each user
+                $randomPassword = Str::random(12) . Str::random(4, '!@#$%^&*');
+
                 $user = User::create([
                     'username' => $row[0],
                     'email' => $row[1],
                     'mobile' => $row[2],
-                    'password' => Hash::make('Welcome123'), // Default password
+                    'password' => Hash::make($randomPassword),
                     'referral_code' => Str::upper(Str::random(10)),
                     'status' => 'active',
-                    'email_verified_at' => now(), // Pre-verify imported users
-                    'mobile_verified_at' => now(),
+                    // Don't auto-verify - let users verify their own email/mobile
+                    'email_verified_at' => null,
+                    'mobile_verified_at' => null,
                 ]);
-                
+
                 UserProfile::create(['user_id' => $user->id]);
                 UserKyc::create(['user_id' => $user->id, 'status' => 'pending']);
                 Wallet::create(['user_id' => $user->id]);
                 $user->assignRole('user');
-                
+
+                // Send password reset email so user can set their own password
+                $user->sendPasswordResetNotification(
+                    app('auth.password.broker')->createToken($user)
+                );
+
                 $imported++;
             }
             DB::commit();
             fclose($handle);
-            return response()->json(['message' => "Imported $imported users successfully."]);
+            return response()->json([
+                'message' => "Imported $imported users successfully. Password reset emails have been sent.",
+                'imported' => $imported,
+                'skipped' => $skipped
+            ]);
         } catch (\Exception $e) {
             DB::rollBack();
+            fclose($handle);
             return response()->json(['message' => 'Import failed: ' . $e->getMessage()], 500);
         }
     }

@@ -9,11 +9,14 @@ const api = axios.create({
   },
 });
 
-// We'll add an interceptor to attach the auth token once we have auth logic
+// Add an interceptor to attach the auth token (SSR-safe)
 api.interceptors.request.use(config => {
-  const token = localStorage.getItem('auth_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  // Only access localStorage on the client side
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
   return config;
 });

@@ -11,7 +11,11 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("Route Error:", error);
+    // Only log errors in development mode
+    if (process.env.NODE_ENV === 'development') {
+      console.error("Route Error:", error);
+    }
+    // TODO: In production, send to error tracking service (e.g., Sentry)
   }, [error]);
 
   return (
