@@ -9,7 +9,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, CheckCircle } from "lucide-react";
-import { useAuth } from "@/app/(auth)/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 
 export default function SubscribePage() {
   const router = useRouter();

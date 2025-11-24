@@ -20,7 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   // Don't show public navbar/footer on dashboard or admin pages
   const isPublicPage = !pathname?.startsWith('/dashboard') &&
                        !pathname?.startsWith('/admin') &&
-                       !pathname?.match(/^\/(profile|wallet|subscriptions|investments|portfolio|referrals|support|lucky-draws|settings)/);
+                       !pathname?.match(/^\/(profile|Profile|wallet|subscriptions|subscription|investments|portfolio|referrals|support|lucky-draws|settings|transactions|bonuses|kyc|compliance|materials|notifications|promote|reports|profit-sharing|offers)/);
 
   return (
     <html lang="en">
