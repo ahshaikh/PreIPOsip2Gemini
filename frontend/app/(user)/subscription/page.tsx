@@ -1,4 +1,4 @@
-// V-PHASE5-1730-118 (Created - Revised) | V-FINAL-1730-264 (COMPLETE CONSOLIDATED FILE)
+// V-FINAL-1730-264 (COMPLETE CONSOLIDATED FILE)
 'use client';
 
 import { Button } from "@/components/ui/button";
@@ -250,4 +250,35 @@ export default function SubscriptionPage() {
                         disabled={isDownloading === p.id}
                       >
                         <Download className="mr-2 h-4 w-4" />
-                        {isDownloading === p.
+                        {isDownloading === p.id ? "..." : "Receipt"}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Modals */}
+      <ManageSubscriptionModal 
+        isOpen={isManageOpen} 
+        onClose={() => setIsManageOpen(false)}
+        currentPlanId={sub.plan.id}
+        plans={plans || []}
+        status={sub.status}
+      />
+
+      {selectedPaymentId && (
+        <ManualPaymentModal 
+          isOpen={isManualPayOpen}
+          onClose={() => setIsManualPayOpen(false)}
+          paymentId={selectedPaymentId}
+          amount={paymentAmount}
+          bankDetails={bankDetails}
+        />
+      )}
+    </div>
+  );
+}
