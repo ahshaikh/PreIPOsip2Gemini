@@ -2,8 +2,8 @@
 # PreIPOsip One-Click Launcher
 # ---------------------------
 
-$backendPath = "C:\preiposip\backend"
-$frontendPath = "C:\preiposip\frontend"
+$backendPath = "C:\preipo\backend"
+$frontendPath = "C:\preipo\frontend"
 
 Write-Output "Starting PreIPOsip environment..."
 
