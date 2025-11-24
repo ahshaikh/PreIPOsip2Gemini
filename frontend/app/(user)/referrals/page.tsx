@@ -25,7 +25,11 @@ export default function ReferralsPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['referrals'],
-    queryFn: async () => (await api.get('/user/referrals')).data,
+    queryFn: async () => {
+      const response = await api.get('/user/referrals');
+      const responseData = response.data;
+      return responseData?.data || responseData || {};
+    },
   });
 
   // Fetch referral rewards/earnings
@@ -48,8 +52,13 @@ export default function ReferralsPage() {
   };
 
   const copyCode = () => {
-    navigator.clipboard.writeText(data?.stats?.referral_code || '');
-    toast.success("Code Copied!", { description: "Referral code copied to clipboard" });
+    const code = data?.stats?.referral_code || data?.referral_code || '';
+    if (code) {
+      navigator.clipboard.writeText(code);
+      toast.success("Code Copied!", { description: "Referral code copied to clipboard" });
+    } else {
+      toast.error("No referral code available");
+    }
   };
 
   // Share functions
@@ -155,9 +164,9 @@ export default function ReferralsPage() {
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Your Code:</span>
               <Badge variant="secondary" className="font-mono text-lg px-3 py-1">
-                {data?.stats?.referral_code}
+                {data?.stats?.referral_code || data?.referral_code || 'LOADING...'}
               </Badge>
-              <Button variant="ghost" size="sm" onClick={copyCode}>
+              <Button variant="ghost" size="sm" onClick={copyCode} title="Copy referral code">
                 <Copy className="h-4 w-4" />
               </Button>
             </div>
