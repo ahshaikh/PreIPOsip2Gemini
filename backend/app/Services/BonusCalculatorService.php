@@ -6,18 +6,71 @@ namespace App\Services;
 use App\Models\Payment;
 use App\Models\BonusTransaction;
 use App\Models\PlanConfig;
-use App\Notifications\BonusCredited; // <-- IMPORT
+use App\Notifications\BonusCredited;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * BonusCalculatorService
+ *
+ * This service handles the calculation and awarding of all bonus types in the platform.
+ * It supports 7 different bonus types:
+ *
+ * 1. **Progressive Bonus**: Increases over time based on subscription tenure
+ *    - Configured via `progressive_config` on Plan
+ *    - Starts after `start_month` and grows by `rate`% per month
+ *    - Supports monthly overrides and max percentage cap
+ *
+ * 2. **Milestone Bonus**: One-time bonus at specific payment milestones
+ *    - Configured via `milestone_config` on Plan
+ *    - Requires consecutive payments to qualify
+ *
+ * 3. **Consistency Bonus**: Rewards on-time payments
+ *    - Configured via `consistency_config` on Plan
+ *    - Supports streak multipliers for longer streaks
+ *
+ * 4. **Referral Bonus**: (Handled by ReferralService)
+ * 5. **Celebration Bonus**: (Handled by CelebrationService)
+ * 6. **Jackpot/Lucky Draw**: (Handled by LuckyDrawService)
+ * 7. **Profit Share**: (Handled by ProfitShareService)
+ *
+ * @package App\Services
+ * @see \App\Models\BonusTransaction
+ * @see \App\Models\PlanConfig
+ */
 class BonusCalculatorService
 {
     /**
-     * Main orchestrator to calculate all 7 bonus types.
-     * Returns the total bonus amount.
+     * Maximum allowed bonus multiplier to prevent fraud.
+     * This cap prevents malicious manipulation of bonus payouts.
+     * Can be overridden via settings: `max_bonus_multiplier`
      */
-    // Maximum allowed bonus multiplier to prevent fraud (configurable via settings)
     private const MAX_MULTIPLIER_CAP = 10.0;
 
+    /**
+     * Calculate and award all eligible bonuses for a payment.
+     *
+     * This is the main orchestrator method that triggers bonus calculations
+     * after a successful payment. It checks eligibility for each bonus type
+     * and creates BonusTransaction records for awarded bonuses.
+     *
+     * **Flow:**
+     * 1. Load subscription and plan configuration
+     * 2. Apply multiplier cap for fraud prevention
+     * 3. Calculate Progressive Bonus (if enabled and eligible)
+     * 4. Calculate Milestone Bonus (if enabled and eligible)
+     * 5. Calculate Consistency Bonus (if enabled and payment is on-time)
+     * 6. Send notification to user if any bonus awarded
+     *
+     * @param Payment $payment The payment that triggered bonus calculation
+     * @return float Total bonus amount awarded (sum of all bonus types)
+     *
+     * @example
+     * ```php
+     * $bonusService = new BonusCalculatorService();
+     * $totalBonus = $bonusService->calculateAndAwardBonuses($payment);
+     * // Returns: 175.00 (e.g., 50 consistency + 25 progressive + 100 milestone)
+     * ```
+     */
     public function calculateAndAwardBonuses(Payment $payment): float
     {
         $subscription = $payment->subscription->load('plan.configs');
@@ -27,6 +80,7 @@ class BonusCalculatorService
         $totalBonus = 0;
 
         // --- SECURITY: Cap the multiplier to prevent fraud ---
+        // This prevents malicious actors from setting unreasonably high multipliers
         $maxMultiplier = (float) setting('max_bonus_multiplier', self::MAX_MULTIPLIER_CAP);
         $rawMultiplier = (float) $subscription->bonus_multiplier;
         $multiplier = min($rawMultiplier, $maxMultiplier);
