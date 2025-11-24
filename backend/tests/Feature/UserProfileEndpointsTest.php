@@ -31,7 +31,7 @@ class UserProfileEndpointsTest extends TestCase
     private function seedDatabase()
     {
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
-        $this.seed(\Database\Seeders\SettingsSeeder::class);
+        $this->seed(\Database\Seeders\SettingsSeeder::class);
     }
 
     /** @test */
@@ -74,8 +74,8 @@ class UserProfileEndpointsTest extends TestCase
         ]);
 
         $response->assertStatus(200);
-        $this.assertDatabaseHas('user_profiles', [
-            'user_id' => $this.user->id,
+        $this->assertDatabaseHas('user_profiles', [
+            'user_id' => $this->user->id,
             'first_name' => 'John',
             'last_name' => 'Doe'
         ]);
@@ -84,7 +84,7 @@ class UserProfileEndpointsTest extends TestCase
     /** @test */
     public function testProfileUpdateValidation()
     {
-        $response = $this.actingAs($this.user)->putJson('/api/v1/user/profile', [
+        $response = $this->actingAs($this->user)->putJson('/api/v1/user/profile', [
             'dob' => 'not-a-date', // Invalid data
         ]);
         
@@ -99,15 +99,15 @@ class UserProfileEndpointsTest extends TestCase
         
         $file = UploadedFile::fake()->image('avatar.jpg');
 
-        $response = $this.actingAs($this.user)->postJson('/api/v1/user/profile/avatar', [
+        $response = $this->actingAs($this->user)->postJson('/api/v1/user/profile/avatar', [
             'avatar' => $file
         ]);
 
         $response->assertStatus(200);
         $response->assertJsonStructure(['avatar_url']);
         
-        $this.assertDatabaseHas('user_profiles', [
-            'user_id' => $this.user->id,
+        $this->assertDatabaseHas('user_profiles', [
+            'user_id' => $this->user->id,
             'avatar_url' => $response->json('avatar_url')
         ]);
     }
@@ -115,7 +115,7 @@ class UserProfileEndpointsTest extends TestCase
     /** @test */
     public function testChangePasswordWithValidData()
     {
-        $response = $this.actingAs($this.user)->postJson('/api/v1/user/security/password', [
+        $response = $this->actingAs($this->user)->postJson('/api/v1/user/security/password', [
             'current_password' => 'password', // Default factory password
             'password' => 'NewPassword123!',
             'password_confirmation' => 'NewPassword123!'
@@ -125,16 +125,16 @@ class UserProfileEndpointsTest extends TestCase
         $response->assertJson(['message' => 'Password updated successfully.']);
         
         // Verify new password works
-        $this.assertTrue(Hash::check('NewPassword123!', $this.user->fresh()->password));
+        $this->assertTrue(Hash::check('NewPassword123!', $this->user->fresh()->password));
         
         // Verify it was logged in history
-        $this.assertDatabaseHas('password_histories', ['user_id' => $this.user->id]);
+        $this->assertDatabaseHas('password_histories', ['user_id' => $this->user->id]);
     }
 
     /** @test */
     public function testChangePasswordRequiresOldPassword()
     {
-        $response = $this.actingAs($this.user)->postJson('/api/v1/user/security/password', [
+        $response = $this->actingAs($this->user)->postJson('/api/v1/user/security/password', [
             'current_password' => 'WRONG_PASSWORD',
             'password' => 'NewPassword123!',
             'password_confirmation' => 'NewPassword123!'

@@ -105,6 +105,6 @@ class UserInvestmentTest extends TestCase
     public function test_investment_calculates_roi_percentage()
     {
         // 500 (Profit) / 1000 (Cost Basis) * 100 = 50%
-        $this.assertEquals(50.0, $this->investment->roi_percentage);
+        $this->assertEquals(50.0, $this->investment->roi_percentage);
     }
 }

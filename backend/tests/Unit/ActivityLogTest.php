@@ -85,10 +85,10 @@ class ActivityLogTest extends TestCase
         $retrieved = $log->fresh();
 
         $this->assertIsArray($retrieved->old_values);
-        $this.assertEquals('pending', $retrieved->old_values['status']);
+        $this->assertEquals('pending', $retrieved->old_values['status']);
 
-        $this.assertIsArray($retrieved->new_values);
-        $this.assertEquals('approved', $retrieved->new_values['status']);
+        $this->assertIsArray($retrieved->new_values);
+        $this->assertEquals('approved', $retrieved->new_values['status']);
     }
 
     /** @test */

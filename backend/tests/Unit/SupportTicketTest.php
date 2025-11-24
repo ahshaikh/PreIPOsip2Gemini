@@ -53,13 +53,13 @@ class SupportTicketTest extends TestCase
             ['status' => 'open'], 
             ['status' => 'in:' . implode(',', $validStatuses)]
         );
-        $this.assertTrue($validator->passes());
+        $this->assertTrue($validator->passes());
         
         $validator = Validator::make(
             ['status' => 'closed'], // 'closed' is not a valid state, 'resolved' is
             ['status' => 'in:' . implode(',', $validStatuses)]
         );
-        $this.assertFalse($validator->passes());
+        $this->assertFalse($validator->passes());
     }
 
     /** @test */
@@ -71,27 +71,27 @@ class SupportTicketTest extends TestCase
             ['priority' => 'low'], 
             ['priority' => 'in:' . implode(',', $validPriorities)]
         );
-        $this.assertTrue($validator->passes());
+        $this->assertTrue($validator->passes());
         
         $validator = Validator::make(
             ['priority' => 'critical'], // 'critical' is not in our base enum
             ['priority' => 'in:' . implode(',', $validPriorities)]
         );
-        $this.assertFalse($validator->passes());
+        $this->assertFalse($validator->passes());
     }
 
     /** @test */
     public function test_ticket_tracks_resolved_by_admin()
     {
         $ticket = SupportTicket::factory()->create([
-            'user_id' => $this.user->id,
+            'user_id' => $this->user->id,
             'status' => 'resolved',
-            'resolved_by' => $this.admin->id,
+            'resolved_by' => $this->admin->id,
             'resolved_at' => now()
         ]);
 
-        $this.assertInstanceOf(User::class, $ticket->resolvedBy);
-        $this.assertEquals($this.admin->id, $ticket->resolvedBy->id);
+        $this->assertInstanceOf(User::class, $ticket->resolvedBy);
+        $this->assertEquals($this->admin->id, $ticket->resolvedBy->id);
     }
 
     /** @test */
@@ -99,27 +99,27 @@ class SupportTicketTest extends TestCase
     {
         // 1. Ticket resolved 8 days ago (Should be found)
         SupportTicket::factory()->create([
-            'user_id' => $this.user->id,
+            'user_id' => $this->user->id,
             'status' => 'resolved',
             'resolved_at' => now()->subDays(8)
         ]);
 
         // 2. Ticket resolved 3 days ago (Should NOT be found)
         SupportTicket::factory()->create([
-            'user_id' => $this.user->id,
+            'user_id' => $this->user->id,
             'status' => 'resolved',
             'resolved_at' => now()->subDays(3)
         ]);
 
         // 3. Open ticket (Should NOT be found)
         SupportTicket::factory()->create([
-            'user_id' => $this.user->id,
+            'user_id' => $this->user->id,
             'status' => 'open',
         ]);
 
         // Use the scope (default 7 days)
         $closableTickets = SupportTicket::AutoClose()->get();
 
-        $this.assertEquals(1, $closableTickets->count());
+        $this->assertEquals(1, $closableTickets->count());
     }
 }

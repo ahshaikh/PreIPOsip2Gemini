@@ -137,7 +137,7 @@ class ReferralServiceTest extends TestCase
 
         // Give them 2 referrals
         $this->createReferrals(2);
-        $this.service->updateReferrerMultiplier($this->referrer);
+        $this->service->updateReferrerMultiplier($this->referrer);
 
         // Should use the custom plan's 9.9x, not the default 1.0x
         $this->assertEquals(9.9, $this->referrer->subscription->fresh()->bonus_multiplier);
@@ -148,7 +148,7 @@ class ReferralServiceTest extends TestCase
     {
         // User A (on default plan)
         $this->createReferrals(3);
-        $this.service->updateReferrerMultiplier($this->referrer);
+        $this->service->updateReferrerMultiplier($this->referrer);
         $this->assertEquals(1.5, $this->referrer->subscription->fresh()->bonus_multiplier);
 
         // User B (on custom plan)
@@ -164,7 +164,7 @@ class ReferralServiceTest extends TestCase
             Referral::create(['referrer_id' => $userB->id, 'referred_id' => $referee->id, 'status' => 'completed']);
         }
         
-        $this.service->updateReferrerMultiplier($userB);
+        $this->service->updateReferrerMultiplier($userB);
         
         // User B has a different multiplier for the same referral count
         $this->assertEquals(5.0, $userB->subscription->fresh()->bonus_multiplier);

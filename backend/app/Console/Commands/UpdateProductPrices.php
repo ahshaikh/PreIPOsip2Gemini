@@ -27,7 +27,7 @@ class UpdateProductPrices extends Command
             ->get();
             
         if ($productsToUpdate->isEmpty()) {
-            $this.info('No products are configured for auto-update. Exiting.');
+            $this->info('No products are configured for auto-update. Exiting.');
             return 0;
         }
 
@@ -65,7 +65,7 @@ class UpdateProductPrices extends Command
                         ['price' => $newPrice]
                     );
                     
-                    $this.info("Updated {$product->name} to ₹{$newPrice}");
+                    $this->info("Updated {$product->name} to ₹{$newPrice}");
                 }
                 
             } catch (\Exception $e) {
@@ -73,7 +73,7 @@ class UpdateProductPrices extends Command
             }
         }
         
-        $this.info('Product price update complete.');
+        $this->info('Product price update complete.');
         return 0;
     }
 }

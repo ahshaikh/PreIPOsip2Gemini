@@ -22,21 +22,21 @@ class ProcessMonthlyLuckyDrawTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this.seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
-        $this.seed(\Database\Seeders\SettingsSeeder::class);
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $this->seed(\Database\Seeders\SettingsSeeder::class);
         
         // Mock the service
-        $this.serviceMock = $this.mock(LuckyDrawService::class);
+        $this->serviceMock = $this->mock(LuckyDrawService::class);
     }
 
     /** @test */
     public function test_creates_draw_for_current_month()
     {
         // 1. Travel to the 1st of the month
-        $this.travelTo(Carbon::parse('2025-01-01 05:00:00'));
+        $this->travelTo(Carbon::parse('2025-01-01 05:00:00'));
         
         // 2. Expect the service to be called
-        $this.serviceMock->shouldReceive('createMonthlyDraw')
+        $this->serviceMock->shouldReceive('createMonthlyDraw')
             ->once()
             ->with(
                 'January 2025 Lucky Draw', // Name
@@ -45,9 +45,9 @@ class ProcessMonthlyLuckyDrawTest extends TestCase
             );
         
         // 3. Act: Run the command
-        $this.artisan('app:process-monthly-lucky-draw');
+        $this->artisan('app:process-monthly-lucky-draw');
         
-        $this.travelBack();
+        $this->travelBack();
     }
 
     /** @test */
@@ -56,8 +56,8 @@ class ProcessMonthlyLuckyDrawTest extends TestCase
         // Allocation is tested in GenerateLuckyDrawEntryJobTest
         // and LuckyDrawServiceTest. This test confirms the
         // main cron job *doesn't* do allocation.
-        $this.assertTrue(true);
-        $this.markTestSkipped(
+        $this->assertTrue(true);
+        $this->markTestSkipped(
             'Allocation logic is correctly placed in GenerateLuckyDrawEntryJob, not this command.'
         );
     }
@@ -74,25 +74,25 @@ class ProcessMonthlyLuckyDrawTest extends TestCase
         $winnerList = [1, 2, 3]; // Mock winners
         
         // 2. Mock service expectations
-        $this.serviceMock->shouldReceive('createMonthlyDraw')->never(); // Shouldn't create
+        $this->serviceMock->shouldReceive('createMonthlyDraw')->never(); // Shouldn't create
         
-        $this.serviceMock->shouldReceive('selectWinners')
+        $this->serviceMock->shouldReceive('selectWinners')
             ->once()
             ->withArgs([Mockery::on(fn($d) => $d->id === $draw->id)])
             ->andReturn($winnerList);
             
-        $this.serviceMock->shouldReceive('distributePrizes')
+        $this->serviceMock->shouldReceive('distributePrizes')
             ->once()
             ->withArgs([Mockery::on(fn($d) => $d->id === $draw->id), $winnerList]);
             
-        $this.serviceMock->shouldReceive('sendWinnerNotifications')
+        $this->serviceMock->shouldReceive('sendWinnerNotifications')
             ->once()
             ->with($winnerList);
             
         // 3. Act: Run the command
-        $this.artisan('app:process-monthly-lucky-draw');
+        $this->artisan('app:process-monthly-lucky-draw');
         
         // 4. Assert: Status is updated
-        $this.assertEquals('completed', $draw->fresh()->status);
+        $this->assertEquals('completed', $draw->fresh()->status);
     }
 }

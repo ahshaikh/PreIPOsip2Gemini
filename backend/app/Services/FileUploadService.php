@@ -32,7 +32,7 @@ class FileUploadService
 
         // 2. Scan for Viruses (Test: test_file_upload_service_scans_for_viruses)
         if ($options['virus_scan']) {
-            $this.scanForVirus($file);
+            $this->scanForVirus($file);
         }
 
         // 3. Prepare Content (Encrypt or Raw)

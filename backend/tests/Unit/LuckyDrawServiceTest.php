@@ -28,7 +28,7 @@ class LuckyDrawServiceTest extends TestCase
         parent::setUp();
         $this->service = new LuckyDrawService();
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
-        $this.seed(\Database\Seeders\SettingsSeeder::class);
+        $this->seed(\Database\Seeders\SettingsSeeder::class);
 
         // Config: 5 entries base, 1 for on-time, 5 for streak
         $this->plan = Plan::factory()->create();
@@ -142,7 +142,7 @@ class LuckyDrawServiceTest extends TestCase
         ]);
         
         // 3. Draw status updated
-        $this.assertEquals('completed', $this.draw->fresh()->status);
+        $this->assertEquals('completed', $this->draw->fresh()->status);
     }
 
     /** @test */

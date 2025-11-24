@@ -104,7 +104,7 @@ class AdvancedReportController extends Controller
 	    // AML Report Export 
             case 'aml':
                 $headings = ['Payment ID', 'User', 'Email', 'User Created', 'Amount', 'Payment Date'];
-                $data = $this.service->getAmlReport()->map(function($p) {
+                $data = $this->service->getAmlReport()->map(function($p) {
                     return [
                         'id' => $p->id,
                         'user' => $p->user->username,

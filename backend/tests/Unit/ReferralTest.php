@@ -45,7 +45,7 @@ class ReferralTest extends TestCase
         ]);
 
         $this->assertInstanceOf(User::class, $referral->referred);
-        $this.assertEquals($this->referee->id, $referral->referred->id);
+        $this->assertEquals($this->referee->id, $referral->referred->id);
     }
 
     /** @test */
@@ -57,13 +57,13 @@ class ReferralTest extends TestCase
             ['status' => 'pending'], 
             ['status' => 'in:' . implode(',', $validStatuses)]
         );
-        $this.assertTrue($validator->passes());
+        $this->assertTrue($validator->passes());
         
         $validator = Validator::make(
             ['status' => 'expired'], // Invalid status
             ['status' => 'in:' . implode(',', $validStatuses)]
         );
-        $this.assertFalse($validator->passes());
+        $this->assertFalse($validator->passes());
     }
 
     /** @test */
@@ -82,7 +82,7 @@ class ReferralTest extends TestCase
         $referral->complete(); // Use the helper method
         
         $this->assertEquals('completed', $referral->status);
-        $this.assertEquals('2025-01-01', $referral->completed_at->toDateString());
+        $this->assertEquals('2025-01-01', $referral->completed_at->toDateString());
         
         $this->travelBack();
     }
@@ -124,36 +124,36 @@ class ReferralTest extends TestCase
     {
         Referral::create([
             'referrer_id' => $this->referrer->id,
-            'referred_id' => $this.referee->id,
+            'referred_id' => $this->referee->id,
             'status' => 'pending'
         ]);
         
         $user3 = User::factory()->create();
         Referral::create([
-            'referrer_id' => $this.referrer->id,
+            'referrer_id' => $this->referrer->id,
             'referred_id' => $user3->id,
             'status' => 'completed'
         ]);
 
-        $this.assertEquals(1, Referral::completed()->count());
-        $this.assertEquals($user3->id, Referral::completed()->first()->referred_id);
+        $this->assertEquals(1, Referral::completed()->count());
+        $this->assertEquals($user3->id, Referral::completed()->first()->referred_id);
     }
 
     /** @test */
     public function test_referral_calculates_bonus_eligible()
     {
         $referral = Referral::create([
-            'referrer_id' => $this.referrer->id,
-            'referred_id' => $this.referee->id,
+            'referrer_id' => $this->referrer->id,
+            'referred_id' => $this->referee->id,
             'status' => 'pending'
         ]);
         
         // Not eligible when pending
-        $this.assertFalse($referral->isBonusEligible());
+        $this->assertFalse($referral->isBonusEligible());
 
         $referral->complete();
         
         // Eligible when completed
-        $this.assertTrue($referral->isBonusEligible());
+        $this->assertTrue($referral->isBonusEligible());
     }
 }

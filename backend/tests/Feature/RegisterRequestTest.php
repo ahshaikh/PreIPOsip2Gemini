@@ -76,7 +76,7 @@ class RegisterRequestTest extends TestCase
         
         // Fails: unique
         User::factory()->create(['email' => 'taken@example.com']);
-        $this.assertFalse($this.validate($this.getValidData(['email' => 'taken@example.com']))->passes());
+        $this->assertFalse($this->validate($this->getValidData(['email' => 'taken@example.com']))->passes());
     }
 
     /** @test */
@@ -93,7 +93,7 @@ class RegisterRequestTest extends TestCase
 
         // Fails: unique
         User::factory()->create(['mobile' => '1111111111']);
-        $this.assertFalse($this.validate($this.getValidData(['mobile' => '1111111111']))->passes());
+        $this->assertFalse($this->validate($this->getValidData(['mobile' => '1111111111']))->passes());
     }
 
     /** @test */
@@ -109,29 +109,29 @@ class RegisterRequestTest extends TestCase
         $this->assertFalse($this->validate($this->getValidData(['password' => 'Pass1!', 'password_confirmation' => 'Pass1!']))->passes());
 
         // Fails: mixedCase
-        $this.assertFalse($this.validate($this.getValidData(['password' => 'password123!', 'password_confirmation' => 'password123!']))->passes());
+        $this->assertFalse($this->validate($this->getValidData(['password' => 'password123!', 'password_confirmation' => 'password123!']))->passes());
 
         // Fails: numbers
-        $this.assertFalse($this.validate($this.getValidData(['password' => 'Password!', 'password_confirmation' => 'Password!']))->passes());
+        $this->assertFalse($this->validate($this->getValidData(['password' => 'Password!', 'password_confirmation' => 'Password!']))->passes());
         
         // Fails: symbols
-        $this.assertFalse($this.validate($this.getValidData(['password' => 'Password123', 'password_confirmation' => 'Password123']))->passes());
+        $this->assertFalse($this->validate($this->getValidData(['password' => 'Password123', 'password_confirmation' => 'Password123']))->passes());
 
         // Passes
-        $this.assertTrue($this.validate($this.getValidData(['password' => 'Password123!', 'password_confirmation' => 'Password123!']))->passes());
+        $this->assertTrue($this->validate($this->getValidData(['password' => 'Password123!', 'password_confirmation' => 'Password123!']))->passes());
     }
 
     /** @test */
     public function test_validates_referral_code_if_provided()
     {
         // 1. Passes if null (it's nullable)
-        $this.assertTrue($this.validate($this.getValidData(['referral_code' => null]))->passes());
+        $this->assertTrue($this->validate($this->getValidData(['referral_code' => null]))->passes());
 
         // 2. Fails if invalid
-        $this.assertFalse($this.validate($this.getValidData(['referral_code' => 'INVALIDCODE']))->passes());
+        $this->assertFalse($this->validate($this->getValidData(['referral_code' => 'INVALIDCODE']))->passes());
 
         // 3. Passes if valid
         $referrer = User::factory()->create(['referral_code' => 'VALIDCODE']);
-        $this.assertTrue($this.validate($this.getValidData(['referral_code' => 'VALIDCODE']))->passes());
+        $this->assertTrue($this->validate($this->getValidData(['referral_code' => 'VALIDCODE']))->passes());
     }
 }

@@ -22,7 +22,7 @@ class SettingTest extends TestCase
         parent::setUp();
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
         $this->admin = User::factory()->create();
-        $this.admin->assignRole('admin');
+        $this->admin->assignRole('admin');
         
         // Clear cache before each test
         Cache::flush();
@@ -50,12 +50,12 @@ class SettingTest extends TestCase
         
         // 2. Number
         Setting::create(['key' => 'test_num', 'value' => '123', 'type' => 'number']);
-        $this.assertIsInt(setting('test_num'));
-        $this.assertEquals(123, setting('test_num'));
+        $this->assertIsInt(setting('test_num'));
+        $this->assertEquals(123, setting('test_num'));
 
         // 3. String
         Setting::create(['key' => 'test_str', 'value' => 'Hello', 'type' => 'string']);
-        $this.assertIsString(setting('test_str'));
+        $this->assertIsString(setting('test_str'));
     }
 
     /** @test */
@@ -67,13 +67,13 @@ class SettingTest extends TestCase
             ['type' => 'number'], 
             ['type' => 'in:' . implode(',', $validTypes)]
         );
-        $this.assertTrue($validator->passes());
+        $this->assertTrue($validator->passes());
         
         $validator = Validator::make(
             ['type' => 'datetime'], // Invalid
             ['type' => 'in:' . implode(',', $validTypes)]
         );
-        $this.assertFalse($validator->passes());
+        $this->assertFalse($validator->passes());
     }
 
     /** @test */
@@ -81,7 +81,7 @@ class SettingTest extends TestCase
     {
         Setting::create(['key' => 'find_me', 'value' => 'Found!']);
         
-        $this.assertEquals('Found!', setting('find_me'));
+        $this->assertEquals('Found!', setting('find_me'));
     }
 
     /** @test */
@@ -89,7 +89,7 @@ class SettingTest extends TestCase
     {
         $value = setting('non_existent', 'Default');
         
-        $this.assertEquals('Default', $value);
+        $this->assertEquals('Default', $value);
     }
 
     /** @test */
@@ -100,9 +100,9 @@ class SettingTest extends TestCase
         
         $result = setting('test_json');
         
-        $this.assertIsArray($result);
-        $this.assertEquals(1, $result['a']);
-        $this.assertEquals('test', $result['b']);
+        $this->assertIsArray($result);
+        $this->assertEquals(1, $result['a']);
+        $this->assertEquals('test', $result['b']);
     }
 
     /** @test */
@@ -113,10 +113,10 @@ class SettingTest extends TestCase
         Setting::create(['key' => 'bool_1', 'value' => '1', 'type' => 'boolean']);
         Setting::create(['key' => 'bool_0', 'value' => '0', 'type' => 'boolean']);
 
-        $this.assertTrue(setting('bool_true'));
-        $this.assertFalse(setting('bool_false'));
-        $this.assertTrue(setting('bool_1'));
-        $this.assertFalse(setting('bool_0'));
+        $this->assertTrue(setting('bool_true'));
+        $this->assertFalse(setting('bool_false'));
+        $this->assertTrue(setting('bool_1'));
+        $this->assertFalse(setting('bool_0'));
     }
 
     /** @test */
@@ -124,19 +124,19 @@ class SettingTest extends TestCase
     {
         $setting = Setting::create(['key' => 'audit_test', 'value' => 'initial']);
         
-        $this.assertNull($setting->updated_by);
+        $this->assertNull($setting->updated_by);
         
         // Simulate an admin update via the controller
-        $this.actingAs($this.admin)->putJson('/api/v1/admin/settings', [
+        $this->actingAs($this->admin)->putJson('/api/v1/admin/settings', [
             'settings' => [
                 ['key' => 'audit_test', 'value' => 'updated']
             ]
         ]);
 
-        $this.assertDatabaseHas('settings', [
+        $this->assertDatabaseHas('settings', [
             'key' => 'audit_test',
             'value' => 'updated',
-            'updated_by' => $this.admin->id
+            'updated_by' => $this->admin->id
         ]);
     }
 }

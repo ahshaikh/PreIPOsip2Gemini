@@ -93,7 +93,7 @@ class FeatureFlagTest extends TestCase
         ]);
 
         // Null user (guest) should always be false
-        $this.assertFalse($flag->isEnabled(null));
+        $this->assertFalse($flag->isEnabled(null));
     }
 
     /** @test */
@@ -106,6 +106,6 @@ class FeatureFlagTest extends TestCase
             'percentage' => 100
         ]);
 
-        $this.assertFalse($flag->isEnabled($this.user1));
+        $this->assertFalse($flag->isEnabled($this->user1));
     }
 }

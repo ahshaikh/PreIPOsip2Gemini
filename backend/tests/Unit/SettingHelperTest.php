@@ -30,9 +30,9 @@ class SettingTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this.seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
-        $this.admin = User::factory()->create();
-        $this.admin->assignRole('admin');
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $this->admin = User::factory()->create();
+        $this->admin->assignRole('admin');
         
         Cache::flush(); // Clear cache before each test
     }
@@ -41,7 +41,7 @@ class SettingTest extends TestCase
     public function test_setting_key_is_unique()
     {
         Setting::create(['key' => 'unique_key', 'value' => 'a', 'type' => 'string']);
-        $this.expectException(QueryException::class);
+        $this->expectException(QueryException::class);
         Setting::create(['key' => 'unique_key', 'value' => 'b', 'type' => 'string']);
     }
 
@@ -52,14 +52,14 @@ class SettingTest extends TestCase
         Setting::create(['key' => 'test_num', 'value' => '123', 'type' => 'number']);
         Setting::create(['key' => 'test_json', 'value' => '{"a":1}', 'type' => 'json']);
 
-        $this.assertIsBool(setting('test_bool'));
-        $this.assertTrue(setting('test_bool'));
+        $this->assertIsBool(setting('test_bool'));
+        $this->assertTrue(setting('test_bool'));
 
-        $this.assertIsInt(setting('test_num'));
-        $this.assertEquals(123, setting('test_num'));
+        $this->assertIsInt(setting('test_num'));
+        $this->assertEquals(123, setting('test_num'));
 
-        $this.assertIsArray(setting('test_json'));
-        $this.assertEquals(1, setting('test_json')['a']);
+        $this->assertIsArray(setting('test_json'));
+        $this->assertEquals(1, setting('test_json')['a']);
     }
 
     /** @test */
@@ -68,23 +68,23 @@ class SettingTest extends TestCase
         $validTypes = ['string', 'number', 'boolean', 'json', 'text'];
         
         $validator = Validator::make(['type' => 'json'], ['type' => 'in:' . implode(',', $validTypes)]);
-        $this.assertTrue($validator->passes());
+        $this->assertTrue($validator->passes());
         
         $validator = Validator::make(['type' => 'datetime'], ['type' => 'in:' . implode(',', $validTypes)]);
-        $this.assertFalse($validator->passes());
+        $this->assertFalse($validator->passes());
     }
 
     /** @test */
     public function test_setting_retrieves_by_key()
     {
         Setting::create(['key' => 'find_me', 'value' => 'Found!', 'type' => 'string']);
-        $this.assertEquals('Found!', setting('find_me'));
+        $this->assertEquals('Found!', setting('find_me'));
     }
 
     /** @test */
     public function test_setting_returns_default_if_not_found()
     {
-        $this.assertEquals('default', setting('non_existent', 'default'));
+        $this->assertEquals('default', setting('non_existent', 'default'));
     }
 
     /** @test */
@@ -96,9 +96,9 @@ class SettingTest extends TestCase
         DB::enableQueryLog();
         
         // 2. Call the helper 3 times
-        $this.assertEquals('cached', setting('cache_test')); // Hit 1 (DB + Cache Set)
-        $this.assertEquals('cached', setting('cache_test')); // Hit 2 (Cache Get)
-        $this.assertEquals('cached', setting('cache_test')); // Hit 3 (Cache Get)
+        $this->assertEquals('cached', setting('cache_test')); // Hit 1 (DB + Cache Set)
+        $this->assertEquals('cached', setting('cache_test')); // Hit 2 (Cache Get)
+        $this->assertEquals('cached', setting('cache_test')); // Hit 3 (Cache Get)
         
         // 3. Get the log
         $queryLog = DB::getQueryLog();
@@ -109,7 +109,7 @@ class SettingTest extends TestCase
         });
 
         // 5. Assert it only ran ONCE
-        $this.assertCount(1, $queries);
+        $this->assertCount(1, $queries);
     }
 
     /** @test */
@@ -118,17 +118,17 @@ class SettingTest extends TestCase
         Setting::create(['key' => 'update_test', 'value' => 'old_value', 'type' => 'string']);
 
         // 1. Call, which populates the cache
-        $this.assertEquals('old_value', setting('update_test'));
+        $this->assertEquals('old_value', setting('update_test'));
         
         // 2. Simulate Admin update using the API
-        $this.actingAs($this.admin)->putJson('/api/v1/admin/settings', [
+        $this->actingAs($this->admin)->putJson('/api/v1/admin/settings', [
             'settings' => [
                 ['key' => 'update_test', 'value' => 'new_value']
             ]
         ]);
         
         // 3. The helper function *should* now miss the cache and re-fetch
-        $this.assertEquals('new_value', setting('update_test'));
+        $this->assertEquals('new_value', setting('update_test'));
     }
 
     /** @test */
@@ -136,15 +136,15 @@ class SettingTest extends TestCase
     {
         Setting::create(['key' => 'admin_track', 'value' => 'v1']);
 
-        $this.actingAs($this.admin)->putJson('/api/v1/admin/settings', [
+        $this->actingAs($this->admin)->putJson('/api/v1/admin/settings', [
             'settings' => [
                 ['key' => 'admin_track', 'value' => 'v2']
             ]
         ]);
 
-        $this.assertDatabaseHas('settings', [
+        $this->assertDatabaseHas('settings', [
             'key' => 'admin_track',
-            'updated_by' => $this.admin->id
+            'updated_by' => $this->admin->id
         ]);
     }
 }
@@ -162,8 +162,8 @@ class SmsServiceTest extends TestCase
     {
         parent::setUp();
         $this->service = new SmsService();
-        $this.seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
-        $this.user = User::factory()->create(['mobile' => '9876543210']);
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $this->user = User::factory()->create(['mobile' => '9876543210']);
     }
 
     /** @test */
@@ -173,7 +173,7 @@ class SmsServiceTest extends TestCase
             'api.msg91.com*' => Http::response(['message_id' => '123'], 200)
         ]);
 
-        $this.service->send($this.user, "Test", "slug", "DLT123");
+        $this->service->send($this->user, "Test", "slug", "DLT123");
 
         // Test MSG91 API was called with correct DLT ID
         Http::assertSent(function ($request) {
@@ -186,9 +186,9 @@ class SmsServiceTest extends TestCase
     {
         // Note: This logic is in the JOB, not the service.
         // This test confirms the service logs the *final* message.
-        $this.service->send($this.user, "Final Message", "slug");
+        $this->service->send($this->user, "Final Message", "slug");
 
-        $this.assertDatabaseHas('sms_logs', [
+        $this->assertDatabaseHas('sms_logs', [
             'message' => 'Final Message'
         ]);
     }
@@ -201,9 +201,9 @@ class SmsServiceTest extends TestCase
 
         Log::shouldReceive('warning')->once(); // Expect a warning
         
-        $this.service->send($this.user, $longMessage, "slug");
+        $this->service->send($this->user, $longMessage, "slug");
 
-        $this.assertDatabaseHas('sms_logs', [
+        $this->assertDatabaseHas('sms_logs', [
             'message' => $truncated
         ]);
     }
@@ -213,11 +213,11 @@ class SmsServiceTest extends TestCase
     {
         Http::fake(['*' => Http::response(['message_id' => 'abc'], 200)]);
 
-        $this.service->send($this.user, "Test", "slug");
+        $this->service->send($this->user, "Test", "slug");
 
-        $this.assertDatabaseHas('sms_logs', [
-            'user_id' => $this.user->id,
-            'to_mobile' => $this.user->mobile,
+        $this->assertDatabaseHas('sms_logs', [
+            'user_id' => $this->user->id,
+            'to_mobile' => $this->user->mobile,
             'status' => 'sent',
             'gateway_message_id' => 'abc'
         ]);
@@ -229,26 +229,26 @@ class SmsServiceTest extends TestCase
         // Simulate a 500 error from the gateway
         Http::fake(['*' => Http::response('Server Error', 500)]);
 
-        $log = $this.service->send($this.user, "Test", "slug");
+        $log = $this->service->send($this->user, "Test", "slug");
 
-        $this.assertEquals('failed', $log->fresh()->status);
-        $this.assertStringContainsString('Server Error', $log->fresh()->error_message);
+        $this->assertEquals('failed', $log->fresh()->status);
+        $this->assertStringContainsString('Server Error', $log->fresh()->error_message);
     }
 
     /** @test */
     public function test_send_sms_respects_user_preferences()
     {
         // 1. User opts out of 'auth_sms'
-        $this.user->notificationPreferences()->create([
+        $this->user->notificationPreferences()->create([
             'preference_key' => 'auth_sms',
             'is_enabled' => false
         ]);
 
         // 2. Try to send an 'auth.otp' message
-        $log = $this.service->send($this.user, "Test", "auth.otp");
+        $log = $this->service->send($this->user, "Test", "auth.otp");
 
         // 3. Assert it was aborted
-        $this.assertNull($log);
-        $this.assertDatabaseMissing('sms_logs');
+        $this->assertNull($log);
+        $this->assertDatabaseMissing('sms_logs');
     }
 }

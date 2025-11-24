@@ -22,8 +22,8 @@ class SmsServiceTest extends TestCase
     {
         parent::setUp();
         $this->service = new SmsService();
-        $this.seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
-        $this.user = User::factory()->create(['mobile' => '9876543210']);
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $this->user = User::factory()->create(['mobile' => '9876543210']);
     }
 
     /** @test */
@@ -33,7 +33,7 @@ class SmsServiceTest extends TestCase
             'api.msg91.com*' => Http::response(['message_id' => '123'], 200)
         ]);
 
-        $this.service->send($this.user, "Test", "slug", "DLT123");
+        $this->service->send($this->user, "Test", "slug", "DLT123");
 
         // Test MSG91 API was called with correct DLT ID
         Http::assertSent(function ($request) {
@@ -46,9 +46,9 @@ class SmsServiceTest extends TestCase
     {
         // Note: This logic is in the JOB, not the service.
         // This test confirms the service logs the *final* message.
-        $this.service->send($this.user, "Final Message", "slug");
+        $this->service->send($this->user, "Final Message", "slug");
 
-        $this.assertDatabaseHas('sms_logs', [
+        $this->assertDatabaseHas('sms_logs', [
             'message' => 'Final Message'
         ]);
     }
@@ -61,9 +61,9 @@ class SmsServiceTest extends TestCase
 
         Log::shouldReceive('warning')->once(); // Expect a warning
         
-        $this.service->send($this.user, $longMessage, "slug");
+        $this->service->send($this->user, $longMessage, "slug");
 
-        $this.assertDatabaseHas('sms_logs', [
+        $this->assertDatabaseHas('sms_logs', [
             'message' => $truncated
         ]);
     }
@@ -73,11 +73,11 @@ class SmsServiceTest extends TestCase
     {
         Http::fake(['*' => Http::response(['message_id' => 'abc'], 200)]);
 
-        $this.service->send($this.user, "Test", "slug");
+        $this->service->send($this->user, "Test", "slug");
 
-        $this.assertDatabaseHas('sms_logs', [
-            'user_id' => $this.user->id,
-            'to_mobile' => $this.user->mobile,
+        $this->assertDatabaseHas('sms_logs', [
+            'user_id' => $this->user->id,
+            'to_mobile' => $this->user->mobile,
             'status' => 'sent',
             'gateway_message_id' => 'abc'
         ]);
@@ -89,26 +89,26 @@ class SmsServiceTest extends TestCase
         // Simulate a 500 error from the gateway
         Http::fake(['*' => Http::response('Server Error', 500)]);
 
-        $log = $this.service->send($this.user, "Test", "slug");
+        $log = $this->service->send($this->user, "Test", "slug");
 
-        $this.assertEquals('failed', $log->fresh()->status);
-        $this.assertStringContainsString('Server Error', $log->fresh()->error_message);
+        $this->assertEquals('failed', $log->fresh()->status);
+        $this->assertStringContainsString('Server Error', $log->fresh()->error_message);
     }
 
     /** @test */
     public function test_send_sms_respects_user_preferences()
     {
         // 1. User opts out of 'auth_sms'
-        $this.user->notificationPreferences()->create([
+        $this->user->notificationPreferences()->create([
             'preference_key' => 'auth_sms',
             'is_enabled' => false
         ]);
 
         // 2. Try to send an 'auth.otp' message
-        $log = $this.service->send($this.user, "Test", "auth.otp");
+        $log = $this->service->send($this->user, "Test", "auth.otp");
 
         // 3. Assert it was aborted
-        $this.assertNull($log);
-        $this.assertDatabaseMissing('sms_logs');
+        $this->assertNull($log);
+        $this->assertDatabaseMissing('sms_logs');
     }
 }

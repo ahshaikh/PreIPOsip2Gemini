@@ -90,6 +90,6 @@ class ProcessReferralJob implements ShouldQueue
             $referralService->updateReferrerMultiplier($referrer);
         });
         
-        Log::info("Referral processed for {$this.referredUser->username}");
+        Log::info("Referral processed for {$this->referredUser->username}");
     }
 }

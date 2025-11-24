@@ -22,8 +22,8 @@ class ReportServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this.service = new ReportService();
-        $this.seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $this->service = new ReportService();
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
     }
 
     /** @test */
@@ -37,11 +37,11 @@ class ReportServiceTest extends TestCase
         BonusTransaction::factory()->create(['amount' => 1000]);
         BonusTransaction::factory()->create(['amount' => 1000]);
 
-        $summary = $this.service->getFinancialSummary(now()->subDay(), now()->addDay());
+        $summary = $this->service->getFinancialSummary(now()->subDay(), now()->addDay());
 
-        $this.assertEquals(10000, $summary['revenue']);
-        $this.assertEquals(2000, $summary['expenses']);
-        $this.assertEquals(8000, $summary['profit']);
+        $this->assertEquals(10000, $summary['revenue']);
+        $this->assertEquals(2000, $summary['expenses']);
+        $this->assertEquals(8000, $summary['profit']);
     }
 
     /** @test */
@@ -50,11 +50,11 @@ class ReportServiceTest extends TestCase
         User::factory()->count(3)->create(['created_at' => now()->subDay(1)]);
         User::factory()->count(2)->create(['created_at' => now()]);
 
-        $growth = $this.service->getUserGrowth(now()->subDays(5), now());
+        $growth = $this->service->getUserGrowth(now()->subDays(5), now());
         
-        $this.assertEquals(2, $growth->count()); // 2 groups (yesterday, today)
-        $this.assertEquals(3, $growth[0]['count']);
-        $this.assertEquals(2, $growth[1]['count']);
+        $this->assertEquals(2, $growth->count()); // 2 groups (yesterday, today)
+        $this->assertEquals(3, $growth[0]['count']);
+        $this->assertEquals(2, $growth[1]['count']);
     }
 
     /** @test */
@@ -70,10 +70,10 @@ class ReportServiceTest extends TestCase
             'updated_at' => now()
         ]);
         
-        $metrics = $this.service->getRetentionMetrics(now()->subMonth(), now());
+        $metrics = $this->service->getRetentionMetrics(now()->subMonth(), now());
 
-        $this.assertEquals(2, $metrics['users_lost']);
-        $this.assertEquals(20, $metrics['churn_rate']); // 2 / 10
+        $this->assertEquals(2, $metrics['users_lost']);
+        $this->assertEquals(20, $metrics['churn_rate']); // 2 / 10
     }
 
     /** @test */
@@ -82,9 +82,9 @@ class ReportServiceTest extends TestCase
         User::factory()->count(3)->create()->each(fn($u) => $u->kyc->update(['status' => 'verified']));
         User::factory()->count(1)->create()->each(fn($u) => $u->kyc->update(['status' => 'pending']));
 
-        $percentage = $this.service->getKycCompletion();
+        $percentage = $this->service->getKycCompletion();
         
-        $this.assertEquals(75, $percentage); // 3 out of 4
+        $this->assertEquals(75, $percentage); // 3 out of 4
     }
 
     /** @test */
@@ -94,11 +94,11 @@ class ReportServiceTest extends TestCase
         $userA = User::factory()->create();
         BonusTransaction::factory()->create(['user_id' => $userA->id, 'amount' => 15000]); // > 10k
         
-        $report = $this.service->getTdsReport(now()->subDay(), now()->addDay());
+        $report = $this->service->getTdsReport(now()->subDay(), now()->addDay());
         
-        $this.assertEquals(1, count($report));
-        $this.assertEquals(15000, $report[0]['gross_amount']);
-        $this.assertEquals(1500, $report[0]['tds_deducted']); // 10%
+        $this->assertEquals(1, count($report));
+        $this->assertEquals(15000, $report[0]['gross_amount']);
+        $this->assertEquals(1500, $report[0]['tds_deducted']); // 10%
     }
 
     /** @test */
@@ -108,9 +108,9 @@ class ReportServiceTest extends TestCase
         $userA = User::factory()->create();
         BonusTransaction::factory()->create(['user_id' => $userA->id, 'amount' => 9000]); // < 10k
         
-        $report = $this.service->getTdsReport(now()->subDay(), now()->addDay());
+        $report = $this->service->getTdsReport(now()->subDay(), now()->addDay());
         
-        $this.assertEquals(0, count($report));
+        $this->assertEquals(0, count($report));
     }
 
     /** @test */
@@ -128,9 +128,9 @@ class ReportServiceTest extends TestCase
         $userC = User::factory()->create(['created_at' => now()->subDays(3)]);
         Payment::factory()->create(['user_id' => $userC->id, 'amount' => 60000, 'status' => 'paid']);
         
-        $report = $this.service->getAmlReport();
+        $report = $this->service->getAmlReport();
 
-        $this.assertEquals(1, $report->count());
-        $this.assertEquals($userC->id, $report->first()->user_id);
+        $this->assertEquals(1, $report->count());
+        $this->assertEquals($userC->id, $report->first()->user_id);
     }
 }

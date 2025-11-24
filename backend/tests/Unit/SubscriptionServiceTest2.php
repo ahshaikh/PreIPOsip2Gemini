@@ -50,48 +50,48 @@ class SubscriptionServiceTest extends TestCase
         $this->plan->update(['is_active' => false]);
         
         $this->expectException(\Exception::class);
-        $this.expectExceptionMessage("Plan '{$this.plan->name}' is not currently available.");
+        $this->expectExceptionMessage("Plan '{$this->plan->name}' is not currently available.");
 
-        $this.service->createSubscription($this.user, $this.plan);
+        $this->service->createSubscription($this->user, $this->plan);
     }
     
     /** @test */
     public function test_subscription_pause_max_pause_count_exceeded()
     {
-        $this.plan->update(['max_pause_count' => 2]);
+        $this->plan->update(['max_pause_count' => 2]);
         $sub = Subscription::factory()->create([
-            'user_id' => $this.user->id,
-            'plan_id' => $this.plan->id,
+            'user_id' => $this->user->id,
+            'plan_id' => $this->plan->id,
             'status' => 'active',
             'pause_count' => 2 // Already used 2
         ]);
         
-        $this.expectException(\Exception::class);
-        $this.expectExceptionMessage("You have reached the maximum of 2 pause requests");
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage("You have reached the maximum of 2 pause requests");
 
-        $this.service->pauseSubscription($sub, 1);
+        $this->service->pauseSubscription($sub, 1);
     }
 
     /** @test */
     public function test_subscription_pause_during_payment_processing()
     {
-        $sub = Subscription::factory()->create(['user_id' => $this.user->id, 'status' => 'active']);
+        $sub = Subscription::factory()->create(['user_id' => $this->user->id, 'status' => 'active']);
         Payment::factory()->create(['subscription_id' => $sub->id, 'status' => 'pending']);
         
-        $this.expectException(\Exception::class);
-        $this.expectExceptionMessage("Cannot pause while a payment is pending");
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage("Cannot pause while a payment is pending");
 
-        $this.service->pauseSubscription($sub, 1);
+        $this->service->pauseSubscription($sub, 1);
     }
 
     /** @test */
     public function test_subscription_upgrade_prorated_calculation_exact()
     {
-        $this.travelTo(Carbon::parse('2025-01-15')); // Mid-month
+        $this->travelTo(Carbon::parse('2025-01-15')); // Mid-month
         
         $sub = Subscription::factory()->create([
-            'user_id' => $this.user->id,
-            'plan_id' => $this.plan->id, // 1000/mo
+            'user_id' => $this->user->id,
+            'plan_id' => $this->plan->id, // 1000/mo
             'status' => 'active',
             'next_payment_date' => Carbon::parse('2025-01-31')
         ]);
@@ -100,37 +100,37 @@ class SubscriptionServiceTest extends TestCase
         $newPlan = Plan::factory()->create(['monthly_amount' => 4000]); // Diff=3000
         
         // Proration: (3000 / 30 days) * 16 days = 1600
-        $proratedAmount = $this.service->upgradePlan($sub, $newPlan);
+        $proratedAmount = $this->service->upgradePlan($sub, $newPlan);
 
-        $this.assertEquals(1600, $proratedAmount);
-        $this.assertDatabaseHas('payments', [
+        $this->assertEquals(1600, $proratedAmount);
+        $this->assertDatabaseHas('payments', [
             'subscription_id' => $sub->id,
             'amount' => 1600,
             'status' => 'pending'
         ]);
 
-        $this.travelBack();
+        $this->travelBack();
     }
 
     /** @test */
     public function test_subscription_cancel_with_pending_payments()
     {
-        $sub = Subscription::factory()->create(['user_id' => $this.user->id, 'status' => 'active']);
+        $sub = Subscription::factory()->create(['user_id' => $this->user->id, 'status' => 'active']);
         $pending = Payment::factory()->create(['subscription_id' => $sub->id, 'status' => 'pending']);
         
-        $this.service->cancelSubscription($sub, "Test");
+        $this->service->cancelSubscription($sub, "Test");
 
-        $this.assertEquals('cancelled', $sub->fresh()->status);
-        $this.assertEquals('failed', $pending->fresh()->status);
+        $this->assertEquals('cancelled', $sub->fresh()->status);
+        $this->assertEquals('failed', $pending->fresh()->status);
     }
     
     /** @test */
     public function test_subscription_next_payment_date_calculation_leap_year()
     {
-        $this.travelTo(Carbon::parse('2024-02-01')); // Leap Year
+        $this->travelTo(Carbon::parse('2024-02-01')); // Leap Year
         $sub = Subscription::factory()->create([
-            'user_id' => $this.user->id,
-            'plan_id' => $this.plan->id,
+            'user_id' => $this->user->id,
+            'plan_id' => $this->plan->id,
             'next_payment_date' => '2024-02-29'
         ]);
         
@@ -138,6 +138,6 @@ class SubscriptionServiceTest extends TestCase
         $newDate = $sub->next_payment_date->addMonth();
         
         // addMonth() on Feb 29 2024 results in Mar 29 2024
-        $this.assertEquals('2024-03-29', $newDate->toDateString());
+        $this->assertEquals('2024-03-29', $newDate->toDateString());
     }
 }

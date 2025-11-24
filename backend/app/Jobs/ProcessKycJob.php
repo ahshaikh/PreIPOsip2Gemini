@@ -30,7 +30,7 @@ class ProcessKycJob implements ShouldQueue
             $service->runAutomatedKyc($this->kyc);
         } catch (\Exception $e) {
             Log::error("Automated KYC Job Failed: " . $e->getMessage());
-            $this.kyc->update(['status' => 'rejected', 'rejection_reason' => 'Automated check failed. Please try again or contact support.']);
+            $this->kyc->update(['status' => 'rejected', 'rejection_reason' => 'Automated check failed. Please try again or contact support.']);
         }
     }
 }

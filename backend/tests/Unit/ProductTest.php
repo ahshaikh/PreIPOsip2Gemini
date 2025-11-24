@@ -31,7 +31,7 @@ class ProductTest extends TestCase
         BulkPurchase::factory()->create(['product_id' => $this->product->id]);
         
         $this->assertTrue($this->product->bulkPurchases()->exists());
-        $this->assertEquals(1, $this.product->bulkPurchases->count());
+        $this->assertEquals(1, $this->product->bulkPurchases->count());
     }
 
     /** @test */
@@ -51,23 +51,23 @@ class ProductTest extends TestCase
             'recorded_at' => now()->subDay()
         ]);
 
-        $this.assertTrue($this.product->priceHistory()->exists());
-        $this.assertEquals(100, $this.product->priceHistory->first()->price);
+        $this->assertTrue($this->product->priceHistory()->exists());
+        $this->assertEquals(100, $this->product->priceHistory->first()->price);
     }
 
     /** @test */
     public function test_product_slug_is_unique()
     {
-        $this.expectException(QueryException::class);
+        $this->expectException(QueryException::class);
         
-        Product::factory()->create(['slug' => $this.product->slug]); // Fails
+        Product::factory()->create(['slug' => $this->product->slug]); // Fails
     }
 
     /** @test */
     public function test_product_validates_face_value_positive()
     {
-        $this.expectException(\InvalidArgumentException::class);
-        $this.expectExceptionMessage("Face value must be positive");
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage("Face value must be positive");
 
         Product::factory()->create(['face_value_per_unit' => 0]);
     }
@@ -78,34 +78,34 @@ class ProductTest extends TestCase
         $validStatuses = ['active', 'upcoming', 'listed', 'closed'];
         
         $validator = Validator::make(['status' => 'active'], ['status' => 'in:' . implode(',', $validStatuses)]);
-        $this.assertTrue($validator->passes());
+        $this->assertTrue($validator->passes());
         
         $validator = Validator::make(['status' => 'sold_out'], ['status' => 'in:' . implode(',', $validStatuses)]);
-        $this.assertFalse($validator->passes());
+        $this->assertFalse($validator->passes());
     }
 
     /** @test */
     public function test_product_calculates_total_allocated()
     {
         // No allocations yet
-        $this.assertEquals(0, $this.product->total_allocated);
+        $this->assertEquals(0, $this->product->total_allocated);
         
         // Allocate
-        UserInvestment::factory()->create(['product_id' => $this.product->id, 'value_allocated' => 5000]);
-        UserInvestment::factory()->create(['product_id' => $this.product->id, 'value_allocated' => 3000]);
+        UserInvestment::factory()->create(['product_id' => $this->product->id, 'value_allocated' => 5000]);
+        UserInvestment::factory()->create(['product_id' => $this->product->id, 'value_allocated' => 3000]);
         
         // Use the accessor
-        $this.assertEquals(8000, $this.product->fresh()->total_allocated);
+        $this->assertEquals(8000, $this->product->fresh()->total_allocated);
     }
 
     /** @test */
     public function test_product_soft_deletes_correctly()
     {
-        $productId = $this.product->id;
+        $productId = $this->product->id;
         
-        $this.product->delete(); // Soft delete
+        $this->product->delete(); // Soft delete
 
-        $this.assertNull(Product::find($productId));
-        $this.assertNotNull(Product::withTrashed()->find($productId));
+        $this->assertNull(Product::find($productId));
+        $this->assertNotNull(Product::withTrashed()->find($productId));
     }
 }

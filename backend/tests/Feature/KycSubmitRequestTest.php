@@ -51,30 +51,30 @@ class KycSubmitRequestTest extends TestCase
         // Fails: Lowercase
         $this->assertFalse($this->validate($this->getValidData(['pan_number' => 'abcde1234f']))->passes());
         // Passes
-        $this.assertTrue($this.validate($this.getValidData(['pan_number' => 'GHIJK5678L']))->passes());
+        $this->assertTrue($this->validate($this->getValidData(['pan_number' => 'GHIJK5678L']))->passes());
     }
 
     /** @test */
     public function test_validates_aadhaar_format()
     {
         // Fails: Too short
-        $this.assertFalse($this.validate($this.getValidData(['aadhaar_number' => '1234']))->passes());
+        $this->assertFalse($this->validate($this->getValidData(['aadhaar_number' => '1234']))->passes());
         // Fails: Letters
-        $this.assertFalse($this.validate($this.getValidData(['aadhaar_number' => '12345678901A']))->passes());
+        $this->assertFalse($this->validate($this->getValidData(['aadhaar_number' => '12345678901A']))->passes());
         
         // Passes: 12 digits no space
-        $this.assertTrue($this.validate($this.getValidData(['aadhaar_number' => '123456789012']))->passes());
+        $this->assertTrue($this->validate($this->getValidData(['aadhaar_number' => '123456789012']))->passes());
         // Passes: 12 digits with spaces
-        $this.assertTrue($this.validate($this.getValidData(['aadhaar_number' => '1234 5678 9012']))->passes());
+        $this->assertTrue($this->validate($this->getValidData(['aadhaar_number' => '1234 5678 9012']))->passes());
     }
 
     /** @test */
     public function test_validates_bank_account_format()
     {
         // Fails: Required
-        $this.assertFalse($this.validate($this.getValidData(['bank_account' => '']))->passes());
+        $this->assertFalse($this->validate($this->getValidData(['bank_account' => '']))->passes());
         // Fails: Too short (min 9)
-        $this.assertFalse($this.validate($this.getValidData(['bank_account' => '123456']))->passes());
+        $this->assertFalse($this->validate($this->getValidData(['bank_account' => '123456']))->passes());
     }
 
     /** @test */
@@ -83,11 +83,11 @@ class KycSubmitRequestTest extends TestCase
         // Fails: Wrong format
         $this->assertFalse($this->validate($this->getValidData(['bank_ifsc' => 'HDFC1234567']))->passes());
         // Fails: Lowercase
-        $this.assertFalse($this.validate($this.getValidData(['bank_ifsc'_ => 'hdfc0001234']))->passes());
+        $this->assertFalse($this->validate($this->getValidData(['bank_ifsc'_ => 'hdfc0001234']))->passes());
         
         // Passes
-        $this.assertTrue($this.validate($this.getValidData(['bank_ifsc' => 'SBIN0000123']))->passes());
-        $this.assertTrue($this.validate($this.getValidData(['bank_ifsc' => 'ICIC000ABCD']))->passes());
+        $this->assertTrue($this->validate($this->getValidData(['bank_ifsc' => 'SBIN0000123']))->passes());
+        $this->assertTrue($this->validate($this->getValidData(['bank_ifsc' => 'ICIC000ABCD']))->passes());
     }
 
     /** @test */
@@ -104,36 +104,36 @@ class KycSubmitRequestTest extends TestCase
             'bank_proof' => UploadedFile::fake()->pdf('bank.pdf'),
             'demat_proof' => UploadedFile::fake()->pdf('demat.pdf'),
         ];
-        $this.assertFalse(Validator::make($payload, $rules)->passes());
+        $this->assertFalse(Validator::make($payload, $rules)->passes());
         
         // 2. Fails: Invalid MIME type (e.g., a .zip file)
-        $payload = $this.getValidData() + [
+        $payload = $this->getValidData() + [
             'aadhaar_front' => UploadedFile::fake()->image('front.jpg'),
             'aadhaar_back' => UploadedFile::fake()->image('back.jpg'),
             'pan' => UploadedFile::fake()->create('document.zip', 100), // Invalid
             'bank_proof' => UploadedFile::fake()->pdf('bank.pdf'),
             'demat_proof' => UploadedFile::fake()->pdf('demat.pdf'),
         ];
-        $this.assertFalse(Validator::make($payload, $rules)->passes());
+        $this->assertFalse(Validator::make($payload, $rules)->passes());
         
         // 3. Fails: File too large (max 5MB)
-        $payload = $this.getValidData() + [
+        $payload = $this->getValidData() + [
             'aadhaar_front' => UploadedFile::fake()->image('front.jpg'),
             'aadhaar_back' => UploadedFile::fake()->image('back.jpg'),
             'pan' => UploadedFile::fake()->create('large.pdf', 6000), // 6MB
             'bank_proof' => UploadedFile::fake()->pdf('bank.pdf'),
             'demat_proof' => UploadedFile::fake()->pdf('demat.pdf'),
         ];
-        $this.assertFalse(Validator::make($payload, $rules)->passes());
+        $this->assertFalse(Validator::make($payload, $rules)->passes());
         
         // 4. Passes: All present and valid
-        $payload = $this.getValidData() + [
+        $payload = $this->getValidData() + [
             'aadhaar_front' => UploadedFile::fake()->image('front.jpg'),
             'aadhaar_back' => UploadedFile::fake()->image('back.jpg'),
             'pan' => UploadedFile::fake()->create('pan.pdf', 1000),
             'bank_proof' => UploadedFile::fake()->pdf('bank.pdf'),
             'demat_proof' => UploadedFile::fake()->pdf('demat.pdf'),
         ];
-        $this.assertTrue(Validator::make($payload, $rules)->passes());
+        $this->assertTrue(Validator::make($payload, $rules)->passes());
     }
 }

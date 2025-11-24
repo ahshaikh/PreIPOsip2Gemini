@@ -42,9 +42,9 @@ class InventoryServiceTest extends TestCase
             'value_remaining' => 50000
         ]));
 
-        $available = $this.service->getAvailableInventory($this.product);
+        $available = $this->service->getAvailableInventory($this->product);
         
-        $this.assertEquals(150000, $available);
+        $this->assertEquals(150000, $available);
     }
 
     /** @test */
@@ -52,21 +52,21 @@ class InventoryServiceTest extends TestCase
     {
         // 100k Total, 10k Remaining (10% Left, 90% Sold)
         BulkPurchase::create(BulkPurchase::factory()->raw([
-            'product_id' => $this.product->id,
+            'product_id' => $this->product->id,
             'total_value_received' => 100000,
             'value_remaining' => 10000
         ]));
 
-        $this.assertTrue($this.service->checkLowStock($this.product));
+        $this->assertTrue($this->service->checkLowStock($this->product));
 
         // 100k Total, 11k Remaining (11% Left, 89% Sold)
         BulkPurchase::create(BulkPurchase::factory()->raw([
-            'product_id' => $this.product->id,
+            'product_id' => $this->product->id,
             'total_value_received' => 100000,
             'value_remaining' => 11000
         ]));
 
-        $this.assertFalse($this.service->checkLowStock($this.product));
+        $this->assertFalse($this->service->checkLowStock($this->product));
     }
 
     /** @test */
@@ -74,24 +74,24 @@ class InventoryServiceTest extends TestCase
     {
         // 1. Inventory: 30,000 available
         BulkPurchase::create(BulkPurchase::factory()->raw([
-            'product_id' => $this.product->id,
+            'product_id' => $this->product->id,
             'total_value_received' => 100000,
             'value_remaining' => 30000
         ]));
 
         // 2. Allocation Rate: 30,000 allocated in last 30 days
         UserInvestment::factory()->create([
-            'product_id' => $this.product->id,
+            'product_id' => $this->product->id,
             'value_allocated' => 10000,
             'created_at' => now()->subDays(5)
         ]);
         UserInvestment::factory()->create([
-            'product_id' => $this.product->id,
+            'product_id' => $this->product->id,
             'value_allocated' => 10000,
             'created_at' => now()->subDays(10)
         ]);
         UserInvestment::factory()->create([
-            'product_id' => $this.product->id,
+            'product_id' => $this->product->id,
             'value_allocated' => 10000,
             'created_at' => now()->subDays(15)
         ]);
@@ -100,8 +100,8 @@ class InventoryServiceTest extends TestCase
         // Daily Burn Rate = 30,000 / 30 = 1000
         // Days Remaining = 30,000 / 1000 = 30
         
-        $suggestion = $this.service->getReorderSuggestion($this.product);
+        $suggestion = $this->service->getReorderSuggestion($this->product);
 
-        $this.assertStringContainsString("30 days", $suggestion);
+        $this->assertStringContainsString("30 days", $suggestion);
     }
 }

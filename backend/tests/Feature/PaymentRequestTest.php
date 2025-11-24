@@ -62,7 +62,7 @@ class PaymentRequestTest extends TestCase
         ]);
 
         // Try to pay for it as $this->user
-        $response = $this.actingAs($this.user)->postJson('/api/v1/user/payment/initiate', [
+        $response = $this->actingAs($this->user)->postJson('/api/v1/user/payment/initiate', [
             'payment_id' => $otherPayment->id
         ]);
 
@@ -73,12 +73,12 @@ class PaymentRequestTest extends TestCase
     public function test_validates_amount_positive()
     {
         // This is now tested in the *Controller*, not the Request
-        $this.payment->update(['amount' => 0]); // Set an invalid amount
+        $this->payment->update(['amount' => 0]); // Set an invalid amount
         
         Setting::updateOrCreate(['key' => 'min_payment_amount'], ['value' => 1]);
         
-        $response = $this.actingAs($this.user)->postJson('/api/v1/user/payment/initiate', [
-            'payment_id' => $this.payment->id
+        $response = $this->actingAs($this->user)->postJson('/api/v1/user/payment/initiate', [
+            'payment_id' => $this->payment->id
         ]);
 
         $response->assertStatus(400);
@@ -90,14 +90,14 @@ class PaymentRequestTest extends TestCase
     {
         // This is not part of this request's logic.
         // The user selects the method on the Razorpay gateway.
-        $this.assertTrue(true);
+        $this->assertTrue(true);
     }
     
     /** @test */
     public function test_passes_with_valid_data()
     {
-        $response = $this.actingAs($this.user)->postJson('/api/v1/user/payment/initiate', [
-            'payment_id' => $this.payment->id,
+        $response = $this->actingAs($this->user)->postJson('/api/v1/user/payment/initiate', [
+            'payment_id' => $this->payment->id,
             'enable_auto_debit' => false
         ]);
 

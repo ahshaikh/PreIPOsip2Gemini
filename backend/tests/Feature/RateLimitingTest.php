@@ -83,7 +83,7 @@ class RateLimitingTest extends TestCase
         $this->travel(61)->seconds();
 
         // 7th attempt should now be allowed (and fail with 422, not 429)
-        $response = $this.postJson('/api/v1/login', ['login' => 'a']);
+        $response = $this->postJson('/api/v1/login', ['login' => 'a']);
         
         $response->assertStatus(422);
         $response->assertHeader('X-RateLimit-Remaining', 4);

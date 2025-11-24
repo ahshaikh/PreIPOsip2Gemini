@@ -93,23 +93,23 @@ class ServiceIntegrationTest extends TestCase
             'next_payment_date' => now()->addDays(15) // Halfway
         ]);
         
-        $service = $this.app->make(\App\Services\SubscriptionService::class);
+        $service = $this->app->make(\App\Services\SubscriptionService::class);
         
         // (4000-1000) / 30 * 15 = 1500
         $amount = $service->upgradePlan($sub, $planB);
 
-        $this.assertEquals(1500, $amount);
-        $this.assertDatabaseHas('payments', ['amount' => 1500, 'gateway' => 'upgrade_charge']);
+        $this->assertEquals(1500, $amount);
+        $this->assertDatabaseHas('payments', ['amount' => 1500, 'gateway' => 'upgrade_charge']);
     }
     
     /** @test */
     public function test_file_upload_service_validates_file_types()
     {
-        $service = $this.app->make(FileUploadService::class);
+        $service = $this->app->make(FileUploadService::class);
         $fakeFile = UploadedFile::fake()->create('document.zip', 100);
 
-        $this.expectException(\Exception::class);
-        $this.expectExceptionMessage("File validation failed: The file field must be a file of type: jpg, jpeg, png, pdf.");
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage("File validation failed: The file field must be a file of type: jpg, jpeg, png, pdf.");
 
         $service->upload($fakeFile); // Default mimes
     }
@@ -117,12 +117,12 @@ class ServiceIntegrationTest extends TestCase
     /** @test */
     public function test_file_upload_service_scans_for_viruses()
     {
-        $service = $this.app->make(FileUploadService::class);
+        $service = $this->app->make(FileUploadService::class);
         // We use the "eicar" standard test file name to trigger the mock scanner
         $virusFile = UploadedFile::fake()->create('eicar.com', 100);
 
-        $this.expectException(\Exception::class);
-        $this.expectExceptionMessage("Malware detected in file.");
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage("Malware detected in file.");
 
         $service->upload($virusFile);
     }
@@ -131,7 +131,7 @@ class ServiceIntegrationTest extends TestCase
     public function test_file_upload_service_encrypts_sensitive_files()
     {
         Storage::fake('public');
-        $service = $this.app->make(FileUploadService::class);
+        $service = $this->app->make(FileUploadService::class);
         $file = UploadedFile::fake()->create('secret.txt', 1, 'text/plain');
         
         $path = $service->upload($file, [
@@ -143,10 +143,10 @@ class ServiceIntegrationTest extends TestCase
         $rawContent = Storage::disk('public')->get($path);
         
         // 2. Assert it is NOT the original content
-        $this.assertNotEquals('a', $rawContent);
+        $this->assertNotEquals('a', $rawContent);
         
         // 3. Assert we can decrypt it to get original content
-        $this.assertEquals('a', Crypt::decrypt($rawContent));
+        $this->assertEquals('a', Crypt::decrypt($rawContent));
     }
 
     /** @test */
@@ -158,14 +158,14 @@ class ServiceIntegrationTest extends TestCase
         Setting::create(['key' => 'test_cache', 'value' => 'old']);
 
         // 1. Call helper, which caches 'old'
-        $this.assertEquals('old', setting('test_cache'));
+        $this->assertEquals('old', setting('test_cache'));
 
         // 2. Admin updates the setting
-        $this.actingAs($admin)->putJson('/api/v1/admin/settings', [
+        $this->actingAs($admin)->putJson('/api/v1/admin/settings', [
             'settings' => [ ['key' => 'test_cache', 'value' => 'new'] ]
         ]);
 
         // 3. Call helper again. Cache should be busted.
-        $this.assertEquals('new', setting('test_cache'));
+        $this->assertEquals('new', setting('test_cache'));
     }
 }

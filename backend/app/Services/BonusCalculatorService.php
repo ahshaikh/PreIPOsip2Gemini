@@ -15,14 +15,25 @@ class BonusCalculatorService
      * Main orchestrator to calculate all 7 bonus types.
      * Returns the total bonus amount.
      */
+    // Maximum allowed bonus multiplier to prevent fraud (configurable via settings)
+    private const MAX_MULTIPLIER_CAP = 10.0;
+
     public function calculateAndAwardBonuses(Payment $payment): float
     {
         $subscription = $payment->subscription->load('plan.configs');
         $user = $payment->user;
         $plan = $subscription->plan;
-        
+
         $totalBonus = 0;
-        $multiplier = (float) $subscription->bonus_multiplier;
+
+        // --- SECURITY: Cap the multiplier to prevent fraud ---
+        $maxMultiplier = (float) setting('max_bonus_multiplier', self::MAX_MULTIPLIER_CAP);
+        $rawMultiplier = (float) $subscription->bonus_multiplier;
+        $multiplier = min($rawMultiplier, $maxMultiplier);
+
+        if ($rawMultiplier > $maxMultiplier) {
+            Log::warning("Bonus multiplier capped for Subscription {$subscription->id}: {$rawMultiplier} -> {$multiplier}");
+        }
 
         // 1. Progressive Monthly Bonus
         if (setting('progressive_bonus_enabled', true)) {

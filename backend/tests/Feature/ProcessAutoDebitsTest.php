@@ -24,13 +24,13 @@ class ProcessAutoDebitsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this.seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
-        $this.seed(\Database\Seeders\SettingsSeeder::class);
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $this->seed(\Database\Seeders\SettingsSeeder::class);
 
         // Mock the AutoDebitService in the container
         // This is called BEFORE the Artisan command, so the command
         // will receive our FAKE service.
-        $this.serviceMock = $this.mock(AutoDebitService::class);
+        $this->serviceMock = $this->mock(AutoDebitService::class);
     }
 
     /** @test */
@@ -49,21 +49,21 @@ class ProcessAutoDebitsTest extends TestCase
 
         // 2. Mock Expectations
         // Expect the service's "getDueSubscriptions" method to be called once...
-        $this.serviceMock->shouldReceive('getDueSubscriptions')
+        $this->serviceMock->shouldReceive('getDueSubscriptions')
             ->once()
             ->andReturn($dueSubs); // ...and return our 2 fake subscriptions.
         
         // Expect "attemptAutoDebit" to be called for EACH of them
-        $this.serviceMock->shouldReceive('attemptAutoDebit')
+        $this->serviceMock->shouldReceive('attemptAutoDebit')
             ->twice()
             ->andReturn(true); // Simulate success
             
         // Expect "sendReminders" to be called
-        $this.serviceMock->shouldReceive('sendReminders')->once();
+        $this->serviceMock->shouldReceive('sendReminders')->once();
 
         // 3. Act
         // Run the Artisan command
-        $this.artisan('app:process-auto-debits');
+        $this->artisan('app:process-auto-debits');
     }
 
     /** @test */
@@ -74,11 +74,11 @@ class ProcessAutoDebitsTest extends TestCase
         $user = User::factory()->create();
         $dueSubs = Subscription::factory()->count(3)->create(['user_id' => $user->id]);
 
-        $this.serviceMock->shouldReceive('getDueSubscriptions')->once()->andReturn($dueSubs);
-        $this.serviceMock->shouldReceive('attemptAutoDebit')->times(3)->andReturn(true);
-        $this.serviceMock->shouldReceive('sendReminders')->once();
+        $this->serviceMock->shouldReceive('getDueSubscriptions')->once()->andReturn($dueSubs);
+        $this->serviceMock->shouldReceive('attemptAutoDebit')->times(3)->andReturn(true);
+        $this->serviceMock->shouldReceive('sendReminders')->once();
         
-        $this.artisan('app:process-auto-debits');
+        $this->artisan('app:process-auto-debits');
     }
 
     /** @test */
@@ -91,32 +91,32 @@ class ProcessAutoDebitsTest extends TestCase
         $user = User::factory()->create();
         $sub = Subscription::factory()->create(['user_id' => $user->id]);
 
-        $this.serviceMock->shouldReceive('getDueSubscriptions')->once()->andReturn(collect([$sub]));
-        $this.serviceMock->shouldReceive('sendReminders')->once();
+        $this->serviceMock->shouldReceive('getDueSubscriptions')->once()->andReturn(collect([$sub]));
+        $this->serviceMock->shouldReceive('sendReminders')->once();
         
         // Force 'attemptAutoDebit' to return FALSE (payment failed)
-        $this.serviceMock->shouldReceive('attemptAutoDebit')
+        $this->serviceMock->shouldReceive('attemptAutoDebit')
             ->once()
             ->with($sub)
             ->andReturn(false); // FAILED
 
-        $this.artisan('app:process-auto-debits');
+        $this->artisan('app:process-auto-debits');
         
         // We CANNOT test if RetryAutoDebitJob was dispatched because
         // the *service* is mocked. We test this logic in the 
         // AutoDebitServiceTest. This test *proves* the command calls the service.
-        $this.assertTrue(true); // Assertion is in the mock expectations
+        $this->assertTrue(true); // Assertion is in the mock expectations
     }
 
     /** @test */
     public function test_sends_reminder_before_due_date()
     {
         // This test verifies the command calls the reminder function.
-        $this.serviceMock->shouldReceive('getDueSubscriptions')->once()->andReturn(collect([]));
-        $this.serviceMock->shouldReceive('sendReminders')->once()->andReturn(3); // 3 reminders sent
+        $this->serviceMock->shouldReceive('getDueSubscriptions')->once()->andReturn(collect([]));
+        $this->serviceMock->shouldReceive('sendReminders')->once()->andReturn(3); // 3 reminders sent
 
         // Run the command and expect its output
-        $this.artisan('app:process-auto-debits')
+        $this->artisan('app:process-auto-debits')
              ->expectsOutput('Starting auto-debit process...')
              ->expectsOutput('Found 0 subscriptions due.')
              ->expectsOutput('Sent 3 payment reminders.')
@@ -128,7 +128,7 @@ class ProcessAutoDebitsTest extends TestCase
     {
         // This logic is in the Retry Job, not the main command.
         // We test this in AutoDebitServiceTest.
-        $this.markTestSkipped(
+        $this->markTestSkipped(
             'Suspension logic is in RetryAutoDebitJob, not the main command. Tested in AutoDebitServiceTest.'
         );
     }

@@ -19,8 +19,8 @@ class UserNotificationEndpointsTest extends TestCase
         parent::setUp();
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
         
-        $this.user = User::factory()->create();
-        $this.user->assignRole('user');
+        $this->user = User::factory()->create();
+        $this->user->assignRole('user');
     }
 
     /**
@@ -32,7 +32,7 @@ class UserNotificationEndpointsTest extends TestCase
             'id' => \Illuminate\Support\Str::uuid(),
             'type' => 'TestNotification',
             'notifiable_type' => User::class,
-            'notifiable_id' => $this.user->id,
+            'notifiable_id' => $this->user->id,
             'data' => ['title' => 'Test', 'message' => 'This is a test'],
             'read_at' => $read ? now() : null,
         ]);
@@ -41,10 +41,10 @@ class UserNotificationEndpointsTest extends TestCase
     /** @test */
     public function testGetNotificationsReturnsUserNotifications()
     {
-        $this.createNotification();
-        $this.createNotification();
+        $this->createNotification();
+        $this->createNotification();
 
-        $response = $this.actingAs($this.user)->getJson('/api/v1/user/notifications');
+        $response = $this->actingAs($this->user)->getJson('/api/v1/user/notifications');
         
         $response->assertStatus(200);
         $response->assertJsonCount(2, 'data');
@@ -53,39 +53,39 @@ class UserNotificationEndpointsTest extends TestCase
     /** @test */
     public function testMarkNotificationAsRead()
     {
-        $notification = $this.createNotification(false); // Unread
-        $this.assertNull($notification->read_at);
+        $notification = $this->createNotification(false); // Unread
+        $this->assertNull($notification->read_at);
 
-        $response = $this.actingAs($this.user)->postJson("/api/v1/user/notifications/{$notification->id}/read");
+        $response = $this->actingAs($this->user)->postJson("/api/v1/user/notifications/{$notification->id}/read");
         
         $response->assertStatus(200);
-        $this.assertNotNull($notification->fresh()->read_at);
+        $this->assertNotNull($notification->fresh()->read_at);
     }
 
     /** @test */
     public function testMarkAllNotificationsAsRead()
     {
-        $this.createNotification(false);
-        $this.createNotification(false);
+        $this->createNotification(false);
+        $this->createNotification(false);
         
-        $this.assertEquals(2, $this.user->unreadNotifications()->count());
+        $this->assertEquals(2, $this->user->unreadNotifications()->count());
         
-        $response = $this.actingAs($this.user)->postJson("/api/v1/user/notifications/mark-all-read");
+        $response = $this->actingAs($this->user)->postJson("/api/v1/user/notifications/mark-all-read");
         
         $response->assertStatus(200);
-        $this.assertEquals(0, $this.user->unreadNotifications()->count());
+        $this->assertEquals(0, $this->user->unreadNotifications()->count());
     }
 
     /** @test */
     public function testDeleteNotification()
     {
-        $notification = $this.createNotification();
-        $this.assertDatabaseHas('notifications', ['id' => $notification->id]);
+        $notification = $this->createNotification();
+        $this->assertDatabaseHas('notifications', ['id' => $notification->id]);
         
-        $response = $this.actingAs($this.user)->deleteJson("/api/v1/user/notifications/{$notification->id}");
+        $response = $this->actingAs($this->user)->deleteJson("/api/v1/user/notifications/{$notification->id}");
         
         $response->assertStatus(200);
-        $this.assertDatabaseMissing('notifications', ['id' => $notification->id]);
+        $this->assertDatabaseMissing('notifications', ['id' => $notification->id]);
     }
 
     /** @test */
@@ -93,10 +93,10 @@ class UserNotificationEndpointsTest extends TestCase
     {
         // Create 25 notifications
         for ($i = 0; $i < 25; $i++) {
-            $this.createNotification();
+            $this->createNotification();
         }
 
-        $response = $this.actingAs($this.user)->getJson('/api/v1/user/notifications');
+        $response = $this->actingAs($this->user)->getJson('/api/v1/user/notifications');
         
         $response->assertStatus(200);
         $response->assertJsonCount(20, 'data'); // Default page size is 20

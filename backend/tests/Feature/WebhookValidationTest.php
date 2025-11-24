@@ -25,14 +25,14 @@ class WebhookValidationTest extends TestCase
     {
         parent::setUp();
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
-        $this.seed(\Database\Seeders\SettingsSeeder::class);
+        $this->seed(\Database\Seeders\SettingsSeeder::class);
         
         $this->user = User::factory()->create();
-        $this.subscription = Subscription::factory()->create(['user_id' => $this->user->id]);
+        $this->subscription = Subscription::factory()->create(['user_id' => $this->user->id]);
 
         // Mock the RazorpayService in the service container
         // This is used by the WebhookController to verify signatures
-        $this.razorpayMock = $this.mock(RazorpayService::class);
+        $this->razorpayMock = $this->mock(RazorpayService::class);
     }
 
     /**
@@ -78,7 +78,7 @@ class WebhookValidationTest extends TestCase
     public function testInvalidSignatureRejected()
     {
         // 1. Arrange: Tell the mock service to return FALSE
-        $this.razorpayMock->shouldReceive('verifyWebhookSignature')
+        $this->razorpayMock->shouldReceive('verifyWebhookSignature')
             ->once()
             ->andReturn(false);
 
@@ -107,8 +107,8 @@ class WebhookValidationTest extends TestCase
 
         // Create the pending payment in the DB
         $payment = Payment::factory()->create([
-            'user_id' => $this.user->id,
-            'subscription_id' => $this.subscription->id,
+            'user_id' => $this->user->id,
+            'subscription_id' => $this->subscription->id,
             'gateway_order_id' => 'order_idem_123',
             'status' => 'pending'
         ]);
@@ -120,10 +120,10 @@ class WebhookValidationTest extends TestCase
 
         // 3. Assert: Job was pushed, payment is 'paid'
         Queue::assertPushed(ProcessSuccessfulPaymentJob::class, 1);
-        $this.assertEquals('paid', $payment->fresh()->status);
+        $this->assertEquals('paid', $payment->fresh()->status);
         
         // 4. Act: Second call (The "Duplicate" event)
-        $this.postJson('/api/v1/webhooks/razorpay', $payload, ['X-Razorpay-Signature' => 'valid']);
+        $this->postJson('/api/v1/webhooks/razorpay', $payload, ['X-Razorpay-Signature' => 'valid']);
 
         // 5. Assert: No *new* job was pushed
         // The service should have seen the payment was already 'paid' and stopped.
@@ -135,7 +135,7 @@ class WebhookValidationTest extends TestCase
     {
         // This is the same functional test as Idempotency.
         // A "retry" from Razorpay is just a duplicate event.
-        $this.markTestSkipped(
+        $this->markTestSkipped(
             'Covered by testWebhookIdempotency, as a retry is a duplicate event.'
         );
     }

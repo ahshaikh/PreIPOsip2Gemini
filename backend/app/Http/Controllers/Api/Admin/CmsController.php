@@ -1,5 +1,5 @@
 <?php
-// V-FINAL-1730-242 (Created) | V-FINAL-1730-515 | V-FINAL-1730-518 (V2.0 Banners)
+// V-FINAL-1730-242 (Created) | V-FINAL-1730-515 | V-FINAL-1730-518 (V2.0 Banners) | V-SECURITY-FIX (XSS Prevention)
 
 namespace App\Http\Controllers\Api\Admin;
 
@@ -10,9 +10,30 @@ use App\Models\Banner;
 use App\Models\Redirect;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class CmsController extends Controller
 {
+    /**
+     * Custom validation for safe URLs (blocks javascript: and data: protocols).
+     */
+    private function safeUrlRule(): array
+    {
+        return ['nullable', 'string', 'max:2048', function ($attribute, $value, $fail) {
+            if (!$value) return;
+
+            // Only allow http, https, and relative paths
+            $parsed = parse_url($value);
+            if (isset($parsed['scheme']) && !in_array(strtolower($parsed['scheme']), ['http', 'https'])) {
+                $fail("The $attribute must use http or https protocol.");
+            }
+
+            // Block javascript: and data: even if parse_url doesn't catch them
+            if (preg_match('/^(javascript|data|vbscript):/i', $value)) {
+                $fail("The $attribute contains an invalid protocol.");
+            }
+        }];
+    }
     // --- MENU MANAGEMENT (FSD-FRONT-003) ---
     public function getMenus()
     {
@@ -24,7 +45,7 @@ class CmsController extends Controller
         $validated = $request->validate([
             'items' => 'required|array',
             'items.*.label' => 'required|string',
-            'items.*.url' => 'required|string',
+            'items.*.url' => ['required', ...$this->safeUrlRule()],
             'items.*.parent_id' => 'nullable|integer',
         ]);
 
@@ -50,12 +71,12 @@ class CmsController extends Controller
 
     public function storeBanner(Request $request)
     {
-        // V2.0 Validation
+        // V2.0 Validation (with XSS-safe URL validation)
         $validated = $request->validate([
             'title' => 'required|string',
             'type' => 'required|in:top_bar,popup',
             'content' => 'required|string',
-            'link_url' => 'nullable|url',
+            'link_url' => $this->safeUrlRule(),
             'is_active' => 'boolean',
             'trigger_type' => 'required|in:load,time_delay,scroll,exit_intent',
             'trigger_value' => 'required|integer|min:0',
@@ -70,12 +91,12 @@ class CmsController extends Controller
 
     public function updateBanner(Request $request, Banner $banner)
     {
-        // V2.0 Update
+        // V2.0 Update (with XSS-safe URL validation)
         $validated = $request->validate([
             'title' => 'required|string',
             'type' => 'required|in:top_bar,popup',
             'content' => 'required|string',
-            'link_url' => 'nullable|url',
+            'link_url' => $this->safeUrlRule(),
             'is_active' => 'boolean',
             'trigger_type' => 'required|in:load,time_delay,scroll,exit_intent',
             'trigger_value' => 'required|integer|min:0',
@@ -103,8 +124,8 @@ class CmsController extends Controller
     public function storeRedirect(Request $request)
     {
         $validated = $request->validate([
-            'from_url' => 'required|string|unique:redirects,from_url',
-            'to_url' => 'required|string',
+            'from_url' => 'required|string|max:2048|unique:redirects,from_url',
+            'to_url' => ['required', ...$this->safeUrlRule()],
             'status_code' => 'required|in:301,302'
         ]);
         
