@@ -39,7 +39,7 @@ class Captcha implements Rule
     }
     public function message() { return 'The CAPTCHA verification failed. Please try again.'; }
     public function validate($attribute, $value, $fail) {
-        if (!$this.passes($attribute, $value)) $fail($this.message());
+        if (!$this->passes($attribute, $value)) $fail($this->message());
     }
 }
 

@@ -133,6 +133,13 @@ class PaymentController extends Controller
             return response()->json(['message' => 'Payment is not in pending state.'], 400);
         }
 
+        // --- SECURITY: Validate amount limits on manual payments too ---
+        $min = setting('min_payment_amount', 1);
+        $max = setting('max_payment_amount', 1000000);
+        if ($payment->amount < $min || $payment->amount > $max) {
+            return response()->json(['message' => "Payment amount must be between ₹$min and ₹$max."], 400);
+        }
+
         $path = $request->file('payment_proof')->store("payment_proofs/{$user->id}", 'public');
 
         $payment->update([

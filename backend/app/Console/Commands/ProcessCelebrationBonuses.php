@@ -25,10 +25,10 @@ class ProcessCelebrationBonuses extends Command
         $today = Carbon::today();
         
         $this->processBirthdayBonuses($today, $walletService);
-        $this.processAnniversaryBonuses($today, $walletService);
-        $this.processFestivalBonuses($today, $walletService);
+        $this->processAnniversaryBonuses($today, $walletService);
+        $this->processFestivalBonuses($today, $walletService);
         
-        $this.info('Celebration bonuses processed successfully.');
+        $this->info('Celebration bonuses processed successfully.');
         return 0;
     }
 

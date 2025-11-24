@@ -29,16 +29,16 @@ class ReferralServiceTest extends TestCase
     {
         parent::setUp();
         $this->service = new ReferralService();
-        $this.seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
-        $this.seed(\Database\Seeders\PlanSeeder::class); // Seeds 5-tier system
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $this->seed(\Database\Seeders\PlanSeeder::class); // Seeds 5-tier system
 
         // Create main user (referrer) and their subscription
-        $this.referrer = User::factory()->create();
-        $this.referrer->wallet()->create(['balance' => 0]); // Ensure wallet exists
-        $this.planA = Plan::first();
+        $this->referrer = User::factory()->create();
+        $this->referrer->wallet()->create(['balance' => 0]); // Ensure wallet exists
+        $this->planA = Plan::first();
         Subscription::factory()->create([
-            'user_id' => $this.referrer->id,
-            'plan_id' => $this.planA->id,
+            'user_id' => $this->referrer->id,
+            'plan_id' => $this->planA->id,
             'bonus_multiplier' => 1.0 // Default
         ]);
     }
@@ -51,7 +51,7 @@ class ReferralServiceTest extends TestCase
         $referees = User::factory()->count($count)->create();
         foreach ($referees as $referee) {
             Referral::create([
-                'referrer_id' => $this.referrer->id,
+                'referrer_id' => $this->referrer->id,
                 'referred_id' => $referee->id,
                 'status' => 'completed'
             ]);
@@ -62,28 +62,28 @@ class ReferralServiceTest extends TestCase
     public function test_calculate_multiplier_based_on_count()
     {
         // 0 referrals
-        $this.service->updateReferrerMultiplier($this.referrer);
-        $this.assertEquals(1.0, $this.referrer->subscription->fresh()->bonus_multiplier);
+        $this->service->updateReferrerMultiplier($this->referrer);
+        $this->assertEquals(1.0, $this->referrer->subscription->fresh()->bonus_multiplier);
 
         // 3 referrals
-        $this.createReferrals(3);
-        $this.service->updateReferrerMultiplier($this.referrer);
-        $this.assertEquals(1.5, $this.referrer->subscription->fresh()->bonus_multiplier);
+        $this->createReferrals(3);
+        $this->service->updateReferrerMultiplier($this->referrer);
+        $this->assertEquals(1.5, $this->referrer->subscription->fresh()->bonus_multiplier);
 
         // 5 referrals
-        $this.createReferrals(2); // (Total 5)
-        $this.service->updateReferrerMultiplier($this.referrer);
-        $this.assertEquals(2.0, $this.referrer->subscription->fresh()->bonus_multiplier);
+        $this->createReferrals(2); // (Total 5)
+        $this->service->updateReferrerMultiplier($this->referrer);
+        $this->assertEquals(2.0, $this->referrer->subscription->fresh()->bonus_multiplier);
 
         // 10 referrals
-        $this.createReferrals(5); // (Total 10)
-        $this.service->updateReferrerMultiplier($this.referrer);
-        $this.assertEquals(2.5, $this.referrer->subscription->fresh()->bonus_multiplier);
+        $this->createReferrals(5); // (Total 10)
+        $this->service->updateReferrerMultiplier($this->referrer);
+        $this->assertEquals(2.5, $this->referrer->subscription->fresh()->bonus_multiplier);
 
         // 20 referrals
-        $this.createReferrals(10); // (Total 20)
-        $this.service->updateReferrerMultiplier($this.referrer);
-        $this.assertEquals(3.0, $this.referrer->subscription->fresh()->bonus_multiplier);
+        $this->createReferrals(10); // (Total 20)
+        $this->service->updateReferrerMultiplier($this->referrer);
+        $this->assertEquals(3.0, $this->referrer->subscription->fresh()->bonus_multiplier);
     }
 
     /** @test */
@@ -95,31 +95,31 @@ class ReferralServiceTest extends TestCase
         // 1. Create a "pending" referral
         $referee = User::factory()->create();
         Referral::create([
-            'referrer_id' => $this.referrer->id,
+            'referrer_id' => $this->referrer->id,
             'referred_id' => $referee->id,
             'status' => 'pending'
         ]);
         
-        $this.assertEquals(1.0, $this.referrer->subscription->fresh()->bonus_multiplier);
+        $this->assertEquals(1.0, $this->referrer->subscription->fresh()->bonus_multiplier);
 
         // 2. Run the Job
         $job = new ProcessReferralJob($referee);
-        $this.service = new ReferralService(); // Need a fresh instance for injection
-        $job->handle($this.service);
+        $this->service = new ReferralService(); // Need a fresh instance for injection
+        $job->handle($this->service);
         
         // 3. Assert
         // The user now has 1 referral, which is < 3, so multiplier stays 1.0
-        $this.assertEquals(1.0, $this.referrer->subscription->fresh()->bonus_multiplier);
+        $this->assertEquals(1.0, $this->referrer->subscription->fresh()->bonus_multiplier);
         
         // 4. Now, test the upgrade
         // Create 2 more completed referrals
-        $this.createReferrals(2);
+        $this->createReferrals(2);
         
         // Run the Job for the first referee again (it won't run, but we re-run the service logic)
-        $this.service->updateReferrerMultiplier($this.referrer);
+        $this->service->updateReferrerMultiplier($this->referrer);
         
         // Total referrals = 1 + 2 = 3. Multiplier should be 1.5x
-        $this.assertEquals(1.5, $this.referrer->subscription->fresh()->bonus_multiplier);
+        $this->assertEquals(1.5, $this->referrer->subscription->fresh()->bonus_multiplier);
     }
 
     /** @test */
@@ -136,29 +136,29 @@ class ReferralServiceTest extends TestCase
         // 2. Create a pending referral
         $referee = User::factory()->create();
         Referral::create([
-            'referrer_id' => $this.referrer->id,
+            'referrer_id' => $this->referrer->id,
             'referred_id' => $referee->id,
             'status' => 'pending'
         ]);
 
         // 3. Run the Job
         $job = new ProcessReferralJob($referee);
-        $this.service = new ReferralService();
-        $job->handle($this.service);
+        $this->service = new ReferralService();
+        $job->handle($this->service);
         
         // 4. Assert
         // A. Bonus Amount: 500 (base) + 1000 (campaign) = 1500
-        $this.assertDatabaseHas('wallets', [
-            'user_id' => $this.referrer->id,
+        $this->assertDatabaseHas('wallets', [
+            'user_id' => $this->referrer->id,
             'balance' => 1500
         ]);
-        $this.assertDatabaseHas('bonus_transactions', [
-            'user_id' => $this.referrer->id,
+        $this->assertDatabaseHas('bonus_transactions', [
+            'user_id' => $this->referrer->id,
             'amount' => 1500,
             'description' => "Referral Bonus: {$referee->username} (Campaign: {$campaign->name})"
         ]);
 
         // B. Multiplier: Should be 5.0x (from campaign), not 1.0x (from tiers)
-        $this.assertEquals(5.0, $this.referrer->subscription->fresh()->bonus_multiplier);
+        $this->assertEquals(5.0, $this->referrer->subscription->fresh()->bonus_multiplier);
     }
 }

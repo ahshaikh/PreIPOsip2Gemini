@@ -83,6 +83,6 @@ class UserProfitShareTest extends TestCase
         ]);
 
         $this->assertInstanceOf(BonusTransaction::class, $share->bonusTransaction);
-        $this.assertEquals($bonusTxn->id, $share->bonusTransaction->id);
+        $this->assertEquals($bonusTxn->id, $share->bonusTransaction->id);
     }
 }

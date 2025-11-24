@@ -38,23 +38,48 @@ class Wallet extends Model
     }
 
     // --- ACCESSORS ---
+    // Note: Use Wallet::with('transactions') when loading multiple wallets to avoid N+1
 
     protected function availableBalance(): Attribute
     {
         return Attribute::make(get: fn () => $this->balance);
     }
 
+    /**
+     * Get total deposited amount.
+     * N+1 SAFE: Uses eager-loaded transactions if available, falls back to query.
+     */
     protected function totalDeposited(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->transactions()->whereIn('type', ['deposit', 'admin_adjustment', 'bonus_credit', 'refund'])->where('amount', '>', 0)->sum('amount')
+            get: function () {
+                if ($this->relationLoaded('transactions')) {
+                    return $this->transactions
+                        ->whereIn('type', ['deposit', 'admin_adjustment', 'bonus_credit', 'refund'])
+                        ->where('amount', '>', 0)
+                        ->sum('amount');
+                }
+                return $this->transactions()
+                    ->whereIn('type', ['deposit', 'admin_adjustment', 'bonus_credit', 'refund'])
+                    ->where('amount', '>', 0)
+                    ->sum('amount');
+            }
         );
     }
 
+    /**
+     * Get total withdrawn amount.
+     * N+1 SAFE: Uses eager-loaded transactions if available, falls back to query.
+     */
     protected function totalWithdrawn(): Attribute
     {
         return Attribute::make(
-            get: fn () => abs($this->transactions()->where('type', 'withdrawal')->sum('amount'))
+            get: function () {
+                if ($this->relationLoaded('transactions')) {
+                    return abs($this->transactions->where('type', 'withdrawal')->sum('amount'));
+                }
+                return abs($this->transactions()->where('type', 'withdrawal')->sum('amount'));
+            }
         );
     }
 

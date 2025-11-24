@@ -52,13 +52,14 @@ class SubscriptionService
         }
 
         // 3. Create Records
+        // V-SECURITY-FIX: Subscription starts as 'pending' until first payment is confirmed
         return DB::transaction(function () use ($user, $plan, $finalAmount) {
             $sub = Subscription::create([
                 'user_id' => $user->id,
                 'plan_id' => $plan->id,
                 'amount' => $finalAmount,
                 'subscription_code' => 'SUB-' . uniqid(),
-                'status' => 'active',
+                'status' => 'pending', // Changed from 'active' - will be activated after first payment
                 'start_date' => now(),
                 'end_date' => now()->addMonths($plan->duration_months),
                 'next_payment_date' => now(),

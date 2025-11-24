@@ -71,8 +71,8 @@ class OtpService
             throw new \Exception("OTP has expired.");
         }
 
-        // 4. Check Code
-        if ($otp->otp_code === $code) {
+        // 4. Check Code - V-SECURITY-FIX: Use hash_equals to prevent timing attacks
+        if (hash_equals($otp->otp_code, $code)) {
             $otp->delete(); // Success! Verify complete.
             return true;
         }

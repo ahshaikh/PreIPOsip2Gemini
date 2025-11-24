@@ -32,32 +32,32 @@ class ProcessNotificationJob implements ShouldQueue
     {
         // 1. Add global variables
         $this->variables['user_name'] = $this->user->username;
-        $this.variables['user_email'] = $this->user->email;
-        $this.variables['site_name'] = setting('site_name', 'PreIPO SIP');
+        $this->variables['user_email'] = $this->user->email;
+        $this->variables['site_name'] = setting('site_name', 'PreIPO SIP');
 
         // 2. Route to correct channel
-        if ($this.channel === 'email') {
-            $template = EmailTemplate::where('slug', $this.templateSlug)->first();
+        if ($this->channel === 'email') {
+            $template = EmailTemplate::where('slug', $this->templateSlug)->first();
             if (!$template) return;
 
-            $subject = $this->replace($template->subject, $this.variables);
-            $body = $this.replace($template->body, $this.variables);
+            $subject = $this->replace($template->subject, $this->variables);
+            $body = $this->replace($template->body, $this->variables);
             
             // Note: This reuses the EmailService's *internal* sender, which handles logging.
             // A more advanced refactor would have this job call a Mailer directly.
             // This is a testable compromise.
-            $emailService->sendRaw($this.user, $subject, $body, $this.templateSlug);
+            $emailService->sendRaw($this->user, $subject, $body, $this->templateSlug);
 
         } 
-        elseif ($this.channel === 'sms') {
-            $template = SmsTemplate::where('slug', $this.templateSlug)->first();
+        elseif ($this->channel === 'sms') {
+            $template = SmsTemplate::where('slug', $this->templateSlug)->first();
             if (!$template) return;
 
-            $message = $this->replace($template->body, $this.variables);
+            $message = $this->replace($template->body, $this->variables);
             $dltId = $template->dlt_template_id;
             
             // This reuses the SmsService's *internal* sender, which handles logging.
-            $smsService->send($this.user, $message, $this.templateSlug, $dltId);
+            $smsService->send($this->user, $message, $this->templateSlug, $dltId);
         }
     }
 

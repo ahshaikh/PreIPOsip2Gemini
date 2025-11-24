@@ -1,5 +1,5 @@
 <?php
-// V-DEPLOY-1730-007 (Created) | V-FINAL-1730-418 (Perms Added) | V-FINAL-1730-600 (Test Seeder)
+// V-DEPLOY-1730-007 (Created) | V-FINAL-1730-418 (Perms Added) | V-FINAL-1730-600 (Test Seeder) | V-SEEDER-ENHANCED
 
 namespace Database\Seeders;
 
@@ -23,10 +23,22 @@ class DatabaseSeeder extends Seeder
         $this->call(ProductSeeder::class);
         $this->call(HomePageSeeder::class);
 
-        // 3. Admin User
+        // 3. Communication Templates
+        $this->call(EmailTemplateSeeder::class);
+        $this->call(SmsTemplateSeeder::class);
+
+        // 4. Support & Operations Data
+        $this->call(KycRejectionTemplateSeeder::class);
+        $this->call(CannedResponseSeeder::class);
+        $this->call(FaqSeeder::class);
+
+        // 5. Feature Flags
+        $this->call(FeatureFlagSeeder::class);
+
+        // 6. Admin User
         $this->call(UserSeeder::class); // Creates the Super Admin
 
-        // 4. --- NEW: "Chaos Seeder" ---
+        // 7. --- "Chaos Seeder" ---
         // Only run this in 'local' or 'staging' environments
         if (App::environment(['local', 'staging'])) {
             $this->call(TestDataSetSeeder::class);

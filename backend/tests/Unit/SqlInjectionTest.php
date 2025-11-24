@@ -1,11 +1,10 @@
 <?php
+// V-TEST-FIX-007 (Namespace corrected for Laravel)
 
-namespace App\Tests\Security;
+namespace Tests\Unit;
 
-use PHPUnit\Framework\TestCase;
-// This often requires mocking the database layer.
-use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Driver\Statement;
+use Tests\TestCase;
+use Mockery;
 
 class SqlInjectionTest extends TestCase
 {

@@ -92,22 +92,63 @@ class AdminUserController extends Controller
     }
 
     /**
-     * Display the specified user with ALL details ("God View").
+     * Display the specified user with admin-relevant details.
+     * SECURITY: Data is filtered to prevent excessive exposure.
      */
     public function show(User $user)
     {
-        // Load every relationship relevant to admin oversight
+        // Load relationships with controlled data
         $user->load([
-            'profile', 
-            'kyc.documents', 
-            'wallet.transactions' => fn($q) => $q->latest()->limit(20), 
-            'subscription.plan', 
-            'activityLogs' => fn($q) => $q->latest()->limit(50),
-            'referrals',
-            'tickets' => fn($q) => $q->latest()->limit(10)
+            'profile',
+            'kyc.documents',
+            'wallet',
+            'subscription.plan',
         ]);
-        
-        return response()->json($user);
+
+        // Build a controlled response (don't expose everything)
+        return response()->json([
+            'id' => $user->id,
+            'username' => $user->username,
+            'email' => $user->email,
+            'mobile' => $user->mobile,
+            'status' => $user->status,
+            'email_verified_at' => $user->email_verified_at,
+            'mobile_verified_at' => $user->mobile_verified_at,
+            'created_at' => $user->created_at,
+            'profile' => $user->profile ? [
+                'first_name' => $user->profile->first_name,
+                'last_name' => $user->profile->last_name,
+                'avatar_url' => $user->profile->avatar_url,
+                'city' => $user->profile->city,
+                'state' => $user->profile->state,
+            ] : null,
+            'kyc' => $user->kyc ? [
+                'status' => $user->kyc->status,
+                'pan_number' => $user->kyc->pan_number ? '****' . substr($user->kyc->pan_number, -4) : null,
+                'verified_at' => $user->kyc->verified_at,
+                'rejection_reason' => $user->kyc->rejection_reason,
+                'documents_count' => $user->kyc->documents?->count() ?? 0,
+            ] : null,
+            'wallet' => $user->wallet ? [
+                'balance' => $user->wallet->balance,
+                'locked_balance' => $user->wallet->locked_balance,
+            ] : null,
+            'subscription' => $user->subscription ? [
+                'id' => $user->subscription->id,
+                'status' => $user->subscription->status,
+                'plan_name' => $user->subscription->plan?->name,
+                'monthly_amount' => $user->subscription->monthly_amount,
+                'starts_at' => $user->subscription->starts_at,
+                'consecutive_payments_count' => $user->subscription->consecutive_payments_count,
+            ] : null,
+            // Summary counts instead of full data
+            'stats' => [
+                'total_payments' => $user->subscription?->payments()->count() ?? 0,
+                'total_bonuses' => BonusTransaction::where('user_id', $user->id)->sum('amount'),
+                'referral_count' => $user->referrals()->count(),
+                'open_tickets' => $user->tickets()->where('status', 'open')->count(),
+            ],
+        ]);
     }
 
     /**
@@ -214,44 +255,115 @@ class AdminUserController extends Controller
     }
 
     /**
+     * Expected CSV headers for user import.
+     */
+    private const EXPECTED_CSV_HEADERS = ['username', 'email', 'mobile'];
+
+    /**
      * Import users from a CSV file.
+     * SECURITY: Validates headers before processing.
      */
     public function import(Request $request)
     {
-        $request->validate(['file' => 'required|file|mimes:csv,txt']);
+        $request->validate(['file' => 'required|file|mimes:csv,txt|max:5120']); // Max 5MB
 
         $file = $request->file('file');
         $handle = fopen($file->getPathname(), 'r');
-        $header = fgetcsv($handle); // Skip header
+
+        // --- SECURITY: Validate CSV headers ---
+        $header = fgetcsv($handle);
+        if (!$header || count($header) < 3) {
+            fclose($handle);
+            return response()->json([
+                'message' => 'Invalid CSV format. Expected headers: ' . implode(', ', self::EXPECTED_CSV_HEADERS)
+            ], 422);
+        }
+
+        // Normalize headers (lowercase, trim)
+        $normalizedHeaders = array_map(fn($h) => strtolower(trim($h)), $header);
+
+        // Check required headers exist
+        foreach (self::EXPECTED_CSV_HEADERS as $required) {
+            if (!in_array($required, $normalizedHeaders)) {
+                fclose($handle);
+                return response()->json([
+                    'message' => "Missing required column: '$required'. Expected headers: " . implode(', ', self::EXPECTED_CSV_HEADERS)
+                ], 422);
+            }
+        }
+
+        // Map header positions
+        $columnMap = [
+            'username' => array_search('username', $normalizedHeaders),
+            'email' => array_search('email', $normalizedHeaders),
+            'mobile' => array_search('mobile', $normalizedHeaders),
+        ];
+        // --- END HEADER VALIDATION ---
 
         $imported = 0;
         $skipped = 0;
+        $errors = [];
+        $lineNumber = 1; // Header was line 1
+
         DB::beginTransaction();
         try {
             while (($row = fgetcsv($handle)) !== false) {
-                // Assuming CSV: Username, Email, Mobile
+                $lineNumber++;
+
+                // Skip empty rows
+                if (empty(array_filter($row))) {
+                    continue;
+                }
+
+                // Validate row has enough columns
                 if (count($row) < 3) {
+                    $errors[] = "Line $lineNumber: Insufficient columns";
+                    $skipped++;
+                    continue;
+                }
+
+                $username = trim($row[$columnMap['username']] ?? '');
+                $email = trim($row[$columnMap['email']] ?? '');
+                $mobile = trim($row[$columnMap['mobile']] ?? '');
+
+                // Validate required fields
+                if (empty($username) || empty($email) || empty($mobile)) {
+                    $errors[] = "Line $lineNumber: Missing required field(s)";
+                    $skipped++;
+                    continue;
+                }
+
+                // Validate email format
+                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $errors[] = "Line $lineNumber: Invalid email format";
+                    $skipped++;
+                    continue;
+                }
+
+                // Validate mobile format (10 digits)
+                if (!preg_match('/^[0-9]{10}$/', $mobile)) {
+                    $errors[] = "Line $lineNumber: Invalid mobile format (expected 10 digits)";
                     $skipped++;
                     continue;
                 }
 
                 // Skip if user already exists
-                if (User::where('email', $row[1])->orWhere('mobile', $row[2])->exists()) {
+                if (User::where('email', $email)->orWhere('mobile', $mobile)->exists()) {
+                    $errors[] = "Line $lineNumber: User with email/mobile already exists";
                     $skipped++;
                     continue;
                 }
 
-                // Generate a secure random password for each user
+                // Generate a secure random password
                 $randomPassword = Str::random(12) . Str::random(4, '!@#$%^&*');
 
                 $user = User::create([
-                    'username' => $row[0],
-                    'email' => $row[1],
-                    'mobile' => $row[2],
+                    'username' => $username,
+                    'email' => $email,
+                    'mobile' => $mobile,
                     'password' => Hash::make($randomPassword),
                     'referral_code' => Str::upper(Str::random(10)),
                     'status' => 'active',
-                    // Don't auto-verify - let users verify their own email/mobile
                     'email_verified_at' => null,
                     'mobile_verified_at' => null,
                 ]);
@@ -261,7 +373,7 @@ class AdminUserController extends Controller
                 Wallet::create(['user_id' => $user->id]);
                 $user->assignRole('user');
 
-                // Send password reset email so user can set their own password
+                // Send password reset email
                 $user->sendPasswordResetNotification(
                     app('auth.password.broker')->createToken($user)
                 );
@@ -270,10 +382,12 @@ class AdminUserController extends Controller
             }
             DB::commit();
             fclose($handle);
+
             return response()->json([
                 'message' => "Imported $imported users successfully. Password reset emails have been sent.",
                 'imported' => $imported,
-                'skipped' => $skipped
+                'skipped' => $skipped,
+                'errors' => array_slice($errors, 0, 10), // Return first 10 errors
             ]);
         } catch (\Exception $e) {
             DB::rollBack();

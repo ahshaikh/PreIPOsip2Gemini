@@ -104,7 +104,7 @@ class BonusCalculatorCelebrationTest extends TestCase
         // Travel to both users' anniversary (Nov 14)
         $this->travelTo(Carbon::parse('2025-11-14'));
 
-        $this.artisan('app:process-celebration-bonuses');
+        $this->artisan('app:process-celebration-bonuses');
 
         // User A (2 years)
         $this->assertDatabaseHas('bonus_transactions', [
@@ -124,7 +124,7 @@ class BonusCalculatorCelebrationTest extends TestCase
     {
         $this->travelTo(Carbon::parse('2025-11-14'));
 
-        $this.artisan('app:process-celebration-bonuses');
+        $this->artisan('app:process-celebration-bonuses');
 
         // User A: Plan A (100 base) * 2 years = 200
         $this->assertDatabaseHas('bonus_transactions', [
@@ -152,7 +152,7 @@ class BonusCalculatorCelebrationTest extends TestCase
             ]
         ]);
 
-        $this.artisan('app:process-celebration-bonuses');
+        $this->artisan('app:process-celebration-bonuses');
 
         // User A gets 25
         $this->assertDatabaseHas('bonus_transactions', [
@@ -174,9 +174,9 @@ class BonusCalculatorCelebrationTest extends TestCase
     {
         Setting::updateOrCreate(['key' => 'celebration_bonus_enabled'], ['value' => 'false']);
         
-        $this.travelTo(Carbon::parse('2025-11-14')); // Both birthday and anniversary
+        $this->travelTo(Carbon::parse('2025-11-14')); // Both birthday and anniversary
         
-        $this.artisan('app:process-celebration-bonuses');
+        $this->artisan('app:process-celebration-bonuses');
 
         $this->assertDatabaseMissing('bonus_transactions', ['type' => 'celebration']);
     }

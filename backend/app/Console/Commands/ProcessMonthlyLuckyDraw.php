@@ -104,7 +104,7 @@ class ProcessMonthlyLuckyDraw extends Command
             $this->info("Draw executed. " . count($winnerUserIds) . " winners paid.");
 
         } catch (\Exception $e) {
-            $this.error("Draw Execution Failed: " . $e->getMessage());
+            $this->error("Draw Execution Failed: " . $e->getMessage());
             $draw->update(['status' => 'failed']);
         }
     }

@@ -29,16 +29,16 @@ class UserSupportEndpointsTest extends TestCase
         $this->user->assignRole('user');
         
         $this->otherUser = User::factory()->create();
-        $this.otherUser->assignRole('user');
+        $this->otherUser->assignRole('user');
         
-        $this.admin = User::factory()->create();
-        $this.admin->assignRole('admin');
+        $this->admin = User::factory()->create();
+        $this->admin->assignRole('admin');
     }
     
     private function seedDatabase()
     {
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
-        $this.seed(\Database\Seeders\SettingsSeeder::class);
+        $this->seed(\Database\Seeders\SettingsSeeder::class);
     }
 
     private function getValidTicketData()
@@ -55,15 +55,15 @@ class UserSupportEndpointsTest extends TestCase
     public function testUserCanCreateTicket()
     {
         $response = $this->actingAs($this->user)->postJson('/api/v1/user/support-tickets', 
-            $this.getValidTicketData()
+            $this->getValidTicketData()
         );
 
         $response->assertStatus(201);
-        $this.assertDatabaseHas('support_tickets', [
-            'user_id' => $this.user->id,
+        $this->assertDatabaseHas('support_tickets', [
+            'user_id' => $this->user->id,
             'subject' => 'Test Ticket Subject'
         ]);
-        $this.assertDatabaseHas('support_messages', [
+        $this->assertDatabaseHas('support_messages', [
             'message' => 'This is a test message with more than 20 characters.'
         ]);
     }
@@ -73,7 +73,7 @@ class UserSupportEndpointsTest extends TestCase
     {
         SupportTicket::factory()->create(['user_id' => $this->user->id]);
         
-        $response = $this.actingAs($this.user)->getJson('/api/v1/user/support-tickets');
+        $response = $this->actingAs($this->user)->getJson('/api/v1/user/support-tickets');
         
         $response->assertStatus(200);
         $response->assertJsonCount(1, 'data');
@@ -84,12 +84,12 @@ class UserSupportEndpointsTest extends TestCase
     {
         $ticket = SupportTicket::factory()->create(['user_id' => $this->user->id]);
 
-        $response = $this.actingAs($this.user)->postJson("/api/v1/user/support-tickets/{$ticket->id}/reply", [
+        $response = $this->actingAs($this->user)->postJson("/api/v1/user/support-tickets/{$ticket->id}/reply", [
             'message' => 'This is my reply.'
         ]);
 
         $response->assertStatus(201);
-        $this.assertDatabaseHas('support_messages', [
+        $this->assertDatabaseHas('support_messages', [
             'support_ticket_id' => $ticket->id,
             'message' => 'This is my reply.',
             'is_admin_reply' => false
@@ -101,18 +101,18 @@ class UserSupportEndpointsTest extends TestCase
     {
         $ticket = SupportTicket::factory()->create(['user_id' => $this->user->id, 'status' => 'open']);
 
-        $response = $this.actingAs($this.user)->postJson("/api/v1/user/support-tickets/{$ticket->id}/close");
+        $response = $this->actingAs($this->user)->postJson("/api/v1/user/support-tickets/{$ticket->id}/close");
         
         $response->assertStatus(200);
-        $this.assertEquals('resolved', $ticket->fresh()->status);
+        $this->assertEquals('resolved', $ticket->fresh()->status);
     }
 
     /** @test */
     public function testUserCannotViewOtherUsersTickets()
     {
-        $otherTicket = SupportTicket::factory()->create(['user_id' => $this.otherUser->id]);
+        $otherTicket = SupportTicket::factory()->create(['user_id' => $this->otherUser->id]);
 
-        $response = $this.actingAs($this.user)->getJson("/api/v1/user/support-tickets/{$otherTicket->id}");
+        $response = $this->actingAs($this->user)->getJson("/api/v1/user/support-tickets/{$otherTicket->id}");
         
         $response->assertStatus(403); // Forbidden
     }
@@ -122,14 +122,14 @@ class UserSupportEndpointsTest extends TestCase
     {
         Storage::fake('public');
         
-        $payload = $this.getValidTicketData() + [
+        $payload = $this->getValidTicketData() + [
             'attachment' => UploadedFile::fake()->create('proof.pdf', 1000)
         ];
 
-        $response = $this.actingAs($this.user)->postJson('/api/v1/user/support-tickets', $payload);
+        $response = $this->actingAs($this->user)->postJson('/api/v1/user/support-tickets', $payload);
 
         $response->assertStatus(201);
-        $this.assertDatabaseHas('support_messages', [
+        $this->assertDatabaseHas('support_messages', [
             'attachments' => '["support\/' . $response->json('id') . '\/proof.pdf"]'
         ]);
     }
@@ -140,26 +140,26 @@ class UserSupportEndpointsTest extends TestCase
         Notification::fake();
         $ticket = SupportTicket::factory()->create(['user_id' => $this->user->id]);
 
-        $response = $this.actingAs($this.admin)->postJson("/api/v1/admin/support-tickets/{$ticket->id}/reply", [
+        $response = $this->actingAs($this->admin)->postJson("/api/v1/admin/support-tickets/{$ticket->id}/reply", [
             'message' => 'This is an admin reply.'
         ]);
 
         $response->assertStatus(201);
-        Notification::assertSentTo($this.user, SupportReplyNotification::class);
+        Notification::assertSentTo($this->user, SupportReplyNotification::class);
     }
 
     /** @test */
     public function testUserCanRateTicketResolution()
     {
-        $ticket = SupportTicket::factory()->create(['user_id' => $this.user->id, 'status' => 'resolved']);
+        $ticket = SupportTicket::factory()->create(['user_id' => $this->user->id, 'status' => 'resolved']);
 
-        $response = $this.actingAs($this.user)->postJson("/api/v1/user/support-tickets/{$ticket->id}/rate", [
+        $response = $this->actingAs($this->user)->postJson("/api/v1/user/support-tickets/{$ticket->id}/rate", [
             'rating' => 5,
             'rating_feedback' => 'Great service!'
         ]);
 
         $response->assertStatus(200);
-        $this.assertDatabaseHas('support_tickets', [
+        $this->assertDatabaseHas('support_tickets', [
             'id' => $ticket->id,
             'rating' => 5,
             'rating_feedback' => 'Great service!'

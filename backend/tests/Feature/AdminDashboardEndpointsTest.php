@@ -75,7 +75,7 @@ class AdminDashboardEndpointsTest extends TestCase
         UserKyc::factory()->create(['status' => 'submitted']);
         UserKyc::factory()->create(['status' => 'verified']);
         
-        $response = $this.actingAs($this.admin)->getJson('/api/v1/admin/dashboard');
+        $response = $this->actingAs($this->admin)->getJson('/api/v1/admin/dashboard');
         
         $response->assertJsonPath('kpis.pending_kyc', 2);
     }
@@ -86,7 +86,7 @@ class AdminDashboardEndpointsTest extends TestCase
         Withdrawal::factory()->create(['status' => 'pending']);
         Withdrawal::factory()->create(['status' => 'completed']);
         
-        $response = $this.actingAs($this.admin)->getJson('/api/v1/admin/dashboard');
+        $response = $this->actingAs($this->admin)->getJson('/api/v1/admin/dashboard');
         
         $response->assertJsonPath('kpis.pending_withdrawals', 1);
     }
@@ -98,7 +98,7 @@ class AdminDashboardEndpointsTest extends TestCase
         Payment::factory()->create(['status' => 'paid', 'amount' => 1000]);
         UserKyc::factory()->create(['status' => 'submitted']);
         
-        $response = $this.actingAs($this.admin)->getJson('/api/v1/admin/dashboard');
+        $response = $this->actingAs($this->admin)->getJson('/api/v1/admin/dashboard');
         
         $response->assertStatus(200);
         $response->assertJson([
@@ -117,7 +117,7 @@ class AdminDashboardEndpointsTest extends TestCase
         ActivityLog::factory()->create(['description' => 'User logged in']);
         ActivityLog::factory()->create(['description' => 'Payment failed']);
         
-        $response = $this.actingAs($this.admin)->getJson('/api/v1/admin/dashboard');
+        $response = $this->actingAs($this->admin)->getJson('/api/v1/admin/dashboard');
         
         $response->assertStatus(200);
         $response->assertJsonCount(2, 'recent_activity');
@@ -130,7 +130,7 @@ class AdminDashboardEndpointsTest extends TestCase
         Payment::factory()->create(['status' => 'paid', 'amount' => 1234, 'paid_at' => now()->subDays(2)]);
         User::factory()->create(['created_at' => now()->subDays(3)]);
 
-        $response = $this.actingAs($this.admin)->getJson('/api/v1/admin/dashboard');
+        $response = $this->actingAs($this->admin)->getJson('/api/v1/admin/dashboard');
         
         $response->assertStatus(200);
         $response->assertJsonCount(1, 'charts.revenue_over_time');
@@ -143,12 +143,12 @@ class AdminDashboardEndpointsTest extends TestCase
     {
         // Note: This test is environment-dependent, but we can check it's not critically slow.
         $startTime = microtime(true);
-        $this.actingAs($this.admin)->getJson('/api/v1/admin/dashboard');
+        $this->actingAs($this->admin)->getJson('/api/v1/admin/dashboard');
         $endTime = microtime(true);
         
         $duration = ($endTime - $startTime) * 1000; // in milliseconds
 
-        $this.assertLessThan(500, $duration, "Dashboard took over 500ms to respond.");
+        $this->assertLessThan(500, $duration, "Dashboard took over 500ms to respond.");
     }
 
     /** @test */
@@ -157,14 +157,14 @@ class AdminDashboardEndpointsTest extends TestCase
         // This isn't a true concurrency test, but it ensures that
         // multiple requests don't corrupt the cache or data.
         
-        $this.actingAs($this.admin)->getJson('/api/v1/admin/dashboard')->assertStatus(200);
-        $this.actingAs($this.admin)->getJson('/api/v1/admin/dashboard')->assertStatus(200);
+        $this->actingAs($this->admin)->getJson('/api/v1/admin/dashboard')->assertStatus(200);
+        $this->actingAs($this->admin)->getJson('/api/v1/admin/dashboard')->assertStatus(200);
 
         // We can also test the cache is used
         Cache::shouldReceive('remember')
             ->once() // The second call should hit the cache
             ->andReturn(['kpis' => [], 'charts' => [], 'recent_activity' => []]);
 
-        $this.actingAs($this.admin)->getJson('/api/v1/admin/dashboard');
+        $this->actingAs($this->admin)->getJson('/api/v1/admin/dashboard');
     }
 }

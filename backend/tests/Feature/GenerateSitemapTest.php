@@ -51,7 +51,7 @@ class GenerateSitemapTest extends TestCase
              ->assertExitCode(0);
 
         // Check that the file was created
-        $this.assertFileExists($this.sitemapPath);
+        $this->assertFileExists($this->sitemapPath);
     }
 
     /** @test */
@@ -64,9 +64,9 @@ class GenerateSitemapTest extends TestCase
         // Check for core static pages
         $this->assertStringContainsString('<loc>' . env('FRONTEND_URL') . '/</loc>', $content);
         $this->assertStringContainsString('<loc>' . env('FRONTEND_URL') . '/plans</loc>', $content);
-        $this.assertStringContainsString('<loc>' . env('FRONTEND_URL') . '/contact</loc>', $content);
-        $this.assertStringContainsString('<loc>' . env('FRONTEND_URL') . '/faq</loc>', $content);
-        $this.assertStringContainsString('<loc>' . env('FRONTEND_URL') . '/login</loc>', $content);
+        $this->assertStringContainsString('<loc>' . env('FRONTEND_URL') . '/contact</loc>', $content);
+        $this->assertStringContainsString('<loc>' . env('FRONTEND_URL') . '/faq</loc>', $content);
+        $this->assertStringContainsString('<loc>' . env('FRONTEND_URL') . '/login</loc>', $content);
     }
 
     /** @test */
@@ -97,17 +97,17 @@ class GenerateSitemapTest extends TestCase
         ]);
 
         // 3. Run the command
-        $this.artisan('sitemap:generate');
+        $this->artisan('sitemap:generate');
         
         // 4. Check the file content
-        $content = File::get($this.sitemapPath);
+        $content = File::get($this->sitemapPath);
 
         // Assert Published content IS included
-        $this.assertStringContainsString($publishedPage->slug, $content);
-        $this.assertStringContainsString($publishedPost->slug, $content);
+        $this->assertStringContainsString($publishedPage->slug, $content);
+        $this->assertStringContainsString($publishedPost->slug, $content);
         
         // Assert Draft content is NOT included
-        $this.assertStringNotContainsString('draft-page', $content);
-        $this.assertStringNotContainsString('draft-post', $content);
+        $this->assertStringNotContainsString('draft-page', $content);
+        $this->assertStringNotContainsString('draft-post', $content);
     }
 }

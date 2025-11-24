@@ -22,12 +22,12 @@ class UserWithdrawalEndpointTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this.seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
         
-        $this.user = User::factory()->create();
+        $this->user = User::factory()->create();
         $this->user->assignRole('user');
-        $this.user->kyc->update(['status' => 'verified']);
-        $this.wallet = Wallet::create(['user_id' => $this.user->id, 'balance' => 10000]); // 10k balance
+        $this->user->kyc->update(['status' => 'verified']);
+        $this->wallet = Wallet::create(['user_id' => $this->user->id, 'balance' => 10000]); // 10k balance
         
         Setting::create(['key' => 'min_withdrawal_amount', 'value' => 1000]);
     }
@@ -43,8 +43,8 @@ class UserWithdrawalEndpointTest extends TestCase
     /** @test */
     public function testUserCanRequestWithdrawal()
     {
-        $response = $this.actingAs($this.user)->postJson('/api/v1/user/wallet/withdraw',
-            $this.getValidData()
+        $response = $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw',
+            $this->getValidData()
         );
         $response->assertStatus(200);
         $response->assertJson(['message' => 'Withdrawal request submitted for approval.']);
@@ -53,8 +53,8 @@ class UserWithdrawalEndpointTest extends TestCase
     /** @test */
     public function testUserCannotWithdrawMoreThanBalance()
     {
-        $response = $this.actingAs($this.user)->postJson('/api/v1/user/wallet/withdraw',
-            $this.getValidData(['amount' => 11000]) // Balance is 10k
+        $response = $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw',
+            $this->getValidData(['amount' => 11000]) // Balance is 10k
         );
         $response->assertStatus(422); // Validation error
         $response->assertJsonValidationErrors('amount', 'Insufficient funds');
@@ -63,39 +63,39 @@ class UserWithdrawalEndpointTest extends TestCase
     /** @test */
     public function testWithdrawalLocksBalance()
     {
-        $this.actingAs($this.user)->postJson('/api/v1/user/wallet/withdraw',
-            $this.getValidData(['amount' => 3000])
+        $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw',
+            $this->getValidData(['amount' => 3000])
         );
         
-        $this.assertEquals(7000, $this.wallet->fresh()->balance);
-        $this.assertEquals(3000, $this.wallet->fresh()->locked_balance);
+        $this->assertEquals(7000, $this->wallet->fresh()->balance);
+        $this->assertEquals(3000, $this->wallet->fresh()->locked_balance);
     }
 
     /** @test */
     public function testUserCanCancelPendingWithdrawal()
     {
         // 1. Create the withdrawal
-        $this.actingAs($this.user)->postJson('/api/v1/user/wallet/withdraw', $this.getValidData(['amount' => 2000]));
-        $this.assertEquals(8000, $this.wallet->fresh()->balance);
-        $this.assertEquals(2000, $this.wallet->fresh()->locked_balance);
+        $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw', $this->getValidData(['amount' => 2000]));
+        $this->assertEquals(8000, $this->wallet->fresh()->balance);
+        $this->assertEquals(2000, $this->wallet->fresh()->locked_balance);
         $withdrawal = Withdrawal::first();
 
         // 2. Cancel it
-        $response = $this.actingAs($this.user)->postJson("/api/v1/user/withdrawals/{$withdrawal->id}/cancel");
+        $response = $this->actingAs($this->user)->postJson("/api/v1/user/withdrawals/{$withdrawal->id}/cancel");
         $response->assertStatus(200);
 
         // 3. Check wallet (funds returned)
-        $this.assertEquals(10000, $this.wallet->fresh()->balance);
-        $this.assertEquals(0, $this.wallet->fresh()->locked_balance);
-        $this.assertEquals('cancelled', $withdrawal->fresh()->status);
+        $this->assertEquals(10000, $this->wallet->fresh()->balance);
+        $this->assertEquals(0, $this->wallet->fresh()->locked_balance);
+        $this->assertEquals('cancelled', $withdrawal->fresh()->status);
     }
 
     /** @test */
     public function testUserCanViewWithdrawalHistory()
     {
-        $this.actingAs($this.user)->postJson('/api/v1/user/wallet/withdraw', $this.getValidData());
+        $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw', $this->getValidData());
         
-        $response = $this.actingAs($this.user)->getJson('/api/v1/user/withdrawals');
+        $response = $this->actingAs($this->user)->getJson('/api/v1/user/withdrawals');
         
         $response->assertStatus(200);
         $response->assertJsonCount(1, 'data');
@@ -105,8 +105,8 @@ class UserWithdrawalEndpointTest extends TestCase
     /** @test */
     public function testWithdrawalRequiresBankDetails()
     {
-        $response = $this.actingAs($this.user)->postJson('/api/v1/user/wallet/withdraw',
-            $this.getValidData(['bank_details' => []])
+        $response = $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw',
+            $this->getValidData(['bank_details' => []])
         );
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['bank_details.account', 'bank_details.ifsc']);
@@ -115,8 +115,8 @@ class UserWithdrawalEndpointTest extends TestCase
     /** @test */
     public function testWithdrawalRespectsMinimumAmount()
     {
-        $response = $this.actingAs($this.user)->postJson('/api/v1/user/wallet/withdraw',
-            $this.getValidData(['amount' => 500]) // Min is 1000
+        $response = $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw',
+            $this->getValidData(['amount' => 500]) // Min is 1000
         );
         $response->assertStatus(422);
         $response->assertJsonValidationErrors('amount');
@@ -127,11 +127,11 @@ class UserWithdrawalEndpointTest extends TestCase
     {
         // 5 requests should be OK (422 for balance, but not 429)
         for ($i = 0; $i < 5; $i++) {
-            $this.actingAs($this.user)->postJson('/api/v1/user/wallet/withdraw', $this.getValidData(['amount' => 10001]));
+            $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw', $this->getValidData(['amount' => 10001]));
         }
         
         // 6th request should be blocked
-        $response = $this.actingAs($this.user)->postJson('/api/v1/user/wallet/withdraw', $this.getValidData());
+        $response = $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw', $this->getValidData());
         $response->assertStatus(429); // Too Many Requests
     }
 
@@ -140,14 +140,14 @@ class UserWithdrawalEndpointTest extends TestCase
     {
         Notification::fake();
 
-        $this.actingAs($this.user)->postJson('/api/v1/user/wallet/withdraw', $this.getValidData());
+        $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw', $this->getValidData());
 
-        Notification::assertSentTo($this.user, WithdrawalRequested::class);
+        Notification::assertSentTo($this->user, WithdrawalRequested::class);
     }
 
     /** @test */
     public function testWithdrawalStatusTracking()
     {
-        $this.actingAs($this.user)->postJson('/api/v1/user/wallet/withdraw', $this.getValidData());
+        $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw', $this->getValidData());
         
         $this-

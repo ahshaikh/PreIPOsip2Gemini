@@ -133,8 +133,15 @@ class PaymentWebhookService
                 'paid_at' => now(),
                 'is_on_time' => $this->checkIfOnTime($payment->subscription),
             ]);
-            
+
             $sub = $payment->subscription;
+
+            // V-SECURITY-FIX: Activate pending subscription after first payment
+            if ($sub->status === 'pending') {
+                $sub->status = 'active';
+                Log::info("Subscription #{$sub->id} activated after first payment");
+            }
+
             $sub->next_payment_date = $sub->next_payment_date->addMonth();
             if ($payment->is_on_time) {
                 $sub->increment('consecutive_payments_count');

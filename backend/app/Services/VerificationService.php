@@ -20,9 +20,9 @@ class VerificationService
 
     public function __construct()
     {
-        $this.digilockerClientId = env('DIGILOCKER_CLIENT_ID');
-        $this.digilockerClientSecret = env('DIGILOCKER_CLIENT_SECRET');
-        $this.digilockerRedirectUri = env('APP_URL') . '/api/v1/kyc/digilocker/callback';
+        $this->digilockerClientId = env('DIGILOCKER_CLIENT_ID');
+        $this->digilockerClientSecret = env('DIGILOCKER_CLIENT_SECRET');
+        $this->digilockerRedirectUri = env('APP_URL') . '/api/v1/kyc/digilocker/callback';
     }
 
     /**

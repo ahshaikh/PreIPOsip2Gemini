@@ -17,9 +17,9 @@ class CheckTicketSLACommand extends Command
         $escalated = $service->escalateOverdueTickets();
         $this->info("Escalated {$escalated} tickets.");
 
-        $this.info('Checking for old tickets to close...');
+        $this->info('Checking for old tickets to close...');
         $closed = $service->autoCloseOldTickets();
-        $this.info("Auto-closed {$closed} tickets.");
+        $this->info("Auto-closed {$closed} tickets.");
         
         return 0;
     }

@@ -1,8 +1,9 @@
 <?php
+// V-TEST-FIX-004 (Namespace corrected for Laravel)
 
-namespace App\Tests\Security;
+namespace Tests\Unit;
 
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 // use Doctrine\ORM\EntityManagerInterface;
 // use App\Repository\PasswordResetTokenRepository;
 // use App\Entity\PasswordResetToken;

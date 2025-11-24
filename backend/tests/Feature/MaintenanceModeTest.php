@@ -25,8 +25,8 @@ class MaintenanceModeTest extends TestCase
         $this->user = User::factory()->create();
         $this->user->assignRole('user');
         
-        $this.admin = User::factory()->create();
-        $this.admin->assignRole('admin');
+        $this->admin = User::factory()->create();
+        $this->admin->assignRole('admin');
     }
 
     /**
@@ -48,10 +48,10 @@ class MaintenanceModeTest extends TestCase
     /** @test */
     public function test_maintenance_mode_blocks_all_users()
     {
-        $this.turnMaintenanceOn();
+        $this->turnMaintenanceOn();
 
         // Try to access a protected user route
-        $response = $this.actingAs($this.user)->getJson('/api/v1/user/profile');
+        $response = $this->actingAs($this->user)->getJson('/api/v1/user/profile');
         
         $response->assertStatus(503);
     }
@@ -59,15 +59,15 @@ class MaintenanceModeTest extends TestCase
     /** @test */
     public function test_maintenance_mode_allows_admins()
     {
-        $this.turnMaintenanceOn();
+        $this->turnMaintenanceOn();
 
         // Admin can still access their dashboard
-        $response = $this.actingAs($this.admin)->getJson('/api/v1/admin/dashboard');
+        $response = $this->actingAs($this->admin)->getJson('/api/v1/admin/dashboard');
         
         $response->assertStatus(200); // 200 OK (or whatever the dashboard returns)
         
         // Admin can also access the user profile route
-        $response = $this.actingAs($this.admin)->getJson('/api/v1/user/profile');
+        $response = $this->actingAs($this->admin)->getJson('/api/v1/user/profile');
         
         $response->assertStatus(200);
     }
@@ -75,9 +75,9 @@ class MaintenanceModeTest extends TestCase
     /** @test */
     public function test_maintenance_mode_shows_custom_message()
     {
-        $this.turnMaintenanceOn("Be Right Back!");
+        $this->turnMaintenanceOn("Be Right Back!");
 
-        $response = $this.actingAs($this.user)->getJson('/api/v1/user/profile');
+        $response = $this->actingAs($this->user)->getJson('/api/v1/user/profile');
         
         $response->assertStatus(503);
         $response->assertJson(['message' => 'Be Right Back!']);
@@ -87,10 +87,10 @@ class MaintenanceModeTest extends TestCase
     public function test_maintenance_mode_respects_ip_whitelist()
     {
         // 127.0.0.1 is the default IP for tests
-        $this.turnMaintenanceOn("Maintenance", "127.0.0.1, 8.8.8.8");
+        $this->turnMaintenanceOn("Maintenance", "127.0.0.1, 8.8.8.8");
 
         // Even though this is a normal user, their IP is whitelisted
-        $response = $this.actingAs($this.user)->getJson('/api/v1/user/profile');
+        $response = $this->actingAs($this->user)->getJson('/api/v1/user/profile');
 
         $response->assertStatus(200); // Bypassed maintenance mode
     }

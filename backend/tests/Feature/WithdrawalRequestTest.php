@@ -64,8 +64,8 @@ class WithdrawalRequestTest extends TestCase
     /** @test */
     public function test_validates_sufficient_balance()
     {
-        $response = $this->actingAs($this.user)->postJson('/api/v1/user/wallet/withdraw',
-            $this.getValidData(['amount' => 200000]) // Balance is 100,000
+        $response = $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw',
+            $this->getValidData(['amount' => 200000]) // Balance is 100,000
         );
         
         $response->assertStatus(422)
@@ -75,10 +75,10 @@ class WithdrawalRequestTest extends TestCase
     /** @test */
     public function test_validates_kyc_approved()
     {
-        $this.user->kyc->update(['status' => 'pending']); // Un-verify
+        $this->user->kyc->update(['status' => 'pending']); // Un-verify
         
-        $response = $this.actingAs($this.user)->postJson('/api/v1/user/wallet/withdraw',
-            $this.getValidData()
+        $response = $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw',
+            $this->getValidData()
         );
 
         $response->assertStatus(403); // 403 Forbidden
@@ -88,8 +88,8 @@ class WithdrawalRequestTest extends TestCase
     /** @test */
     public function test_validates_bank_details_present()
     {
-        $response = $this.actingAs($this.user)->postJson('/api/v1/user/wallet/withdraw',
-            $this.getValidData(['bank_details' => []])
+        $response = $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw',
+            $this->getValidData(['bank_details' => []])
         );
         
         $response->assertStatus(422)
@@ -100,13 +100,13 @@ class WithdrawalRequestTest extends TestCase
     public function test_validates_withdrawal_limit_per_day()
     {
         // 1. First withdrawal (40,000) - OK
-        $this.service = new \App\Services\WithdrawalService(); // Need service for setup
-        $this.service->requestWithdrawal($this.user, 40000, ['account'=>'123', 'ifsc'=>'ABC']);
+        $this->service = new \App\Services\WithdrawalService(); // Need service for setup
+        $this->service->requestWithdrawal($this->user, 40000, ['account'=>'123', 'ifsc'=>'ABC']);
 
         // 2. Second withdrawal (15,000) - Should fail
         // Total (40k + 15k = 55k) > 50k limit
-        $response = $this.actingAs($this.user)->postJson('/api/v1/user/wallet/withdraw',
-            $this.getValidData(['amount' => 15000])
+        $response = $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw',
+            $this->getValidData(['amount' => 15000])
         );
         
         $response->assertStatus(422)

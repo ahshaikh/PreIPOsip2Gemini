@@ -1,8 +1,9 @@
 <?php
+// V-TEST-FIX-003 (Namespace corrected for Laravel)
 
-namespace App\Tests\Security;
+namespace Tests\Unit;
 
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 // use Psr\Log\LoggerInterface;
 // use Monolog\Handler\TestHandler;
 

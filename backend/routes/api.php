@@ -130,6 +130,8 @@ Route::prefix('v1')->group(function () {
             Route::post('/2fa/enable', [TwoFactorAuthController::class, 'enable']);
             Route::post('/2fa/confirm', [TwoFactorAuthController::class, 'confirm']);
             Route::post('/2fa/disable', [TwoFactorAuthController::class, 'disable']);
+            Route::post('/2fa/recovery-codes/download', [TwoFactorAuthController::class, 'downloadRecoveryCodes']);
+            Route::post('/2fa/recovery-codes/regenerate', [TwoFactorAuthController::class, 'regenerateRecoveryCodes']);
             
             // KYC
             Route::get('/kyc', [KycController::class, 'show']);

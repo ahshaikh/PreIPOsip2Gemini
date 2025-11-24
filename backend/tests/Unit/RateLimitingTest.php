@@ -1,8 +1,9 @@
 <?php
+// V-TEST-FIX-006 (Namespace corrected for Laravel)
 
-namespace App\Tests\Security;
+namespace Tests\Unit;
 
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 // use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 class RateLimitingTest extends TestCase // Or WebTestCase
@@ -51,6 +52,6 @@ class RateLimitingTest extends TestCase // Or WebTestCase
         $response = $this->client->request('POST', $endpoint);
         
         // This one should be rate-limited
-        $this->assertEquals(4T29, $response->getStatusCode());
+        $this->assertEquals(429, $response->getStatusCode());
     }
 }

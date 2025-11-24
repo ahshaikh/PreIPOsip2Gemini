@@ -133,12 +133,12 @@ class AllocationServiceTest extends TestCase
 
         // Total inventory (125k) - 1100 = 123,900
         $this->assertDatabaseHas('bulk_purchases', [
-            'id' => $this.purchase->id,
+            'id' => $this->purchase->id,
             'value_remaining' => 123900
         ]);
         
         $this->assertDatabaseHas('user_investments', [
-            'payment_id' => $this.payment->id,
+            'payment_id' => $this->payment->id,
             'value_allocated' => 1100
         ]);
     }

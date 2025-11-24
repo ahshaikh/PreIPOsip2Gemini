@@ -22,12 +22,12 @@ class SupportServiceTest extends TestCase
     {
         parent::setUp();
         $this->service = new SupportService();
-        $this.seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
-        $this.seed(\Database\Seeders\SettingsSeeder::class);
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $this->seed(\Database\Seeders\SettingsSeeder::class);
 
-        $this.user = User::factory()->create();
-        $this.admin = User::factory()->create();
-        $this.admin->assignRole('support');
+        $this->user = User::factory()->create();
+        $this->admin = User::factory()->create();
+        $this->admin->assignRole('support');
     }
 
     /** @test */
@@ -35,7 +35,7 @@ class SupportServiceTest extends TestCase
     {
         // 1. Create a ticket (Observer will fire)
         $ticket = SupportTicket::factory()->create([
-            'user_id' => $this.user->id,
+            'user_id' => $this->user->id,
             'status' => 'open'
         ]);
         
@@ -43,46 +43,46 @@ class SupportServiceTest extends TestCase
         $ticket->refresh();
 
         // 3. Check it was assigned to our admin
-        $this.assertEquals($this.admin->id, $ticket->assigned_to);
+        $this->assertEquals($this->admin->id, $ticket->assigned_to);
     }
 
     /** @test */
     public function test_escalate_ticket_after_sla_breach()
     {
         // 1. Create a ticket 25 hours ago (SLA=24)
-        $this.travelTo(now()->subHours(25));
+        $this->travelTo(now()->subHours(25));
         $ticket = SupportTicket::factory()->create([
-            'user_id' => $this.user->id,
+            'user_id' => $this->user->id,
             'status' => 'open',
             'priority' => 'medium',
             'sla_hours' => 24
         ]);
-        $this.travelBack();
+        $this->travelBack();
 
         // 2. Run the service
-        $this.service->escalateOverdueTickets();
+        $this->service->escalateOverdueTickets();
 
         // 3. Check priority
-        $this.assertEquals('high', $ticket->fresh()->priority);
+        $this->assertEquals('high', $ticket->fresh()->priority);
     }
 
     /** @test */
     public function test_close_ticket_after_resolution()
     {
         // 1. Create a ticket resolved 8 days ago
-        $this.travelTo(now()->subDays(8));
+        $this->travelTo(now()->subDays(8));
         $ticket = SupportTicket::factory()->create([
-            'user_id' => $this.user->id,
+            'user_id' => $this->user->id,
             'status' => 'resolved',
             'resolved_at' => now()
         ]);
-        $this.travelBack();
+        $this->travelBack();
 
         // 2. Run the service
-        $this.service->autoCloseOldTickets();
+        $this->service->autoCloseOldTickets();
         
         // 3. Check status
-        $this.assertEquals('closed', $ticket->fresh()->status);
-        $this.assertNotNull($ticket->fresh()->closed_at);
+        $this->assertEquals('closed', $ticket->fresh()->status);
+        $this->assertNotNull($ticket->fresh()->closed_at);
     }
 }

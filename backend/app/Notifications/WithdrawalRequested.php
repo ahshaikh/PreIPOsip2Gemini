@@ -26,7 +26,7 @@ class WithdrawalRequested extends Notification implements ShouldQueue
     {
         return (new MailMessage)
                     ->subject('Withdrawal Request Received')
-                    ->line('We have received your withdrawal request for ₹' . $this.withdrawal->amount . '.')
+                    ->line('We have received your withdrawal request for ₹' . $this->withdrawal->amount . '.')
                     ->line('It is now pending approval and processing. You will be notified once it is complete.')
                     ->action('View Status', url(env('FRONTEND_URL') . '/wallet'));
     }
@@ -35,7 +35,7 @@ class WithdrawalRequested extends Notification implements ShouldQueue
     {
         return [
             'title' => 'Withdrawal Request Received',
-            'message' => 'Your request for ₹' . $this.withdrawal->amount . ' is pending approval.',
+            'message' => 'Your request for ₹' . $this->withdrawal->amount . ' is pending approval.',
             'link' => '/wallet',
         ];
     }
