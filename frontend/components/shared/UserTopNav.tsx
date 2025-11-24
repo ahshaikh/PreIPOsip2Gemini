@@ -215,11 +215,15 @@ export function UserTopNav({ user }: { user: any }) {
 
   const handleSearchSelect = (item: any) => {
     setSearchOpen(false);
+    setSearchQuery(""); // Clear search on select
     const routes: Record<string, string> = {
-      ipo: `/investments/${item.id}`,
-      company: `/companies/${item.id}`,
-      plan: `/plans/${item.id}`,
+      ipo: `/portfolio`,
+      company: `/portfolio`,
+      plan: `/subscribe`,
       portfolio: `/portfolio`,
+      transaction: `/transactions`,
+      bonus: `/bonuses`,
+      referral: `/referrals`,
     };
     router.push(routes[item.type] || "/dashboard");
   };
@@ -251,7 +255,7 @@ export function UserTopNav({ user }: { user: any }) {
   const mainLinks = [
     { href: "/portfolio", label: "Portfolio", icon: TrendingUp },
     { href: "/transactions", label: "Transactions", icon: CreditCard },
-    { href: "/plans", label: "Plans", icon: Package },
+    { href: "/subscribe", label: "Plans", icon: Package },
   ];
 
   const marketingLinks = [
@@ -376,12 +380,14 @@ export function UserTopNav({ user }: { user: any }) {
                   <DropdownMenuLabel>Active Offers</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {activeOffers.map((offer: any) => (
-                    <DropdownMenuItem key={offer.id} className="flex flex-col items-start p-3">
-                      <div className="flex items-center gap-2 w-full">
-                        <Badge variant="outline" className="font-mono">{offer.code}</Badge>
-                        <span className="text-xs text-muted-foreground ml-auto">Expires: {offer.expiry}</span>
-                      </div>
-                      <p className="text-sm mt-1">{offer.description}</p>
+                    <DropdownMenuItem key={offer.id} asChild>
+                      <Link href={`/offers/${offer.id}`} className="flex flex-col items-start p-3 cursor-pointer">
+                        <div className="flex items-center gap-2 w-full">
+                          <Badge variant="outline" className="font-mono">{offer.code}</Badge>
+                          <span className="text-xs text-muted-foreground ml-auto">Expires: {offer.expiry}</span>
+                        </div>
+                        <p className="text-sm mt-1">{offer.description}</p>
+                      </Link>
                     </DropdownMenuItem>
                   ))}
                   <DropdownMenuSeparator />

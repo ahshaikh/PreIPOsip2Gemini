@@ -4,7 +4,6 @@
 import { DashboardNav } from '@/components/shared/DashboardNav';
 import { UserTopNav } from '@/components/shared/UserTopNav';
 import { Button } from '@/components/ui/button';
-import { NotificationBell } from '@/components/shared/NotificationBell';
 import api from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -67,17 +66,10 @@ export default function DashboardLayout({
       <div className="container mx-auto py-8 pt-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <aside className="md:col-span-1">
-            {/* --- UPDATED HEADER WITH BELL --- */}
-            <div className="mb-4 p-4 rounded-lg bg-muted flex items-center justify-between">
-              <div className="overflow-hidden">
-                  <h3 className="font-semibold truncate">{user.profile?.first_name || user.username}</h3>
-                  <p className="text-sm text-muted-foreground truncate">{user.email}</p>
-              </div>
-              <div className="flex-shrink-0 ml-2">
-                  <NotificationBell />
-              </div>
+            <div className="mb-4 p-4 rounded-lg bg-muted">
+              <h3 className="font-semibold truncate">{user.profile?.first_name || user.username}</h3>
+              <p className="text-sm text-muted-foreground truncate">{user.email}</p>
             </div>
-            {/* ------------------------------- */}
 
             <DashboardNav />
 
