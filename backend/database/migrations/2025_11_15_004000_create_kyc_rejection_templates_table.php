@@ -15,8 +15,11 @@ return new class extends Migration
     {
         Schema::create('kyc_rejection_templates', function (Blueprint $table) {
             $table->id();
-            $table->string('title'); // e.g., "Blurry PAN Card"
+            $table->string('title')->nullable(); // e.g., "Blurry PAN Card"
+            $table->string('name'); // <-- REQUIRED
             $table->text('reason');  // e.g., "The image of your PAN card was blurry..."
+            $table->string('category');       // e.g. "document_quality", "identity_mismatch"
+            $table->text('message')->nullable(); // <-- Required: rejection message
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });

@@ -39,14 +39,6 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('canned_responses', function (Blueprint $table) {
-            $table->id();
-            $table->string('title');
-            $table->text('body');
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
-        });
-
 // V-PHASE2-1730-030
         // CMS Pages
         Schema::create('pages', function (Blueprint $table) {
@@ -154,7 +146,6 @@ return new class extends Migration
         Schema::dropIfExists('user_legal_acceptances');
         Schema::dropIfExists('page_versions');
         Schema::dropIfExists('pages');
-        Schema::dropIfExists('canned_responses');
         Schema::dropIfExists('support_messages');
         Schema::dropIfExists('support_tickets');
     }

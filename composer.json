@@ -1,0 +1,8 @@
+{
+    "require-dev": {
+        "barryvdh/laravel-debugbar": "^3.16"
+    },
+    "require": {
+        "laravel/telescope": "^5.15"
+    }
+}

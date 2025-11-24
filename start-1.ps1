@@ -21,24 +21,16 @@ function Start-NewWindow {
 $backendCommand = @"
 cd $backendPath
 
-if (!(Test-Path ".env")) {
-    Write-Output "Copying .env..."
-    copy .env.example .env
-}
-
-if ((Get-Content .env | Select-String "APP_KEY=" -SimpleMatch).Line -eq "APP_KEY=") {
-    Write-Output "Generating app key..."
-    php artisan key:generate
-}
-
-Write-Output "Running composer..."
-composer install
-
-Write-Output "Running migrations..."
-php artisan migrate --seed
+Write-Output "Clearing the enviornment..."
+php artisan optimize:clear
+php artisan view:clear
+php artisan config:clear
+php artisan cache:clear
+php artisan route:clear
 
 Write-Output "Starting Laravel server..."
-php artisan serve --port=8000
+# php artisan serve --port=8000
+php artisan serve
 "@
 
 Start-NewWindow $backendCommand

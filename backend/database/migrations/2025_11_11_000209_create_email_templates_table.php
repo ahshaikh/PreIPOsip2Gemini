@@ -14,8 +14,9 @@ return new class extends Migration
             $table->string('name'); // e.g., "Welcome Email"
             $table->string('slug')->unique(); // e.g., "auth.welcome"
             $table->string('subject');
-            $table->text('body'); // Storing HTML content
+            $table->longText('body'); // Storing HTML content
             $table->json('variables')->nullable(); // Hint for available variables
+            $table->boolean('is_active')->default(true); // <-- REQUIRED FIX
             $table->timestamps();
         });
     }

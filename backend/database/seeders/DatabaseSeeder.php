@@ -19,7 +19,7 @@ class DatabaseSeeder extends Seeder
         $this->call(SettingsSeeder::class);   // <-- Includes all settings
 
         // 2. Core Content Seeders (Plans, Products, CMS)
-        $this->call(PlanSeeder::class);
+        $this->call(PlanSeed::class);
         $this->call(ProductSeeder::class);
         $this->call(HomePageSeeder::class);
 

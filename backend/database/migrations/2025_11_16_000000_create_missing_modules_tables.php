@@ -65,7 +65,7 @@ return new class extends Migration
                 $table->text('answer');
                 $table->string('category')->default('general');
                 $table->integer('display_order')->default(0);
-                $table->boolean('is_active')->default(true);
+                $table->boolean('is_published')->default(true);
                 $table->timestamps();
             });
         }
