@@ -33,6 +33,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import api from "@/lib/api";
 import {
@@ -65,8 +78,14 @@ import {
   LifeBuoy,
   Percent,
   ExternalLink,
-  Sparkles
+  Sparkles,
+  QrCode,
+  Smartphone,
+  ArrowRight,
+  Copy,
+  CheckCircle2
 } from "lucide-react";
+import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 
 interface UserNotification {
@@ -87,6 +106,9 @@ export function UserTopNav({ user }: { user: any }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [walletDialogOpen, setWalletDialogOpen] = useState(false);
   const [walletAction, setWalletAction] = useState<"add" | "withdraw">("add");
+  const [paymentMethodDialogOpen, setPaymentMethodDialogOpen] = useState(false);
+  const [addAmount, setAddAmount] = useState("");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
   const [announcementVisible, setAnnouncementVisible] = useState(true);
 
   // Fetch wallet balance
@@ -187,7 +209,70 @@ export function UserTopNav({ user }: { user: any }) {
 
   const openWalletDialog = (action: "add" | "withdraw") => {
     setWalletAction(action);
+    setAddAmount("");
+    setWithdrawAmount("");
     setWalletDialogOpen(true);
+  };
+
+  const handleProceedWithAmount = () => {
+    if (walletAction === "add") {
+      const amount = parseFloat(addAmount);
+      if (!amount || amount < 100) {
+        toast.error("Please enter an amount of at least ₹100");
+        return;
+      }
+      setWalletDialogOpen(false);
+      setPaymentMethodDialogOpen(true);
+    } else {
+      const amount = parseFloat(withdrawAmount);
+      if (!amount || amount < 100) {
+        toast.error("Please enter an amount of at least ₹100");
+        return;
+      }
+      if (amount > wallet.balance) {
+        toast.error("Insufficient balance", {
+          description: `Available balance: ₹${wallet.balance?.toLocaleString()}`
+        });
+        return;
+      }
+      // Process withdrawal
+      handleWithdrawal(amount);
+    }
+  };
+
+  const handleWithdrawal = async (amount: number) => {
+    try {
+      // Auto-approve withdrawals under ₹50,000
+      const autoApprove = amount < 50000;
+      const referenceNumber = `WD${Date.now()}${Math.floor(Math.random() * 1000)}`;
+
+      await api.post("/user/wallet/withdraw", {
+        amount,
+        auto_approve: autoApprove,
+        reference_number: referenceNumber
+      });
+
+      toast.success("Withdrawal Request Submitted", {
+        description: autoApprove
+          ? `₹${amount.toLocaleString()} will be transferred within 24 hours. Ref: ${referenceNumber}`
+          : `Your request for ₹${amount.toLocaleString()} is under review. Ref: ${referenceNumber}`
+      });
+
+      setWalletDialogOpen(false);
+      setWithdrawAmount("");
+    } catch (error: any) {
+      toast.error("Withdrawal Failed", {
+        description: error.response?.data?.message || "Please try again later"
+      });
+    }
+  };
+
+  const setQuickAmount = (amount: number) => {
+    if (walletAction === "add") {
+      setAddAmount(amount.toString());
+    } else {
+      setWithdrawAmount(amount.toString());
+    }
   };
 
   const getNotificationIcon = (type: string) => {
@@ -645,69 +730,15 @@ export function UserTopNav({ user }: { user: any }) {
         </div>
       </div>
 
-      {/* Global Search Dialog */}
-      <CommandDialog open={searchOpen} onOpenChange={setSearchOpen}>
-        <CommandInput
-          placeholder="Search investments, companies, or plans..."
-          value={searchQuery}
-          onValueChange={handleSearch}
-        />
-        <CommandList>
-          <CommandEmpty>
-            {isSearching ? "Searching..." : "No results found."}
-          </CommandEmpty>
-          {searchResults.length > 0 && (
-            <>
-              <CommandGroup heading="IPOs & Investments">
-                {searchResults.filter(r => r.type === "ipo").map((result) => (
-                  <CommandItem key={result.id} onSelect={() => handleSearchSelect(result)}>
-                    <TrendingUp className="mr-2 h-4 w-4" />
-                    <div>
-                      <p>{result.title}</p>
-                      <p className="text-xs text-muted-foreground">{result.subtitle}</p>
-                    </div>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-              <CommandGroup heading="Companies">
-                {searchResults.filter(r => r.type === "company").map((result) => (
-                  <CommandItem key={result.id} onSelect={() => handleSearchSelect(result)}>
-                    <Building className="mr-2 h-4 w-4" />
-                    <div>
-                      <p>{result.title}</p>
-                      <p className="text-xs text-muted-foreground">{result.subtitle}</p>
-                    </div>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-              <CommandGroup heading="Plans">
-                {searchResults.filter(r => r.type === "plan").map((result) => (
-                  <CommandItem key={result.id} onSelect={() => handleSearchSelect(result)}>
-                    <Package className="mr-2 h-4 w-4" />
-                    <div>
-                      <p>{result.title}</p>
-                      <p className="text-xs text-muted-foreground">{result.subtitle}</p>
-                    </div>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-              <CommandGroup heading="My Portfolio">
-                {searchResults.filter(r => r.type === "portfolio").map((result) => (
-                  <CommandItem key={result.id} onSelect={() => handleSearchSelect(result)}>
-                    <TrendingUp className="mr-2 h-4 w-4" />
-                    <div>
-                      <p>{result.title}</p>
-                      <p className="text-xs text-muted-foreground">{result.subtitle}</p>
-                    </div>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </>
-          )}
-        </CommandList>
-      </CommandDialog>
+      {/* Global Search Component */}
+      <GlobalSearch
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        scope="user"
+        placeholder="Search investments, companies, transactions, and more..."
+      />
 
-      {/* Wallet Dialog */}
+      {/* Step 1: Enter Amount Dialog */}
       <Dialog open={walletDialogOpen} onOpenChange={setWalletDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -723,31 +754,219 @@ export function UserTopNav({ user }: { user: any }) {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Amount (₹)</Label>
-              <Input type="number" placeholder="Enter amount" />
+              <Input
+                type="number"
+                placeholder="Enter amount"
+                value={walletAction === "add" ? addAmount : withdrawAmount}
+                onChange={(e) => walletAction === "add" ? setAddAmount(e.target.value) : setWithdrawAmount(e.target.value)}
+                min="100"
+              />
             </div>
-            {walletAction === "add" && (
-              <div className="flex gap-2">
-                {[1000, 5000, 10000, 25000].map((amount) => (
-                  <Button key={amount} variant="outline" size="sm">
-                    ₹{amount.toLocaleString()}
-                  </Button>
-                ))}
-              </div>
-            )}
+            <div className="flex flex-wrap gap-2">
+              {walletAction === "add"
+                ? [1000, 5000, 10000, 25000, 50000].map((amount) => (
+                    <Button key={amount} variant="outline" size="sm" onClick={() => setQuickAmount(amount)}>
+                      ₹{amount.toLocaleString()}
+                    </Button>
+                  ))
+                : [1000, 5000, 10000, Math.floor(wallet.balance / 2), wallet.balance].filter(Boolean).map((amount) => (
+                    <Button key={amount} variant="outline" size="sm" onClick={() => setQuickAmount(amount)}>
+                      ₹{amount?.toLocaleString()}
+                    </Button>
+                  ))
+              }
+            </div>
             {walletAction === "withdraw" && (
-              <p className="text-sm text-muted-foreground">
-                Available balance: ₹{wallet.balance?.toLocaleString()}
-              </p>
+              <div className="space-y-2 p-3 bg-muted rounded-lg">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Available Balance:</span>
+                  <span className="font-medium">₹{wallet.balance?.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Locked Amount:</span>
+                  <span className="font-medium">₹{wallet.locked?.toLocaleString()}</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  • Withdrawals under ₹50,000 are auto-approved within 24 hours<br />
+                  • Larger amounts require manual approval (1-3 business days)
+                </p>
+              </div>
             )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setWalletDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={() => { setWalletDialogOpen(false); router.push("/wallet"); }}>
+            <Button onClick={handleProceedWithAmount}>
               {walletAction === "add" ? "Proceed to Pay" : "Request Withdrawal"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Step 2: Payment Method Selection Dialog */}
+      <Dialog open={paymentMethodDialogOpen} onOpenChange={setPaymentMethodDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Choose Payment Method</DialogTitle>
+            <DialogDescription>
+              How would you like to add ₹{parseFloat(addAmount || "0").toLocaleString()} to your account?
+            </DialogDescription>
+          </DialogHeader>
+          <Tabs defaultValue="card" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="card">
+                <CreditCard className="mr-2 h-4 w-4" />
+                Debit/Credit Card
+              </TabsTrigger>
+              <TabsTrigger value="other">
+                <QrCode className="mr-2 h-4 w-4" />
+                UPI / QR / Bank Transfer
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="card" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Pay with Card</CardTitle>
+                  <CardDescription>
+                    Instant payment via debit or credit card (Visa, Mastercard, RuPay)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200">
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">Instant Processing</p>
+                      <p className="text-xs text-muted-foreground">Funds added immediately</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    <p>• Secure payment gateway</p>
+                    <p>• No additional charges</p>
+                    <p>• Supports all major cards</p>
+                  </div>
+                  <Button
+                    className="w-full"
+                    size="lg"
+                    onClick={() => {
+                      setPaymentMethodDialogOpen(false);
+                      router.push(`/payment/gateway?amount=${addAmount}&type=wallet`);
+                    }}
+                  >
+                    Proceed to Payment Gateway
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="other" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Pay via UPI / QR Code / Bank Transfer</CardTitle>
+                  <CardDescription>
+                    Transfer funds using UPI apps, scan QR code, or direct bank deposit
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* UPI Section */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Smartphone className="h-5 w-5 text-primary" />
+                      <h4 className="font-semibold">UPI Payment</h4>
+                    </div>
+                    <div className="p-4 bg-muted rounded-lg space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-mono">preipo@upi</span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            navigator.clipboard.writeText("preipo@upi");
+                            toast.success("UPI ID copied!");
+                          }}
+                        >
+                          <Copy className="h-3 w-3 mr-1" />
+                          Copy
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Use any UPI app (GPay, PhonePe, Paytm) to send payment
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* QR Code Section */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <QrCode className="h-5 w-5 text-primary" />
+                      <h4 className="font-semibold">Scan QR Code</h4>
+                    </div>
+                    <div className="flex justify-center p-4 bg-muted rounded-lg">
+                      <div className="w-48 h-48 bg-white flex items-center justify-center border-2 border-dashed border-border rounded">
+                        <QrCode className="h-16 w-16 text-muted-foreground" />
+                      </div>
+                    </div>
+                    <p className="text-xs text-center text-muted-foreground">
+                      Scan with any UPI app to pay
+                    </p>
+                  </div>
+
+                  {/* Bank Transfer Section */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Building className="h-5 w-5 text-primary" />
+                      <h4 className="font-semibold">Direct Bank Transfer</h4>
+                    </div>
+                    <div className="p-4 bg-muted rounded-lg space-y-3 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Account Name:</span>
+                        <span className="font-medium">PreIPO SIP Pvt Ltd</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Account Number:</span>
+                        <span className="font-medium font-mono">1234567890</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">IFSC Code:</span>
+                        <span className="font-medium font-mono">HDFC0001234</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Bank Name:</span>
+                        <span className="font-medium">HDFC Bank</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Branch:</span>
+                        <span className="font-medium">Mumbai, India</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200">
+                    <p className="text-sm text-amber-900 dark:text-amber-100">
+                      <strong>Important:</strong> After payment, share the transaction screenshot/reference with our support team for verification. Funds will be credited within 1-2 hours.
+                    </p>
+                  </div>
+
+                  <Button
+                    className="w-full"
+                    variant="outline"
+                    onClick={() => {
+                      toast.info("Payment Instructions", {
+                        description: "Complete the payment and contact support with transaction details"
+                      });
+                      setPaymentMethodDialogOpen(false);
+                      setAddAmount("");
+                    }}
+                  >
+                    I've Made the Payment
+                    <CheckCircle2 className="ml-2 h-4 w-4" />
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
     </>

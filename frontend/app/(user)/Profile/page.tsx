@@ -12,16 +12,24 @@ import api from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Download, Trash2, AlertTriangle } from "lucide-react";
+import { Download, Trash2, AlertTriangle, Upload, User, Building2 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function ProfilePage() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const [isDownloading, setIsDownloading] = useState(false);
-  
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string>("");
+
   // Profile Form State
   const [profileData, setProfileData] = useState({
     first_name: '', last_name: '', address: '', city: '', state: '', pincode: ''
+  });
+
+  // Bank Details State
+  const [bankData, setBankData] = useState({
+    account_number: '', ifsc_code: '', bank_name: '', branch_name: '', account_holder_name: ''
   });
 
   // Password Form State
@@ -48,6 +56,14 @@ export default function ProfilePage() {
         state: user.profile?.state || '',
         pincode: user.profile?.pincode || '',
       });
+      setBankData({
+        account_number: user.bank_details?.account_number || '',
+        ifsc_code: user.bank_details?.ifsc_code || '',
+        bank_name: user.bank_details?.bank_name || '',
+        branch_name: user.bank_details?.branch_name || '',
+        account_holder_name: user.bank_details?.account_holder_name || '',
+      });
+      setAvatarPreview(user.profile?.avatar_url || '');
     }
   }, [user]);
 
@@ -55,6 +71,31 @@ export default function ProfilePage() {
     mutationFn: (data: any) => api.put('/user/profile', data),
     onSuccess: () => {
       toast.success("Profile Updated");
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+    },
+    onError: (e: any) => toast.error("Error", { description: e.response?.data?.message })
+  });
+
+  const avatarMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      return api.post('/user/profile/avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+    },
+    onSuccess: () => {
+      toast.success("Avatar Updated");
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      setAvatarFile(null);
+    },
+    onError: (e: any) => toast.error("Upload Failed", { description: e.response?.data?.message })
+  });
+
+  const bankMutation = useMutation({
+    mutationFn: (data: any) => api.put('/user/bank-details', data),
+    onSuccess: () => {
+      toast.success("Bank Details Updated");
       queryClient.invalidateQueries({ queryKey: ['userProfile'] });
     },
     onError: (e: any) => toast.error("Error", { description: e.response?.data?.message })
@@ -82,9 +123,40 @@ export default function ProfilePage() {
     onError: (e: any) => toast.error("Deletion Failed", { description: e.response?.data?.message })
   });
 
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("File too large", { description: "Avatar must be less than 5MB" });
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        toast.error("Invalid file type", { description: "Please upload an image file" });
+        return;
+      }
+      setAvatarFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleAvatarUpload = () => {
+    if (avatarFile) {
+      avatarMutation.mutate(avatarFile);
+    }
+  };
+
   const handleProfileSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     profileMutation.mutate(profileData);
+  };
+
+  const handleBankSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    bankMutation.mutate(bankData);
   };
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
@@ -120,20 +192,68 @@ export default function ProfilePage() {
       <Tabs defaultValue="profile">
         <TabsList>
           <TabsTrigger value="profile">Personal Info</TabsTrigger>
+          <TabsTrigger value="bank">Bank Details</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="privacy">Data & Privacy</TabsTrigger>
         </TabsList>
 
         {/* Profile Tab */}
         <TabsContent value="profile">
-          <Card>
-            <CardHeader>
-              <CardTitle>Personal Information</CardTitle>
-              <CardDescription>Update your personal details. This information is locked once KYC is verified.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleProfileSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-6">
+            {/* Avatar Upload Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Profile Picture</CardTitle>
+                <CardDescription>Upload your avatar (max 5MB, JPG/PNG)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-6">
+                  <Avatar className="h-24 w-24">
+                    <AvatarImage src={avatarPreview} />
+                    <AvatarFallback>
+                      <User className="h-12 w-12 text-muted-foreground" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="avatar-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarChange}
+                        className="hidden"
+                      />
+                      <Label htmlFor="avatar-upload">
+                        <Button type="button" variant="outline" asChild>
+                          <span>
+                            <Upload className="h-4 w-4 mr-2" />
+                            Choose Photo
+                          </span>
+                        </Button>
+                      </Label>
+                      {avatarFile && (
+                        <Button onClick={handleAvatarUpload} disabled={avatarMutation.isPending}>
+                          {avatarMutation.isPending ? "Uploading..." : "Upload"}
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Recommended: Square image, at least 200x200 pixels
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Personal Info Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Personal Information</CardTitle>
+                <CardDescription>Update your personal details. This information is locked once KYC is verified.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleProfileSubmit} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>First Name</Label>
                     <Input value={profileData.first_name} onChange={e => setProfileData({...profileData, first_name: e.target.value})} />
@@ -161,8 +281,93 @@ export default function ProfilePage() {
                     <Input value={profileData.pincode} onChange={e => setProfileData({...profileData, pincode: e.target.value})} />
                   </div>
                 </div>
-                <Button type="submit" disabled={profileMutation.isPending || user?.kyc?.status === 'verified'}>
-                  {user?.kyc?.status === 'verified' ? 'Profile Locked (KYC Verified)' : profileMutation.isPending ? "Saving..." : "Save Changes"}
+                  <Button type="submit" disabled={profileMutation.isPending || user?.kyc?.status === 'verified'}>
+                    {user?.kyc?.status === 'verified' ? 'Profile Locked (KYC Verified)' : profileMutation.isPending ? "Saving..." : "Save Changes"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Bank Details Tab */}
+        <TabsContent value="bank">
+          <Card>
+            <CardHeader>
+              <CardTitle>Bank Account Details</CardTitle>
+              <CardDescription>Update your bank account information for withdrawals and refunds</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleBankSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Account Holder Name</Label>
+                  <Input
+                    value={bankData.account_holder_name}
+                    onChange={e => setBankData({...bankData, account_holder_name: e.target.value})}
+                    placeholder="As per bank records"
+                    disabled={user?.kyc?.status === 'verified'}
+                  />
+                  {user?.kyc?.status === 'verified' && (
+                    <p className="text-xs text-muted-foreground">
+                      Name cannot be changed after KYC verification
+                    </p>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Account Number</Label>
+                    <Input
+                      type="text"
+                      value={bankData.account_number}
+                      onChange={e => setBankData({...bankData, account_number: e.target.value})}
+                      placeholder="Enter account number"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>IFSC Code</Label>
+                    <Input
+                      value={bankData.ifsc_code}
+                      onChange={e => setBankData({...bankData, ifsc_code: e.target.value.toUpperCase()})}
+                      placeholder="e.g., HDFC0001234"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Bank Name</Label>
+                    <Input
+                      value={bankData.bank_name}
+                      onChange={e => setBankData({...bankData, bank_name: e.target.value})}
+                      placeholder="e.g., HDFC Bank"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Branch Name</Label>
+                    <Input
+                      value={bankData.branch_name}
+                      onChange={e => setBankData({...bankData, branch_name: e.target.value})}
+                      placeholder="e.g., Mumbai Main Branch"
+                    />
+                  </div>
+                </div>
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <Building2 className="h-5 w-5 text-blue-600 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                        Important Information
+                      </p>
+                      <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-1">
+                        <li>• All fields except Account Holder Name can be edited anytime</li>
+                        <li>• Ensure bank details are accurate for smooth withdrawals</li>
+                        <li>• Withdrawals will be processed to this account only</li>
+                        <li>• Changes take effect immediately</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                <Button type="submit" disabled={bankMutation.isPending}>
+                  {bankMutation.isPending ? "Saving..." : "Save Bank Details"}
                 </Button>
               </form>
             </CardContent>

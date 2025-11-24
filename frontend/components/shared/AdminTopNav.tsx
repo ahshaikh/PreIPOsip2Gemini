@@ -17,16 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Command,
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
-} from "@/components/ui/command";
+import { GlobalSearch } from "@/components/shared/GlobalSearch";
 import { cn } from "@/lib/utils";
 import api from "@/lib/api";
 import {
@@ -73,18 +64,20 @@ interface SystemNotification {
 export function AdminTopNav({ user }: { user: any }) {
   const router = useRouter();
   const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [language, setLanguage] = useState("en");
 
-  // Fetch system notifications
+  // Fetch system notifications with defensive handling
   const { data: systemNotifications, refetch: refetchNotifications } = useQuery({
     queryKey: ["admin-system-notifications"],
     queryFn: async () => {
       const response = await api.get("/admin/notifications/system");
-      return response.data;
+      const data = response.data;
+      // Handle nested data structures
+      if (Array.isArray(data)) return data;
+      if (data?.data && Array.isArray(data.data)) return data.data;
+      if (data?.notifications && Array.isArray(data.notifications)) return data.notifications;
+      return [];
     },
     refetchInterval: 30000 // Refresh every 30 seconds
   });
@@ -99,7 +92,9 @@ export function AdminTopNav({ user }: { user: any }) {
     { id: 6, type: "system", title: "System Alert", message: "Database backup completed", created_at: "2024-03-15 06:00", read: true },
   ];
 
-  const notifications = systemNotifications || mockNotifications;
+  const notifications = Array.isArray(systemNotifications) && systemNotifications.length > 0
+    ? systemNotifications
+    : mockNotifications;
   const unreadCount = notifications.filter((n: SystemNotification) => !n.read).length;
 
   // Theme toggle
@@ -114,47 +109,6 @@ export function AdminTopNav({ user }: { user: any }) {
     setTheme(newTheme);
     localStorage.setItem("admin-theme", newTheme);
     document.documentElement.classList.toggle("dark", newTheme === "dark");
-  };
-
-  // Global search
-  const handleSearch = async (query: string) => {
-    setSearchQuery(query);
-    if (query.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-
-    setIsSearching(true);
-    try {
-      const response = await api.get(`/admin/search?q=${encodeURIComponent(query)}`);
-      setSearchResults(response.data);
-    } catch (error) {
-      // Mock search results
-      setSearchResults([
-        { type: "user", id: 1, title: "John Doe", subtitle: "john@example.com", icon: Users },
-        { type: "transaction", id: 101, title: "TXN-2024-001", subtitle: "₹50,000 - Completed", icon: CreditCard },
-        { type: "investment", id: 201, title: "SpaceX Investment", subtitle: "₹1,00,000", icon: TrendingUp },
-        { type: "ticket", id: 301, title: "Support Ticket #301", subtitle: "Payment issue", icon: LifeBuoy },
-      ].filter(item =>
-        item.title.toLowerCase().includes(query.toLowerCase()) ||
-        item.subtitle.toLowerCase().includes(query.toLowerCase())
-      ));
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const handleSearchSelect = (item: any) => {
-    setSearchOpen(false);
-    const routes: Record<string, string> = {
-      user: `/admin/users/${item.id}`,
-      transaction: `/admin/payments?search=${item.title}`,
-      investment: `/admin/investments/${item.id}`,
-      ticket: `/admin/support/${item.id}`,
-      kyc: `/admin/kyc-queue?search=${item.title}`,
-      plan: `/admin/settings/plans?id=${item.id}`,
-    };
-    router.push(routes[item.type] || "/admin/dashboard");
   };
 
   const handleLogout = async () => {
@@ -419,89 +373,13 @@ export function AdminTopNav({ user }: { user: any }) {
         </div>
       </div>
 
-      {/* Global Search Dialog */}
-      <CommandDialog open={searchOpen} onOpenChange={setSearchOpen}>
-        <CommandInput
-          placeholder="Search users, transactions, investments, tickets, KYC, plans..."
-          value={searchQuery}
-          onValueChange={handleSearch}
-        />
-        <CommandList>
-          <CommandEmpty>
-            {isSearching ? "Searching..." : "No results found."}
-          </CommandEmpty>
-          {searchResults.length > 0 && (
-            <>
-              <CommandGroup heading="Users">
-                {searchResults.filter(r => r.type === "user").map((result) => (
-                  <CommandItem key={result.id} onSelect={() => handleSearchSelect(result)}>
-                    <Users className="mr-2 h-4 w-4" />
-                    <div>
-                      <p>{result.title}</p>
-                      <p className="text-xs text-muted-foreground">{result.subtitle}</p>
-                    </div>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-              <CommandSeparator />
-              <CommandGroup heading="Transactions">
-                {searchResults.filter(r => r.type === "transaction").map((result) => (
-                  <CommandItem key={result.id} onSelect={() => handleSearchSelect(result)}>
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    <div>
-                      <p>{result.title}</p>
-                      <p className="text-xs text-muted-foreground">{result.subtitle}</p>
-                    </div>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-              <CommandSeparator />
-              <CommandGroup heading="Investments">
-                {searchResults.filter(r => r.type === "investment").map((result) => (
-                  <CommandItem key={result.id} onSelect={() => handleSearchSelect(result)}>
-                    <TrendingUp className="mr-2 h-4 w-4" />
-                    <div>
-                      <p>{result.title}</p>
-                      <p className="text-xs text-muted-foreground">{result.subtitle}</p>
-                    </div>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-              <CommandSeparator />
-              <CommandGroup heading="Support Tickets">
-                {searchResults.filter(r => r.type === "ticket").map((result) => (
-                  <CommandItem key={result.id} onSelect={() => handleSearchSelect(result)}>
-                    <LifeBuoy className="mr-2 h-4 w-4" />
-                    <div>
-                      <p>{result.title}</p>
-                      <p className="text-xs text-muted-foreground">{result.subtitle}</p>
-                    </div>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </>
-          )}
-          <CommandSeparator />
-          <CommandGroup heading="Quick Links">
-            <CommandItem onSelect={() => { setSearchOpen(false); router.push("/admin/users"); }}>
-              <Users className="mr-2 h-4 w-4" />
-              <span>User Management</span>
-            </CommandItem>
-            <CommandItem onSelect={() => { setSearchOpen(false); router.push("/admin/kyc-queue"); }}>
-              <FileCheck2 className="mr-2 h-4 w-4" />
-              <span>KYC Queue</span>
-            </CommandItem>
-            <CommandItem onSelect={() => { setSearchOpen(false); router.push("/admin/payments"); }}>
-              <CreditCard className="mr-2 h-4 w-4" />
-              <span>Payments</span>
-            </CommandItem>
-            <CommandItem onSelect={() => { setSearchOpen(false); router.push("/admin/settings/plans"); }}>
-              <Package className="mr-2 h-4 w-4" />
-              <span>Plan Management</span>
-            </CommandItem>
-          </CommandGroup>
-        </CommandList>
-      </CommandDialog>
+      {/* Global Search Component */}
+      <GlobalSearch
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        scope="admin"
+        placeholder="Search users, transactions, investments, tickets, KYC..."
+      />
     </>
   );
 }
