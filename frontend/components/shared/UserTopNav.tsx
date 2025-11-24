@@ -24,15 +24,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import {
-  Command,
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
+import { GlobalSearch } from "@/components/shared/GlobalSearch";
 import {
   Dialog,
   DialogContent,
@@ -90,9 +82,6 @@ export function UserTopNav({ user }: { user: any }) {
   const router = useRouter();
   const pathname = usePathname();
   const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [language, setLanguage] = useState("en");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -186,47 +175,7 @@ export function UserTopNav({ user }: { user: any }) {
     document.documentElement.classList.toggle("dark", newTheme === "dark");
   };
 
-  // Global search
-  const handleSearch = async (query: string) => {
-    setSearchQuery(query);
-    if (query.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-
-    setIsSearching(true);
-    try {
-      const response = await api.get(`/search?q=${encodeURIComponent(query)}`);
-      setSearchResults(response.data);
-    } catch (error) {
-      setSearchResults([
-        { type: "ipo", id: 1, title: "SpaceX Series F", subtitle: "Pre-IPO • Min ₹5,000" },
-        { type: "company", id: 2, title: "Stripe Inc", subtitle: "Fintech • USA" },
-        { type: "plan", id: 3, title: "Growth SIP", subtitle: "₹5,000/month" },
-        { type: "portfolio", id: 4, title: "My SpaceX Holdings", subtitle: "₹1,00,000 invested" },
-      ].filter(item =>
-        item.title.toLowerCase().includes(query.toLowerCase()) ||
-        item.subtitle.toLowerCase().includes(query.toLowerCase())
-      ));
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const handleSearchSelect = (item: any) => {
-    setSearchOpen(false);
-    setSearchQuery(""); // Clear search on select
-    const routes: Record<string, string> = {
-      ipo: `/portfolio`,
-      company: `/portfolio`,
-      plan: `/subscribe`,
-      portfolio: `/portfolio`,
-      transaction: `/transactions`,
-      bonus: `/bonuses`,
-      referral: `/referrals`,
-    };
-    router.push(routes[item.type] || "/dashboard");
-  };
+  // Search is now handled by GlobalSearch component
 
   const handleLogout = async () => {
     try {
