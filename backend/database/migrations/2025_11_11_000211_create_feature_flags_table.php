@@ -11,9 +11,10 @@ return new class extends Migration
     {
         Schema::create('feature_flags', function (Blueprint $table) {
             $table->id();
+            $table->string('key')->unique(); // e.g., "new-homepage"
             $table->string('name'); // e.g., "New Homepage Design"
-            $table->string('slug')->unique(); // e.g., "new-homepage"
-            $table->boolean('is_active')->default(false);
+	    $table->text('description')->nullable();      // <-- ADD THIS
+            $table->boolean('is_enabled')->default(false);
             $table->integer('rollout_percentage')->default(0);
             $table->json('target_users')->nullable(); // Store array of user IDs
             $table->timestamps();

@@ -175,7 +175,6 @@ return new class extends Migration
         Schema::dropIfExists('user_legal_acceptances');
         Schema::dropIfExists('page_versions');
         Schema::dropIfExists('pages');
-        Schema::dropIfExists('canned_responses');
         Schema::dropIfExists('support_messages');
         Schema::dropIfExists('support_tickets');
     }

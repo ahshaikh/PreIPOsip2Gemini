@@ -21,19 +21,10 @@ return new class extends Migration
             $table->softDeletes();
         });
 
-        Schema::create('faqs', function (Blueprint $table) {
-            $table->id();
-            $table->string('question');
-            $table->text('answer');
-            $table->integer('category_id')->nullable();
-            $table->integer('display_order')->default(0);
-            $table->timestamps();
-        });
     }
 
     public function down(): void
     {
         Schema::dropIfExists('blog_posts');
-        Schema::dropIfExists('faqs');
     }
 };
