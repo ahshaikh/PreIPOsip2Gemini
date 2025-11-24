@@ -10,12 +10,17 @@ import { useQuery } from "@tanstack/react-query";
 export default function LuckyDrawsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['luckyDraws'],
-    queryFn: async () => (await api.get('/user/lucky-draws')).data,
+    queryFn: async () => {
+      const response = await api.get('/user/lucky-draws');
+      const responseData = response.data;
+      // Handle nested data structures
+      return responseData?.data || responseData || {};
+    },
   });
 
   if (isLoading) return <div>Loading lucky draw info...</div>;
 
-  const { active_draw, my_entries, past_draws } = data;
+  const { active_draw, my_entries = [], past_draws = { data: [] } } = data || {};
 
   return (
     <div className="space-y-6">
