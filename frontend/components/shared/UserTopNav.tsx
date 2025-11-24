@@ -105,7 +105,9 @@ export function UserTopNav({ user }: { user: any }) {
     queryKey: ["user-wallet"],
     queryFn: async () => {
       const response = await api.get("/user/wallet");
-      return response.data;
+      const data = response.data;
+      // Handle nested data structures
+      return data?.data || data;
     }
   });
 
@@ -114,7 +116,12 @@ export function UserTopNav({ user }: { user: any }) {
     queryKey: ["user-notifications"],
     queryFn: async () => {
       const response = await api.get("/user/notifications");
-      return response.data;
+      // Ensure we return an array - handle both direct array and nested data structures
+      const data = response.data;
+      if (Array.isArray(data)) return data;
+      if (data?.data && Array.isArray(data.data)) return data.data;
+      if (data?.notifications && Array.isArray(data.notifications)) return data.notifications;
+      return [];
     },
     refetchInterval: 60000
   });
@@ -124,7 +131,9 @@ export function UserTopNav({ user }: { user: any }) {
     queryKey: ["site-announcement"],
     queryFn: async () => {
       const response = await api.get("/announcements/latest");
-      return response.data;
+      const data = response.data;
+      // Handle nested data structures
+      return data?.data || data;
     }
   });
 
@@ -133,7 +142,12 @@ export function UserTopNav({ user }: { user: any }) {
     queryKey: ["active-offers"],
     queryFn: async () => {
       const response = await api.get("/offers/active");
-      return response.data;
+      const data = response.data;
+      // Handle nested data structures - ensure we return an array
+      if (Array.isArray(data)) return data;
+      if (data?.data && Array.isArray(data.data)) return data.data;
+      if (data?.offers && Array.isArray(data.offers)) return data.offers;
+      return [];
     }
   });
 
@@ -153,9 +167,9 @@ export function UserTopNav({ user }: { user: any }) {
   ];
 
   const wallet = walletData || mockWallet;
-  const userNotifications = notifications || mockNotifications;
+  const userNotifications = Array.isArray(notifications) ? notifications : mockNotifications;
   const currentAnnouncement = announcement || mockAnnouncement;
-  const activeOffers = offers || mockOffers;
+  const activeOffers = Array.isArray(offers) ? offers : mockOffers;
   const unreadCount = userNotifications.filter((n: UserNotification) => !n.read).length;
 
   // Theme toggle
