@@ -1,8 +1,11 @@
 <?php
+// V-TEST-FIX-001 (Namespace corrected for Laravel)
 
-namespace App\Tests\Security;
+namespace Tests\Unit;
 
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 // We'd typically use a framework-specific test case, e.g., WebTestCase
 // use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 

@@ -1,8 +1,9 @@
 <?php
+// V-TEST-FIX-008 (Namespace corrected for Laravel)
 
-namespace App\Tests\Security;
+namespace Tests\Unit;
 
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 // use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 class UserDataSecurityTest extends TestCase // Or WebTestCase

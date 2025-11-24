@@ -1,8 +1,9 @@
 <?php
+// V-TEST-FIX-005 (Namespace corrected for Laravel)
 
-namespace App\Tests\Performance;
+namespace Tests\Unit;
 
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 // use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 class PerformanceTest extends TestCase // Or WebTestCase

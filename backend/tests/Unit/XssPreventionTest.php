@@ -1,17 +1,19 @@
 <?php
+// V-TEST-FIX-009 (Namespace corrected for Laravel)
 
-namespace App\Tests\Security;
+namespace Tests\Unit;
 
-use PHPUnit\Framework\TestCase;
-// use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Tests\TestCase;
 
-class XssPreventionTest extends TestCase // Or WebTestCase
+class XssPreventionTest extends TestCase
 {
     private $client;
 
     protected function setUp(): void
-    Set up a mock client that simulates form submissions and rendering
-    $this->client = new class {
+    {
+        parent::setUp();
+        // Set up a mock client that simulates form submissions and rendering
+        $this->client = new class {
         private $storedData = '';
         public function request($method, $uri, $payload = []) {
             if ($method === 'POST' && $uri === '/profile/update') {
