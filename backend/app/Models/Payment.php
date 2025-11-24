@@ -50,6 +50,15 @@ class Payment extends Model
         return $this->belongsTo(Subscription::class);
     }
 
+    /**
+     * V-FIX: Relationship for bonus transactions linked to this payment.
+     * Used by Admin PaymentController for refund bonus reversals.
+     */
+    public function bonuses()
+    {
+        return $this->hasMany(BonusTransaction::class);
+    }
+
     // --- SCOPES ---
 
     public function scopePaid(Builder $query): void
