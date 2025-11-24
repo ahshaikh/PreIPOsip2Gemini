@@ -333,6 +333,11 @@ export default function DashboardPage() {
               </Link>
             </Button>
             <Button variant="outline" className="w-full justify-start" asChild>
+              <Link href="/wallet?action=withdraw">
+                <ArrowDownRight className="mr-2 h-4 w-4" /> Withdraw Money
+              </Link>
+            </Button>
+            <Button variant="outline" className="w-full justify-start" asChild>
               <Link href="/referrals">
                 <Users className="mr-2 h-4 w-4" /> Invite Friends
               </Link>

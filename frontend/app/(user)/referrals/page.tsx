@@ -15,7 +15,8 @@ import { useState } from "react";
 import {
   Copy, Gift, Users, TrendingUp, Share2, Link2, Trophy,
   Facebook, Twitter, Linkedin, Mail, MessageCircle, QrCode,
-  Target, Award, ChevronRight, Sparkles, IndianRupee, Calendar
+  Target, Award, ChevronRight, Sparkles, IndianRupee, Calendar,
+  Instagram, Send, Bot, Hash, MessageSquareText
 } from "lucide-react";
 
 export default function ReferralsPage() {
@@ -76,6 +77,47 @@ export default function ReferralsPage() {
     window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
+  const shareOnTelegram = () => {
+    const text = `Join me on PreIPO SIP! Use my code ${data?.stats?.referral_code} to get started: ${referralLink}`;
+    window.open(`https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const shareOnReddit = () => {
+    const title = 'Invest in Pre-IPO Companies with PreIPO SIP';
+    window.open(`https://reddit.com/submit?url=${encodeURIComponent(referralLink)}&title=${encodeURIComponent(title)}`, '_blank');
+  };
+
+  const shareOnThreads = () => {
+    const text = `Join me on PreIPO SIP and start investing in pre-IPO companies! Use my referral code: ${data?.stats?.referral_code}`;
+    window.open(`https://threads.net/intent/post?text=${encodeURIComponent(text + ' ' + referralLink)}`, '_blank');
+  };
+
+  const shareOnDiscord = () => {
+    // Discord doesn't have a direct share URL, so we copy a formatted message
+    const message = `🚀 Join me on PreIPO SIP!\n\nInvest in pre-IPO companies with zero fees.\nUse my referral code: **${data?.stats?.referral_code}**\n${referralLink}`;
+    navigator.clipboard.writeText(message);
+    toast.success("Message Copied!", { description: "Paste this in Discord to share" });
+  };
+
+  const shareOnSignal = () => {
+    // Signal doesn't have a web share URL, copy message for manual sharing
+    const message = `Join me on PreIPO SIP! Use my referral code ${data?.stats?.referral_code} to get started: ${referralLink}`;
+    navigator.clipboard.writeText(message);
+    toast.success("Message Copied!", { description: "Paste this in Signal to share" });
+  };
+
+  const shareOnLine = () => {
+    const text = `Join me on PreIPO SIP! Use code ${data?.stats?.referral_code}`;
+    window.open(`https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const shareOnInstagram = () => {
+    // Instagram doesn't support direct web sharing, copy to clipboard with instructions
+    const message = `📈 Join me on PreIPO SIP!\n\nInvest in pre-IPO companies with zero fees 💰\n\nUse my referral code: ${data?.stats?.referral_code}\nLink: ${referralLink}`;
+    navigator.clipboard.writeText(message);
+    toast.success("Message Copied!", { description: "Paste this in your Instagram Story or Bio" });
+  };
+
   // Calculate next multiplier milestone
   const completedReferrals = data?.stats?.completed_referrals || 0;
   const nextMilestone = completedReferrals < 5 ? 5 : completedReferrals < 10 ? 10 : completedReferrals < 25 ? 25 : 50;
@@ -126,14 +168,35 @@ export default function ReferralsPage() {
             <Button variant="outline" size="sm" onClick={shareOnWhatsApp} className="bg-green-500/10 hover:bg-green-500/20 border-green-500/30">
               <MessageCircle className="h-4 w-4 mr-2 text-green-500" /> WhatsApp
             </Button>
+            <Button variant="outline" size="sm" onClick={shareOnTelegram} className="bg-sky-400/10 hover:bg-sky-400/20 border-sky-400/30">
+              <Send className="h-4 w-4 mr-2 text-sky-400" /> Telegram
+            </Button>
             <Button variant="outline" size="sm" onClick={shareOnFacebook} className="bg-blue-500/10 hover:bg-blue-500/20 border-blue-500/30">
               <Facebook className="h-4 w-4 mr-2 text-blue-500" /> Facebook
+            </Button>
+            <Button variant="outline" size="sm" onClick={shareOnInstagram} className="bg-pink-500/10 hover:bg-pink-500/20 border-pink-500/30">
+              <Instagram className="h-4 w-4 mr-2 text-pink-500" /> Instagram
             </Button>
             <Button variant="outline" size="sm" onClick={shareOnTwitter} className="bg-sky-500/10 hover:bg-sky-500/20 border-sky-500/30">
               <Twitter className="h-4 w-4 mr-2 text-sky-500" /> Twitter
             </Button>
+            <Button variant="outline" size="sm" onClick={shareOnThreads} className="bg-black/10 hover:bg-black/20 border-black/30 dark:bg-white/10 dark:hover:bg-white/20 dark:border-white/30">
+              <MessageSquareText className="h-4 w-4 mr-2" /> Threads
+            </Button>
             <Button variant="outline" size="sm" onClick={shareOnLinkedIn} className="bg-blue-700/10 hover:bg-blue-700/20 border-blue-700/30">
               <Linkedin className="h-4 w-4 mr-2 text-blue-700" /> LinkedIn
+            </Button>
+            <Button variant="outline" size="sm" onClick={shareOnReddit} className="bg-orange-500/10 hover:bg-orange-500/20 border-orange-500/30">
+              <Hash className="h-4 w-4 mr-2 text-orange-500" /> Reddit
+            </Button>
+            <Button variant="outline" size="sm" onClick={shareOnDiscord} className="bg-indigo-500/10 hover:bg-indigo-500/20 border-indigo-500/30">
+              <Bot className="h-4 w-4 mr-2 text-indigo-500" /> Discord
+            </Button>
+            <Button variant="outline" size="sm" onClick={shareOnSignal} className="bg-blue-600/10 hover:bg-blue-600/20 border-blue-600/30">
+              <MessageCircle className="h-4 w-4 mr-2 text-blue-600" /> Signal
+            </Button>
+            <Button variant="outline" size="sm" onClick={shareOnLine} className="bg-green-600/10 hover:bg-green-600/20 border-green-600/30">
+              <MessageCircle className="h-4 w-4 mr-2 text-green-600" /> Line
             </Button>
             <Button variant="outline" size="sm" onClick={shareViaEmail}>
               <Mail className="h-4 w-4 mr-2" /> Email
