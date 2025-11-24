@@ -8,6 +8,58 @@ use Illuminate\Support\Facades\Log;
 use Exception;
 use App\Models\Plan; // <-- IMPORT
 
+/**
+ * RazorpayService - Payment Gateway Integration
+ *
+ * Provides a clean interface to Razorpay's payment gateway API for handling
+ * one-time payments, subscriptions (mandates), and refunds.
+ *
+ * ## Configuration
+ *
+ * API credentials are loaded from database settings with env fallback:
+ * - `razorpay_key_id` - Public API key
+ * - `razorpay_key_secret` - Secret API key
+ *
+ * ## Payment Flow (One-Time)
+ *
+ * ```
+ * 1. createOrder() → Razorpay Order ID
+ * 2. Frontend: Razorpay Checkout with Order ID
+ * 3. Webhook: payment.captured → handleSuccessfulPayment()
+ * ```
+ *
+ * ## Subscription/Mandate Flow (Auto-Debit)
+ *
+ * ```
+ * 1. createOrUpdateRazorpayPlan() → Sync Plan with Razorpay
+ * 2. createRazorpaySubscription() → Create mandate
+ * 3. Webhook: subscription.charged → handleSubscriptionCharged()
+ * ```
+ *
+ * ## Key Methods
+ *
+ * | Method                      | Purpose                                    |
+ * |-----------------------------|--------------------------------------------|
+ * | createOrder()               | Create one-time payment order              |
+ * | createOrUpdateRazorpayPlan()| Sync local Plan with Razorpay Plans        |
+ * | createRazorpaySubscription()| Create recurring mandate for user          |
+ * | verifySignature()           | Validate checkout callback signature       |
+ * | verifyWebhookSignature()    | Validate webhook payload authenticity      |
+ * | refundPayment()             | Process full or partial refund             |
+ *
+ * ## Amount Conversion
+ *
+ * Razorpay uses **paise** (smallest currency unit). All amounts are
+ * converted: `amount * 100` before sending to Razorpay.
+ *
+ * ## Testability
+ *
+ * The `setApi()` method allows injecting a mock Api instance for unit tests.
+ *
+ * @package App\Services
+ * @see \App\Services\PaymentWebhookService
+ * @link https://razorpay.com/docs/api/
+ */
 class RazorpayService
 {
     protected $api;

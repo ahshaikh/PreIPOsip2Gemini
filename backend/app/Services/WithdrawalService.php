@@ -14,6 +14,66 @@ use App\Notifications\WithdrawalRequested; // <-- IMPORT
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * WithdrawalService - User Withdrawal Request Handler
+ *
+ * Manages the complete withdrawal lifecycle from request creation through
+ * admin approval/rejection to final bank transfer completion.
+ *
+ * ## Withdrawal Flow
+ *
+ * ```
+ * User Request → [pending] → Admin Review → [approved] → Bank Transfer → [completed]
+ *                   ↓              ↓
+ *            [cancelled]      [rejected]
+ *             (by user)       (by admin)
+ * ```
+ *
+ * ## TDS (Tax Deducted at Source) Logic
+ *
+ * TDS is calculated for users with PAN when amount exceeds threshold:
+ * ```
+ * if (hasPAN && amount > tdsThreshold):
+ *     tdsDeducted = amount × tdsRate (default: 10%)
+ * netAmount = amount - fee - tdsDeducted
+ * ```
+ *
+ * Settings:
+ * - `tds_rate`: Default 0.10 (10%)
+ * - `tds_threshold`: Default ₹5,000
+ *
+ * ## Auto-Approval Rules
+ *
+ * Withdrawals are auto-approved when:
+ * 1. Amount ≤ `auto_approval_max_amount` (default: ₹5,000)
+ * 2. User has completed ≥5 successful payments (trusted user)
+ *
+ * ## Balance Locking
+ *
+ * When a withdrawal is created, the amount is moved from `balance` to
+ * `locked_balance` in the user's wallet. This prevents double-spending
+ * while the withdrawal is being processed.
+ *
+ * | Action            | balance    | locked_balance |
+ * |-------------------|------------|----------------|
+ * | Request Created   | -amount    | +amount        |
+ * | Request Completed | (no change)| -amount        |
+ * | Request Cancelled | +amount    | -amount        |
+ *
+ * ## Available Methods
+ *
+ * | Method                | Actor | Description                          |
+ * |-----------------------|-------|--------------------------------------|
+ * | createWithdrawalRecord| User  | Submit new withdrawal request        |
+ * | cancelUserWithdrawal  | User  | Cancel pending request (unlocks funds)|
+ * | approveWithdrawal     | Admin | Approve for bank transfer            |
+ * | rejectWithdrawal      | Admin | Reject with reason (unlocks funds)   |
+ * | completeWithdrawal    | Admin | Mark as transferred with UTR number  |
+ *
+ * @package App\Services
+ * @see \App\Models\Withdrawal
+ * @see \App\Services\WalletService
+ */
 class WithdrawalService
 {
     protected $walletService;

@@ -7,6 +7,64 @@ use App\Models\User;
 use App\Models\ReferralCampaign;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * ReferralService - 5-Tier Referral Multiplier System
+ *
+ * Manages the referral bonus multiplier system where users earn increased
+ * bonuses based on the number of successful referrals they've made.
+ *
+ * ## 5-Tier Multiplier System
+ *
+ * | Tier | Referrals Required | Bonus Multiplier |
+ * |------|-------------------|------------------|
+ * | 1    | 0                 | 1.0x             |
+ * | 2    | 3                 | 1.5x             |
+ * | 3    | 5                 | 2.0x             |
+ * | 4    | 10                | 2.5x             |
+ * | 5    | 20                | 3.0x             |
+ *
+ * ## Multiplier Priority
+ *
+ * ```
+ * 1. Active Campaign Override (if multiplier > 1.0)
+ * 2. Plan-Specific Tier Configuration
+ * 3. Default 5-Tier System
+ * ```
+ *
+ * ## Campaign Overrides
+ *
+ * During promotional campaigns (ReferralCampaign), a global multiplier can
+ * override the tier-based system. This is typically used for limited-time
+ * bonus events (e.g., "Double Referral Bonus Weekend").
+ *
+ * ## Plan-Specific Tiers
+ *
+ * Each plan can define custom referral tiers via the `referral_tiers` config:
+ * ```json
+ * [
+ *   {"count": 0, "multiplier": 1.0},
+ *   {"count": 5, "multiplier": 2.0},
+ *   {"count": 15, "multiplier": 4.0}
+ * ]
+ * ```
+ *
+ * ## Usage
+ *
+ * ```php
+ * // Called after a successful referral completion
+ * $referralService->updateReferrerMultiplier($referrerUser);
+ * ```
+ *
+ * ## Impact on Bonuses
+ *
+ * The multiplier is applied in BonusCalculatorService to scale all
+ * referral-related bonuses. For example, with 10 successful referrals
+ * (2.5x multiplier), a base ₹100 referral bonus becomes ₹250.
+ *
+ * @package App\Services
+ * @see \App\Models\ReferralCampaign
+ * @see \App\Services\BonusCalculatorService
+ */
 class ReferralService
 {
     /**
