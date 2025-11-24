@@ -11,8 +11,53 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * This service is the *only* class allowed to modify a wallet's balance.
- * It enforces pessimistic locking to prevent all race conditions.
+ * WalletService - Core Financial Operations Handler
+ *
+ * This service is the **single source of truth** for all wallet balance modifications.
+ * It implements a double-entry ledger system with pessimistic locking to ensure
+ * data integrity and prevent race conditions in concurrent transactions.
+ *
+ * ## Architecture
+ *
+ * The service uses `lockForUpdate()` (SELECT FOR UPDATE) to acquire exclusive locks
+ * on wallet rows during transactions. This prevents:
+ * - Double-spending attacks
+ * - Race conditions during concurrent deposits/withdrawals
+ * - Balance inconsistencies from parallel operations
+ *
+ * ## Available Operations
+ *
+ * | Method       | Purpose                                              | Balance Effect |
+ * |--------------|------------------------------------------------------|----------------|
+ * | deposit()    | Add funds (bonuses, refunds, admin adjustments)      | +amount        |
+ * | withdraw()   | Remove funds (immediate debit or lock for withdrawal)| -amount        |
+ * | unlockFunds()| Reverse a pending withdrawal (cancelled by user)     | +amount        |
+ *
+ * ## Transaction Types
+ *
+ * Common `$type` values used throughout the system:
+ * - `bonus_credit` - Bonus awarded to user wallet
+ * - `refund` - Pro-rata refund for cancellation
+ * - `admin_adjustment` - Manual admin balance correction
+ * - `withdrawal_request` - User requested withdrawal (locks balance)
+ * - `reversal` - Cancelled withdrawal, funds unlocked
+ *
+ * ## Usage Example
+ *
+ * ```php
+ * // Deposit bonus to user wallet
+ * $walletService->deposit($user, 500.00, 'bonus_credit', 'Monthly bonus', $bonusTransaction);
+ *
+ * // Withdraw with balance locking (for withdrawal requests)
+ * $walletService->withdraw($user, 1000.00, 'withdrawal_request', 'Withdrawal #123', $withdrawal, true);
+ *
+ * // Unlock funds when withdrawal is cancelled
+ * $walletService->unlockFunds($user, 1000.00, 'reversal', 'Withdrawal cancelled', $withdrawal);
+ * ```
+ *
+ * @package App\Services
+ * @see \App\Models\Wallet
+ * @see \App\Models\Transaction
  */
 class WalletService
 {

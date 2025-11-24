@@ -9,6 +9,65 @@ use App\Models\SmsTemplate;
 use App\Jobs\ProcessNotificationJob; // We will create this job
 use Illuminate\Support\Facades\Log;
 
+/**
+ * NotificationService - Multi-Channel Notification Dispatcher
+ *
+ * Handles sending notifications across multiple channels (email, SMS) with
+ * support for user preferences, templating, priority queuing, and batch sending.
+ *
+ * ## Notification Flow
+ *
+ * ```
+ * send() → dispatchNotification() → check preferences → queue job → deliver
+ * ```
+ *
+ * ## Channel Selection
+ *
+ * Channels are automatically selected based on template slug:
+ * - **Standard notifications**: Email only
+ * - **Critical notifications** (OTP, payment failures): Email + SMS
+ *
+ * Template slugs containing `otp` or `failed` trigger SMS delivery.
+ *
+ * ## Queue Priority System
+ *
+ * | Queue Name      | Template Types              | Priority |
+ * |-----------------|-----------------------------|---------:|
+ * | high_priority   | OTP, payment failures       | Immediate|
+ * | notifications   | Standard notifications      | Normal   |
+ *
+ * ## User Preference Checks
+ *
+ * Users can opt out of specific notification types. Preferences are checked
+ * using the `canReceiveNotification()` method on the User model:
+ * ```
+ * preferenceKey = {category}_{channel}  (e.g., "auth_email", "payment_sms")
+ * ```
+ *
+ * ## Usage Examples
+ *
+ * ```php
+ * // Single user notification
+ * $notificationService->send($user, 'payment.success', [
+ *     'amount' => 5000,
+ *     'subscription_code' => 'SUB-123'
+ * ]);
+ *
+ * // Batch notification (e.g., reminder emails)
+ * $notificationService->sendBatch($userIds, 'subscription.payment_reminder', [
+ *     'due_date' => '2024-01-15'
+ * ]);
+ * ```
+ *
+ * ## Template Slugs Convention
+ *
+ * Format: `{category}.{action}` (e.g., `auth.otp`, `payment.failed`, `subscription.created`)
+ *
+ * @package App\Services
+ * @see \App\Jobs\ProcessNotificationJob
+ * @see \App\Models\EmailTemplate
+ * @see \App\Models\SmsTemplate
+ */
 class NotificationService
 {
     /**

@@ -13,6 +13,63 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
+/**
+ * SubscriptionService - SIP Subscription Lifecycle Manager
+ *
+ * Handles the complete lifecycle of SIP (Systematic Investment Plan) subscriptions
+ * including creation, upgrades, downgrades, cancellations, and pausing/resuming.
+ *
+ * ## Subscription Lifecycle States
+ *
+ * ```
+ * [pending] → [active] → [completed]
+ *     ↓          ↓           ↑
+ *   (fail)    [paused]       |
+ *     ↓          ↓           |
+ * [cancelled] ← ───────────┘
+ * ```
+ *
+ * ## Key Business Rules
+ *
+ * 1. **Creation**: Subscriptions start as `pending` until first payment is confirmed
+ * 2. **KYC Requirement**: Users must have verified KYC before subscribing (configurable)
+ * 3. **Plan Limits**: Each plan defines max concurrent subscriptions per user
+ * 4. **Custom Amounts**: Plans can optionally allow amounts above the base monthly_amount
+ *
+ * ## Pro-Rata Calculations
+ *
+ * **Upgrades**: When upgrading mid-cycle, a pro-rata charge is calculated:
+ * ```
+ * dailyRateDiff = (newAmount - oldAmount) / daysInCycle
+ * proratedCharge = dailyRateDiff × daysRemaining
+ * ```
+ *
+ * **Downgrades**: No refund; new amount applies from next billing cycle
+ *
+ * **Cancellations**: Pro-rata refund if within `refund_policy_days` (default: 7):
+ * ```
+ * dailyRate = firstPaymentAmount / daysInMonth
+ * refundAmount = dailyRate × daysRemaining
+ * ```
+ *
+ * ## Usage Examples
+ *
+ * ```php
+ * // Create new subscription
+ * $subscription = $subscriptionService->createSubscription($user, $plan);
+ *
+ * // Upgrade with custom amount
+ * $proratedCharge = $subscriptionService->upgradePlan($subscription, $premiumPlan);
+ *
+ * // Cancel with refund calculation
+ * $refundAmount = $subscriptionService->cancelSubscription($subscription, 'User requested');
+ * ```
+ *
+ * @package App\Services
+ * @see \App\Models\Subscription
+ * @see \App\Models\Plan
+ * @see \App\Services\WalletService
+ */
 class SubscriptionService
 {
     protected $walletService;

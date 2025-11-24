@@ -13,6 +13,64 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * PaymentWebhookService - Razorpay Webhook Event Handler
+ *
+ * Processes incoming webhook events from Razorpay to update payment statuses,
+ * activate subscriptions, and trigger downstream processes (bonuses, allocations).
+ *
+ * ## Webhook Events Handled
+ *
+ * | Event                    | Handler Method              | Description                    |
+ * |--------------------------|-----------------------------|---------------------------------|
+ * | payment.captured         | handleSuccessfulPayment()   | One-time payment success        |
+ * | subscription.charged     | handleSubscriptionCharged() | Recurring auto-debit success    |
+ * | payment.failed           | handleFailedPayment()       | Payment failure                 |
+ * | refund.processed         | handleRefundProcessed()     | Refund confirmation             |
+ *
+ * ## Idempotency (SEC-8 Security Fix)
+ *
+ * All handlers check for duplicate `gateway_payment_id` before processing
+ * to prevent double-crediting from webhook retries:
+ * ```php
+ * if (Payment::where('gateway_payment_id', $paymentId)->exists()) {
+ *     return; // Already processed
+ * }
+ * ```
+ *
+ * ## Payment Fulfillment Flow
+ *
+ * ```
+ * Webhook → Handler → fulfillPayment() → [
+ *   1. Update Payment status to 'paid'
+ *   2. Activate subscription if pending
+ *   3. Update next_payment_date
+ *   4. Track consecutive_payments_count
+ *   5. Dispatch ProcessSuccessfulPaymentJob (bonuses, allocation)
+ * ]
+ * ```
+ *
+ * ## On-Time Payment Detection
+ *
+ * Payments are considered "on time" if received within the grace period:
+ * ```
+ * isOnTime = now() <= next_payment_date + grace_period_days (default: 2)
+ * ```
+ *
+ * On-time payments increment `consecutive_payments_count` for consistency bonuses.
+ * Late payments reset the counter to 0.
+ *
+ * ## Usage
+ *
+ * Called from WebhookController after signature verification:
+ * ```php
+ * $webhookService->handleSuccessfulPayment($payload);
+ * ```
+ *
+ * @package App\Services
+ * @see \App\Http\Controllers\Api\WebhookController
+ * @see \App\Jobs\ProcessSuccessfulPaymentJob
+ */
 class PaymentWebhookService
 {
     protected $walletService;
