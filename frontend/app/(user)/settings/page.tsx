@@ -1,10 +1,6 @@
 'use client';
 
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tantml:parameter>
-<parameter name="content">'use client';
-
-import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
