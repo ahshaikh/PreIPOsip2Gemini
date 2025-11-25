@@ -20,12 +20,12 @@ export default function PlansPage() {
   if (isLoading) return <div>Loading plans...</div>;
 
   return (
-    <div className="container py-20">
-      <div className="text-center max-w-3xl mx-auto mb-16">
-        <h1 className="text-4xl md:text-6xl font-black text-gray-900 mb-4">
-          Find Your Perfect <span className="text-primary">Investment Plan</span>
+    <div className="container py-20 min-h-screen bg-white dark:bg-slate-950">
+      <div className="text-center max-w-3xl mx-auto mb-16 pt-12">
+        <h1 className="text-4xl md:text-6xl font-black text-gray-900 dark:text-white mb-4">
+          Find Your Perfect <span className="text-primary dark:text-purple-400">Investment Plan</span>
         </h1>
-        <p className="text-xl text-muted-foreground">
+        <p className="text-xl text-muted-foreground dark:text-gray-400">
           All plans are 100% free. No platform fees, no exit fees.
           Your investment, your profit, plus our bonuses.
         </p>

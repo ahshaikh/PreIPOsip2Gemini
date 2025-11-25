@@ -1,86 +1,61 @@
-// V-FINAL-1730-192
-'use client';
-
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
-import { useState } from "react";
-import { Mail, Phone, MapPin } from "lucide-react";
+"use client";
+import { Mail, Phone, MapPin, Send } from "lucide-react";
 
 export default function ContactPage() {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    // In a real app, send to API. For now, simulate success.
-    setTimeout(() => {
-        toast.success("Message Sent!", { description: "We'll get back to you shortly." });
-        setIsSubmitting(false);
-    }, 1000);
-  };
-
   return (
-    <div className="container py-20">
-      <h1 className="text-4xl font-bold text-center mb-12">Contact Us</h1>
-      
-      <div className="grid md:grid-cols-2 gap-12">
-        <div>
-          <h2 className="text-2xl font-semibold mb-6">Get in Touch</h2>
-          <div className="space-y-6">
-            <div className="flex items-start gap-4">
-              <MapPin className="h-6 w-6 text-primary mt-1" />
-              <div>
-                <h3 className="font-medium">Office</h3>
-                <p className="text-muted-foreground">123 Financial District, Mumbai, India</p>
+    <div className="min-h-screen bg-white dark:bg-slate-950">
+      <section className="pt-32 pb-20 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-slate-900 dark:to-slate-800">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h1 className="text-5xl font-black text-gray-900 dark:text-white mb-4">
+            Get in <span className="text-purple-600 dark:text-purple-400">Touch</span>
+          </h1>
+          <p className="text-xl text-gray-600 dark:text-gray-400">We're here to help you succeed</p>
+        </div>
+      </section>
+      <section className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-2 gap-12">
+            <div>
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Contact Information</h2>
+              <div className="space-y-6">
+                <div className="flex items-start space-x-4">
+                  <Mail className="w-6 h-6 text-purple-600 dark:text-purple-400 mt-1" />
+                  <div>
+                    <div className="font-semibold text-gray-900 dark:text-white">Email</div>
+                    <div className="text-gray-600 dark:text-gray-400">support@preiposip.com</div>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-4">
+                  <Phone className="w-6 h-6 text-purple-600 dark:text-purple-400 mt-1" />
+                  <div>
+                    <div className="font-semibold text-gray-900 dark:text-white">Phone</div>
+                    <div className="text-gray-600 dark:text-gray-400">+91 1800-123-4567</div>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-4">
+                  <MapPin className="w-6 h-6 text-purple-600 dark:text-purple-400 mt-1" />
+                  <div>
+                    <div className="font-semibold text-gray-900 dark:text-white">Address</div>
+                    <div className="text-gray-600 dark:text-gray-400">Mumbai, Maharashtra, India</div>
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="flex items-start gap-4">
-              <Phone className="h-6 w-6 text-primary mt-1" />
-              <div>
-                <h3 className="font-medium">Phone</h3>
-                <p className="text-muted-foreground">+91 98765 43210</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-4">
-              <Mail className="h-6 w-6 text-primary mt-1" />
-              <div>
-                <h3 className="font-medium">Email</h3>
-                <p className="text-muted-foreground">support@preiposip.com</p>
-              </div>
+            <div>
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Send us a message</h2>
+              <form className="space-y-4">
+                <input type="text" placeholder="Name" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-gray-900 dark:text-white" />
+                <input type="email" placeholder="Email" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-gray-900 dark:text-white" />
+                <textarea placeholder="Message" rows={4} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-gray-900 dark:text-white"></textarea>
+                <button type="submit" className="w-full px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold flex items-center justify-center space-x-2">
+                  <span>Send Message</span>
+                  <Send className="w-5 h-5" />
+                </button>
+              </form>
             </div>
           </div>
         </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Send a Message</CardTitle>
-            <CardDescription>We usually respond within 24 hours.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label>Name</Label>
-                <Input required placeholder="Your Name" />
-              </div>
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input type="email" required placeholder="your@email.com" />
-              </div>
-              <div className="space-y-2">
-                <Label>Message</Label>
-                <Textarea required placeholder="How can we help?" rows={5} />
-              </div>
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? "Sending..." : "Send Message"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+      </section>
     </div>
   );
 }

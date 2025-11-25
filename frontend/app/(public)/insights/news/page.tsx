@@ -1,0 +1,27 @@
+"use client";
+import Link from "next/link";
+import { Newspaper, ArrowRight } from "lucide-react";
+
+export default function NewsPage() {
+  return (
+    <div className="min-h-screen bg-white dark:bg-slate-950">
+      <section className="pt-32 pb-20 bg-gradient-to-br from-green-50 to-blue-50 dark:from-slate-900 dark:to-slate-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <h1 className="text-5xl font-black text-gray-900 dark:text-white mb-4">
+              News & <span className="text-green-600 dark:text-green-400">Updates</span>
+            </h1>
+            <p className="text-xl text-gray-600 dark:text-gray-400">
+              Stay updated with the latest pre-IPO market news
+            </p>
+          </div>
+        </div>
+      </section>
+      <section className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <p className="text-gray-600 dark:text-gray-400 text-center">Content coming soon...</p>
+        </div>
+      </section>
+    </div>
+  );
+}
