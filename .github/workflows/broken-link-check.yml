@@ -1,0 +1,479 @@
+name: Broken Link Check
+
+on:
+  push:
+    branches: [main, develop, staging]
+  pull_request:
+    branches: [main, develop, staging]
+
+env:
+  NODE_VERSION: '18.x'
+  PHP_VERSION: '8.2'
+  FRONTEND_PORT: 3000
+  BACKEND_PORT: 8000
+
+jobs:
+  broken-link-check:
+    name: Check for Broken Links
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: preipo_sip_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    steps:
+      # ==================== SETUP ====================
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, pdo, pdo_mysql, redis, xml, curl, zip, bcmath
+          ini-values: post_max_size=256M, max_execution_time=180
+          coverage: none
+
+      - name: Install Composer Dependencies
+        working-directory: backend
+        run: |
+          composer install --prefer-dist --no-progress --no-suggest --no-interaction
+          composer dump-autoload
+
+      - name: Setup Laravel Environment
+        working-directory: backend
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+          # Configure database
+          sed -i 's/DB_HOST=127.0.0.1/DB_HOST=127.0.0.1/' .env
+          sed -i 's/DB_PORT=3306/DB_PORT=3306/' .env
+          sed -i 's/DB_DATABASE=laravel/DB_DATABASE=preipo_sip_test/' .env
+          sed -i 's/DB_USERNAME=root/DB_USERNAME=root/' .env
+          sed -i 's/DB_PASSWORD=/DB_PASSWORD=root/' .env
+
+          # Configure Redis
+          sed -i 's/REDIS_HOST=127.0.0.1/REDIS_HOST=127.0.0.1/' .env
+          sed -i 's/REDIS_PORT=6379/REDIS_PORT=6379/' .env
+
+          # Set app URL
+          sed -i 's|APP_URL=http://localhost|APP_URL=http://localhost:8000|' .env
+
+      - name: Run Database Migrations
+        working-directory: backend
+        run: |
+          php artisan migrate:fresh --force --no-interaction
+          php artisan db:seed --force --no-interaction || echo "Seeding skipped or failed"
+
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Crawler Dependencies
+        run: npm install @playwright/test playwright json2csv dotenv ts-node typescript @types/node
+
+      # ==================== START SERVICES ====================
+
+      - name: Start Laravel Backend
+        working-directory: backend
+        run: |
+          php artisan serve --host=0.0.0.0 --port=${{ env.BACKEND_PORT }} > /tmp/backend.log 2>&1 &
+          echo $! > /tmp/backend.pid
+          echo "Backend PID: $(cat /tmp/backend.pid)"
+
+      - name: Wait for Backend to be Ready
+        run: |
+          echo "Waiting for backend on http://localhost:${{ env.BACKEND_PORT }}"
+          for i in {1..30}; do
+            if curl -s http://localhost:${{ env.BACKEND_PORT }}/api/v1/global-settings > /dev/null; then
+              echo "✅ Backend is ready!"
+              exit 0
+            fi
+            echo "Attempt $i/30: Backend not ready yet..."
+            sleep 2
+          done
+          echo "❌ Backend failed to start"
+          cat /tmp/backend.log
+          exit 1
+
+      - name: Build Next.js Frontend
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:${{ env.BACKEND_PORT }}/api/v1
+        run: npm run build
+
+      - name: Start Next.js Frontend
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:${{ env.BACKEND_PORT }}/api/v1
+          PORT: ${{ env.FRONTEND_PORT }}
+        run: |
+          npm run start > /tmp/frontend.log 2>&1 &
+          echo $! > /tmp/frontend.pid
+          echo "Frontend PID: $(cat /tmp/frontend.pid)"
+
+      - name: Wait for Frontend to be Ready
+        run: |
+          echo "Waiting for frontend on http://localhost:${{ env.FRONTEND_PORT }}"
+          for i in {1..30}; do
+            if curl -s http://localhost:${{ env.FRONTEND_PORT }} > /dev/null; then
+              echo "✅ Frontend is ready!"
+              exit 0
+            fi
+            echo "Attempt $i/30: Frontend not ready yet..."
+            sleep 2
+          done
+          echo "❌ Frontend failed to start"
+          cat /tmp/frontend.log
+          exit 1
+
+      # ==================== RUN CRAWLER ====================
+
+      - name: Run Broken Link Crawler
+        id: crawler
+        continue-on-error: true
+        env:
+          FRONTEND_URL: http://localhost:${{ env.FRONTEND_PORT }}
+          BACKEND_URL: http://localhost:${{ env.BACKEND_PORT }}
+          USER_EMAIL: ${{ secrets.TEST_USER_EMAIL || 'testuser@example.com' }}
+          USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD || 'password123' }}
+          ADMIN_EMAIL: ${{ secrets.TEST_ADMIN_EMAIL || 'admin@example.com' }}
+          ADMIN_PASSWORD: ${{ secrets.TEST_ADMIN_PASSWORD || 'admin123' }}
+          HEADLESS: true
+          SCREENSHOTS: true
+          MAX_RETRIES: 2
+          RETRY_DELAY: 1000
+          RATE_LIMIT_DELAY: 300
+          FAIL_FAST: false
+          TIMEOUT: 15000
+        run: |
+          echo "🚀 Starting Playwright crawler..."
+          ts-node playwright-crawler-optimized.ts || echo "Crawler completed with errors"
+
+      # ==================== GENERATE REPORT ====================
+
+      - name: Parse Crawler Results
+        id: parse-results
+        if: always()
+        run: |
+          # Find the most recent summary file
+          SUMMARY_FILE=$(ls -t reports/crawler-summary-*.json 2>/dev/null | head -1)
+
+          if [ -f "$SUMMARY_FILE" ]; then
+            echo "📊 Parsing results from: $SUMMARY_FILE"
+
+            # Extract metrics using jq
+            TOTAL=$(jq -r '.totalTests' "$SUMMARY_FILE")
+            SUCCESSFUL=$(jq -r '.successful' "$SUMMARY_FILE")
+            FAILED=$(jq -r '.failed' "$SUMMARY_FILE")
+            RETRIED=$(jq -r '.retried' "$SUMMARY_FILE")
+
+            NOT_FOUND=$(jq -r '.errors.notFound' "$SUMMARY_FILE")
+            SERVER_ERRORS=$(jq -r '.errors.serverErrors' "$SUMMARY_FILE")
+            REDIRECT_LOOPS=$(jq -r '.errors.redirectLoops' "$SUMMARY_FILE")
+            AUTH_ERRORS=$(jq -r '.errors.authErrors' "$SUMMARY_FILE")
+            TIMEOUTS=$(jq -r '.errors.timeouts' "$SUMMARY_FILE")
+            REACT_ERRORS=$(jq -r '.errors.reactErrors' "$SUMMARY_FILE")
+
+            AVG_RESPONSE=$(jq -r '.performance.avgResponseTime' "$SUMMARY_FILE")
+            MIN_RESPONSE=$(jq -r '.performance.minResponseTime' "$SUMMARY_FILE")
+            MAX_RESPONSE=$(jq -r '.performance.maxResponseTime' "$SUMMARY_FILE")
+            DURATION=$(jq -r '.performance.totalDuration' "$SUMMARY_FILE")
+
+            PUBLIC_TESTS=$(jq -r '.byMode.PUBLIC' "$SUMMARY_FILE")
+            USER_TESTS=$(jq -r '.byMode.USER' "$SUMMARY_FILE")
+            ADMIN_TESTS=$(jq -r '.byMode.ADMIN' "$SUMMARY_FILE")
+
+            # Save to environment
+            echo "total_tests=$TOTAL" >> $GITHUB_OUTPUT
+            echo "successful=$SUCCESSFUL" >> $GITHUB_OUTPUT
+            echo "failed=$FAILED" >> $GITHUB_OUTPUT
+            echo "retried=$RETRIED" >> $GITHUB_OUTPUT
+            echo "not_found=$NOT_FOUND" >> $GITHUB_OUTPUT
+            echo "server_errors=$SERVER_ERRORS" >> $GITHUB_OUTPUT
+            echo "redirect_loops=$REDIRECT_LOOPS" >> $GITHUB_OUTPUT
+            echo "auth_errors=$AUTH_ERRORS" >> $GITHUB_OUTPUT
+            echo "timeouts=$TIMEOUTS" >> $GITHUB_OUTPUT
+            echo "react_errors=$REACT_ERRORS" >> $GITHUB_OUTPUT
+            echo "avg_response=$AVG_RESPONSE" >> $GITHUB_OUTPUT
+            echo "min_response=$MIN_RESPONSE" >> $GITHUB_OUTPUT
+            echo "max_response=$MAX_RESPONSE" >> $GITHUB_OUTPUT
+            echo "duration=$DURATION" >> $GITHUB_OUTPUT
+            echo "public_tests=$PUBLIC_TESTS" >> $GITHUB_OUTPUT
+            echo "user_tests=$USER_TESTS" >> $GITHUB_OUTPUT
+            echo "admin_tests=$ADMIN_TESTS" >> $GITHUB_OUTPUT
+
+            # Calculate critical errors (404, 500, redirects, auth)
+            CRITICAL=$((NOT_FOUND + SERVER_ERRORS + REDIRECT_LOOPS + AUTH_ERRORS))
+            echo "critical_errors=$CRITICAL" >> $GITHUB_OUTPUT
+
+            # Success rate
+            if [ "$TOTAL" -gt 0 ]; then
+              SUCCESS_RATE=$(awk "BEGIN {printf \"%.1f\", ($SUCCESSFUL/$TOTAL)*100}")
+            else
+              SUCCESS_RATE="0"
+            fi
+            echo "success_rate=$SUCCESS_RATE" >> $GITHUB_OUTPUT
+
+            echo "✅ Results parsed successfully"
+            echo "   Total: $TOTAL | Successful: $SUCCESSFUL | Failed: $FAILED"
+            echo "   Critical Errors: $CRITICAL"
+          else
+            echo "❌ No summary file found!"
+            echo "total_tests=0" >> $GITHUB_OUTPUT
+            echo "successful=0" >> $GITHUB_OUTPUT
+            echo "failed=0" >> $GITHUB_OUTPUT
+            echo "critical_errors=999" >> $GITHUB_OUTPUT
+            echo "success_rate=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate Detailed Error Report
+        id: error-report
+        if: always()
+        run: |
+          # Find the most recent detailed report
+          REPORT_FILE=$(ls -t reports/crawler-report-*.json 2>/dev/null | head -1)
+
+          if [ -f "$REPORT_FILE" ]; then
+            echo "📝 Generating error report from: $REPORT_FILE"
+
+            # Extract failed tests
+            FAILED_TESTS=$(jq -r '.[] | select(.errorType != null) | "- [\(.mode)] \(.url) - **\(.errorType)** (Status: \(.status), Time: \(.responseTime)ms)"' "$REPORT_FILE" | head -20)
+
+            if [ -z "$FAILED_TESTS" ]; then
+              FAILED_TESTS="✅ No errors found!"
+            fi
+
+            # Save to file for PR comment
+            cat > /tmp/error-report.txt <<EOF
+          $FAILED_TESTS
+          EOF
+
+            # Count by error type
+            echo "error_details<<EOF" >> $GITHUB_OUTPUT
+            cat /tmp/error-report.txt >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "error_details=No detailed report available" >> $GITHUB_OUTPUT
+          fi
+
+      # ==================== UPLOAD ARTIFACTS ====================
+
+      - name: Upload Crawler Reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: crawler-reports
+          path: |
+            reports/*.json
+            reports/*.csv
+            reports/screenshots/*.png
+          retention-days: 14
+
+      - name: Upload Service Logs
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: service-logs
+          path: |
+            /tmp/backend.log
+            /tmp/frontend.log
+          retention-days: 7
+
+      # ==================== POST PR COMMENT ====================
+
+      - name: Post PR Comment
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const totalTests = '${{ steps.parse-results.outputs.total_tests }}';
+            const successful = '${{ steps.parse-results.outputs.successful }}';
+            const failed = '${{ steps.parse-results.outputs.failed }}';
+            const retried = '${{ steps.parse-results.outputs.retried }}';
+            const criticalErrors = '${{ steps.parse-results.outputs.critical_errors }}';
+            const successRate = '${{ steps.parse-results.outputs.success_rate }}';
+
+            const notFound = '${{ steps.parse-results.outputs.not_found }}';
+            const serverErrors = '${{ steps.parse-results.outputs.server_errors }}';
+            const redirectLoops = '${{ steps.parse-results.outputs.redirect_loops }}';
+            const authErrors = '${{ steps.parse-results.outputs.auth_errors }}';
+            const timeouts = '${{ steps.parse-results.outputs.timeouts }}';
+            const reactErrors = '${{ steps.parse-results.outputs.react_errors }}';
+
+            const avgResponse = '${{ steps.parse-results.outputs.avg_response }}';
+            const minResponse = '${{ steps.parse-results.outputs.min_response }}';
+            const maxResponse = '${{ steps.parse-results.outputs.max_response }}';
+            const duration = '${{ steps.parse-results.outputs.duration }}';
+
+            const publicTests = '${{ steps.parse-results.outputs.public_tests }}';
+            const userTests = '${{ steps.parse-results.outputs.user_tests }}';
+            const adminTests = '${{ steps.parse-results.outputs.admin_tests }}';
+
+            const errorDetails = `${{ steps.error-report.outputs.error_details }}`;
+
+            // Determine status emoji
+            const statusEmoji = criticalErrors === '0' ? '✅' : '❌';
+            const statusText = criticalErrors === '0' ? 'All Links Valid' : `${criticalErrors} Critical Issues Found`;
+
+            // Build comment body
+            const commentBody = `
+            ## ${statusEmoji} Broken Link Check Results
+
+            **Status:** ${statusText}
+            **Success Rate:** ${successRate}% (${successful}/${totalTests} passed)
+
+            ### 📊 Summary
+
+            | Metric | Value |
+            |--------|-------|
+            | Total Tests | ${totalTests} |
+            | ✅ Successful | ${successful} |
+            | ❌ Failed | ${failed} |
+            | 🔄 Retried | ${retried} |
+            | 🚨 Critical Errors | ${criticalErrors} |
+
+            ### 🔍 Error Breakdown
+
+            | Error Type | Count |
+            |------------|-------|
+            | 🔍 404 Not Found | ${notFound} |
+            | 🔥 500 Server Error | ${serverErrors} |
+            | 🔄 Redirect Loops | ${redirectLoops} |
+            | 🔐 Auth Errors | ${authErrors} |
+            | ⏱️ Timeouts | ${timeouts} |
+            | ⚛️ React Errors | ${reactErrors} |
+
+            ### ⚡ Performance
+
+            | Metric | Value |
+            |--------|-------|
+            | Avg Response Time | ${avgResponse}ms |
+            | Min Response Time | ${minResponse}ms |
+            | Max Response Time | ${maxResponse}ms |
+            | Total Duration | ${Math.round(duration / 1000)}s |
+
+            ### 🎯 Tests by Mode
+
+            | Mode | Count |
+            |------|-------|
+            | 🌐 PUBLIC | ${publicTests} |
+            | 👤 USER | ${userTests} |
+            | 👑 ADMIN | ${adminTests} |
+
+            ${failed !== '0' ? `
+            ### ❌ Failed Tests (Top 20)
+
+            ${errorDetails}
+
+            <details>
+            <summary>View full report</summary>
+
+            Download the complete reports from the workflow artifacts.
+
+            </details>
+            ` : ''}
+
+            ---
+
+            <sub>🤖 Automated by [Broken Link Check Workflow](${context.payload.repository.html_url}/actions/runs/${context.runId})</sub>
+            `;
+
+            // Find existing comment
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.data.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('Broken Link Check Results')
+            );
+
+            // Update or create comment
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: commentBody
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: commentBody
+              });
+            }
+
+      # ==================== FAIL IF CRITICAL ERRORS ====================
+
+      - name: Check for Critical Errors
+        if: always()
+        run: |
+          CRITICAL=${{ steps.parse-results.outputs.critical_errors }}
+
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo "❌ Found $CRITICAL critical errors (404, 500, redirects, auth)"
+            echo "::error::Broken link check failed with $CRITICAL critical errors"
+            exit 1
+          else
+            echo "✅ No critical errors found!"
+            exit 0
+          fi
+
+      # ==================== CLEANUP ====================
+
+      - name: Stop Services
+        if: always()
+        run: |
+          echo "🛑 Stopping services..."
+
+          if [ -f /tmp/frontend.pid ]; then
+            kill $(cat /tmp/frontend.pid) 2>/dev/null || true
+            echo "Frontend stopped"
+          fi
+
+          if [ -f /tmp/backend.pid ]; then
+            kill $(cat /tmp/backend.pid) 2>/dev/null || true
+            echo "Backend stopped"
+          fi
+
+          echo "✅ Cleanup complete"

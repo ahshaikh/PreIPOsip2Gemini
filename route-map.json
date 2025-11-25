@@ -1,0 +1,2345 @@
+{
+  "public": [
+    {
+      "category": "Frontend Pages",
+      "routes": [
+        {
+          "path": "/",
+          "type": "page",
+          "description": "Homepage with hero, features, plans, calculator",
+          "file": "frontend/app/(public)/page.tsx"
+        },
+        {
+          "path": "/login",
+          "type": "page",
+          "description": "User login with email/password and Google OAuth",
+          "file": "frontend/app/(public)/login/page.tsx"
+        },
+        {
+          "path": "/login/social-callback",
+          "type": "page",
+          "description": "OAuth callback handler",
+          "file": "frontend/app/(public)/login/social-callback/page.tsx"
+        },
+        {
+          "path": "/signup",
+          "type": "page",
+          "description": "User registration",
+          "file": "frontend/app/(public)/signup/page.tsx"
+        },
+        {
+          "path": "/verify",
+          "type": "page",
+          "description": "OTP verification",
+          "file": "frontend/app/(public)/verify/page.tsx"
+        },
+        {
+          "path": "/blog",
+          "type": "page",
+          "description": "Blog listing",
+          "file": "frontend/app/(public)/blog/page.tsx"
+        },
+        {
+          "path": "/blog/[slug]",
+          "type": "page",
+          "description": "Individual blog post",
+          "file": "frontend/app/(public)/blog/[slug]/page.tsx",
+          "dynamic": true
+        },
+        {
+          "path": "/contact",
+          "type": "page",
+          "description": "Contact page",
+          "file": "frontend/app/(public)/contact/page.tsx"
+        },
+        {
+          "path": "/plans",
+          "type": "page",
+          "description": "Subscription plans",
+          "file": "frontend/app/(public)/plans/page.tsx"
+        },
+        {
+          "path": "/products",
+          "type": "page",
+          "description": "Products listing",
+          "file": "frontend/app/(public)/products/page.tsx"
+        },
+        {
+          "path": "/products/[slug]",
+          "type": "page",
+          "description": "Individual product details",
+          "file": "frontend/app/(public)/products/[slug]/page.tsx",
+          "dynamic": true
+        },
+        {
+          "path": "/how-it-works",
+          "type": "page",
+          "description": "How the platform works",
+          "file": "frontend/app/(public)/how-it-works/page.tsx"
+        },
+        {
+          "path": "/faq",
+          "type": "page",
+          "description": "Frequently asked questions",
+          "file": "frontend/app/(public)/faq/page.tsx"
+        },
+        {
+          "path": "/calculator",
+          "type": "page",
+          "description": "Returns calculator",
+          "file": "frontend/app/(public)/calculator/page.tsx"
+        },
+        {
+          "path": "/about",
+          "type": "page",
+          "description": "About Us",
+          "file": "Referenced in footer"
+        },
+        {
+          "path": "/careers",
+          "type": "page",
+          "description": "Careers page",
+          "file": "Referenced in footer"
+        },
+        {
+          "path": "/privacy",
+          "type": "page",
+          "description": "Privacy policy",
+          "file": "Referenced in footer"
+        },
+        {
+          "path": "/terms",
+          "type": "page",
+          "description": "Terms of service",
+          "file": "Referenced in footer"
+        },
+        {
+          "path": "/sebi",
+          "type": "page",
+          "description": "SEBI compliance information",
+          "file": "Referenced in footer"
+        },
+        {
+          "path": "/refund-policy",
+          "type": "page",
+          "description": "Refund policy",
+          "file": "Referenced in footer"
+        },
+        {
+          "path": "/[slug]",
+          "type": "page",
+          "description": "Dynamic CMS pages (catch-all)",
+          "file": "frontend/app/(public)/[slug]/page.tsx",
+          "dynamic": true
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Authentication",
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/api/v1/register",
+          "controller": "AuthController@register",
+          "middleware": ["throttle:login"],
+          "rateLimit": "5 req/min",
+          "description": "User registration"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/login",
+          "controller": "AuthController@login",
+          "middleware": ["throttle:login"],
+          "rateLimit": "5 req/min",
+          "description": "User login"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/login/2fa",
+          "controller": "AuthController@verifyTwoFactor",
+          "middleware": ["throttle:login"],
+          "rateLimit": "5 req/min",
+          "description": "Two-factor authentication verification"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/verify-otp",
+          "controller": "AuthController@verifyOtp",
+          "middleware": ["throttle:login"],
+          "rateLimit": "5 req/min",
+          "description": "OTP verification"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/password/forgot",
+          "controller": "PasswordResetController@sendResetLink",
+          "middleware": ["throttle:login"],
+          "rateLimit": "5 req/min",
+          "description": "Send password reset link"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/password/reset",
+          "controller": "PasswordResetController@reset",
+          "middleware": ["throttle:login"],
+          "rateLimit": "5 req/min",
+          "description": "Reset password"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Social Authentication",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/{provider}/redirect",
+          "controller": "SocialLoginController@redirectToProvider",
+          "description": "Redirect to OAuth provider"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/{provider}/callback",
+          "controller": "SocialLoginController@handleProviderCallback",
+          "description": "OAuth callback handler"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Public Data",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/plans",
+          "controller": "PublicPlanController@index",
+          "description": "Get all subscription plans"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/plans/{slug}",
+          "controller": "PublicPlanController@show",
+          "description": "Get specific plan details",
+          "dynamic": true
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/page/{slug}",
+          "controller": "PublicPageController@show",
+          "description": "Get CMS page by slug",
+          "dynamic": true
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/public/faqs",
+          "controller": "PublicFaqController@index",
+          "description": "Get all FAQs"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/public/blog",
+          "controller": "PublicBlogController@publicIndex",
+          "description": "Get all blog posts"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/public/blog/{slug}",
+          "controller": "PublicBlogController@publicShow",
+          "description": "Get specific blog post",
+          "dynamic": true
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/global-settings",
+          "controller": "GlobalSettingsController@index",
+          "description": "Get global settings"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/products/{slug}/history",
+          "controller": "ProductDataController@getPriceHistory",
+          "description": "Get product price history",
+          "dynamic": true
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Webhooks",
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/api/v1/webhooks/razorpay",
+          "controller": "WebhookController@handleRazorpay",
+          "middleware": ["webhook.verify:razorpay"],
+          "description": "Razorpay webhook handler"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - KYC Callback",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/kyc/digilocker/callback",
+          "controller": "KycController@handleDigiLockerCallback",
+          "description": "DigiLocker callback handler"
+        }
+      ]
+    }
+  ],
+  "user": [
+    {
+      "category": "Frontend Pages - Main",
+      "routes": [
+        {
+          "path": "/dashboard",
+          "type": "page",
+          "description": "User dashboard with KYC status, wallet, bonuses",
+          "file": "frontend/app/(user)/dashboard/page.tsx",
+          "auth": "required"
+        }
+      ]
+    },
+    {
+      "category": "Frontend Pages - Account Management",
+      "routes": [
+        {
+          "path": "/profile",
+          "type": "page",
+          "description": "User profile management with avatar upload",
+          "file": "frontend/app/(user)/Profile/page.tsx",
+          "auth": "required"
+        },
+        {
+          "path": "/settings",
+          "type": "page",
+          "description": "User settings",
+          "file": "frontend/app/(user)/settings/page.tsx",
+          "auth": "required"
+        },
+        {
+          "path": "/kyc",
+          "type": "page",
+          "description": "KYC verification with document upload",
+          "file": "frontend/app/(user)/kyc/page.tsx",
+          "auth": "required"
+        },
+        {
+          "path": "/bank-details",
+          "type": "page",
+          "description": "Bank details management",
+          "file": "Referenced in UserTopNav",
+          "auth": "required"
+        }
+      ]
+    },
+    {
+      "category": "Frontend Pages - Financial",
+      "routes": [
+        {
+          "path": "/wallet",
+          "type": "page",
+          "description": "Wallet management with add/withdraw money",
+          "file": "frontend/app/(user)/wallet/page.tsx",
+          "auth": "required"
+        },
+        {
+          "path": "/transactions",
+          "type": "page",
+          "description": "Transaction history",
+          "file": "frontend/app/(user)/transactions/page.tsx",
+          "auth": "required"
+        },
+        {
+          "path": "/subscription",
+          "type": "page",
+          "description": "Subscription management",
+          "file": "frontend/app/(user)/subscription/page.tsx",
+          "auth": "required"
+        },
+        {
+          "path": "/subscribe",
+          "type": "page",
+          "description": "Subscribe to a plan",
+          "file": "frontend/app/(user)/subscribe/page.tsx",
+          "auth": "required"
+        },
+        {
+          "path": "/payment/gateway",
+          "type": "page",
+          "description": "Payment gateway with query params",
+          "file": "Referenced in code",
+          "auth": "required",
+          "queryParams": ["amount", "type"]
+        }
+      ]
+    },
+    {
+      "category": "Frontend Pages - Investment & Portfolio",
+      "routes": [
+        {
+          "path": "/portfolio",
+          "type": "page",
+          "description": "User investment portfolio",
+          "file": "frontend/app/(user)/portfolio/page.tsx",
+          "auth": "required"
+        },
+        {
+          "path": "/offers",
+          "type": "page",
+          "description": "Available investment offers",
+          "file": "frontend/app/(user)/offers/page.tsx",
+          "auth": "required"
+        },
+        {
+          "path": "/offers/[id]",
+          "type": "page",
+          "description": "Specific offer details",
+          "file": "frontend/app/(user)/offers/[id]/page.tsx",
+          "auth": "required",
+          "dynamic": true
+        }
+      ]
+    },
+    {
+      "category": "Frontend Pages - Rewards & Bonuses",
+      "routes": [
+        {
+          "path": "/bonuses",
+          "type": "page",
+          "description": "User bonuses",
+          "file": "frontend/app/(user)/bonuses/page.tsx",
+          "auth": "required"
+        },
+        {
+          "path": "/referrals",
+          "type": "page",
+          "description": "Referral program with invite links",
+          "file": "frontend/app/(user)/referrals/page.tsx",
+          "auth": "required"
+        },
+        {
+          "path": "/lucky-draws",
+          "type": "page",
+          "description": "Lucky draw participation",
+          "file": "frontend/app/(user)/lucky-draws/page.tsx",
+          "auth": "required"
+        },
+        {
+          "path": "/profit-sharing",
+          "type": "page",
+          "description": "Profit sharing information",
+          "file": "frontend/app/(user)/profit-sharing/page.tsx",
+          "auth": "required"
+        }
+      ]
+    },
+    {
+      "category": "Frontend Pages - Support & Help",
+      "routes": [
+        {
+          "path": "/support",
+          "type": "page",
+          "description": "Support tickets listing",
+          "file": "frontend/app/(user)/support/page.tsx",
+          "auth": "required"
+        },
+        {
+          "path": "/support/[ticketId]",
+          "type": "page",
+          "description": "Individual support ticket",
+          "file": "frontend/app/(user)/support/[ticketId]/page.tsx",
+          "auth": "required",
+          "dynamic": true
+        },
+        {
+          "path": "/notifications",
+          "type": "page",
+          "description": "User notifications",
+          "file": "frontend/app/(user)/notifications/page.tsx",
+          "auth": "required"
+        }
+      ]
+    },
+    {
+      "category": "Frontend Pages - Compliance & Marketing",
+      "routes": [
+        {
+          "path": "/compliance",
+          "type": "page",
+          "description": "Compliance documents upload",
+          "file": "frontend/app/(user)/compliance/page.tsx",
+          "auth": "required"
+        },
+        {
+          "path": "/reports",
+          "type": "page",
+          "description": "User reports",
+          "file": "frontend/app/(user)/reports/page.tsx",
+          "auth": "required"
+        },
+        {
+          "path": "/promote",
+          "type": "page",
+          "description": "Promotion tools",
+          "file": "frontend/app/(user)/promote/page.tsx",
+          "auth": "required"
+        },
+        {
+          "path": "/materials",
+          "type": "page",
+          "description": "Marketing materials download",
+          "file": "frontend/app/(user)/materials/page.tsx",
+          "auth": "required"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Authentication",
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/api/v1/logout",
+          "controller": "AuthController@logout",
+          "middleware": ["auth:sanctum"],
+          "description": "User logout"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Profile & Security",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/user/profile",
+          "controller": "ProfileController@show",
+          "middleware": ["auth:sanctum"],
+          "description": "Get user profile"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/user/profile",
+          "controller": "ProfileController@update",
+          "middleware": ["auth:sanctum"],
+          "description": "Update user profile"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/user/profile/avatar",
+          "controller": "ProfileController@updateAvatar",
+          "middleware": ["auth:sanctum"],
+          "description": "Update profile avatar"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/user/security/password",
+          "controller": "SecurityController@updatePassword",
+          "middleware": ["auth:sanctum"],
+          "description": "Update password"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/user/security/export-data",
+          "controller": "PrivacyController@export",
+          "middleware": ["auth:sanctum"],
+          "description": "Export user data (GDPR)"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/user/security/delete-account",
+          "controller": "PrivacyController@deleteAccount",
+          "middleware": ["auth:sanctum"],
+          "description": "Delete account"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Two-Factor Authentication",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/user/2fa/status",
+          "controller": "TwoFactorAuthController@status",
+          "middleware": ["auth:sanctum"],
+          "description": "Get 2FA status"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/user/2fa/enable",
+          "controller": "TwoFactorAuthController@enable",
+          "middleware": ["auth:sanctum"],
+          "description": "Enable 2FA"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/user/2fa/confirm",
+          "controller": "TwoFactorAuthController@confirm",
+          "middleware": ["auth:sanctum"],
+          "description": "Confirm 2FA setup"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/user/2fa/disable",
+          "controller": "TwoFactorAuthController@disable",
+          "middleware": ["auth:sanctum"],
+          "description": "Disable 2FA"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/user/2fa/recovery-codes/download",
+          "controller": "TwoFactorAuthController@downloadRecoveryCodes",
+          "middleware": ["auth:sanctum"],
+          "description": "Download 2FA recovery codes"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/user/2fa/recovery-codes/regenerate",
+          "controller": "TwoFactorAuthController@regenerateRecoveryCodes",
+          "middleware": ["auth:sanctum"],
+          "description": "Regenerate 2FA recovery codes"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - KYC",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/user/kyc",
+          "controller": "KycController@show",
+          "middleware": ["auth:sanctum"],
+          "description": "Get KYC status"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/user/kyc",
+          "controller": "KycController@store",
+          "middleware": ["auth:sanctum"],
+          "description": "Submit KYC documents"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/user/kyc-documents/{id}/view",
+          "controller": "KycController@viewDocument",
+          "middleware": ["auth:sanctum"],
+          "description": "View KYC document"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/user/kyc/digilocker/redirect",
+          "controller": "KycController@redirectToDigiLocker",
+          "middleware": ["auth:sanctum"],
+          "description": "Redirect to DigiLocker for KYC"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Subscription",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/user/subscription",
+          "controller": "SubscriptionController@show",
+          "middleware": ["auth:sanctum"],
+          "description": "Get current subscription"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/user/subscription",
+          "controller": "SubscriptionController@store",
+          "middleware": ["auth:sanctum"],
+          "description": "Create new subscription"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/user/subscription/change-plan",
+          "controller": "SubscriptionController@changePlan",
+          "middleware": ["auth:sanctum"],
+          "description": "Change subscription plan"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/user/subscription/pause",
+          "controller": "SubscriptionController@pause",
+          "middleware": ["auth:sanctum"],
+          "description": "Pause subscription"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/user/subscription/resume",
+          "controller": "SubscriptionController@resume",
+          "middleware": ["auth:sanctum"],
+          "description": "Resume subscription"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/user/subscription/cancel",
+          "controller": "SubscriptionController@cancel",
+          "middleware": ["auth:sanctum"],
+          "description": "Cancel subscription"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Payments",
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/api/v1/user/payment/initiate",
+          "controller": "PaymentController@initiate",
+          "middleware": ["auth:sanctum", "throttle:financial"],
+          "rateLimit": "10 req/min",
+          "description": "Initiate payment"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/user/payment/verify",
+          "controller": "PaymentController@verify",
+          "middleware": ["auth:sanctum", "throttle:financial"],
+          "rateLimit": "10 req/min",
+          "description": "Verify payment"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/user/payment/manual",
+          "controller": "PaymentController@submitManual",
+          "middleware": ["auth:sanctum", "throttle:financial"],
+          "rateLimit": "10 req/min",
+          "description": "Submit manual payment proof"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/user/payments/{payment}/invoice",
+          "controller": "InvoiceController@download",
+          "middleware": ["auth:sanctum"],
+          "description": "Download payment invoice"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Portfolio & Bonuses (Rate Limited)",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/user/portfolio",
+          "controller": "PortfolioController@index",
+          "middleware": ["auth:sanctum", "throttle:data-heavy"],
+          "rateLimit": "20 req/min",
+          "description": "Get user portfolio"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/user/bonuses",
+          "controller": "BonusController@index",
+          "middleware": ["auth:sanctum", "throttle:data-heavy"],
+          "rateLimit": "20 req/min",
+          "description": "Get user bonuses"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/user/referrals",
+          "controller": "ReferralController@index",
+          "middleware": ["auth:sanctum", "throttle:data-heavy"],
+          "rateLimit": "20 req/min",
+          "description": "Get user referrals"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Wallet & Withdrawals",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/user/wallet",
+          "controller": "WalletController@show",
+          "middleware": ["auth:sanctum"],
+          "description": "Get wallet balance"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/user/wallet/deposit/initiate",
+          "controller": "WalletController@initiateDeposit",
+          "middleware": ["auth:sanctum", "throttle:financial"],
+          "rateLimit": "10 req/min",
+          "description": "Initiate wallet deposit"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/user/wallet/withdraw",
+          "controller": "WalletController@requestWithdrawal",
+          "middleware": ["auth:sanctum", "throttle:financial"],
+          "rateLimit": "10 req/min",
+          "description": "Request withdrawal"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/user/withdrawals",
+          "controller": "UserWithdrawalController@index",
+          "middleware": ["auth:sanctum"],
+          "description": "Get withdrawal history"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/user/withdrawals/{withdrawal}/cancel",
+          "controller": "UserWithdrawalController@cancel",
+          "middleware": ["auth:sanctum"],
+          "description": "Cancel withdrawal request"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Support Tickets",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/user/support-tickets",
+          "controller": "UserSupportTicketController@index",
+          "middleware": ["auth:sanctum"],
+          "description": "Get all support tickets"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/user/support-tickets",
+          "controller": "UserSupportTicketController@store",
+          "middleware": ["auth:sanctum"],
+          "description": "Create support ticket"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/user/support-tickets/{supportTicket}",
+          "controller": "UserSupportTicketController@show",
+          "middleware": ["auth:sanctum"],
+          "description": "Get specific support ticket"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/user/support-tickets/{supportTicket}/reply",
+          "controller": "UserSupportTicketController@reply",
+          "middleware": ["auth:sanctum"],
+          "description": "Reply to support ticket"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/user/support-tickets/{supportTicket}/close",
+          "controller": "UserSupportTicketController@close",
+          "middleware": ["auth:sanctum"],
+          "description": "Close support ticket"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/user/support-tickets/{supportTicket}/rate",
+          "controller": "UserSupportTicketController@rate",
+          "middleware": ["auth:sanctum"],
+          "description": "Rate support ticket"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Bonus Modules",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/user/lucky-draws",
+          "controller": "UserLuckyDrawController@index",
+          "middleware": ["auth:sanctum"],
+          "description": "Get lucky draw entries"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/user/profit-sharing",
+          "controller": "UserProfitShareController@index",
+          "middleware": ["auth:sanctum"],
+          "description": "Get profit sharing history"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Notifications",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/user/notifications",
+          "controller": "NotificationController@index",
+          "middleware": ["auth:sanctum"],
+          "description": "Get all notifications"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/user/notifications/{id}/read",
+          "controller": "NotificationController@markAsRead",
+          "middleware": ["auth:sanctum"],
+          "description": "Mark notification as read"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/user/notifications/mark-all-read",
+          "controller": "NotificationController@markAllAsRead",
+          "middleware": ["auth:sanctum"],
+          "description": "Mark all notifications as read"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/user/notifications/{id}",
+          "controller": "NotificationController@destroy",
+          "middleware": ["auth:sanctum"],
+          "description": "Delete notification"
+        }
+      ]
+    }
+  ],
+  "admin": [
+    {
+      "category": "Frontend Pages - Main Dashboard",
+      "routes": [
+        {
+          "path": "/admin/dashboard",
+          "type": "page",
+          "description": "Admin dashboard with KYC queue, withdrawals, stats",
+          "file": "frontend/app/admin/dashboard/page.tsx",
+          "auth": "admin"
+        }
+      ]
+    },
+    {
+      "category": "Frontend Pages - User Management",
+      "routes": [
+        {
+          "path": "/admin/users",
+          "type": "page",
+          "description": "User list and management",
+          "file": "frontend/app/admin/users/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/users/[userId]",
+          "type": "page",
+          "description": "Individual user details",
+          "file": "frontend/app/admin/users/[userId]/page.tsx",
+          "auth": "admin",
+          "dynamic": true
+        }
+      ]
+    },
+    {
+      "category": "Frontend Pages - Financial Management",
+      "routes": [
+        {
+          "path": "/admin/payments",
+          "type": "page",
+          "description": "Payment management with approve/reject",
+          "file": "frontend/app/admin/payments/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/kyc-queue",
+          "type": "page",
+          "description": "KYC verification queue",
+          "file": "frontend/app/admin/kyc-queue/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/withdrawal-queue",
+          "type": "page",
+          "description": "Withdrawal requests queue",
+          "file": "frontend/app/admin/withdrawal-queue/page.tsx",
+          "auth": "admin"
+        }
+      ]
+    },
+    {
+      "category": "Frontend Pages - Reports & Analytics",
+      "routes": [
+        {
+          "path": "/admin/reports",
+          "type": "page",
+          "description": "Admin reports",
+          "file": "frontend/app/admin/reports/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/lucky-draws",
+          "type": "page",
+          "description": "Lucky draw management",
+          "file": "frontend/app/admin/lucky-draws/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/profit-sharing",
+          "type": "page",
+          "description": "Profit sharing management",
+          "file": "frontend/app/admin/profit-sharing/page.tsx",
+          "auth": "admin"
+        }
+      ]
+    },
+    {
+      "category": "Frontend Pages - Support Management",
+      "routes": [
+        {
+          "path": "/admin/support",
+          "type": "page",
+          "description": "Support ticket queue",
+          "file": "frontend/app/admin/support/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/support/[ticketId]",
+          "type": "page",
+          "description": "Individual ticket management",
+          "file": "frontend/app/admin/support/[ticketId]/page.tsx",
+          "auth": "admin",
+          "dynamic": true
+        },
+        {
+          "path": "/admin/support/chat-transcript",
+          "type": "page",
+          "description": "Chat transcripts",
+          "file": "frontend/app/admin/support/chat-transcript/page.tsx",
+          "auth": "admin"
+        }
+      ]
+    },
+    {
+      "category": "Frontend Pages - Notifications",
+      "routes": [
+        {
+          "path": "/admin/notifications",
+          "type": "page",
+          "description": "Admin notification center",
+          "file": "Referenced in AdminTopNav",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/notifications/push",
+          "type": "page",
+          "description": "Push notification management",
+          "file": "frontend/app/admin/notifications/push/page.tsx",
+          "auth": "admin"
+        }
+      ]
+    },
+    {
+      "category": "Frontend Pages - Settings (Main)",
+      "routes": [
+        {
+          "path": "/admin/settings/system",
+          "type": "page",
+          "description": "General system settings",
+          "file": "frontend/app/admin/settings/system/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/settings/plans",
+          "type": "page",
+          "description": "Plan management",
+          "file": "frontend/app/admin/settings/plans/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/settings/products",
+          "type": "page",
+          "description": "Product management",
+          "file": "frontend/app/admin/settings/products/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/settings/bonuses",
+          "type": "page",
+          "description": "Bonus configuration",
+          "file": "frontend/app/admin/settings/bonuses/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/settings/referral-campaigns",
+          "type": "page",
+          "description": "Referral campaign management",
+          "file": "frontend/app/admin/settings/referral-campaigns/page.tsx",
+          "auth": "admin"
+        }
+      ]
+    },
+    {
+      "category": "Frontend Pages - Settings (Security)",
+      "routes": [
+        {
+          "path": "/admin/settings/roles",
+          "type": "page",
+          "description": "Role management with permissions",
+          "file": "frontend/app/admin/settings/roles/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/settings/ip-whitelist",
+          "type": "page",
+          "description": "IP whitelist management",
+          "file": "frontend/app/admin/settings/ip-whitelist/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/settings/captcha",
+          "type": "page",
+          "description": "CAPTCHA configuration",
+          "file": "frontend/app/admin/settings/captcha/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/settings/compliance",
+          "type": "page",
+          "description": "Compliance settings",
+          "file": "frontend/app/admin/settings/compliance/page.tsx",
+          "auth": "admin"
+        }
+      ]
+    },
+    {
+      "category": "Frontend Pages - Settings (Content)",
+      "routes": [
+        {
+          "path": "/admin/settings/cms",
+          "type": "page",
+          "description": "CMS / Pages management",
+          "file": "frontend/app/admin/settings/cms/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/settings/menus",
+          "type": "page",
+          "description": "Menu manager",
+          "file": "frontend/app/admin/settings/menus/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/settings/banners",
+          "type": "page",
+          "description": "Banners & popups",
+          "file": "frontend/app/admin/settings/banners/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/settings/theme-seo",
+          "type": "page",
+          "description": "Theme & SEO settings",
+          "file": "frontend/app/admin/settings/theme-seo/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/settings/blog",
+          "type": "page",
+          "description": "Blog manager",
+          "file": "frontend/app/admin/settings/blog/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/settings/faq",
+          "type": "page",
+          "description": "FAQ manager",
+          "file": "frontend/app/admin/settings/faq/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/settings/knowledge-base",
+          "type": "page",
+          "description": "Knowledge base management",
+          "file": "frontend/app/admin/settings/knowledge-base/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/settings/knowledge-base/articles",
+          "type": "page",
+          "description": "Knowledge base articles",
+          "file": "frontend/app/admin/settings/knowledge-base/articles/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/settings/redirects",
+          "type": "page",
+          "description": "URL redirect management",
+          "file": "frontend/app/admin/settings/redirects/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/settings/promotional-materials",
+          "type": "page",
+          "description": "Promotional materials",
+          "file": "frontend/app/admin/settings/promotional-materials/page.tsx",
+          "auth": "admin"
+        }
+      ]
+    },
+    {
+      "category": "Frontend Pages - Settings (Communications)",
+      "routes": [
+        {
+          "path": "/admin/settings/notifications",
+          "type": "page",
+          "description": "Notification settings",
+          "file": "frontend/app/admin/settings/notifications/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/settings/email-templates",
+          "type": "page",
+          "description": "Email template management",
+          "file": "frontend/app/admin/settings/email-templates/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/settings/canned-responses",
+          "type": "page",
+          "description": "Canned responses for support",
+          "file": "frontend/app/admin/settings/canned-responses/page.tsx",
+          "auth": "admin"
+        }
+      ]
+    },
+    {
+      "category": "Frontend Pages - Settings (Payments & System)",
+      "routes": [
+        {
+          "path": "/admin/settings/payment-gateways",
+          "type": "page",
+          "description": "Payment gateway configuration",
+          "file": "frontend/app/admin/settings/payment-gateways/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/settings/system-health",
+          "type": "page",
+          "description": "System health monitoring",
+          "file": "frontend/app/admin/settings/system-health/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/settings/activity",
+          "type": "page",
+          "description": "Global audit log",
+          "file": "frontend/app/admin/settings/activity/page.tsx",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/settings/backups",
+          "type": "page",
+          "description": "Backup management",
+          "file": "frontend/app/admin/settings/backups/page.tsx",
+          "auth": "admin"
+        }
+      ]
+    },
+    {
+      "category": "Frontend Pages - System",
+      "routes": [
+        {
+          "path": "/admin/system/audit-logs",
+          "type": "page",
+          "description": "System audit logs",
+          "file": "frontend/app/admin/system/audit-logs/page.tsx",
+          "auth": "admin"
+        }
+      ]
+    },
+    {
+      "category": "Frontend Pages - Profile",
+      "routes": [
+        {
+          "path": "/admin/profile",
+          "type": "page",
+          "description": "Admin profile",
+          "file": "Referenced in AdminTopNav",
+          "auth": "admin"
+        },
+        {
+          "path": "/admin/profile/password",
+          "type": "page",
+          "description": "Change admin password",
+          "file": "Referenced in AdminTopNav",
+          "auth": "admin"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Dashboard",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/dashboard",
+          "controller": "AdminDashboardController@index",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin"],
+          "description": "Admin dashboard statistics"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Reports (Rate Limited)",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/reports/financial-summary",
+          "controller": "ReportController@getFinancialSummary",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "throttle:reports", "permission:reports.view_financial"],
+          "rateLimit": "20 req/hour",
+          "description": "Financial summary report"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/reports/analytics/users",
+          "controller": "AdvancedReportController@getUserAnalytics",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "throttle:reports", "permission:reports.view_user"],
+          "rateLimit": "20 req/hour",
+          "description": "User analytics report"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/reports/analytics/products",
+          "controller": "AdvancedReportController@getProductPerformance",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "throttle:reports", "permission:products.view"],
+          "rateLimit": "20 req/hour",
+          "description": "Product performance analytics"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/reports/download",
+          "controller": "AdvancedReportController@exportReport",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "throttle:reports", "permission:reports.export"],
+          "rateLimit": "20 req/hour",
+          "description": "Export report to CSV/PDF"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/inventory/summary",
+          "controller": "ReportController@getInventorySummary",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "throttle:reports", "permission:products.view"],
+          "rateLimit": "20 req/hour",
+          "description": "Inventory summary report"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/system/backup/db",
+          "controller": "BackupController@downloadDbDump",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "throttle:reports", "permission:system.manage_backups"],
+          "rateLimit": "20 req/hour",
+          "description": "Download database backup"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - System Health & Activity",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/system/health",
+          "controller": "SystemHealthController@index",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:system.view_health"],
+          "description": "System health status"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/system/activity-logs",
+          "controller": "AdminActivityController@index",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:system.view_logs"],
+          "description": "System activity logs"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - User Management",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/users",
+          "controller": "AdminUserController@index",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin"],
+          "description": "Get all users"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/users/{user}",
+          "controller": "AdminUserController@show",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin"],
+          "description": "Get specific user"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/admin/users/{user}",
+          "controller": "AdminUserController@destroy",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin"],
+          "description": "Delete user"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/users/export/csv",
+          "controller": "AdminUserController@export",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:users.view"],
+          "description": "Export users to CSV"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - User Management (Rate Limited)",
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/users",
+          "controller": "AdminUserController@store",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "throttle:admin-actions", "permission:users.create"],
+          "rateLimit": "30 req/min",
+          "description": "Create new user"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/users/{user}",
+          "controller": "AdminUserController@update",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "throttle:admin-actions", "permission:users.edit"],
+          "rateLimit": "30 req/min",
+          "description": "Update user"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/users/bulk-action",
+          "controller": "AdminUserController@bulkAction",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "throttle:admin-actions", "permission:users.edit"],
+          "rateLimit": "30 req/min",
+          "description": "Bulk user actions"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/users/import",
+          "controller": "AdminUserController@import",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "throttle:admin-actions", "permission:users.create"],
+          "rateLimit": "30 req/min",
+          "description": "Import users from CSV"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/users/{user}/suspend",
+          "controller": "AdminUserController@suspend",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "throttle:admin-actions", "permission:users.suspend"],
+          "rateLimit": "30 req/min",
+          "description": "Suspend user account"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/users/{user}/adjust-balance",
+          "controller": "AdminUserController@adjustBalance",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "throttle:admin-actions", "permission:users.adjust_wallet"],
+          "rateLimit": "30 req/min",
+          "description": "Adjust user wallet balance"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Role Management",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/roles",
+          "controller": "RoleController@index",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:users.manage_roles"],
+          "description": "Get all roles"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/roles",
+          "controller": "RoleController@store",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:users.manage_roles"],
+          "description": "Create new role"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/roles/{role}",
+          "controller": "RoleController@show",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:users.manage_roles"],
+          "description": "Get specific role"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/roles/{role}",
+          "controller": "RoleController@update",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:users.manage_roles"],
+          "description": "Update role"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/admin/roles/{role}",
+          "controller": "RoleController@destroy",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:users.manage_roles"],
+          "description": "Delete role"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - KYC Management",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/kyc-queue",
+          "controller": "KycQueueController@index",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:kyc.view_queue"],
+          "description": "Get KYC queue"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/kyc-queue/{id}",
+          "controller": "KycQueueController@show",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:kyc.view_queue"],
+          "description": "Get specific KYC submission"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/kyc-queue/{id}/approve",
+          "controller": "KycQueueController@approve",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "throttle:admin-actions", "permission:kyc.approve"],
+          "rateLimit": "30 req/min",
+          "description": "Approve KYC submission"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/kyc-queue/{id}/reject",
+          "controller": "KycQueueController@reject",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "throttle:admin-actions", "permission:kyc.reject"],
+          "rateLimit": "30 req/min",
+          "description": "Reject KYC submission"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Plans (CRUD)",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/plans",
+          "controller": "PlanController@index",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:plans.edit"],
+          "description": "Get all plans"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/plans",
+          "controller": "PlanController@store",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:plans.edit"],
+          "description": "Create new plan"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/plans/{plan}",
+          "controller": "PlanController@show",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:plans.edit"],
+          "description": "Get specific plan"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/plans/{plan}",
+          "controller": "PlanController@update",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:plans.edit"],
+          "description": "Update plan"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/admin/plans/{plan}",
+          "controller": "PlanController@destroy",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:plans.edit"],
+          "description": "Delete plan"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Products (CRUD)",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/products",
+          "controller": "ProductController@index",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:products.edit"],
+          "description": "Get all products"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/products",
+          "controller": "ProductController@store",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:products.edit"],
+          "description": "Create new product"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/products/{product}",
+          "controller": "ProductController@show",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:products.edit"],
+          "description": "Get specific product"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/products/{product}",
+          "controller": "ProductController@update",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:products.edit"],
+          "description": "Update product"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/admin/products/{product}",
+          "controller": "ProductController@destroy",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:products.edit"],
+          "description": "Delete product"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Bulk Purchases (CRUD)",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/bulk-purchases",
+          "controller": "BulkPurchaseController@index",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:products.edit"],
+          "description": "Get all bulk purchases"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/bulk-purchases",
+          "controller": "BulkPurchaseController@store",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:products.edit"],
+          "description": "Create bulk purchase"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/bulk-purchases/{bulkPurchase}",
+          "controller": "BulkPurchaseController@show",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:products.edit"],
+          "description": "Get specific bulk purchase"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/bulk-purchases/{bulkPurchase}",
+          "controller": "BulkPurchaseController@update",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:products.edit"],
+          "description": "Update bulk purchase"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/admin/bulk-purchases/{bulkPurchase}",
+          "controller": "BulkPurchaseController@destroy",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:products.edit"],
+          "description": "Delete bulk purchase"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - CMS Pages (CRUD)",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/pages",
+          "controller": "PageController@index",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Get all CMS pages"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/pages",
+          "controller": "PageController@store",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Create CMS page"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/pages/{page}",
+          "controller": "PageController@show",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Get specific page"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/pages/{page}",
+          "controller": "PageController@update",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Update page"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/admin/pages/{page}",
+          "controller": "PageController@destroy",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Delete page"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/pages/{page}/analyze",
+          "controller": "PageController@analyze",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Analyze page SEO"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Email Templates (CRUD)",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/email-templates",
+          "controller": "EmailTemplateController@index",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_notifications"],
+          "description": "Get all email templates"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/email-templates",
+          "controller": "EmailTemplateController@store",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_notifications"],
+          "description": "Create email template"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/email-templates/{emailTemplate}",
+          "controller": "EmailTemplateController@show",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_notifications"],
+          "description": "Get specific template"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/email-templates/{emailTemplate}",
+          "controller": "EmailTemplateController@update",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_notifications"],
+          "description": "Update template"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/admin/email-templates/{emailTemplate}",
+          "controller": "EmailTemplateController@destroy",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_notifications"],
+          "description": "Delete template"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - FAQs (CRUD)",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/faqs",
+          "controller": "AdminFaqController@index",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Get all FAQs"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/faqs",
+          "controller": "AdminFaqController@store",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Create FAQ"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/faqs/{faq}",
+          "controller": "AdminFaqController@show",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Get specific FAQ"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/faqs/{faq}",
+          "controller": "AdminFaqController@update",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Update FAQ"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/admin/faqs/{faq}",
+          "controller": "AdminFaqController@destroy",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Delete FAQ"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Blog Posts (CRUD)",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/blog-posts",
+          "controller": "AdminBlogController@index",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Get all blog posts"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/blog-posts",
+          "controller": "AdminBlogController@store",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Create blog post"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/blog-posts/{blogPost}",
+          "controller": "AdminBlogController@show",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Get specific blog post"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/blog-posts/{blogPost}",
+          "controller": "AdminBlogController@update",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Update blog post"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/admin/blog-posts/{blogPost}",
+          "controller": "AdminBlogController@destroy",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Delete blog post"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Referral Campaigns (CRUD)",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/referral-campaigns",
+          "controller": "ReferralCampaignController@index",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:bonuses.manage_campaigns"],
+          "description": "Get all referral campaigns"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/referral-campaigns",
+          "controller": "ReferralCampaignController@store",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:bonuses.manage_campaigns"],
+          "description": "Create referral campaign"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/referral-campaigns/{referralCampaign}",
+          "controller": "ReferralCampaignController@show",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:bonuses.manage_campaigns"],
+          "description": "Get specific campaign"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/referral-campaigns/{referralCampaign}",
+          "controller": "ReferralCampaignController@update",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:bonuses.manage_campaigns"],
+          "description": "Update campaign"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/admin/referral-campaigns/{referralCampaign}",
+          "controller": "ReferralCampaignController@destroy",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:bonuses.manage_campaigns"],
+          "description": "Delete campaign"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Knowledge Base Categories (CRUD)",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/kb-categories",
+          "controller": "KbCategoryController@index",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Get all KB categories"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/kb-categories",
+          "controller": "KbCategoryController@store",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Create KB category"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/kb-categories/{kbCategory}",
+          "controller": "KbCategoryController@show",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Get specific category"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/kb-categories/{kbCategory}",
+          "controller": "KbCategoryController@update",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Update category"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/admin/kb-categories/{kbCategory}",
+          "controller": "KbCategoryController@destroy",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Delete category"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Knowledge Base Articles (CRUD)",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/kb-articles",
+          "controller": "KbArticleController@index",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Get all KB articles"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/kb-articles",
+          "controller": "KbArticleController@store",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Create KB article"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/kb-articles/{kbArticle}",
+          "controller": "KbArticleController@show",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Get specific article"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/kb-articles/{kbArticle}",
+          "controller": "KbArticleController@update",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Update article"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/admin/kb-articles/{kbArticle}",
+          "controller": "KbArticleController@destroy",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Delete article"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Settings",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/settings",
+          "controller": "SettingsController@index",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.view_system"],
+          "description": "Get all settings"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/settings",
+          "controller": "SettingsController@update",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "throttle:admin-actions", "permission:settings.edit_system"],
+          "rateLimit": "30 req/min",
+          "description": "Update settings"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/notifications/test-sms",
+          "controller": "AdminNotificationController@sendTestSms",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "throttle:admin-actions", "permission:settings.manage_notifications"],
+          "rateLimit": "30 req/min",
+          "description": "Send test SMS"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - CMS Marketing",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/menus",
+          "controller": "CmsController@getMenus",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Get all menus"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/menus/{menu}",
+          "controller": "CmsController@updateMenu",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Update menu"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/banners",
+          "controller": "CmsController@getBanners",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Get all banners"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/banners",
+          "controller": "CmsController@storeBanner",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Create banner"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/banners/{banner}",
+          "controller": "CmsController@updateBanner",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Update banner"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/admin/banners/{banner}",
+          "controller": "CmsController@destroyBanner",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Delete banner"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/redirects",
+          "controller": "CmsController@getRedirects",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Get all redirects"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/redirects",
+          "controller": "CmsController@storeRedirect",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Create redirect"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/admin/redirects/{redirect}",
+          "controller": "CmsController@destroyRedirect",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_cms"],
+          "description": "Delete redirect"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Theme & SEO",
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/theme/update",
+          "controller": "ThemeSeoController@updateTheme",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_theme"],
+          "description": "Update theme settings"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/seo/update",
+          "controller": "ThemeSeoController@updateSeo",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:settings.manage_theme"],
+          "description": "Update SEO settings"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - IP Whitelist (CRUD)",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/ip-whitelist",
+          "controller": "IpWhitelistController@index",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:system.manage_backups"],
+          "description": "Get IP whitelist"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/ip-whitelist",
+          "controller": "IpWhitelistController@store",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:system.manage_backups"],
+          "description": "Add IP to whitelist"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/ip-whitelist/{ipWhitelist}",
+          "controller": "IpWhitelistController@show",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:system.manage_backups"],
+          "description": "Get specific IP"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/ip-whitelist/{ipWhitelist}",
+          "controller": "IpWhitelistController@update",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:system.manage_backups"],
+          "description": "Update IP"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/admin/ip-whitelist/{ipWhitelist}",
+          "controller": "IpWhitelistController@destroy",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:system.manage_backups"],
+          "description": "Remove IP from whitelist"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Payment Management",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/payments",
+          "controller": "AdminPaymentController@index",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:payments.view"],
+          "description": "Get all payments"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/payments/{payment}/invoice",
+          "controller": "InvoiceController@download",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:payments.view"],
+          "description": "Download payment invoice"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/payments/offline",
+          "controller": "AdminPaymentController@storeOffline",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "throttle:admin-actions", "permission:payments.offline_entry"],
+          "rateLimit": "30 req/min",
+          "description": "Record offline payment"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/payments/{payment}/refund",
+          "controller": "AdminPaymentController@refund",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "throttle:admin-actions", "permission:payments.refund"],
+          "rateLimit": "30 req/min",
+          "description": "Refund payment"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/payments/{payment}/approve",
+          "controller": "AdminPaymentController@approveManual",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "throttle:admin-actions", "permission:payments.approve"],
+          "rateLimit": "30 req/min",
+          "description": "Approve manual payment"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/payments/{payment}/reject",
+          "controller": "AdminPaymentController@rejectManual",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "throttle:admin-actions", "permission:payments.approve"],
+          "rateLimit": "30 req/min",
+          "description": "Reject manual payment"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Withdrawal Management",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/withdrawal-queue",
+          "controller": "WithdrawalController@index",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:withdrawals.view_queue"],
+          "description": "Get withdrawal queue"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/withdrawal-queue/{withdrawal}/approve",
+          "controller": "WithdrawalController@approve",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "throttle:admin-actions", "permission:withdrawals.approve"],
+          "rateLimit": "30 req/min",
+          "description": "Approve withdrawal"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/withdrawal-queue/{withdrawal}/complete",
+          "controller": "WithdrawalController@complete",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "throttle:admin-actions", "permission:withdrawals.complete"],
+          "rateLimit": "30 req/min",
+          "description": "Mark withdrawal as completed"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/withdrawal-queue/{withdrawal}/reject",
+          "controller": "WithdrawalController@reject",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "throttle:admin-actions", "permission:withdrawals.reject"],
+          "rateLimit": "30 req/min",
+          "description": "Reject withdrawal"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Lucky Draw Management (CRUD + Actions)",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/lucky-draws",
+          "controller": "AdminLuckyDrawController@index",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:bonuses.manage_config"],
+          "description": "Get all lucky draws"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/lucky-draws",
+          "controller": "AdminLuckyDrawController@store",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:bonuses.manage_config"],
+          "description": "Create lucky draw"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/lucky-draws/{luckyDraw}",
+          "controller": "AdminLuckyDrawController@show",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:bonuses.manage_config"],
+          "description": "Get specific lucky draw"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/lucky-draws/{luckyDraw}",
+          "controller": "AdminLuckyDrawController@update",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:bonuses.manage_config"],
+          "description": "Update lucky draw"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/admin/lucky-draws/{luckyDraw}",
+          "controller": "AdminLuckyDrawController@destroy",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:bonuses.manage_config"],
+          "description": "Delete lucky draw"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/lucky-draws/{luckyDraw}/execute",
+          "controller": "AdminLuckyDrawController@executeDraw",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:bonuses.manage_config"],
+          "description": "Execute lucky draw"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Profit Sharing Management (CRUD + Actions)",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/profit-sharing",
+          "controller": "AdminProfitShareController@index",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:bonuses.manage_config"],
+          "description": "Get all profit shares"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/profit-sharing",
+          "controller": "AdminProfitShareController@store",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:bonuses.manage_config"],
+          "description": "Create profit share"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/profit-sharing/{profitShare}",
+          "controller": "AdminProfitShareController@show",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:bonuses.manage_config"],
+          "description": "Get specific profit share"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/profit-sharing/{profitShare}",
+          "controller": "AdminProfitShareController@update",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:bonuses.manage_config"],
+          "description": "Update profit share"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/admin/profit-sharing/{profitShare}",
+          "controller": "AdminProfitShareController@destroy",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:bonuses.manage_config"],
+          "description": "Delete profit share"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/profit-sharing/{profitShare}/calculate",
+          "controller": "AdminProfitShareController@calculate",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:bonuses.manage_config"],
+          "description": "Calculate profit share"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/profit-sharing/{profitShare}/distribute",
+          "controller": "AdminProfitShareController@distribute",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:bonuses.manage_config"],
+          "description": "Distribute profit share"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/profit-sharing/{profitShare}/adjust",
+          "controller": "AdminProfitShareController@adjust",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:bonuses.manage_config"],
+          "description": "Adjust profit share"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/profit-sharing/{profitShare}/reverse",
+          "controller": "AdminProfitShareController@reverse",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:bonuses.manage_config"],
+          "description": "Reverse profit share"
+        }
+      ]
+    },
+    {
+      "category": "Backend API - Support Ticket Management (Admin)",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/support-tickets",
+          "controller": "AdminSupportTicketController@index",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:users.view"],
+          "description": "Get all support tickets"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/support-tickets",
+          "controller": "AdminSupportTicketController@store",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:users.view"],
+          "description": "Create support ticket"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/admin/support-tickets/{supportTicket}",
+          "controller": "AdminSupportTicketController@show",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:users.view"],
+          "description": "Get specific support ticket"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/support-tickets/{supportTicket}",
+          "controller": "AdminSupportTicketController@update",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:users.view"],
+          "description": "Update support ticket"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/admin/support-tickets/{supportTicket}",
+          "controller": "AdminSupportTicketController@destroy",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:users.view"],
+          "description": "Delete support ticket"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/support-tickets/{supportTicket}/reply",
+          "controller": "AdminSupportTicketController@reply",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:users.edit"],
+          "description": "Reply to support ticket"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/admin/support-tickets/{supportTicket}/status",
+          "controller": "AdminSupportTicketController@updateStatus",
+          "middleware": ["auth:sanctum", "admin.ip", "role:admin|super-admin", "permission:users.edit"],
+          "description": "Update ticket status"
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "totalRoutes": 264,
+    "publicRoutes": 31,
+    "userRoutes": 81,
+    "adminRoutes": 152,
+    "generatedAt": "2025-11-25",
+    "apiPrefix": "/api/v1",
+    "rateLimits": {
+      "login": "5 req/min",
+      "api": "60 req/min",
+      "financial": "10 req/min",
+      "reports": "20 req/hour",
+      "data-heavy": "20 req/min",
+      "admin-actions": "30 req/min"
+    },
+    "securityFeatures": [
+      "IP whitelisting for admin routes",
+      "Role-based access control",
+      "Granular permission system (33+ permissions)",
+      "Rate limiting on all critical endpoints",
+      "Webhook signature verification",
+      "XSS protection via SanitizeInput middleware"
+    ]
+  }
+}

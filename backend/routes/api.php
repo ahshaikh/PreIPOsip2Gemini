@@ -147,21 +147,27 @@ Route::prefix('v1')->group(function () {
             Route::post('/subscription/resume', [SubscriptionController::class, 'resume']);
             Route::post('/subscription/cancel', [SubscriptionController::class, 'cancel']);
             
-            // Payments
-            Route::post('/payment/initiate', [PaymentController::class, 'initiate']);
-            Route::post('/payment/verify', [PaymentController::class, 'verify']);
-            Route::post('/payment/manual', [PaymentController::class, 'submitManual']);
+            // Payments - Financial operations rate limited
+            Route::middleware('throttle:financial')->group(function () {
+                Route::post('/payment/initiate', [PaymentController::class, 'initiate']);
+                Route::post('/payment/verify', [PaymentController::class, 'verify']);
+                Route::post('/payment/manual', [PaymentController::class, 'submitManual']);
+            });
             Route::get('/payments/{payment}/invoice', [InvoiceController::class, 'download']);
 
-            // Portfolio & Bonuses
-            Route::get('/portfolio', [PortfolioController::class, 'index']);
-            Route::get('/bonuses', [BonusController::class, 'index']);
-            Route::get('/referrals', [ReferralController::class, 'index']);
-            
-            // Wallet & Withdrawal
+            // Portfolio & Bonuses - Data-heavy endpoints rate limited
+            Route::middleware('throttle:data-heavy')->group(function () {
+                Route::get('/portfolio', [PortfolioController::class, 'index']);
+                Route::get('/bonuses', [BonusController::class, 'index']);
+                Route::get('/referrals', [ReferralController::class, 'index']);
+            });
+
+            // Wallet & Withdrawal - Financial operations rate limited
             Route::get('/wallet', [WalletController::class, 'show']);
-            Route::post('/wallet/deposit/initiate', [WalletController::class, 'initiateDeposit']);
-            Route::post('/wallet/withdraw', [WalletController::class, 'requestWithdrawal'])->middleware('throttle:5,1');
+            Route::middleware('throttle:financial')->group(function () {
+                Route::post('/wallet/deposit/initiate', [WalletController::class, 'initiateDeposit']);
+                Route::post('/wallet/withdraw', [WalletController::class, 'requestWithdrawal']);
+            });
             Route::get('/withdrawals', [UserWithdrawalController::class, 'index']);
             Route::post('/withdrawals/{withdrawal}/cancel', [UserWithdrawalController::class, 'cancel']);
             
@@ -187,33 +193,45 @@ Route::prefix('v1')->group(function () {
         Route::prefix('admin')->middleware(['admin.ip', 'role:admin|super-admin'])->group(function () {
             
             Route::get('/dashboard', [AdminDashboardController::class, 'index']);
-            
-            // Reports & Health
-            Route::get('/reports/financial-summary', [ReportController::class, 'getFinancialSummary'])->middleware('permission:reports.view_financial');
-            Route::get('/reports/analytics/users', [AdvancedReportController::class, 'getUserAnalytics'])->middleware('permission:reports.view_user');
-            Route::get('/reports/analytics/products', [AdvancedReportController::class, 'getProductPerformance'])->middleware('permission:products.view');
-            Route::get('/reports/download', [AdvancedReportController::class, 'exportReport'])->middleware('permission:reports.export');
+
+            // Reports & Health - Resource-intensive operations rate limited
+            Route::middleware('throttle:reports')->group(function () {
+                Route::get('/reports/financial-summary', [ReportController::class, 'getFinancialSummary'])->middleware('permission:reports.view_financial');
+                Route::get('/reports/analytics/users', [AdvancedReportController::class, 'getUserAnalytics'])->middleware('permission:reports.view_user');
+                Route::get('/reports/analytics/products', [AdvancedReportController::class, 'getProductPerformance'])->middleware('permission:products.view');
+                Route::get('/reports/download', [AdvancedReportController::class, 'exportReport'])->middleware('permission:reports.export');
+                Route::get('/inventory/summary', [ReportController::class, 'getInventorySummary'])->middleware('permission:products.view');
+                Route::get('/system/backup/db', [BackupController::class, 'downloadDbDump'])->middleware('permission:system.manage_backups');
+            });
+
             Route::get('/system/health', [SystemHealthController::class, 'index'])->middleware('permission:system.view_health');
             Route::get('/system/activity-logs', [AdminActivityController::class, 'index'])->middleware('permission:system.view_logs');
-            Route::get('/system/backup/db', [BackupController::class, 'downloadDbDump'])->middleware('permission:system.manage_backups');
-            Route::get('/inventory/summary', [ReportController::class, 'getInventorySummary'])->middleware('permission:products.view');
             
             // User Management
             Route::apiResource('/users', AdminUserController::class)->except(['store', 'update']);
-            Route::post('/users', [AdminUserController::class, 'store'])->middleware('permission:users.create');
-            Route::put('/users/{user}', [AdminUserController::class, 'update'])->middleware('permission:users.edit');
-            Route::post('/users/bulk-action', [AdminUserController::class, 'bulkAction'])->middleware('permission:users.edit');
-            Route::post('/users/import', [AdminUserController::class, 'import'])->middleware('permission:users.create');
             Route::get('/users/export/csv', [AdminUserController::class, 'export'])->middleware('permission:users.view');
-            Route::post('/users/{user}/suspend', [AdminUserController::class, 'suspend'])->middleware('permission:users.suspend');
-            Route::post('/users/{user}/adjust-balance', [AdminUserController::class, 'adjustBalance'])->middleware('permission:users.adjust_wallet');
+
+            // Critical admin actions - Rate limited
+            Route::middleware('throttle:admin-actions')->group(function () {
+                Route::post('/users', [AdminUserController::class, 'store'])->middleware('permission:users.create');
+                Route::put('/users/{user}', [AdminUserController::class, 'update'])->middleware('permission:users.edit');
+                Route::post('/users/bulk-action', [AdminUserController::class, 'bulkAction'])->middleware('permission:users.edit');
+                Route::post('/users/import', [AdminUserController::class, 'import'])->middleware('permission:users.create');
+                Route::post('/users/{user}/suspend', [AdminUserController::class, 'suspend'])->middleware('permission:users.suspend');
+                Route::post('/users/{user}/adjust-balance', [AdminUserController::class, 'adjustBalance'])->middleware('permission:users.adjust_wallet');
+            });
+
             Route::apiResource('/roles', RoleController::class)->middleware('permission:users.manage_roles');
-            
+
             // KYC Management
             Route::get('/kyc-queue', [KycQueueController::class, 'index'])->middleware('permission:kyc.view_queue');
             Route::get('/kyc-queue/{id}', [KycQueueController::class, 'show'])->middleware('permission:kyc.view_queue');
-            Route::post('/kyc-queue/{id}/approve', [KycQueueController::class, 'approve'])->middleware('permission:kyc.approve');
-            Route::post('/kyc-queue/{id}/reject', [KycQueueController::class, 'reject'])->middleware('permission:kyc.reject');
+
+            // KYC approval/rejection - Rate limited
+            Route::middleware('throttle:admin-actions')->group(function () {
+                Route::post('/kyc-queue/{id}/approve', [KycQueueController::class, 'approve'])->middleware('permission:kyc.approve');
+                Route::post('/kyc-queue/{id}/reject', [KycQueueController::class, 'reject'])->middleware('permission:kyc.reject');
+            });
 
             // Business Management
             Route::apiResource('/plans', PlanController::class)->middleware('permission:plans.edit');
@@ -231,8 +249,12 @@ Route::prefix('v1')->group(function () {
             Route::apiResource('/kb-articles', KbArticleController::class)->middleware('permission:settings.manage_cms');
             
             Route::get('/settings', [SettingsController::class, 'index'])->middleware('permission:settings.view_system');
-            Route::put('/settings', [SettingsController::class, 'update'])->middleware('permission:settings.edit_system');
-            Route::post('/notifications/test-sms', [AdminNotificationController::class, 'sendTestSms'])->middleware('permission:settings.manage_notifications');
+
+            // Critical settings changes - Rate limited
+            Route::middleware('throttle:admin-actions')->group(function () {
+                Route::put('/settings', [SettingsController::class, 'update'])->middleware('permission:settings.edit_system');
+                Route::post('/notifications/test-sms', [AdminNotificationController::class, 'sendTestSms'])->middleware('permission:settings.manage_notifications');
+            });
             
             // Marketing CMS
             Route::get('/menus', [CmsController::class, 'getMenus'])->middleware('permission:settings.manage_cms');
@@ -252,17 +274,25 @@ Route::prefix('v1')->group(function () {
 
             // Payment Management
             Route::get('/payments', [AdminPaymentController::class, 'index'])->middleware('permission:payments.view');
-            Route::post('/payments/offline', [AdminPaymentController::class, 'storeOffline'])->middleware('permission:payments.offline_entry');
-            Route::post('/payments/{payment}/refund', [AdminPaymentController::class, 'refund'])->middleware('permission:payments.refund');
-            Route::post('/payments/{payment}/approve', [AdminPaymentController::class, 'approveManual'])->middleware('permission:payments.approve');
-            Route::post('/payments/{payment}/reject', [AdminPaymentController::class, 'rejectManual'])->middleware('permission:payments.approve');
             Route::get('/payments/{payment}/invoice', [InvoiceController::class, 'download'])->middleware('permission:payments.view');
+
+            // Critical payment actions - Rate limited
+            Route::middleware('throttle:admin-actions')->group(function () {
+                Route::post('/payments/offline', [AdminPaymentController::class, 'storeOffline'])->middleware('permission:payments.offline_entry');
+                Route::post('/payments/{payment}/refund', [AdminPaymentController::class, 'refund'])->middleware('permission:payments.refund');
+                Route::post('/payments/{payment}/approve', [AdminPaymentController::class, 'approveManual'])->middleware('permission:payments.approve');
+                Route::post('/payments/{payment}/reject', [AdminPaymentController::class, 'rejectManual'])->middleware('permission:payments.approve');
+            });
 
             // Withdrawals
             Route::get('/withdrawal-queue', [WithdrawalController::class, 'index'])->middleware('permission:withdrawals.view_queue');
-            Route::post('/withdrawal-queue/{withdrawal}/approve', [WithdrawalController::class, 'approve'])->middleware('permission:withdrawals.approve');
-            Route::post('/withdrawal-queue/{withdrawal}/complete', [WithdrawalController::class, 'complete'])->middleware('permission:withdrawals.complete');
-            Route::post('/withdrawal-queue/{withdrawal}/reject', [WithdrawalController::class, 'reject'])->middleware('permission:withdrawals.reject');
+
+            // Critical withdrawal actions - Rate limited
+            Route::middleware('throttle:admin-actions')->group(function () {
+                Route::post('/withdrawal-queue/{withdrawal}/approve', [WithdrawalController::class, 'approve'])->middleware('permission:withdrawals.approve');
+                Route::post('/withdrawal-queue/{withdrawal}/complete', [WithdrawalController::class, 'complete'])->middleware('permission:withdrawals.complete');
+                Route::post('/withdrawal-queue/{withdrawal}/reject', [WithdrawalController::class, 'reject'])->middleware('permission:withdrawals.reject');
+            });
             
             // Bonus Modules
             Route::apiResource('/lucky-draws', AdminLuckyDrawController::class)->middleware('permission:bonuses.manage_config');
