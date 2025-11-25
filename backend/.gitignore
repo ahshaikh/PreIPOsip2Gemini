@@ -1,24 +1,19 @@
 # V-DEPLOY-1730-002
-# macOS / Windows
-.DS_Store
-Thumbs.db
 
-# IDE
-.vscode/
-.idea/
+# Composer dependencies
+/vendor/
 
-# Laravel Backend
-/backend/vendor/
-/backend/node_modules/
-/backend/.env
-/backend/public/storage
-/backend/storage/app/
-/backend/storage/framework/
-/backend/storage/logs/
+# Node (if using Laravel Mix / Vite)
+node_modules/
 
-# Next.js Frontend
-/frontend/node_modules/
-/frontend/.next/
-/frontend/out/
-/frontend/.env.local
-/frontend/.env.production
+# Laravel environment
+.env
+.env.backup
+.phpunit.result.cache
+
+# Laravel storage
+/storage/
+bootstrap/cache/*.php
+
+# Ignore public storage symlink target
+public/storage

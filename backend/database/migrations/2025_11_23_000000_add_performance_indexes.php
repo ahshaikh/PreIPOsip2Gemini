@@ -119,22 +119,6 @@ return new class extends Migration
             });
         }
 
-        // Support tickets table indexes
-        if (Schema::hasTable('support_tickets')) {
-            Schema::table('support_tickets', function (Blueprint $table) {
-                if ($this->hasColumn('support_tickets', 'user_id') && $this->hasColumn('support_tickets', 'status')) {
-                    if (!$this->hasIndex('support_tickets', 'tickets_user_status_index')) {
-                        $table->index(['user_id', 'status'], 'tickets_user_status_index');
-                    }
-                }
-                if ($this->hasColumn('support_tickets', 'status') && $this->hasColumn('support_tickets', 'priority')) {
-                    if (!$this->hasIndex('support_tickets', 'tickets_status_priority_index')) {
-                        $table->index(['status', 'priority'], 'tickets_status_priority_index');
-                    }
-                }
-            });
-        }
-
         // Activity logs table indexes
         if (Schema::hasTable('activity_logs')) {
             Schema::table('activity_logs', function (Blueprint $table) {
@@ -204,9 +188,6 @@ return new class extends Migration
         $this->dropIndexSafely('withdrawals', 'withdrawals_status_created_index');
 
         $this->dropIndexSafely('kyc_documents', 'kyc_user_status_index');
-
-        $this->dropIndexSafely('support_tickets', 'tickets_user_status_index');
-        $this->dropIndexSafely('support_tickets', 'tickets_status_priority_index');
 
         $this->dropIndexSafely('activity_logs', 'activity_user_created_index');
 
