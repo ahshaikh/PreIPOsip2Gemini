@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\User\SecurityController;
 use App\Http\Controllers\Api\User\PrivacyController;
 use App\Http\Controllers\Api\User\TwoFactorAuthController;
 use App\Http\Controllers\Api\User\WithdrawalController as UserWithdrawalController;
+use App\Http\Controllers\Api\User\ActivityController;
 
 // Admin Controllers
 use App\Http\Controllers\Api\Admin\AdminDashboardController;
@@ -170,7 +171,10 @@ Route::prefix('v1')->group(function () {
             });
             Route::get('/withdrawals', [UserWithdrawalController::class, 'index']);
             Route::post('/withdrawals/{withdrawal}/cancel', [UserWithdrawalController::class, 'cancel']);
-            
+
+            // Activity
+            Route::get('/activity', [ActivityController::class, 'index']);
+
             // Support
             Route::apiResource('/support-tickets', UserSupportTicketController::class)->only(['index', 'store', 'show']);
             Route::post('/support-tickets/{supportTicket}/reply', [UserSupportTicketController::class, 'reply']);

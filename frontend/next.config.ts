@@ -34,6 +34,9 @@ const nextConfig: NextConfig = {
     ],
   },
 
+  // Turbopack configuration (required for Next.js 16 when webpack config exists)
+  turbopack: {},
+
   // Compiler optimizations
   compiler: {
     // Remove console logs in production
