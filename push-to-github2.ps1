@@ -9,7 +9,7 @@
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
 $CommitMessage = "Subscription page error resolved"
-# ---------------------
+#----------------------
 
 function Get-GitCredential {
     param (
