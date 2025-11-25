@@ -61,6 +61,9 @@ return [
         'database' => [
             'connection' => env('DB_CONNECTION', 'mysql'),
             'chunk' => 1000,
+	        'pruning' => [
+        	    'keep' => 48,  // Keep only 48 hours
+        	],
         ],
     ],
 
@@ -139,6 +142,7 @@ return [
 
         Watchers\CacheWatcher::class => [
             'enabled' => env('TELESCOPE_CACHE_WATCHER', true),
+	    'slow' => 100,
             'hidden' => [],
             'ignore' => [],
         ],
@@ -151,10 +155,11 @@ return [
         Watchers\CommandWatcher::class => [
             'enabled' => env('TELESCOPE_COMMAND_WATCHER', true),
             'ignore' => [],
+   	    'size_limit' =>64,
         ],
 
         Watchers\DumpWatcher::class => [
-            'enabled' => env('TELESCOPE_DUMP_WATCHER', true),
+            'enabled' => env('TELESCOPE_DUMP_WATCHER', false),
             'always' => env('TELESCOPE_DUMP_WATCHER_ALWAYS', false),
         ],
 
@@ -205,7 +210,7 @@ return [
             'ignore_status_codes' => [],
         ],
 
-        Watchers\ScheduleWatcher::class => env('TELESCOPE_SCHEDULE_WATCHER', true),
-        Watchers\ViewWatcher::class => env('TELESCOPE_VIEW_WATCHER', true),
+        Watchers\ScheduleWatcher::class => env('TELESCOPE_SCHEDULE_WATCHER', false),
+        Watchers\ViewWatcher::class => env('TELESCOPE_VIEW_WATCHER', false),
     ],
 ];

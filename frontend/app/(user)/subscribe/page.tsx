@@ -45,7 +45,7 @@ export default function SubscribePage() {
   // 3. Subscription Creation Mutation
   const createSubMutation = useMutation({
     mutationFn: (planId: number) => api.post('/user/subscription', { plan_id: planId }),
-    onSuccess: (data)_ => {
+    onSuccess: (data) => {
       toast.success("Subscription Created!", { description: "Redirecting you to payment..." });
       localStorage.removeItem('pending_plan');
       queryClient.invalidateQueries({ queryKey: ['subscription'] });
@@ -56,7 +56,7 @@ export default function SubscribePage() {
     onError: (e: any) => toast.error("Subscription Failed", { description: e.response?.data?.message })
   });
 
-  const handleConfirm = ()_ => {
+  const handleConfirm = () => {
     if (!selectedPlan) return;
     createSubMutation.mutate(selectedPlan.id);
   };
@@ -98,11 +98,11 @@ export default function SubscribePage() {
           <Card className="p-6 bg-muted">
             <div className="flex justify-between items-center">
               <div>
-                <Label>Your Plan</Label>
+                <label>Your Plan</label>
                 <p className="text-2xl font-bold">{selectedPlan.name}</p>
               </div>
               <div className="text-right">
-                <Label>Monthly Amount</Label>
+                <label>Monthly Amount</label>
                 <p className="text-2xl font-bold">₹{selectedPlan.monthly_amount.toLocaleString('en-IN')}</p>
               </div>
             </div>

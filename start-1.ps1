@@ -2,8 +2,8 @@
 # PreIPOsip One-Click Launcher
 # ---------------------------
 
-$backendPath = "C:\preiposip\backend"
-$frontendPath = "C:\preiposip\frontend"
+$backendPath = "C:\preipo\backend"
+$frontendPath = "C:\preipo\frontend"
 
 Write-Output "Starting PreIPOsip environment..."
 
@@ -50,8 +50,8 @@ Start-NewWindow $queueCommand
 # ---------------------------
 $frontendCommand = @"
 cd $frontendPath
-npm install
-npm run dev
+# npm install
+npm run dev -- --turbopack
 "@
 
 Start-NewWindow $frontendCommand

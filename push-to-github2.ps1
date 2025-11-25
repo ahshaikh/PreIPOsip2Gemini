@@ -8,7 +8,7 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "Migration-Seeder issues resolved"
+$CommitMessage = "Subscription page error resolved"
 # ---------------------
 
 function Get-GitCredential {
