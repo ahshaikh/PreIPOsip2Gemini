@@ -43,10 +43,34 @@ export default function Navbar() {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [darkMode, setDarkMode] = useState(false);
   const [language, setLanguage] = useState("en");
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const dropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const isHome = pathname === "/";
+
+  // Initialize dark mode from localStorage or system preference on mount
+  useEffect(() => {
+    setMounted(true);
+
+    // Check localStorage first
+    const savedTheme = localStorage.getItem('theme');
+
+    if (savedTheme === 'dark') {
+      setDarkMode(true);
+      document.documentElement.classList.add('dark');
+    } else if (savedTheme === 'light') {
+      setDarkMode(false);
+      document.documentElement.classList.remove('dark');
+    } else {
+      // Check system preference if no saved preference
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      setDarkMode(prefersDark);
+      if (prefersDark) {
+        document.documentElement.classList.add('dark');
+      }
+    }
+  }, []);
 
   // Navigation structure
   const navigation: NavItem[] = [
@@ -200,12 +224,15 @@ export default function Navbar() {
 
   // Toggle dark mode
   const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    // Add your dark mode logic here (e.g., toggle class on <html>)
-    if (!darkMode) {
+    const newDarkMode = !darkMode;
+    setDarkMode(newDarkMode);
+
+    if (newDarkMode) {
       document.documentElement.classList.add("dark");
+      localStorage.setItem('theme', 'dark');
     } else {
       document.documentElement.classList.remove("dark");
+      localStorage.setItem('theme', 'light');
     }
   };
 

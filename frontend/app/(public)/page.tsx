@@ -29,7 +29,7 @@ export default function Home() {
   });
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col bg-white dark:bg-slate-950">
       {/* Pass CMS data to components */}
       <HeroSection data={pageData?.hero} />
 
@@ -49,7 +49,7 @@ export default function Home() {
 
           <div className="flex justify-center gap-6">
             <Link href="/signup">
-              <button className="bg-white text-purple-600 px-12 py-5 rounded-xl font-bold text-xl hover:shadow-2xl transition transform hover:scale-105">
+              <button className="bg-white dark:bg-slate-900 text-purple-600 dark:text-purple-400 px-12 py-5 rounded-xl font-bold text-xl hover:shadow-2xl transition transform hover:scale-105">
                 Start Free Now →
               </button>
             </Link>

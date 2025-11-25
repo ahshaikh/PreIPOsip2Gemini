@@ -6,8 +6,8 @@ import Link from "next/link";
 
 export default function HeroSection() {
   return (
-    <section id="hero" className="pt-32 pb-20 px-4 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-50 via-white to-blue-50 opacity-50" />
+    <section id="hero" className="pt-32 pb-20 px-4 relative overflow-hidden dark:bg-slate-900">
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-slate-800 dark:via-slate-900 dark:to-slate-800 opacity-50" />
 
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -15,19 +15,19 @@ export default function HeroSection() {
           {/* LEFT SIDE */}
           <div>
 
-            <div className="inline-block px-4 py-2 bg-purple-100 rounded-full text-purple-700 font-semibold text-sm mb-6 animate-pulse">
+            <div className="inline-block px-4 py-2 bg-purple-100 dark:bg-purple-900/30 rounded-full text-purple-700 dark:text-purple-300 font-semibold text-sm mb-6 animate-pulse">
               🎉 100% Zero Fees Forever!
             </div>
 
-            <h1 className="text-5xl lg:text-6xl font-black text-gray-900 mb-6 leading-tight">
+            <h1 className="text-5xl lg:text-6xl font-black text-gray-900 dark:text-white mb-6 leading-tight">
               India's First <br />
               <span className="text-gradient">100% FREE</span> <br />
               Pre-IPO SIP Platform
             </h1>
 
-            <p className="text-xl text-gray-600 mb-8 leading-relaxed">
+            <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 leading-relaxed">
               Invest in tomorrow's unicorns today! Get{" "}
-              <strong className="text-purple-600">5-20% guaranteed bonuses</strong>{" "}
+              <strong className="text-purple-600 dark:text-purple-400">5-20% guaranteed bonuses</strong>{" "}
               + portfolio gains. No platform fees. No exit fees. No hidden charges.
             </p>
 
@@ -39,12 +39,12 @@ export default function HeroSection() {
                 "20% Guaranteed Bonuses (Earn ₹36,000)",
               ].map((text, i) => (
                 <div key={i} className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                    <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
-                  <span className="text-gray-700 text-lg">{text}</span>
+                  <span className="text-gray-700 dark:text-gray-300 text-lg">{text}</span>
                 </div>
               ))}
             </div>
@@ -64,7 +64,7 @@ export default function HeroSection() {
                 onClick={() =>
                   document.getElementById("calculator")?.scrollIntoView({ behavior: "smooth" })
                 }
-                className="border-2 border-purple-600 text-purple-600 px-8 py-4 rounded-xl font-bold text-lg hover:bg-purple-50 transition"
+                className="border-2 border-purple-600 dark:border-purple-400 text-purple-600 dark:text-purple-400 px-8 py-4 rounded-xl font-bold text-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition"
               >
                 Calculate Returns 📊
               </button>
@@ -72,7 +72,7 @@ export default function HeroSection() {
             </div>
 
             {/* STATISTICS */}
-            <div className="mt-8 flex items-center space-x-6 text-sm text-gray-600">
+            <div className="mt-8 flex items-center space-x-6 text-sm text-gray-600 dark:text-gray-400">
               <div className="flex items-center space-x-2"><span className="text-2xl">🔒</span><span>SEBI Registered</span></div>
               <div className="flex items-center space-x-2"><span className="text-2xl">✅</span><span>5,000+ Investors</span></div>
               <div className="flex items-center space-x-2"><span className="text-2xl">⭐</span><span>4.9/5 Rating</span></div>
@@ -82,26 +82,26 @@ export default function HeroSection() {
 
           {/* RIGHT CARD */}
           <div className="relative animate-float">
-            <div className="bg-white rounded-3xl shadow-2xl p-8 border border-gray-100">
+            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-8 border border-gray-100 dark:border-slate-700">
 
               <div className="text-center mb-6">
-                <div className="text-sm text-gray-500 mb-2">Your Investment Journey</div>
-                <div className="text-4xl font-black text-gray-900">₹1,80,000</div>
-                <div className="text-sm text-gray-500">Investment Over 3 Years</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">Your Investment Journey</div>
+                <div className="text-4xl font-black text-gray-900 dark:text-white">₹1,80,000</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Investment Over 3 Years</div>
               </div>
 
               <div className="space-y-4 mb-6">
-                <CardItem label="20% Bonuses" value="+₹36,000" bg="bg-green-50" text="text-green-600" />
-                <CardItem label="Avg Pre-IPO Gains" value="+₹81,000" bg="bg-blue-50" text="text-blue-600" />
-                <CardItem label="Platform Fees Saved" value="+₹60,000" bg="bg-purple-50" text="text-purple-600" />
+                <CardItem label="20% Bonuses" value="+₹36,000" bg="bg-green-50 dark:bg-green-900/30" text="text-green-600 dark:text-green-400" />
+                <CardItem label="Avg Pre-IPO Gains" value="+₹81,000" bg="bg-blue-50 dark:bg-blue-900/30" text="text-blue-600 dark:text-blue-400" />
+                <CardItem label="Platform Fees Saved" value="+₹60,000" bg="bg-purple-50 dark:bg-purple-900/30" text="text-purple-600 dark:text-purple-400" />
               </div>
 
-              <div className="border-t-2 border-dashed border-gray-300 pt-6">
+              <div className="border-t-2 border-dashed border-gray-300 dark:border-slate-600 pt-6">
                 <div className="flex justify-between items-center">
-                  <span className="text-lg font-semibold text-gray-900">Total Value</span>
+                  <span className="text-lg font-semibold text-gray-900 dark:text-white">Total Value</span>
                   <div className="text-right">
                     <div className="text-3xl font-black text-gradient">₹3,57,000</div>
-                    <div className="text-sm text-green-600 font-semibold">98% Total Returns! 🚀</div>
+                    <div className="text-sm text-green-600 dark:text-green-400 font-semibold">98% Total Returns! 🚀</div>
                   </div>
                 </div>
               </div>
@@ -118,7 +118,7 @@ export default function HeroSection() {
 function CardItem({ label, value, bg, text }: { label: string; value: string; bg: string; text: string }) {
   return (
     <div className={`flex justify-between items-center p-4 rounded-xl ${bg}`}>
-      <span className="font-semibold text-gray-900">{label}</span>
+      <span className="font-semibold text-gray-900 dark:text-white">{label}</span>
       <span className={`text-2xl font-bold ${text}`}>{value}</span>
     </div>
   );
