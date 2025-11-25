@@ -17,27 +17,34 @@ class ActivityController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $user = $request->user();
+        try {
+            $user = $request->user();
 
-        // Get user's recent activity logs
-        $activities = ActivityLog::where('user_id', $user->id)
-            ->orderBy('created_at', 'desc')
-            ->limit(10)
-            ->get()
-            ->map(function ($log) {
-                // Map activity log to frontend format
-                $type = $this->getActivityType($log->action);
-                $amount = $this->getActivityAmount($log);
+            // Get user's recent activity logs
+            $activities = ActivityLog::where('user_id', $user->id)
+                ->orderBy('created_at', 'desc')
+                ->limit(10)
+                ->get()
+                ->map(function ($log) {
+                    // Map activity log to frontend format
+                    $type = $this->getActivityType($log->action);
+                    $amount = $this->getActivityAmount($log);
 
-                return [
-                    'type' => $type,
-                    'description' => $log->description,
-                    'created_at' => $log->created_at,
-                    'amount' => $amount,
-                ];
-            });
+                    return [
+                        'type' => $type,
+                        'description' => $log->description,
+                        'created_at' => $log->created_at,
+                        'amount' => $amount,
+                    ];
+                });
 
-        return response()->json($activities);
+            return response()->json($activities);
+        } catch (\Exception $e) {
+            // Return empty array if there's any error (table doesn't exist, DB error, etc.)
+            // This prevents the dashboard from showing server errors
+            \Log::debug('Activity fetch error: ' . $e->getMessage());
+            return response()->json([]);
+        }
     }
 
     /**
