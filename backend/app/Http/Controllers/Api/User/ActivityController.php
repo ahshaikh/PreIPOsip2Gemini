@@ -20,19 +20,24 @@ class ActivityController extends Controller
         try {
             $user = $request->user();
 
-            // Get user's recent activity logs
+            // Try to get user's recent activity logs
+            // If ActivityLog table doesn't exist or query fails, return empty array
+            if (!\Schema::hasTable('activity_logs')) {
+                return response()->json([]);
+            }
+
             $activities = ActivityLog::where('user_id', $user->id)
                 ->orderBy('created_at', 'desc')
                 ->limit(10)
                 ->get()
                 ->map(function ($log) {
                     // Map activity log to frontend format
-                    $type = $this->getActivityType($log->action);
+                    $type = $this->getActivityType($log->action ?? '');
                     $amount = $this->getActivityAmount($log);
 
                     return [
                         'type' => $type,
-                        'description' => $log->description,
+                        'description' => $log->description ?? 'Activity',
                         'created_at' => $log->created_at,
                         'amount' => $amount,
                     ];
