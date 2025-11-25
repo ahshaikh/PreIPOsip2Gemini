@@ -1,34 +1,64 @@
 "use client";
 import Link from "next/link";
-import { HelpCircle, Book, MessageSquare, Mail } from "lucide-react";
+import { Lock, UserPlus, LogIn, ArrowRight, Shield } from "lucide-react";
 
-export default function SupportPage() {
-  const resources = [
-    { icon: Book, title: "FAQs", description: "Find answers to common questions", href: "/faq" },
-    { icon: MessageSquare, title: "Raise a Ticket", description: "Get personalized support", href: "/support/ticket" },
-    { icon: Mail, title: "Contact Us", description: "Reach out to our team", href: "/contact" },
-  ];
-
+export default function HelpCenterPage() {
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950">
       <section className="pt-32 pb-20 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-slate-900 dark:to-slate-800">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="w-24 h-24 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-8">
+            <Lock className="w-12 h-12 text-blue-600 dark:text-blue-400" />
+          </div>
           <h1 className="text-5xl font-black text-gray-900 dark:text-white mb-4">
-            Help <span className="text-blue-600 dark:text-blue-400">Center</span>
+            Help Center
           </h1>
-          <p className="text-xl text-gray-600 dark:text-gray-400">How can we help you today?</p>
+          <p className="text-xl text-gray-600 dark:text-gray-400">Members-only support portal</p>
         </div>
       </section>
+
       <section className="py-20">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-3 gap-8">
-            {resources.map((resource, i) => (
-              <Link key={i} href={resource.href} className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-gray-200 dark:border-slate-800 hover:shadow-xl transition-all">
-                <resource.icon className="w-12 h-12 text-blue-600 dark:text-blue-400 mb-4" />
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{resource.title}</h3>
-                <p className="text-gray-600 dark:text-gray-400">{resource.description}</p>
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-gradient-to-br from-gray-50 to-white dark:from-slate-900 dark:to-slate-800 rounded-3xl p-12 border border-gray-200 dark:border-slate-800 text-center">
+            <Shield className="w-16 h-16 text-purple-600 dark:text-purple-400 mx-auto mb-6" />
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+              This Page is for Members Only
+            </h2>
+            <p className="text-lg text-gray-600 dark:text-gray-400 mb-8">
+              Access our comprehensive help center, submit support tickets, and get personalized assistance with your investments.
+            </p>
+
+            <div className="space-y-4 mb-8 text-left max-w-md mx-auto">
+              {[
+                "24/7 priority support",
+                "Dedicated account manager",
+                "Personalized investment guidance",
+                "Instant ticket resolution",
+              ].map((benefit, i) => (
+                <div key={i} className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-purple-600 rounded-full"></div>
+                  <span className="text-gray-700 dark:text-gray-300">{benefit}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link
+                href="/signup"
+                className="inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl hover:shadow-xl transition-all"
+              >
+                <UserPlus className="w-5 h-5 mr-2" />
+                Register Now
+                <ArrowRight className="w-5 h-5 ml-2" />
               </Link>
-            ))}
+              <Link
+                href="/login"
+                className="inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-gray-900 dark:text-white bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-700 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-700 transition-all"
+              >
+                <LogIn className="w-5 h-5 mr-2" />
+                Already a Member? Login
+              </Link>
+            </div>
           </div>
         </div>
       </section>
