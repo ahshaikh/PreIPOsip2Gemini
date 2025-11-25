@@ -44,6 +44,12 @@ $app = Application::configure(basePath: dirname(__DIR__))
             SanitizeInput::class, // XSS protection
         ]);
 
+        // Configure API authentication to return JSON instead of redirecting
+        $middleware->redirectGuestsTo(function ($request) {
+            // For API routes, don't redirect - return null to trigger 401 JSON response
+            return $request->expectsJson() || $request->is('api/*') ? null : '/login';
+        });
+
         // Aliases
         $middleware->alias([
             'admin.ip' => AdminIpRestriction::class,
