@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import api from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { DollarSign, Users, Package, CreditCard, Download, TrendingUp, AlertCircle, FileText } from "lucide-react";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { DynamicLineChart, DynamicBarChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from '@/components/shared/DynamicChart';
 import { useState } from "react";
 
 export default function AdvancedReportsPage() {
@@ -122,13 +122,13 @@ export default function AdvancedReportsPage() {
               <CardHeader><CardTitle>Revenue Trend (30 Days)</CardTitle></CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={financials?.charts.daily_revenue || []}>
+                  <DynamicLineChart data={financials?.charts.daily_revenue || []}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" />
                     <YAxis />
                     <Tooltip formatter={(value: any) => `₹${value.toLocaleString()}`} />
                     <Line type="monotone" dataKey="total" stroke="#8884d8" strokeWidth={2} />
-                  </LineChart>
+                  </DynamicLineChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
@@ -166,13 +166,13 @@ export default function AdvancedReportsPage() {
             <CardHeader><CardTitle>User Acquisition (Last 12 Months)</CardTitle></CardHeader>
             <CardContent className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={userStats?.acquisition_chart || []}>
+                <DynamicBarChart data={userStats?.acquisition_chart || []}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis />
                   <Tooltip />
                   <Bar dataKey="count" fill="#82ca9d" name="New Users" />
-                </BarChart>
+                </DynamicBarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
