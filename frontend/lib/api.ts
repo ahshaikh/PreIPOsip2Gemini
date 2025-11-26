@@ -118,16 +118,33 @@ api.interceptors.response.use(
         break;
     }
 
-    // Log errors in production (can integrate Sentry, LogRocket, etc.)
+    // Log errors in production (integrated with Sentry)
     if (process.env.NODE_ENV === 'production' && status && status >= 500) {
-      // Example: Sentry.captureException(error);
-      console.error('API Error:', {
-        url: error.config?.url,
-        method: error.config?.method,
-        status,
-        message,
-        data,
-      });
+      if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
+        import('@sentry/nextjs').then((Sentry) => {
+          Sentry.captureException(error, {
+            contexts: {
+              api: {
+                url: error.config?.url,
+                method: error.config?.method,
+                status,
+              }
+            },
+            extra: {
+              message,
+              data,
+            }
+          });
+        });
+      } else {
+        console.error('API Error:', {
+          url: error.config?.url,
+          method: error.config?.method,
+          status,
+          message,
+          data,
+        });
+      }
     }
 
     // Network errors (no response from server)

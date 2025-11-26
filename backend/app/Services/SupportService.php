@@ -5,7 +5,10 @@ namespace App\Services;
 
 use App\Models\SupportTicket;
 use App\Models\User;
+use App\Notifications\TicketEscalatedNotification;
+use App\Notifications\TicketClosedNotification;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 
 class SupportService
 {
@@ -42,7 +45,11 @@ class SupportService
 
         foreach ($overdueTickets as $ticket) {
             $ticket->update(['priority' => 'high']);
-            // TODO: Dispatch notification to admin team
+
+            // Notify all admin and support agents about the escalation
+            $admins = User::role(['admin', 'support'])->where('status', 'active')->get();
+            Notification::send($admins, new TicketEscalatedNotification($ticket));
+
             Log::warning("Ticket #{$ticket->id} breached SLA and was escalated to HIGH priority.");
         }
         
@@ -65,7 +72,9 @@ class SupportService
                 'status' => 'closed',
                 'closed_at' => now()
             ]);
-            // TODO: Send final "Ticket Closed" notification to user
+
+            // Notify the user that their ticket has been closed
+            $ticket->user->notify(new TicketClosedNotification($ticket));
         }
         
         return $closableTickets->count();

@@ -15,6 +15,7 @@
         "maatwebsite/excel": "^1.1",
         "pragmarx/google2fa-laravel": "*",
         "razorpay/razorpay": "^2.9",
+        "sentry/sentry-laravel": "^4.19",
         "spatie/laravel-permission": "^6.23"
     },
     "require-dev": {
