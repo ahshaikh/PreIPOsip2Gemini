@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\Admin\FaqController as PublicFaqController;
 use App\Http\Controllers\Api\Admin\BlogPostController as PublicBlogController;
 use App\Http\Controllers\Api\Public\GlobalSettingsController;
 use App\Http\Controllers\Api\Public\ProductDataController;
+use App\Http\Controllers\Api\Public\LegalDocumentController;
 
 // User Controllers
 use App\Http\Controllers\Api\User\ProfileController;
@@ -64,6 +65,7 @@ use App\Http\Controllers\Api\Admin\IpWhitelistController;
 use App\Http\Controllers\Api\Admin\NotificationController as AdminNotificationController;
 use App\Http\Controllers\Api\Admin\KbArticleController;
 use App\Http\Controllers\Api\Admin\KbCategoryController;
+use App\Http\Controllers\Api\Admin\ComplianceController;
 
 // Invoice & Webhook
 use App\Http\Controllers\Api\InvoiceController;
@@ -107,6 +109,11 @@ Route::prefix('v1')->group(function () {
     Route::get('/public/blog/{slug}', [PublicBlogController::class, 'publicShow']);
     Route::get('/global-settings', [GlobalSettingsController::class, 'index']);
     Route::get('/products/{slug}/history', [ProductDataController::class, 'getPriceHistory']);
+
+    // --- Legal Documents (Public) ---
+    Route::get('/legal/documents', [LegalDocumentController::class, 'index']);
+    Route::get('/legal/documents/{type}', [LegalDocumentController::class, 'show']);
+    Route::get('/legal/documents/{type}/download', [LegalDocumentController::class, 'download']);
 
     // --- KYC CALLBACK (Public) ---
     Route::get('/kyc/digilocker/callback', [KycController::class, 'handleDigiLockerCallback']);
@@ -194,6 +201,10 @@ Route::prefix('v1')->group(function () {
             Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
             Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']); // <-- NEW
             Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']); // <-- NEW
+
+            // Legal Document Acceptance (Authenticated)
+            Route::get('/legal/documents/{type}/acceptance-status', [LegalDocumentController::class, 'acceptanceStatus']);
+            Route::post('/legal/documents/{type}/accept', [LegalDocumentController::class, 'accept']);
         });
 
         // === ADMIN ROUTES ===
@@ -262,7 +273,24 @@ Route::prefix('v1')->group(function () {
             Route::apiResource('/referral-campaigns', ReferralCampaignController::class)->middleware('permission:bonuses.manage_campaigns');
             Route::apiResource('/kb-categories', KbCategoryController::class)->middleware('permission:settings.manage_cms');
             Route::apiResource('/kb-articles', KbArticleController::class)->middleware('permission:settings.manage_cms');
-            
+
+            // Compliance Manager - Legal Agreements
+            Route::prefix('compliance')->middleware('permission:settings.manage_cms')->group(function () {
+                Route::get('/legal-agreements', [ComplianceController::class, 'index']);
+                Route::get('/legal-agreements/stats', [ComplianceController::class, 'stats']);
+                Route::post('/legal-agreements', [ComplianceController::class, 'store']);
+                Route::get('/legal-agreements/{id}', [ComplianceController::class, 'show']);
+                Route::put('/legal-agreements/{id}', [ComplianceController::class, 'update']);
+                Route::delete('/legal-agreements/{id}', [ComplianceController::class, 'destroy']);
+                Route::post('/legal-agreements/{id}/publish', [ComplianceController::class, 'publish']);
+                Route::post('/legal-agreements/{id}/archive', [ComplianceController::class, 'archive']);
+                Route::get('/legal-agreements/{id}/versions', [ComplianceController::class, 'versions']);
+                Route::get('/legal-agreements/{id}/acceptance-stats', [ComplianceController::class, 'acceptanceStats']);
+                Route::get('/legal-agreements/{id}/audit-trail', [ComplianceController::class, 'auditTrail']);
+                Route::get('/legal-agreements/{id}/audit-trail/stats', [ComplianceController::class, 'auditTrailStats']);
+                Route::get('/legal-agreements/{id}/audit-trail/export', [ComplianceController::class, 'exportAuditTrail']);
+            });
+
             Route::get('/settings', [SettingsController::class, 'index'])->middleware('permission:settings.view_system');
 
             // Critical settings changes - Rate limited

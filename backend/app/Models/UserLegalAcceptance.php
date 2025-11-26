@@ -14,6 +14,10 @@ class UserLegalAcceptance extends Model
     protected $fillable = [
         'user_id',
         'page_id',
+        'legal_agreement_id',
+        'document_type',
+        'page_version',
+        'accepted_version',
         'accepted_at',
         'ip_address',
         'user_agent',
@@ -37,5 +41,29 @@ class UserLegalAcceptance extends Model
     public function page(): BelongsTo
     {
         return $this->belongsTo(Page::class);
+    }
+
+    /**
+     * Get the legal agreement that was accepted.
+     */
+    public function legalAgreement(): BelongsTo
+    {
+        return $this->belongsTo(LegalAgreement::class);
+    }
+
+    /**
+     * Scope for filtering by user
+     */
+    public function scopeForUser($query, $userId)
+    {
+        return $query->where('user_id', $userId);
+    }
+
+    /**
+     * Scope for filtering by document type
+     */
+    public function scopeForDocument($query, $documentType)
+    {
+        return $query->where('document_type', $documentType);
     }
 }

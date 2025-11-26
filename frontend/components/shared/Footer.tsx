@@ -107,9 +107,11 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold text-white mb-4">Legal</h4>
             <ul className="space-y-2 text-sm">
-              <li><a href="/privacy-policy" className="hover:text-white">Privacy Policy</a></li>
               <li><a href="/terms" className="hover:text-white">Terms of Service</a></li>
               <li><a href="/risk-disclosure" className="hover:text-white">Risk Disclosure</a></li>
+              <li><a href="/privacy-policy" className="hover:text-white">Privacy Policy</a></li>
+              <li><a href="/cookie-policy" className="hover:text-white">Cookie Policy</a></li>
+              <li><a href="/sebi" className="hover:text-white">SEBI Compliance</a></li>
               <li><a href="/refund-policy" className="hover:text-white">Refund Policy</a></li>
               <li><a href="/sebi" className="hover:text-white">SEBI Regulations</a></li>
             </ul>
