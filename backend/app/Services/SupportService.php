@@ -6,9 +6,17 @@ namespace App\Services;
 use App\Models\SupportTicket;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
+use App\Services\NotificationService;
 
 class SupportService
 {
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
     /**
      * Test: test_auto_assign_ticket_to_available_agent
      * Logic: Find the support agent with the fewest open tickets and assign.
@@ -42,7 +50,19 @@ class SupportService
 
         foreach ($overdueTickets as $ticket) {
             $ticket->update(['priority' => 'high']);
-            // TODO: Dispatch notification to admin team
+
+            // Dispatch notification to admin team
+            $admins = User::role('admin')->get();
+            foreach ($admins as $admin) {
+                $this->notificationService->send($admin, 'support.sla_breach', [
+                    'ticket_code' => $ticket->ticket_code,
+                    'subject' => $ticket->subject,
+                    'priority' => 'high',
+                    'sla_hours' => $ticket->sla_hours,
+                    'user_name' => $ticket->user->username ?? 'N/A',
+                ]);
+            }
+
             Log::warning("Ticket #{$ticket->id} breached SLA and was escalated to HIGH priority.");
         }
         
@@ -65,7 +85,16 @@ class SupportService
                 'status' => 'closed',
                 'closed_at' => now()
             ]);
-            // TODO: Send final "Ticket Closed" notification to user
+
+            // Send final "Ticket Closed" notification to user
+            if ($ticket->user) {
+                $this->notificationService->send($ticket->user, 'support.ticket_closed', [
+                    'ticket_code' => $ticket->ticket_code,
+                    'subject' => $ticket->subject,
+                    'resolved_at' => $ticket->resolved_at->format('Y-m-d H:i:s'),
+                    'closed_at' => now()->format('Y-m-d H:i:s'),
+                ]);
+            }
         }
         
         return $closableTickets->count();

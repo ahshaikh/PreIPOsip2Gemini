@@ -5,16 +5,21 @@ namespace App\Http\Controllers\Api\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\SupportTicket;
-use App\Services\FileUploadService; // <-- IMPORT
+use App\Models\User;
+use App\Services\FileUploadService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class SupportTicketController extends Controller
 {
     protected $fileUploader;
-    public function __construct(FileUploadService $fileUploader)
+    protected $notificationService;
+
+    public function __construct(FileUploadService $fileUploader, NotificationService $notificationService)
     {
         $this->fileUploader = $fileUploader;
+        $this->notificationService = $notificationService;
     }
 
     /**
@@ -71,9 +76,20 @@ class SupportTicketController extends Controller
             'message' => $validated['message'],
             'attachments' => $attachmentPath ? [$attachmentPath] : null,
         ]);
-        
-        // TODO: Notify admins of new ticket
-        
+
+        // Notify admins of new ticket
+        $admins = User::role('admin')->get();
+        foreach ($admins as $admin) {
+            $this->notificationService->send($admin, 'support.new_ticket', [
+                'ticket_code' => $ticket->ticket_code,
+                'subject' => $ticket->subject,
+                'category' => $ticket->category,
+                'priority' => $ticket->priority,
+                'user_name' => $user->username,
+                'user_email' => $user->email,
+            ]);
+        }
+
         return response()->json($ticket, 201);
     }
 
@@ -99,19 +115,37 @@ class SupportTicketController extends Controller
 
         $validated = $request->validate([
             'message' => 'required|string|min:1',
-            // TODO: Add attachment support
+            'attachment' => 'nullable|file|mimes:jpg,jpeg,png,pdf,zip|max:10240', // 10MB
         ]);
+
+        $attachmentPath = null;
+        if ($request->hasFile('attachment')) {
+            $attachmentPath = $this->fileUploader->upload($request->file('attachment'), [
+                'path' => "support/{$supportTicket->id}",
+                'encrypt' => true
+            ]);
+        }
 
         $supportTicket->messages()->create([
             'user_id' => $request->user()->id,
             'is_admin_reply' => false,
             'message' => $validated['message'],
+            'attachments' => $attachmentPath ? [$attachmentPath] : null,
         ]);
-        
+
         $supportTicket->update(['status' => 'open']); // User replied
 
-        // TODO: Notify admin of user reply
-        
+        // Notify admins of user reply
+        $admins = User::role('admin')->get();
+        foreach ($admins as $admin) {
+            $this->notificationService->send($admin, 'support.user_reply', [
+                'ticket_code' => $supportTicket->ticket_code,
+                'subject' => $supportTicket->subject,
+                'user_name' => $request->user()->username,
+                'message_preview' => substr($validated['message'], 0, 100),
+            ]);
+        }
+
         return response()->json(['message' => 'Reply added.'], 201);
     }
 
