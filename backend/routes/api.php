@@ -88,10 +88,13 @@ Route::prefix('v1')->group(function () {
         Route::post('/register', [AuthController::class, 'register']);
         Route::post('/login', [AuthController::class, 'login']);
         Route::post('/login/2fa', [AuthController::class, 'verifyTwoFactor']);
-        Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
         Route::post('/password/forgot', [PasswordResetController::class, 'sendResetLink']);
         Route::post('/password/reset', [PasswordResetController::class, 'reset']);
     });
+
+    // OTP verification with stricter rate limiting (5 attempts per 10 minutes)
+    Route::post('/verify-otp', [AuthController::class, 'verifyOtp'])
+        ->middleware('throttle:5,10');
     Route::get('/auth/{provider}/redirect', [SocialLoginController::class, 'redirectToProvider']);
     Route::get('/auth/{provider}/callback', [SocialLoginController::class, 'handleProviderCallback']);
 
@@ -110,7 +113,7 @@ Route::prefix('v1')->group(function () {
 
     // --- Webhook Routes (V-SECURITY: Signature verification required) ---
     Route::post('/webhooks/razorpay', [WebhookController::class, 'handleRazorpay'])
-        ->middleware('webhook.verify:razorpay');
+        ->middleware(['webhook.verify:razorpay', 'throttle:60,1']); // 60 requests per minute
 
     // --- Authenticated User Routes ---
     Route::middleware('auth:sanctum')->group(function () {

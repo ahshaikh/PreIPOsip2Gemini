@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import DOMPurify from 'dompurify';
 import api from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -301,7 +302,7 @@ export default function EmailTemplatesPage() {
                   <p className="text-sm font-medium mb-2 text-muted-foreground">Body Preview (with sample data):</p>
                   <div
                     className="prose prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{ __html: getPreviewHtml() }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(getPreviewHtml()) }}
                   />
                 </div>
               </div>
