@@ -117,7 +117,7 @@ export default function BlogSettingsPage() {
     setIsFeatured(post.is_featured || false);
     setSeoTitle(post.seo_title || '');
     setSeoDescription(post.seo_description || '');
-    setTags(post.tags || []);
+    setTags(Array.isArray(post.tags) ? post.tags : []);
     setIsDialogOpen(true);
   };
 
