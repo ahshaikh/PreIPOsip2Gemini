@@ -37,7 +37,6 @@
     33 => 'PragmaRX\\Google2FALaravel\\ServiceProvider',
     34 => 'Spatie\\Permission\\PermissionServiceProvider',
     35 => 'App\\Providers\\AppServiceProvider',
-    36 => 'App\\Providers\\TelescopeServiceProvider',
   ),
   'eager' => 
   array (
@@ -61,7 +60,6 @@
     17 => 'PragmaRX\\Google2FALaravel\\ServiceProvider',
     18 => 'Spatie\\Permission\\PermissionServiceProvider',
     19 => 'App\\Providers\\AppServiceProvider',
-    20 => 'App\\Providers\\TelescopeServiceProvider',
   ),
   'deferred' => 
   array (
