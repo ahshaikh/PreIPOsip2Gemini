@@ -11,6 +11,7 @@ use App\Console\Commands\GenerateSitemap;
 use App\Console\Commands\CheckTicketSLACommand;
 use App\Console\Commands\ProcessMonthlyLuckyDraw;
 use App\Console\Commands\UpdateProductPrices; // <-- 1. IMPORT
+use App\Console\Commands\ProcessPendingWebhooks;
 
 class Kernel extends ConsoleKernel
 {
@@ -27,6 +28,12 @@ class Kernel extends ConsoleKernel
 
         // --- 2. ADD NEW SCHEDULE (Run every 4 hours) ---
         $schedule->command(UpdateProductPrices::class)->everyFourHours();
+
+        // Process pending webhook retries every 5 minutes
+        $schedule->command(ProcessPendingWebhooks::class)->everyFiveMinutes();
+
+        // Prune old webhook logs weekly
+        $schedule->command('model:prune', ['--model' => 'App\\Models\\WebhookLog'])->weekly();
     }
 
     /**

@@ -1,0 +1,132 @@
+config:
+  target: "http://localhost:8000"
+  phases:
+    # Warm-up phase
+    - duration: 60
+      arrivalRate: 5
+      name: "Warm up"
+    # Ramp up phase
+    - duration: 120
+      arrivalRate: 10
+      rampTo: 50
+      name: "Ramp up load"
+    # Sustained load
+    - duration: 300
+      arrivalRate: 50
+      name: "Sustained load"
+    # Peak load
+    - duration: 120
+      arrivalRate: 100
+      name: "Peak load"
+    # Cool down
+    - duration: 60
+      arrivalRate: 10
+      name: "Cool down"
+
+  # Environment variables
+  variables:
+    api_prefix: "/api/v1"
+
+  # Performance thresholds
+  ensure:
+    maxErrorRate: 1
+    p95: 2000
+    p99: 5000
+
+  # Plugins
+  plugins:
+    metrics-by-endpoint:
+      stripQueryString: true
+    expect: {}
+
+scenarios:
+  # Scenario 1: User authentication flow
+  - name: "User Authentication Flow"
+    weight: 30
+    flow:
+      - post:
+          url: "{{ api_prefix }}/auth/login"
+          json:
+            email: "test@example.com"
+            password: "password123"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+          expect:
+            - statusCode: 200
+
+      - get:
+          url: "{{ api_prefix }}/user/profile"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: 200
+
+  # Scenario 2: Browse plans and products
+  - name: "Browse Plans"
+    weight: 40
+    flow:
+      - get:
+          url: "{{ api_prefix }}/plans"
+          expect:
+            - statusCode: 200
+            - contentType: json
+
+      - get:
+          url: "{{ api_prefix }}/products"
+          expect:
+            - statusCode: 200
+
+  # Scenario 3: Dashboard and analytics
+  - name: "Dashboard Load"
+    weight: 20
+    flow:
+      - post:
+          url: "{{ api_prefix }}/auth/login"
+          json:
+            email: "test@example.com"
+            password: "password123"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+
+      - get:
+          url: "{{ api_prefix }}/user/dashboard"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: 200
+
+      - get:
+          url: "{{ api_prefix }}/user/investments"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: 200
+
+  # Scenario 4: Referral system
+  - name: "Referral Dashboard"
+    weight: 10
+    flow:
+      - post:
+          url: "{{ api_prefix }}/auth/login"
+          json:
+            email: "test@example.com"
+            password: "password123"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+
+      - get:
+          url: "{{ api_prefix }}/user/referrals"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: 200
+
+      - get:
+          url: "{{ api_prefix }}/user/referrals/stats"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: 200
