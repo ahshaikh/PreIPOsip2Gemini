@@ -38,47 +38,72 @@ class RouteServiceProvider extends ServiceProvider
 
         // This is a global API throttle for all other routes
         RateLimiter::for('api', function (Request $request) {
-            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+            try {
+                $key = optional($request->user())->id ?? $request->ip();
+                return Limit::perMinute(60)->by($key);
+            } catch (\Exception $e) {
+                return Limit::perMinute(60)->by($request->ip());
+            }
         });
 
         // Financial operations rate limiter (withdrawals, payments, transfers)
         RateLimiter::for('financial', function (Request $request) {
-            return Limit::perMinute(10)->by($request->user()?->id ?: $request->ip())
-                ->response(function () {
-                    return response()->json([
-                        'message' => 'Too many financial requests. Please wait before trying again.'
-                    ], 429);
-                });
+            try {
+                $key = optional($request->user())->id ?? $request->ip();
+                return Limit::perMinute(10)->by($key)
+                    ->response(function () {
+                        return response()->json([
+                            'message' => 'Too many financial requests. Please wait before trying again.'
+                        ], 429);
+                    });
+            } catch (\Exception $e) {
+                return Limit::perMinute(10)->by($request->ip());
+            }
         });
 
         // Admin reports rate limiter (resource-intensive operations)
         RateLimiter::for('reports', function (Request $request) {
-            return Limit::perHour(20)->by($request->user()?->id ?: $request->ip())
-                ->response(function () {
-                    return response()->json([
-                        'message' => 'Too many report requests. Please wait before generating more reports.'
-                    ], 429);
-                });
+            try {
+                $key = optional($request->user())->id ?? $request->ip();
+                return Limit::perHour(20)->by($key)
+                    ->response(function () {
+                        return response()->json([
+                            'message' => 'Too many report requests. Please wait before generating more reports.'
+                        ], 429);
+                    });
+            } catch (\Exception $e) {
+                return Limit::perHour(20)->by($request->ip());
+            }
         });
 
         // Data-heavy endpoints rate limiter (portfolio, bonuses, analytics)
         RateLimiter::for('data-heavy', function (Request $request) {
-            return Limit::perMinute(20)->by($request->user()?->id ?: $request->ip())
-                ->response(function () {
-                    return response()->json([
-                        'message' => 'Too many requests. Please wait before trying again.'
-                    ], 429);
-                });
+            try {
+                $key = optional($request->user())->id ?? $request->ip();
+                return Limit::perMinute(20)->by($key)
+                    ->response(function () {
+                        return response()->json([
+                            'message' => 'Too many requests. Please wait before trying again.'
+                        ], 429);
+                    });
+            } catch (\Exception $e) {
+                return Limit::perMinute(20)->by($request->ip());
+            }
         });
 
         // Admin actions rate limiter (user management, system changes)
         RateLimiter::for('admin-actions', function (Request $request) {
-            return Limit::perMinute(30)->by($request->user()?->id ?: $request->ip())
-                ->response(function () {
-                    return response()->json([
-                        'message' => 'Too many admin actions. Please wait before trying again.'
-                    ], 429);
-                });
+            try {
+                $key = optional($request->user())->id ?? $request->ip();
+                return Limit::perMinute(30)->by($key)
+                    ->response(function () {
+                        return response()->json([
+                            'message' => 'Too many admin actions. Please wait before trying again.'
+                        ], 429);
+                    });
+            } catch (\Exception $e) {
+                return Limit::perMinute(30)->by($request->ip());
+            }
         });
         // ----------------------------------------
 
