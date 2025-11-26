@@ -85,6 +85,16 @@ interface PerformanceSummary {
   totalDuration: number;
 }
 
+// ==================== LOGGING ====================
+
+const VERBOSE = process.env.VERBOSE === 'true';
+
+const logger = {
+  info: (message: string) => console.log(message),
+  verbose: (message: string) => VERBOSE && console.log(message),
+  error: (message: string, error?: any) => console.error(message, error || ''),
+};
+
 // ==================== CONFIGURATION ====================
 
 const config: TestConfig = {
@@ -124,7 +134,7 @@ async function retry<T>(
       return await fn();
     } catch (error: any) {
       lastError = error;
-      console.log(`   ⚠️  Retry ${attempt}/${maxRetries} for ${context}: ${error.message}`);
+      logger.verbose(`   ⚠️  Retry ${attempt}/${maxRetries} for ${context}: ${error.message}`);
 
       if (attempt < maxRetries) {
         await sleep(delay * attempt); // Exponential backoff
@@ -191,7 +201,7 @@ async function loginUser(
 ): Promise<boolean> {
   return retry(
     async () => {
-      console.log(`🔐 Logging in as: ${email}`);
+      logger.verbose(`🔐 Logging in as: ${email}`);
 
       // Navigate to login page
       await page.goto(`${config.frontendUrl}/login`, {
@@ -254,7 +264,7 @@ async function loginUser(
 
       // Success criteria: has auth token OR redirected to dashboard/admin
       if (hasAuthToken || url.includes('dashboard') || url.includes('/admin')) {
-        console.log(`✅ Login successful - redirected to: ${url}`);
+        logger.verbose(`✅ Login successful - redirected to: ${url}`);
         return true;
       }
 
@@ -291,7 +301,7 @@ async function trackRedirects(page: Page): Promise<RedirectInfo> {
       // Check for redirect loop
       const urlCounts = redirects.filter((r) => r.includes(url)).length;
       if (urlCounts > 2) {
-        console.log(`   ⚠️  Potential redirect loop detected at: ${url}`);
+        logger.verbose(`   ⚠️  Potential redirect loop detected at: ${url}`);
       }
     }
   };
@@ -494,7 +504,7 @@ async function clickAllLinks(
     // Sort: navigation links first
     uniqueLinks.sort((a, b) => (b.isNav ? 1 : 0) - (a.isNav ? 1 : 0));
 
-    console.log(
+    logger.verbose(
       `   Found ${uniqueLinks.length} unique links (${links.filter((l) => l.isNav).length} from navigation)`
     );
 
@@ -521,7 +531,7 @@ async function clickAllLinks(
 
             clickedCount++;
           } catch (linkError) {
-            console.log(`   ⚠️  Link failed: ${link.text || linkUrl}`);
+            logger.verbose(`   ⚠️  Link failed: ${link.text || linkUrl}`);
           } finally {
             await newPage.close();
           }
@@ -536,7 +546,7 @@ async function clickAllLinks(
 
     return clickedCount;
   } catch (error) {
-    console.error('   Error in link clicking:', error);
+    logger.error('   Error in link clicking:', error);
     return 0;
   }
 }
@@ -578,7 +588,7 @@ async function testRoute(
   const startTime = Date.now();
   let retryCount = 0;
 
-  console.log(`\n📍 Testing: ${url} [${mode}]`);
+  logger.verbose(`\n📍 Testing: ${url} [${mode}]`);
 
   const result: RouteTest = {
     url,
@@ -661,14 +671,14 @@ async function testRoute(
 
     result.responseTime = Date.now() - startTime;
 
-    console.log(
+    logger.verbose(
       `   ✓ Status: ${result.status} | Time: ${result.responseTime}ms | Links: ${result.clickedLinks} | Menus: ${result.navigationMenus.length}`
     );
     if (result.errorType) {
-      console.log(`   ⚠️  Error: ${result.errorType}`);
+      logger.info(`   ⚠️  Error: ${result.errorType}`);
     }
     if (result.consoleErrors.length > 0) {
-      console.log(`   ⚠️  Console Errors: ${result.consoleErrors.length}`);
+      logger.verbose(`   ⚠️  Console Errors: ${result.consoleErrors.length}`);
     }
   } catch (error: any) {
     result.status = 'ERROR';
@@ -676,7 +686,7 @@ async function testRoute(
     result.responseTime = Date.now() - startTime;
     result.retryCount = config.maxRetries;
 
-    console.log(`   ❌ Error after ${config.maxRetries} retries: ${result.errorType}`);
+    logger.error(`   ❌ Error after ${config.maxRetries} retries: ${result.errorType}`);
   }
 
   // Take screenshot on error
@@ -704,7 +714,7 @@ async function testPublicMode(
   routes: RouteCategory[],
   reportsDir: string
 ): Promise<RouteTest[]> {
-  console.log('\n\n🌐 ========== TESTING PUBLIC ROUTES ==========\n');
+  logger.info('\n\n🌐 ========== TESTING PUBLIC ROUTES ==========\n');
 
   const context = await browser.newContext();
   const page = await context.newPage();
@@ -716,7 +726,7 @@ async function testPublicMode(
     .filter((route) => route.type === 'page' && route.path)
     .map((route) => route.path!);
 
-  console.log(`Found ${frontendRoutes.length} public routes to test`);
+  logger.info(`Found ${frontendRoutes.length} public routes to test`);
 
   // Test each route
   for (const route of frontendRoutes) {
@@ -728,7 +738,7 @@ async function testPublicMode(
 
     // Fail fast if enabled
     if (config.failFast && result.errorType) {
-      console.log('\n⚠️  Fail-fast enabled. Stopping on first error.');
+      logger.info('\n⚠️  Fail-fast enabled. Stopping on first error.');
       break;
     }
   }
@@ -742,10 +752,10 @@ async function testUserMode(
   routes: RouteCategory[],
   reportsDir: string
 ): Promise<RouteTest[]> {
-  console.log('\n\n👤 ========== TESTING USER ROUTES ==========\n');
+  logger.info('\n\n👤 ========== TESTING USER ROUTES ==========\n');
 
   if (!config.userEmail || !config.userPassword) {
-    console.log('⚠️  USER credentials not provided. Skipping USER tests.');
+    logger.info('⚠️  USER credentials not provided. Skipping USER tests.');
     return [];
   }
 
@@ -758,7 +768,7 @@ async function testUserMode(
     const loginSuccess = await loginUser(page, config.userEmail, config.userPassword);
 
     if (!loginSuccess) {
-      console.log('❌ Failed to login as USER after retries. Skipping USER tests.');
+      logger.error('❌ Failed to login as USER after retries. Skipping USER tests.');
       await context.close();
       return [];
     }
@@ -769,7 +779,7 @@ async function testUserMode(
       .filter((route) => route.type === 'page' && route.path)
       .map((route) => route.path!);
 
-    console.log(`Found ${frontendRoutes.length} user routes to test`);
+    logger.info(`Found ${frontendRoutes.length} user routes to test`);
 
     // Test each route
     for (const route of frontendRoutes) {
@@ -781,7 +791,7 @@ async function testUserMode(
 
       // Fail fast if enabled
       if (config.failFast && result.errorType) {
-        console.log('\n⚠️  Fail-fast enabled. Stopping on first error.');
+        logger.info('\n⚠️  Fail-fast enabled. Stopping on first error.');
         break;
       }
     }
@@ -797,10 +807,10 @@ async function testAdminMode(
   routes: RouteCategory[],
   reportsDir: string
 ): Promise<RouteTest[]> {
-  console.log('\n\n👑 ========== TESTING ADMIN ROUTES ==========\n');
+  logger.info('\n\n👑 ========== TESTING ADMIN ROUTES ==========\n');
 
   if (!config.adminEmail || !config.adminPassword) {
-    console.log('⚠️  ADMIN credentials not provided. Skipping ADMIN tests.');
+    logger.info('⚠️  ADMIN credentials not provided. Skipping ADMIN tests.');
     return [];
   }
 
@@ -813,7 +823,7 @@ async function testAdminMode(
     const loginSuccess = await loginUser(page, config.adminEmail, config.adminPassword);
 
     if (!loginSuccess) {
-      console.log('❌ Failed to login as ADMIN after retries. Skipping ADMIN tests.');
+      logger.error('❌ Failed to login as ADMIN after retries. Skipping ADMIN tests.');
       await context.close();
       return [];
     }
@@ -824,7 +834,7 @@ async function testAdminMode(
       .filter((route) => route.type === 'page' && route.path)
       .map((route) => route.path!);
 
-    console.log(`Found ${frontendRoutes.length} admin routes to test`);
+    logger.info(`Found ${frontendRoutes.length} admin routes to test`);
 
     // Test each route
     for (const route of frontendRoutes) {
@@ -836,7 +846,7 @@ async function testAdminMode(
 
       // Fail fast if enabled
       if (config.failFast && result.errorType) {
-        console.log('\n⚠️  Fail-fast enabled. Stopping on first error.');
+        logger.info('\n⚠️  Fail-fast enabled. Stopping on first error.');
         break;
       }
     }
@@ -850,7 +860,7 @@ async function testAdminMode(
 // ==================== REPORT GENERATION (ENHANCED) ====================
 
 function generateReports(allResults: RouteTest[], reportsDir: string, duration: number): TestSummary {
-  console.log('\n\n📊 ========== GENERATING REPORTS ==========\n');
+  logger.info('\n\n📊 ========== GENERATING REPORTS ==========\n');
 
   // Ensure reports directory exists
   if (!fs.existsSync(reportsDir)) {
@@ -867,7 +877,7 @@ function generateReports(allResults: RouteTest[], reportsDir: string, duration: 
   // Generate JSON report
   const jsonPath = path.join(reportsDir, `crawler-report-${timestamp}.json`);
   fs.writeFileSync(jsonPath, JSON.stringify(allResults, null, 2));
-  console.log(`✅ JSON report: ${jsonPath}`);
+  logger.info(`✅ JSON report: ${jsonPath}`);
 
   // Generate CSV report
   const csvData = allResults.map((result) => ({
@@ -889,7 +899,7 @@ function generateReports(allResults: RouteTest[], reportsDir: string, duration: 
   const csv = parse(csvData);
   const csvPath = path.join(reportsDir, `crawler-report-${timestamp}.csv`);
   fs.writeFileSync(csvPath, csv);
-  console.log(`✅ CSV report: ${csvPath}`);
+  logger.info(`✅ CSV report: ${csvPath}`);
 
   // Calculate response times
   const responseTimes = allResults.map((r) => r.responseTime).filter((t) => t > 0);
@@ -926,30 +936,30 @@ function generateReports(allResults: RouteTest[], reportsDir: string, duration: 
 
   const summaryPath = path.join(reportsDir, `crawler-summary-${timestamp}.json`);
   fs.writeFileSync(summaryPath, JSON.stringify(summary, null, 2));
-  console.log(`✅ Summary report: ${summaryPath}`);
+  logger.info(`✅ Summary report: ${summaryPath}`);
 
   // Console summary
-  console.log('\n📈 SUMMARY:');
-  console.log(`   Total Tests: ${summary.totalTests}`);
-  console.log(`   ✅ Successful: ${summary.successful} (${Math.round((summary.successful / summary.totalTests) * 100)}%)`);
-  console.log(`   ❌ Failed: ${summary.failed} (${Math.round((summary.failed / summary.totalTests) * 100)}%)`);
-  console.log(`   🔄 Retried: ${summary.retried}`);
-  console.log(`\n   Errors Breakdown:`);
-  console.log(`     🔍 Not Found (404): ${summary.errors.notFound}`);
-  console.log(`     🔥 Server Errors (500): ${summary.errors.serverErrors}`);
-  console.log(`     🔄 Redirect Loops: ${summary.errors.redirectLoops}`);
-  console.log(`     🔐 Auth Errors: ${summary.errors.authErrors}`);
-  console.log(`     ⏱️  Timeouts: ${summary.errors.timeouts}`);
-  console.log(`     ⚛️  React Errors: ${summary.errors.reactErrors}`);
-  console.log(`\n   Performance:`);
-  console.log(`     ⏱️  Avg Response: ${summary.performance.avgResponseTime}ms`);
-  console.log(`     ⚡ Min Response: ${summary.performance.minResponseTime}ms`);
-  console.log(`     🐌 Max Response: ${summary.performance.maxResponseTime}ms`);
-  console.log(`     ⏰ Total Duration: ${Math.round(summary.performance.totalDuration / 1000)}s`);
-  console.log(`\n   By Mode:`);
-  console.log(`     🌐 PUBLIC: ${summary.byMode.PUBLIC}`);
-  console.log(`     👤 USER: ${summary.byMode.USER}`);
-  console.log(`     👑 ADMIN: ${summary.byMode.ADMIN}`);
+  logger.info('\n📈 SUMMARY:');
+  logger.info(`   Total Tests: ${summary.totalTests}`);
+  logger.info(`   ✅ Successful: ${summary.successful} (${Math.round((summary.successful / summary.totalTests) * 100)}%)`);
+  logger.info(`   ❌ Failed: ${summary.failed} (${Math.round((summary.failed / summary.totalTests) * 100)}%)`);
+  logger.info(`   🔄 Retried: ${summary.retried}`);
+  logger.info(`\n   Errors Breakdown:`);
+  logger.info(`     🔍 Not Found (404): ${summary.errors.notFound}`);
+  logger.info(`     🔥 Server Errors (500): ${summary.errors.serverErrors}`);
+  logger.info(`     🔄 Redirect Loops: ${summary.errors.redirectLoops}`);
+  logger.info(`     🔐 Auth Errors: ${summary.errors.authErrors}`);
+  logger.info(`     ⏱️  Timeouts: ${summary.errors.timeouts}`);
+  logger.info(`     ⚛️  React Errors: ${summary.errors.reactErrors}`);
+  logger.info(`\n   Performance:`);
+  logger.info(`     ⏱️  Avg Response: ${summary.performance.avgResponseTime}ms`);
+  logger.info(`     ⚡ Min Response: ${summary.performance.minResponseTime}ms`);
+  logger.info(`     🐌 Max Response: ${summary.performance.maxResponseTime}ms`);
+  logger.info(`     ⏰ Total Duration: ${Math.round(summary.performance.totalDuration / 1000)}s`);
+  logger.info(`\n   By Mode:`);
+  logger.info(`     🌐 PUBLIC: ${summary.byMode.PUBLIC}`);
+  logger.info(`     👤 USER: ${summary.byMode.USER}`);
+  logger.info(`     👑 ADMIN: ${summary.byMode.ADMIN}`);
 
   return summary;
 }
@@ -959,24 +969,25 @@ function generateReports(allResults: RouteTest[], reportsDir: string, duration: 
 async function main() {
   const overallStartTime = Date.now();
 
-  console.log('🚀 Starting Optimized Playwright Crawler\n');
-  console.log('Configuration:');
-  console.log(`   Frontend: ${config.frontendUrl}`);
-  console.log(`   Backend: ${config.backendUrl}`);
-  console.log(`   Headless: ${config.headless}`);
-  console.log(`   Screenshots: ${config.takeScreenshots}`);
-  console.log(`   Max Retries: ${config.maxRetries}`);
-  console.log(`   Rate Limit Delay: ${config.rateLimitDelay}ms`);
-  console.log(`   Fail Fast: ${config.failFast}`);
-  console.log(`   User Email: ${config.userEmail ? '✓' : '✗'}`);
-  console.log(`   Admin Email: ${config.adminEmail ? '✓' : '✗'}`);
+  logger.info('🚀 Starting Optimized Playwright Crawler\n');
+  logger.info('Configuration:');
+  logger.info(`   Frontend: ${config.frontendUrl}`);
+  logger.info(`   Backend: ${config.backendUrl}`);
+  logger.info(`   Headless: ${config.headless}`);
+  logger.info(`   Screenshots: ${config.takeScreenshots}`);
+  logger.info(`   Verbose: ${VERBOSE}`);
+  logger.info(`   Max Retries: ${config.maxRetries}`);
+  logger.info(`   Rate Limit Delay: ${config.rateLimitDelay}ms`);
+  logger.info(`   Fail Fast: ${config.failFast}`);
+  logger.info(`   User Email: ${config.userEmail ? '✓' : '✗'}`);
+  logger.info(`   Admin Email: ${config.adminEmail ? '✓' : '✗'}`);
 
   const reportsDir = path.join(__dirname, 'reports');
 
   // Load route map
   const routeMapPath = path.join(__dirname, 'route-map.json');
   if (!fs.existsSync(routeMapPath)) {
-    console.error('❌ route-map.json not found!');
+    logger.error('❌ route-map.json not found!');
     process.exit(1);
   }
 
@@ -1018,7 +1029,7 @@ async function main() {
     const duration = Date.now() - overallStartTime;
     summary = generateReports(allResults, reportsDir, duration);
   } catch (error) {
-    console.error('❌ Fatal error:', error);
+    logger.error('❌ Fatal error:', error);
 
     // Still generate reports for what we have
     const duration = Date.now() - overallStartTime;
@@ -1030,7 +1041,7 @@ async function main() {
     await browser.close();
   }
 
-  console.log('\n✅ Crawler completed!\n');
+  logger.info('\n✅ Crawler completed!\n');
 
   // Exit with appropriate code for CI/CD
   const exitCode = summary.failed > 0 ? 1 : 0;
@@ -1039,6 +1050,6 @@ async function main() {
 
 // Run the crawler
 main().catch((error) => {
-  console.error('❌ Unhandled error:', error);
+  logger.error('❌ Unhandled error:', error);
   process.exit(1);
 });

@@ -8,10 +8,21 @@ use App\Models\User;
 use App\Notifications\TicketEscalatedNotification;
 use App\Notifications\TicketClosedNotification;
 use Illuminate\Support\Facades\Log;
+<<<<<<< HEAD
 use Illuminate\Support\Facades\Notification;
+=======
+use App\Services\NotificationService;
+>>>>>>> 5a046271830c8a9f8526dde5fea7b414a73819b6
 
 class SupportService
 {
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
     /**
      * Test: test_auto_assign_ticket_to_available_agent
      * Logic: Find the support agent with the fewest open tickets and assign.
@@ -46,10 +57,17 @@ class SupportService
         foreach ($overdueTickets as $ticket) {
             $ticket->update(['priority' => 'high']);
 
-            // Notify all admin and support agents about the escalation
-            $admins = User::role(['admin', 'support'])->where('status', 'active')->get();
-            Notification::send($admins, new TicketEscalatedNotification($ticket));
-
+            // Dispatch notification to admin team
+            $admins = User::role('admin')->get();
+            foreach ($admins as $admin) {
+                $this->notificationService->send($admin, 'support.sla_breach', [
+                    'ticket_code' => $ticket->ticket_code,
+                    'subject' => $ticket->subject,
+                    'priority' => 'high',
+                    'sla_hours' => $ticket->sla_hours,
+                    'user_name' => $ticket->user->username ?? 'N/A',
+                ]);
+            }
             Log::warning("Ticket #{$ticket->id} breached SLA and was escalated to HIGH priority.");
         }
         
@@ -73,8 +91,20 @@ class SupportService
                 'closed_at' => now()
             ]);
 
+<<<<<<< HEAD
             // Notify the user that their ticket has been closed
             $ticket->user->notify(new TicketClosedNotification($ticket));
+=======
+            // Send final "Ticket Closed" notification to user
+            if ($ticket->user) {
+                $this->notificationService->send($ticket->user, 'support.ticket_closed', [
+                    'ticket_code' => $ticket->ticket_code,
+                    'subject' => $ticket->subject,
+                    'resolved_at' => $ticket->resolved_at->format('Y-m-d H:i:s'),
+                    'closed_at' => now()->format('Y-m-d H:i:s'),
+                ]);
+            }
+>>>>>>> 5a046271830c8a9f8526dde5fea7b414a73819b6
         }
         
         return $closableTickets->count();

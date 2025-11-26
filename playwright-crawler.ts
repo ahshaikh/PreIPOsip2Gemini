@@ -50,6 +50,16 @@ interface Route {
   queryParams?: string[];
 }
 
+// ==================== LOGGING ====================
+
+const VERBOSE = process.env.VERBOSE === 'true';
+
+const logger = {
+  info: (message: string) => console.log(message),
+  verbose: (message: string) => VERBOSE && console.log(message),
+  error: (message: string, error?: any) => console.error(message, error || ''),
+};
+
 // ==================== CONFIGURATION ====================
 
 const config: TestConfig = {
@@ -115,7 +125,7 @@ function resolveDynamicRoute(route: string): string {
 
 async function loginUser(page: Page, email: string, password: string): Promise<boolean> {
   try {
-    console.log(`🔐 Logging in as: ${email}`);
+    logger.verbose(`🔐 Logging in as: ${email}`);
 
     await page.goto(`${config.frontendUrl}/login`, { waitUntil: 'networkidle' });
 
@@ -139,14 +149,14 @@ async function loginUser(page: Page, email: string, password: string): Promise<b
     });
 
     if (hasAuthToken || url.includes('dashboard')) {
-      console.log('✅ Login successful');
+      logger.verbose('✅ Login successful');
       return true;
     }
 
-    console.log('❌ Login failed');
+    logger.error('❌ Login failed');
     return false;
   } catch (error) {
-    console.error('❌ Login error:', error);
+    logger.error('❌ Login error:', error);
     return false;
   }
 }
@@ -262,7 +272,7 @@ async function clickAllLinks(page: Page, baseUrl: string): Promise<number> {
         .filter((href) => href && !href.startsWith('javascript:') && !href.startsWith('mailto:'))
     );
 
-    console.log(`   Found ${links.length} links to test`);
+    logger.verbose(`   Found ${links.length} links to test`);
 
     let clickedCount = 0;
 
@@ -290,7 +300,7 @@ async function clickAllLinks(page: Page, baseUrl: string): Promise<number> {
 
     return clickedCount;
   } catch (error) {
-    console.error('   Error clicking links:', error);
+    logger.error('   Error clicking links:', error);
     return 0;
   }
 }
@@ -307,7 +317,7 @@ async function testRoute(
   const redirectChain: string[] = [];
   let redirectCount = 0;
 
-  console.log(`\n📍 Testing: ${url} [${mode}]`);
+  logger.verbose(`\n📍 Testing: ${url} [${mode}]`);
 
   const result: RouteTest = {
     url,
@@ -363,9 +373,9 @@ async function testRoute(
 
     result.responseTime = Date.now() - startTime;
 
-    console.log(`   ✓ Status: ${result.status} | Time: ${result.responseTime}ms | Links: ${result.clickedLinks}`);
+    logger.verbose(`   ✓ Status: ${result.status} | Time: ${result.responseTime}ms | Links: ${result.clickedLinks}`);
     if (result.errorType) {
-      console.log(`   ⚠️  Error: ${result.errorType}`);
+      logger.info(`   ⚠️  Error: ${result.errorType}`);
     }
 
   } catch (error: any) {
@@ -373,7 +383,7 @@ async function testRoute(
     result.errorType = error.message || 'UNKNOWN_ERROR';
     result.responseTime = Date.now() - startTime;
 
-    console.log(`   ❌ Error: ${result.errorType}`);
+    logger.error(`   ❌ Error: ${result.errorType}`);
 
     // Take screenshot on error
     if (config.takeScreenshots) {
@@ -398,7 +408,7 @@ async function testPublicMode(
   routes: RouteCategory[],
   reportsDir: string
 ): Promise<RouteTest[]> {
-  console.log('\n\n🌐 ========== TESTING PUBLIC ROUTES ==========\n');
+  logger.info('\n\n🌐 ========== TESTING PUBLIC ROUTES ==========\n');
 
   const context = await browser.newContext();
   const page = await context.newPage();
@@ -407,7 +417,7 @@ async function testPublicMode(
   // Listen for console errors
   page.on('console', (msg) => {
     if (msg.type() === 'error') {
-      console.log('   Console Error:', msg.text());
+      logger.verbose('   Console Error:', msg.text());
     }
   });
 
@@ -434,10 +444,10 @@ async function testUserMode(
   routes: RouteCategory[],
   reportsDir: string
 ): Promise<RouteTest[]> {
-  console.log('\n\n👤 ========== TESTING USER ROUTES ==========\n');
+  logger.info('\n\n👤 ========== TESTING USER ROUTES ==========\n');
 
   if (!config.userEmail || !config.userPassword) {
-    console.log('⚠️  USER credentials not provided. Skipping USER tests.');
+    logger.info('⚠️  USER credentials not provided. Skipping USER tests.');
     return [];
   }
 
@@ -448,7 +458,7 @@ async function testUserMode(
   // Listen for console errors
   page.on('console', (msg) => {
     if (msg.type() === 'error') {
-      console.log('   Console Error:', msg.text());
+      logger.verbose('   Console Error:', msg.text());
     }
   });
 
@@ -456,7 +466,7 @@ async function testUserMode(
   const loginSuccess = await loginUser(page, config.userEmail, config.userPassword);
 
   if (!loginSuccess) {
-    console.log('❌ Failed to login as USER. Skipping USER tests.');
+    logger.error('❌ Failed to login as USER. Skipping USER tests.');
     await context.close();
     return [];
   }
@@ -484,10 +494,10 @@ async function testAdminMode(
   routes: RouteCategory[],
   reportsDir: string
 ): Promise<RouteTest[]> {
-  console.log('\n\n👑 ========== TESTING ADMIN ROUTES ==========\n');
+  logger.info('\n\n👑 ========== TESTING ADMIN ROUTES ==========\n');
 
   if (!config.adminEmail || !config.adminPassword) {
-    console.log('⚠️  ADMIN credentials not provided. Skipping ADMIN tests.');
+    logger.info('⚠️  ADMIN credentials not provided. Skipping ADMIN tests.');
     return [];
   }
 
@@ -498,7 +508,7 @@ async function testAdminMode(
   // Listen for console errors
   page.on('console', (msg) => {
     if (msg.type() === 'error') {
-      console.log('   Console Error:', msg.text());
+      logger.verbose('   Console Error:', msg.text());
     }
   });
 
@@ -506,7 +516,7 @@ async function testAdminMode(
   const loginSuccess = await loginUser(page, config.adminEmail, config.adminPassword);
 
   if (!loginSuccess) {
-    console.log('❌ Failed to login as ADMIN. Skipping ADMIN tests.');
+    logger.error('❌ Failed to login as ADMIN. Skipping ADMIN tests.');
     await context.close();
     return [];
   }
@@ -532,7 +542,7 @@ async function testAdminMode(
 // ==================== REPORT GENERATION ====================
 
 function generateReports(allResults: RouteTest[], reportsDir: string): void {
-  console.log('\n\n📊 ========== GENERATING REPORTS ==========\n');
+  logger.info('\n\n📊 ========== GENERATING REPORTS ==========\n');
 
   // Ensure reports directory exists
   if (!fs.existsSync(reportsDir)) {
@@ -549,7 +559,7 @@ function generateReports(allResults: RouteTest[], reportsDir: string): void {
   // Generate JSON report
   const jsonPath = path.join(reportsDir, `crawler-report-${timestamp}.json`);
   fs.writeFileSync(jsonPath, JSON.stringify(allResults, null, 2));
-  console.log(`✅ JSON report: ${jsonPath}`);
+  logger.info(`✅ JSON report: ${jsonPath}`);
 
   // Generate CSV report
   const csvData = allResults.map((result) => ({
@@ -568,7 +578,7 @@ function generateReports(allResults: RouteTest[], reportsDir: string): void {
   const csv = parse(csvData);
   const csvPath = path.join(reportsDir, `crawler-report-${timestamp}.csv`);
   fs.writeFileSync(csvPath, csv);
-  console.log(`✅ CSV report: ${csvPath}`);
+  logger.info(`✅ CSV report: ${csvPath}`);
 
   // Generate summary
   const summary = {
@@ -590,41 +600,42 @@ function generateReports(allResults: RouteTest[], reportsDir: string): void {
 
   const summaryPath = path.join(reportsDir, `crawler-summary-${timestamp}.json`);
   fs.writeFileSync(summaryPath, JSON.stringify(summary, null, 2));
-  console.log(`✅ Summary report: ${summaryPath}`);
+  logger.info(`✅ Summary report: ${summaryPath}`);
 
   // Console summary
-  console.log('\n📈 SUMMARY:');
-  console.log(`   Total Tests: ${summary.totalTests}`);
-  console.log(`   ✅ Successful: ${summary.successful}`);
-  console.log(`   ❌ Errors: ${summary.errors}`);
-  console.log(`   🔍 Not Found (404): ${summary.notFound}`);
-  console.log(`   🔥 Server Errors (500): ${summary.serverErrors}`);
-  console.log(`   🔄 Redirect Loops: ${summary.redirectLoops}`);
-  console.log(`   ⏱️  Avg Response Time: ${summary.avgResponseTime}ms`);
-  console.log(`\n   By Mode:`);
-  console.log(`     🌐 PUBLIC: ${summary.byMode.PUBLIC}`);
-  console.log(`     👤 USER: ${summary.byMode.USER}`);
-  console.log(`     👑 ADMIN: ${summary.byMode.ADMIN}`);
+  logger.info('\n📈 SUMMARY:');
+  logger.info(`   Total Tests: ${summary.totalTests}`);
+  logger.info(`   ✅ Successful: ${summary.successful}`);
+  logger.info(`   ❌ Errors: ${summary.errors}`);
+  logger.info(`   🔍 Not Found (404): ${summary.notFound}`);
+  logger.info(`   🔥 Server Errors (500): ${summary.serverErrors}`);
+  logger.info(`   🔄 Redirect Loops: ${summary.redirectLoops}`);
+  logger.info(`   ⏱️  Avg Response Time: ${summary.avgResponseTime}ms`);
+  logger.info(`\n   By Mode:`);
+  logger.info(`     🌐 PUBLIC: ${summary.byMode.PUBLIC}`);
+  logger.info(`     👤 USER: ${summary.byMode.USER}`);
+  logger.info(`     👑 ADMIN: ${summary.byMode.ADMIN}`);
 }
 
 // ==================== MAIN ====================
 
 async function main() {
-  console.log('🚀 Starting Playwright Crawler\n');
-  console.log('Configuration:');
-  console.log(`   Frontend: ${config.frontendUrl}`);
-  console.log(`   Backend: ${config.backendUrl}`);
-  console.log(`   Headless: ${config.headless}`);
-  console.log(`   Screenshots: ${config.takeScreenshots}`);
-  console.log(`   User Email: ${config.userEmail ? '✓' : '✗'}`);
-  console.log(`   Admin Email: ${config.adminEmail ? '✓' : '✗'}`);
+  logger.info('🚀 Starting Playwright Crawler\n');
+  logger.info('Configuration:');
+  logger.info(`   Frontend: ${config.frontendUrl}`);
+  logger.info(`   Backend: ${config.backendUrl}`);
+  logger.info(`   Headless: ${config.headless}`);
+  logger.info(`   Screenshots: ${config.takeScreenshots}`);
+  logger.info(`   Verbose: ${VERBOSE}`);
+  logger.info(`   User Email: ${config.userEmail ? '✓' : '✗'}`);
+  logger.info(`   Admin Email: ${config.adminEmail ? '✓' : '✗'}`);
 
   const reportsDir = path.join(__dirname, 'reports');
 
   // Load route map
   const routeMapPath = path.join(__dirname, 'route-map.json');
   if (!fs.existsSync(routeMapPath)) {
-    console.error('❌ route-map.json not found!');
+    logger.error('❌ route-map.json not found!');
     process.exit(1);
   }
 
@@ -652,13 +663,13 @@ async function main() {
     generateReports(allResults, reportsDir);
 
   } catch (error) {
-    console.error('❌ Fatal error:', error);
+    logger.error('❌ Fatal error:', error);
   } finally {
     await browser.close();
   }
 
-  console.log('\n✅ Crawler completed!\n');
+  logger.info('\n✅ Crawler completed!\n');
 }
 
 // Run the crawler
-main().catch(console.error);
+main().catch((error) => logger.error('Fatal error:', error));
