@@ -84,11 +84,12 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold text-white mb-4">Company</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/about" className="hover:text-white">About Us</Link></li>
-              <li><Link href="/team" className="hover:text-white">Our Team</Link></li>
-              <li><Link href="/careers" className="hover:text-white">Careers</Link></li>
-              <li><Link href="/press" className="hover:text-white">Press</Link></li>
-              <li><Link href="/contact" className="hover:text-white">Contact Us</Link></li>
+              <li><Link href="/team" className="hover:text-white cursor-pointer block">Our Team</Link></li>
+              <li><Link href="/press" className="hover:text-white cursor-pointer block">Press</Link></li>
+              <li><Link href="/about" className="hover:text-white cursor-pointer block">About Us</Link></li>
+              <li><Link href="/blog" className="hover:text-white cursor-pointer block">Blog</Link></li>
+              <li><Link href="/careers" className="hover:text-white cursor-pointer block">Careers</Link></li>
+              <li><Link href="/contact" className="hover:text-white cursor-pointer block">Contact</Link></li>
             </ul>
           </div>
 
@@ -108,13 +109,15 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold text-white mb-4">Legal</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/terms" className="hover:text-white">Terms of Service</Link></li>
-              <li><Link href="/risk-disclosure" className="hover:text-white">Risk Disclosure</Link></li>
-              <li><Link href="/privacy-policy" className="hover:text-white">Privacy Policy</Link></li>
-              <li><Link href="/cookie-policy" className="hover:text-white">Cookie Policy</Link></li>
-              <li><Link href="/sebi" className="hover:text-white">SEBI Compliance</Link></li>
-              <li><Link href="/refund-policy" className="hover:text-white">Refund Policy</Link></li>
-              <li><Link href="/sebi-regulations" className="hover:text-white">SEBI Regulations</Link></li>
+              <li><Link href="/risk-disclosure" className="hover:text-white cursor-pointer block">Risk Disclosure</Link></li>
+              <li><Link href="/sebi-regulations" className="hover:text-white cursor-pointer block">SEBI Regulations</Link></li>
+              <li><Link href="/terms" className="hover:text-white cursor-pointer block">Terms of Service</Link></li>
+              <li><Link href="/privacy-policy" className="hover:text-white cursor-pointer block">Privacy Policy</Link></li>
+              <li><Link href="/cookie-policy" className="hover:text-white cursor-pointer block">Cookie Policy</Link></li>
+              <li><Link href="/sebi" className="hover:text-white cursor-pointer block">SEBI Compliance</Link></li>
+              <li><Link href="/refund-policy" className="hover:text-white cursor-pointer block">Refund Policy</Link></li>
+              <li><Link href="/login" className="hover:text-white cursor-pointer block">Login</Link></li>
+              <li><Link href="/signup" className="hover:text-white cursor-pointer block">Create Account</Link></li>
             </ul>
           </div>
         </div>
