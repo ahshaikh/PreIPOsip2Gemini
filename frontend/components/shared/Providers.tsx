@@ -1,10 +1,11 @@
-// V-PHASE4-1730-102 (Created) | V-FINAL-1730-657 (Updated)
+// V-PHASE4-1730-102 (Created) | V-FINAL-1730-657 (Updated) | V-DARK-MODE-FIX
 
 'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ThemeProvider } from 'next-themes';
 import React, { useState } from 'react';
-import { AuthProvider } from '@/context/AuthContext'; // <-- IMPORT
+import { AuthProvider } from '@/context/AuthContext';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -21,9 +22,16 @@ const queryClient = new QueryClient({
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        {children}
-      </AuthProvider>
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+      >
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
