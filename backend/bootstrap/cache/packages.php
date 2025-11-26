@@ -43,13 +43,6 @@
       0 => 'Laravel\\Socialite\\SocialiteServiceProvider',
     ),
   ),
-  'laravel/telescope' => 
-  array (
-    'providers' => 
-    array (
-      0 => 'Laravel\\Telescope\\TelescopeServiceProvider',
-    ),
-  ),
   'laravel/tinker' => 
   array (
     'providers' => 
