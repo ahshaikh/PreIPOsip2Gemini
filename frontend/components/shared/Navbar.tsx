@@ -171,13 +171,13 @@ export default function Navbar() {
         {
           icon: BookOpen,
           label: "Help Center",
-          href: "/support",
+          href: "/help-center",
           description: "Browse our knowledge base",
         },
         {
           icon: MessageSquare,
           label: "Raise a Ticket",
-          href: "/support/ticket",
+          href: "/help-center/ticket",
           description: "Submit a support request",
         },
       ],

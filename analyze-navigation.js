@@ -58,8 +58,8 @@ const EXPECTED_ROUTES = {
     // From Navbar - Support
     '/faq',
     '/contact',
-    '/support', // Help Center
-    '/support/ticket', // Raise a ticket
+    '/help-center', // Help Center (FIXED)
+    '/help-center/ticket', // Raise a ticket (FIXED)
 
     // From exploration
     '/blog',
