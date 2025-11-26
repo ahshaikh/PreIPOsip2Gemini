@@ -1,8 +1,9 @@
-// V-PHASE4-1730-104 (Created) 
+// V-PHASE4-1730-104 (Created)
 'use client';
 
 import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function Footer() {
   const router = useRouter();
@@ -60,23 +61,23 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold text-white mb-4">Company</h4>
             <ul className="space-y-2 text-sm">
-              <li><a href="/about" className="hover:text-white">About Us</a></li>
-              <li><a href="/blog" className="hover:text-white">Blog</a></li>
-              <li><a href="/careers" className="hover:text-white">Careers</a></li>
-              <li><a href="/contact" className="hover:text-white">Contact</a></li>
+              <li><Link href="/about" className="hover:text-white">About Us</Link></li>
+              <li><Link href="/blog" className="hover:text-white">Blog</Link></li>
+              <li><Link href="/careers" className="hover:text-white">Careers</Link></li>
+              <li><Link href="/contact" className="hover:text-white">Contact</Link></li>
             </ul>
           </div>
 
           <div>
             <h4 className="font-semibold text-white mb-4">Legal & Account</h4>
             <ul className="space-y-2 text-sm">
-              <li><a href="/terms" className="hover:text-white">Terms of Service</a></li>
-              <li><a href="/privacy-policy" className="hover:text-white">Privacy Policy</a></li>
-              <li><a href="/cookie-policy" className="hover:text-white">Cookie Policy</a></li>
-              <li><a href="/sebi" className="hover:text-white">SEBI Compliance</a></li>
-              <li><a href="/refund-policy" className="hover:text-white">Refund Policy</a></li>
-              <li><button className="hover:text-white" onClick={() => router.push('/login')}>Login</button></li>
-              <li><button className="hover:text-white" onClick={() => router.push('/signup')}>Create Account</button></li>
+              <li><Link href="/terms" className="hover:text-white">Terms of Service</Link></li>
+              <li><Link href="/privacy-policy" className="hover:text-white">Privacy Policy</Link></li>
+              <li><Link href="/cookie-policy" className="hover:text-white">Cookie Policy</Link></li>
+              <li><Link href="/sebi" className="hover:text-white">SEBI Compliance</Link></li>
+              <li><Link href="/refund-policy" className="hover:text-white">Refund Policy</Link></li>
+              <li><Link href="/login" className="hover:text-white">Login</Link></li>
+              <li><Link href="/signup" className="hover:text-white">Create Account</Link></li>
             </ul>
           </div>
 
