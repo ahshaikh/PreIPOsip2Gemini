@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Running pre-commit hooks..."
+
+# Run lint-staged for frontend
+echo "📝 Linting frontend code..."
+cd frontend && npx lint-staged || exit 1
+
+# Run Laravel Pint for backend
+echo "🔧 Checking backend code style..."
+cd ../backend && ./vendor/bin/pint --dirty || exit 1
+
+echo "✅ Pre-commit checks passed!"

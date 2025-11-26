@@ -8,7 +8,13 @@ export default function GlobalError({ error, reset }: { error: Error; reset: () 
     if (process.env.NODE_ENV === 'development') {
       console.error('Global Error:', error);
     }
-    // TODO: In production, send to error tracking service (e.g., Sentry)
+
+    // Send to Sentry in production
+    if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_SENTRY_DSN) {
+      import('@sentry/nextjs').then((Sentry) => {
+        Sentry.captureException(error);
+      });
+    }
   }, [error]);
 
   return (
