@@ -176,7 +176,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/activity', [ActivityController::class, 'index']);
 
             // Support
-            Route::apiResource('/support-tickets', UserSupportTicketController::class)->only(['index', 'store', 'show']);
+            Route::apiResource('/support-tickets', UserSupportTicketController::class)->only(['index', 'store', 'show'])->names('user.support-tickets');
             Route::post('/support-tickets/{supportTicket}/reply', [UserSupportTicketController::class, 'reply']);
 	    Route::post('/support-tickets/{supportTicket}/close', [UserSupportTicketController::class, 'close']); // <-- NEW
             Route::post('/support-tickets/{supportTicket}/rate', [UserSupportTicketController::class, 'rate']); // <-- NEW
@@ -309,7 +309,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/profit-sharing/{profitShare}/reverse', [AdminProfitShareController::class, 'reverse'])->middleware('permission:bonuses.manage_config');
             
             // Support
-            Route::apiResource('/support-tickets', AdminSupportTicketController::class)->middleware('permission:users.view');
+            Route::apiResource('/support-tickets', AdminSupportTicketController::class)->names('admin.support-tickets')->middleware('permission:users.view');
             Route::post('/support-tickets/{supportTicket}/reply', [AdminSupportTicketController::class, 'reply'])->middleware('permission:users.edit');
             Route::put('/support-tickets/{supportTicket}/status', [AdminSupportTicketController::class, 'updateStatus'])->middleware('permission:users.edit');
         });
