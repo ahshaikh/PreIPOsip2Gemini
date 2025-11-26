@@ -68,7 +68,8 @@ class SanitizeInput
 
         // Strip HTML tags (basic XSS protection)
         // For fields that need HTML, they should be in $except
-        $value = strip_tags($value, '<b><i><u><strong><em><br><p><ul><ol><li><a>');
+        // Note: <a> tag removed to prevent href="javascript:..." XSS attacks
+        $value = strip_tags($value, '<b><i><u><strong><em><br><p><ul><ol><li>');
 
         // Encode special HTML characters
         $value = htmlspecialchars($value, ENT_QUOTES | ENT_HTML5, 'UTF-8', false);
