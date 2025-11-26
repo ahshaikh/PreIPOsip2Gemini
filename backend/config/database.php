@@ -178,6 +178,35 @@ return [
             'backoff_cap' => env('REDIS_BACKOFF_CAP', 1000),
         ],
 
+        'queue' => [
+            'url' => env('REDIS_URL'),
+            'host' => env('REDIS_HOST', '127.0.0.1'),
+            'username' => env('REDIS_USERNAME'),
+            'password' => env('REDIS_PASSWORD'),
+            'port' => env('REDIS_PORT', '6379'),
+            'database' => env('REDIS_QUEUE_DB', '2'),
+            'max_retries' => env('REDIS_MAX_RETRIES', 3),
+            'backoff_algorithm' => env('REDIS_BACKOFF_ALGORITHM', 'decorrelated_jitter'),
+            'backoff_base' => env('REDIS_BACKOFF_BASE', 100),
+            'backoff_cap' => env('REDIS_BACKOFF_CAP', 1000),
+        ],
+
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Query Performance Monitoring
+    |--------------------------------------------------------------------------
+    |
+    | Configure database query performance monitoring to detect slow queries
+    | and potential N+1 query issues.
+    |
+    */
+
+    'query_monitoring' => [
+        'enabled' => env('DB_QUERY_MONITORING_ENABLED', false),
+        'slow_query_threshold' => env('DB_SLOW_QUERY_THRESHOLD', 1000), // milliseconds
+        'n_plus_one_threshold' => env('DB_N_PLUS_ONE_THRESHOLD', 10), // number of similar queries
     ],
 
 ];

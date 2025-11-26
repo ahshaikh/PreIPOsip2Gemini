@@ -48,6 +48,7 @@ use App\Http\Controllers\Api\Admin\LuckyDrawController as AdminLuckyDrawControll
 use App\Http\Controllers\Api\Admin\ProfitShareController as AdminProfitShareController;
 use App\Http\Controllers\Api\Admin\ReportController;
 use App\Http\Controllers\Api\Admin\AdvancedReportController;
+use App\Http\Controllers\Api\Admin\PerformanceMonitoringController;
 use App\Http\Controllers\Api\Admin\SupportTicketController as AdminSupportTicketController;
 use App\Http\Controllers\Api\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Api\Admin\FaqController as AdminFaqController;
@@ -210,7 +211,14 @@ Route::prefix('v1')->group(function () {
 
             Route::get('/system/health', [SystemHealthController::class, 'index'])->middleware('permission:system.view_health');
             Route::get('/system/activity-logs', [AdminActivityController::class, 'index'])->middleware('permission:system.view_logs');
-            
+
+            // Performance Monitoring
+            Route::prefix('performance')->group(function () {
+                Route::get('/overview', [PerformanceMonitoringController::class, 'overview']);
+                Route::get('/database', [PerformanceMonitoringController::class, 'databaseMetrics']);
+                Route::get('/realtime', [PerformanceMonitoringController::class, 'realtime']);
+            });
+
             // User Management
             Route::apiResource('/users', AdminUserController::class)->except(['store', 'update']);
             Route::get('/users/export/csv', [AdminUserController::class, 'export'])->middleware('permission:users.view');

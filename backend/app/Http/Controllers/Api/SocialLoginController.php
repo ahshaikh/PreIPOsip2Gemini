@@ -10,8 +10,10 @@ use App\Models\User;
 use App\Models\UserProfile;
 use App\Models\UserKyc;
 use App\Models\Wallet;
+use App\Models\Referral;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class SocialLoginController extends Controller
@@ -19,11 +21,20 @@ class SocialLoginController extends Controller
     /**
      * Get the redirect URL for Google.
      */
-    public function redirectToGoogle()
+    public function redirectToGoogle(Request $request)
     {
-        // We must use stateless() for an API
-        $redirectUrl = Socialite::driver('google')->stateless()->redirect()->getTargetUrl();
-        
+        // Store referral code in state parameter if provided
+        $state = $request->get('referral_code');
+
+        $driver = Socialite::driver('google')->stateless();
+
+        if ($state) {
+            // Encode referral code in state parameter for OAuth callback
+            $driver->with(['state' => base64_encode(json_encode(['referral_code' => $state]))]);
+        }
+
+        $redirectUrl = $driver->redirect()->getTargetUrl();
+
         return response()->json([
             'redirect_url' => $redirectUrl,
         ]);
@@ -32,13 +43,25 @@ class SocialLoginController extends Controller
     /**
      * Handle the callback from Google.
      */
-    public function handleGoogleCallback()
+    public function handleGoogleCallback(Request $request)
     {
         try {
             $socialUser = Socialite::driver('google')->stateless()->user();
         } catch (\Exception $e) {
             // Invalid state or code
+            Log::error('Google OAuth failed', ['error' => $e->getMessage()]);
             return redirect(env('FRONTEND_URL') . '/login?error=google_failed');
+        }
+
+        // Extract referral code from state parameter
+        $referralCode = null;
+        if ($request->has('state')) {
+            try {
+                $stateData = json_decode(base64_decode($request->get('state')), true);
+                $referralCode = $stateData['referral_code'] ?? null;
+            } catch (\Exception $e) {
+                Log::warning('Failed to decode referral state', ['error' => $e->getMessage()]);
+            }
         }
 
         // 1. Find or Create User
@@ -54,7 +77,7 @@ class SocialLoginController extends Controller
 
         // 2. Onboarding (if new user)
         if ($user->wasRecentlyCreated) {
-            $this->createNewUserBootstrap($user, $socialUser);
+            $this->createNewUserBootstrap($user, $socialUser, $referralCode);
         }
 
         // 3. Log them in
@@ -68,7 +91,7 @@ class SocialLoginController extends Controller
     /**
      * Create the associated records for a new social user.
      */
-    private function createNewUserBootstrap($user, $socialUser)
+    private function createNewUserBootstrap($user, $socialUser, $referralCode = null)
     {
         // Get name parts
         $nameParts = explode(' ', $socialUser->getName());
@@ -81,11 +104,57 @@ class SocialLoginController extends Controller
             'last_name' => $lastName,
             'avatar_url' => $socialUser->getAvatar(),
         ]);
-        
+
         UserKyc::create(['user_id' => $user->id, 'status' => 'pending']);
         Wallet::create(['user_id' => $user->id]);
         $user->assignRole('user');
-        
-        // TODO: Check for referral code in state/cookie
+
+        // Process referral code if provided
+        if ($referralCode) {
+            $this->processReferralCode($user, $referralCode);
+        }
+    }
+
+    /**
+     * Process referral code for new user.
+     */
+    private function processReferralCode($user, $referralCode)
+    {
+        try {
+            // Find the referrer by referral code
+            $referrer = User::where('referral_code', $referralCode)
+                ->where('id', '!=', $user->id) // Prevent self-referral
+                ->first();
+
+            if (!$referrer) {
+                Log::warning('Invalid referral code used', [
+                    'user_id' => $user->id,
+                    'referral_code' => $referralCode
+                ]);
+                return;
+            }
+
+            // Update user's referred_by field
+            $user->update(['referred_by' => $referrer->id]);
+
+            // Create referral record
+            Referral::create([
+                'referrer_id' => $referrer->id,
+                'referred_id' => $user->id,
+                'status' => 'pending', // Will be completed when referred user makes first payment
+            ]);
+
+            Log::info('Referral code processed successfully', [
+                'referrer_id' => $referrer->id,
+                'referred_id' => $user->id,
+                'referral_code' => $referralCode
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to process referral code', [
+                'user_id' => $user->id,
+                'referral_code' => $referralCode,
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 }
