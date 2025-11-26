@@ -58,7 +58,7 @@ export default function UsersPage() {
     if (selectedUsers.length === queryData?.data.length) {
       setSelectedUsers([]);
     } else {
-      setSelectedUsers(queryData?.data.map((u: any) => u.id) || []);
+      setSelectedUsers(Array.isArray(queryData?.data) ? queryData.data.map((u: any) => u.id) : []);
     }
   };
 

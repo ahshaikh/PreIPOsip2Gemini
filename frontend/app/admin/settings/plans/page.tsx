@@ -135,7 +135,7 @@ export default function PlanManagerPage() {
     setIsFeatured(plan.is_featured);
     setAvailableFrom(formatDateForInput(plan.available_from));
     setAvailableUntil(formatDateForInput(plan.available_until));
-    setFeatures(plan.features || []);
+    setFeatures(Array.isArray(plan.features) ? plan.features : []);
     setMinInvestment(plan.min_investment || '');
     setMaxInvestment(plan.max_investment || '');
     setIsDialogOpen(true);

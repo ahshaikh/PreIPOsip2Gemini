@@ -157,7 +157,7 @@ export default function CmsSettingsPage() {
     setTitle(page.title);
     setSlug(page.slug);
     setStatus(page.status);
-    setContentBlocks(page.content || []);
+    setContentBlocks(Array.isArray(page.content) ? page.content : []);
     setSeoMeta(page.seo_meta || { title: '', description: '' });
     setIsDialogOpen(true);
   };

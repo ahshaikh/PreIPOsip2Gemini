@@ -33,7 +33,7 @@ export default function MenuManagerPage() {
   useEffect(() => {
     if (menus && activeTab) {
       const activeMenu = menus.find((m: any) => m.slug === activeTab);
-      if (activeMenu) setMenuItems(activeMenu.items || []);
+      if (activeMenu) setMenuItems(Array.isArray(activeMenu.items) ? activeMenu.items : []);
     }
   }, [activeTab, menus]);
 
