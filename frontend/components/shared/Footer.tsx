@@ -1,5 +1,5 @@
 // V-PHASE4-1730-104 (Updated with comprehensive navigation structure)
-'use client';
+// 'use client';
 
 import { Mail, Phone, MapPin } from 'lucide-react';
 import Link from 'next/link';
@@ -89,7 +89,6 @@ export default function Footer() {
               <li><Link href="/about" className="hover:text-white cursor-pointer block">About Us</Link></li>
               <li><Link href="/team" className="hover:text-white cursor-pointer block">Our Team</Link></li>
               <li><Link href="/careers" className="hover:text-white cursor-pointer block">Careers</Link></li>
-              <li><Link href="/press" className="hover:text-white cursor-pointer block">Press</Link></li>
               <li><Link href="/contact" className="hover:text-white cursor-pointer block">Contact Us</Link></li>
             </ul>
           </div>
@@ -101,8 +100,9 @@ export default function Footer() {
               <li><Link href="/blog" className="hover:text-white">Blog & Insights</Link></li>
               <li><Link href="/help-center" className="hover:text-white">Help Center</Link></li>
               <li><Link href="/faq" className="hover:text-white">FAQs</Link></li>
-              <li><Link href="/grievance" className="hover:text-white">Grievance Redressal</Link></li>
+              <li><Link href="/grievance-redressal" className="hover:text-white">Grievance Redressal</Link></li>
               <li><Link href="/investor-charter" className="hover:text-white">Investor Charter</Link></li>
+              <li><Link href="/aml-kyc-policy" className="hover:text-white">AML & KYC Policy</Link></li>
             </ul>
           </div>
 
@@ -110,13 +110,13 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold text-white mb-4">Legal</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/privacy-policy" className="hover:text-white cursor-pointer block">Privacy Policy</Link></li>
+              <li><Link href="/legal" className="hover:text-white cursor-pointer block">Legal Docs</Link></li>
               <li><Link href="/terms" className="hover:text-white cursor-pointer block">Terms of Service</Link></li>
-              <li><Link href="/risk-disclosure" className="hover:text-white cursor-pointer block">Risk Disclosure</Link></li>
-              <li><Link href="/refund-policy" className="hover:text-white cursor-pointer block">Refund Policy</Link></li>
-              <li><Link href="/sebi-regulations" className="hover:text-white cursor-pointer block">SEBI Regulations</Link></li>
+              <li><Link href="/privacy-policy" className="hover:text-white cursor-pointer block">Privacy Policy</Link></li>
               <li><Link href="/cookie-policy" className="hover:text-white cursor-pointer block">Cookie Policy</Link></li>
-              <li><Link href="/sebi" className="hover:text-white cursor-pointer block">SEBI Compliance</Link></li>
+              <li><Link href="/sebi-regulations" className="hover:text-white cursor-pointer block">SEBI Regulations</Link></li>
+              <li><Link href="/refund-policy" className="hover:text-white cursor-pointer block">Refund Policy</Link></li>
+              <li><Link href="/risk-disclosure" className="hover:text-white cursor-pointer block">Risk Disclosure</Link></li>
             </ul>
           </div>
         </div>

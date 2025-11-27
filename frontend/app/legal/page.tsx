@@ -8,14 +8,14 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import {
   FileText, Shield, Cookie, RefreshCw, Scale, Lock,
-  AlertTriangle, CheckCircle, ArrowRight, Calendar, History
+  AlertTriangle, FileWarning, CheckCircle, ArrowRight, Calendar, History
 } from "lucide-react";
 
 const LEGAL_DOCUMENTS = [
   {
     type: 'terms_of_service',
     title: 'Terms of Service',
-    description: 'The rules and regulations for using our platform',
+    description: 'The rules and regulations for using our platform.',
     icon: FileText,
     route: '/terms',
     color: 'text-blue-500',
@@ -23,7 +23,7 @@ const LEGAL_DOCUMENTS = [
   {
     type: 'privacy_policy',
     title: 'Privacy Policy',
-    description: 'How we collect, use, and protect your personal information',
+    description: 'How we collect, use, and protect your personal information.',
     icon: Lock,
     route: '/privacy-policy',
     color: 'text-green-500',
@@ -31,26 +31,34 @@ const LEGAL_DOCUMENTS = [
   {
     type: 'cookie_policy',
     title: 'Cookie Policy',
-    description: 'Information about cookies and tracking technologies we use',
+    description: 'Information about cookies and tracking technologies we use.',
     icon: Cookie,
     route: '/cookie-policy',
     color: 'text-yellow-500',
   },
   {
     type: 'investment_disclaimer',
-    title: 'SEBI Compliance & Investment Disclaimer',
-    description: 'Important information about investment risks and SEBI regulations',
+    title: 'SEBI Regulations',
+    description: 'Important information about investment risks and SEBI regulations & Compliance.',
     icon: Scale,
-    route: '/sebi',
+    route: '/sebi-regulations',
     color: 'text-red-500',
   },
   {
     type: 'refund_policy',
     title: 'Refund Policy',
-    description: 'Terms and conditions for requesting refunds',
+    description: 'Terms and conditions for requesting refunds from PreIPOsip.com',
     icon: RefreshCw,
     route: '/refund-policy',
     color: 'text-purple-500',
+  },
+  {
+    type: 'risk_disclosure',
+    title: 'Risk Disclosure',
+    description: 'Pre-IPO investments carry significant risks. Please read this disclosure carefully.',
+    icon: FileWarning,
+    route: '/risk-disclosure',
+    color: 'text-purple-700',
   },
 ];
 
@@ -61,7 +69,7 @@ export default function LegalPage() {
   const { data: documents, isLoading } = useQuery({
     queryKey: ['allLegalDocuments'],
     queryFn: async () => {
-      const response = await api.get('/legal/documents');
+      const response = await api.get('/app/(public)/');
       return response.data;
     },
   });
@@ -76,7 +84,7 @@ export default function LegalPage() {
           </div>
           <h1 className="text-4xl font-bold mb-4">Legal Documents</h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Review our legal policies and agreements that govern your use of PreIPO SIP platform
+            Review our legal policies and agreements that govern your use of PreIPO SIP platform.
           </p>
         </div>
 
@@ -141,7 +149,7 @@ export default function LegalPage() {
             <div className="flex items-start gap-4">
               <AlertTriangle className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
               <div>
-                <h3 className="font-semibold mb-2">Important Notice</h3>
+                <h3 className="font-semibold mb-2">Important Notice:</h3>
                 <p className="text-sm text-muted-foreground">
                   These legal documents are regularly updated to comply with regulations and improve our services.
                   We recommend reviewing them periodically. Significant changes will be communicated to you via
