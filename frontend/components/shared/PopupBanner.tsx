@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import DOMPurify from 'dompurify';
 import api from '@/lib/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
@@ -35,7 +36,7 @@ export default function PopupBanner() {
         <DialogHeader>
           <DialogTitle>{popup.title}</DialogTitle>
           <DialogDescription>
-            <div dangerouslySetInnerHTML={{ __html: popup.content }} />
+            <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(popup.content) }} />
           </DialogDescription>
         </DialogHeader>
       </DialogContent>

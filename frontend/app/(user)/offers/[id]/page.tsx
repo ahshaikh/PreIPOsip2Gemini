@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from "@tanstack/react-query";
+import DOMPurify from 'dompurify';
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -171,7 +172,7 @@ export default function OfferDetailPage() {
             <p>{offer.description || 'Get amazing discounts on your investments!'}</p>
 
             {offer.long_description && (
-              <div dangerouslySetInnerHTML={{ __html: offer.long_description }} />
+              <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(offer.long_description) }} />
             )}
 
             {/* Features List */}

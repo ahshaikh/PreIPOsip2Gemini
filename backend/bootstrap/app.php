@@ -16,6 +16,8 @@ use App\Http\Middleware\SanitizeInput;
 use App\Http\Middleware\VerifyWebhookSignature;
 use App\Http\Middleware\ConcurrentSessionControl;
 use App\Http\Middleware\ValidateFileUpload;
+use App\Http\Middleware\ForceHttps;
+use App\Http\Middleware\TrustProxies;
 
 // ----------------------------------------------------------
 // 1. Build the application instance
@@ -31,6 +33,8 @@ $app = Application::configure(basePath: dirname(__DIR__))
 
         // Global middleware
         $middleware->append([
+            TrustProxies::class, // Trust proxies for HTTPS detection
+            ForceHttps::class, // Enforce HTTPS in production
             CheckMaintenanceMode::class,
         ]);
 

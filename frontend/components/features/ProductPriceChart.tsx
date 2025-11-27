@@ -1,7 +1,7 @@
 // V-FINAL-1730-290
 'use client';
 
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { DynamicLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from '@/components/shared/DynamicChart';
 import api from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 
@@ -18,13 +18,13 @@ export function ProductPriceChart({ slug }: { slug: string }) {
     <div className="h-[300px] w-full mt-6">
       <h3 className="text-lg font-semibold mb-4">Price History</h3>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={history}>
+        <DynamicLineChart data={history}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="date" />
           <YAxis />
           <Tooltip formatter={(value) => `₹${value}`} />
           <Line type="monotone" dataKey="price" stroke="#8884d8" strokeWidth={2} />
-        </LineChart>
+        </DynamicLineChart>
       </ResponsiveContainer>
     </div>
   );

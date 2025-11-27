@@ -9,7 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import Link from "next/link";
 import { DollarSign, Users, FileText, Activity, ArrowUpRight, TrendingUp, Wallet, CreditCard, AlertCircle, CheckCircle2, Clock } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { DynamicLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from '@/components/shared/DynamicChart';
 
 export default function AdminDashboardPage() {
   const { data, isLoading, error } = useQuery({
@@ -184,13 +184,13 @@ export default function AdminDashboardPage() {
           <CardContent className="pl-2">
             <div className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={charts?.revenue_over_time || []}>
+                    <DynamicLineChart data={charts?.revenue_over_time || []}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="date" tickFormatter={(str) => new Date(str).toLocaleDateString()} />
                         <YAxis />
                         <Tooltip />
                         <Line type="monotone" dataKey="total" stroke="#8884d8" activeDot={{ r: 8 }} />
-                    </LineChart>
+                    </DynamicLineChart>
                 </ResponsiveContainer>
             </div>
           </CardContent>
