@@ -1,4 +1,4 @@
-// V-PHASE4-1730-104 (Merged & Cleaned)
+// V-PHASE4-1730-104 (Updated with comprehensive navigation structure)
 'use client';
 
 import { Mail, Phone, MapPin } from 'lucide-react';
@@ -84,6 +84,8 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold text-white mb-4">Company</h4>
             <ul className="space-y-2 text-sm">
+              <li><Link href="/team" className="hover:text-white cursor-pointer block">Our Team</Link></li>
+              <li><Link href="/press" className="hover:text-white cursor-pointer block">Press</Link></li>
               <li><Link href="/about" className="hover:text-white cursor-pointer block">About Us</Link></li>
               <li><Link href="/team" className="hover:text-white cursor-pointer block">Our Team</Link></li>
               <li><Link href="/careers" className="hover:text-white cursor-pointer block">Careers</Link></li>
