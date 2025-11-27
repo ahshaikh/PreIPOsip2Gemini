@@ -113,9 +113,9 @@ export default function Footer() {
               <li><Link href="/legal" className="hover:text-white cursor-pointer block">Legal Docs</Link></li>
               <li><Link href="/terms" className="hover:text-white cursor-pointer block">Terms of Service</Link></li>
               <li><Link href="/privacy-policy" className="hover:text-white cursor-pointer block">Privacy Policy</Link></li>
-              <li><Link href="/cookie-policy" className="hover:text-white cursor-pointer block">Cookie Policy</Link></li>
+              <li><Link href="/grievance-redressal/cookie-policy" className="hover:text-white cursor-pointer block">Cookie Policy</Link></li>
               <li><Link href="/sebi-regulations" className="hover:text-white cursor-pointer block">SEBI Regulations</Link></li>
-              <li><Link href="/refund-policy" className="hover:text-white cursor-pointer block">Refund Policy</Link></li>
+              <li><Link href="/grievance-redressal/refund-policy" className="hover:text-white cursor-pointer block">Refund Policy</Link></li>
               <li><Link href="/risk-disclosure" className="hover:text-white cursor-pointer block">Risk Disclosure</Link></li>
             </ul>
           </div>

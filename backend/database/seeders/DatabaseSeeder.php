@@ -35,10 +35,13 @@ class DatabaseSeeder extends Seeder
         // 5. Feature Flags
         $this->call(FeatureFlagSeeder::class);
 
-        // 6. Admin User
+        // 6. Legal Documents
+        $this->call(LegalAgreementSeeder::class);
+
+        // 7. Admin User
         $this->call(UserSeeder::class); // Creates the Super Admin
 
-        // 7. --- "Chaos Seeder" ---
+        // 8. --- "Chaos Seeder" ---
         // Only run this in 'local' or 'staging' environments
         if (App::environment(['local', 'staging'])) {
             $this->call(TestDataSetSeeder::class);
