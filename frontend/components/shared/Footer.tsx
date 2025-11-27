@@ -1,4 +1,4 @@
-// V-PHASE4-1730-104 (Created)
+// V-PHASE4-1730-104 (Updated with comprehensive navigation structure)
 'use client';
 
 import { useCallback } from 'react';
@@ -49,33 +49,58 @@ export default function Footer() {
           </div>
 
           <div>
-            <h4 className="font-semibold text-white mb-4">Product</h4>
+            <h4 className="font-semibold text-white mb-4">Platform</h4>
             <ul className="space-y-2 text-sm">
-              <li><button className="hover:text-white" onClick={() => scrollTo('plans')}>Plans</button></li>
+              <li><Link href="/explore" className="hover:text-white cursor-pointer block">Explore Listings</Link></li>
+              <li><button className="hover:text-white" onClick={() => scrollTo('calculator')}>SIP Calculator</button></li>
+              <li><Link href="/private-equity" className="hover:text-white cursor-pointer block">Private Equity</Link></li>
               <li><button className="hover:text-white" onClick={() => scrollTo('how-it-works')}>How It Works</button></li>
-              <li><button className="hover:text-white" onClick={() => scrollTo('calculator')}>Calculator</button></li>
-              <li><button className="hover:text-white" onClick={() => scrollTo('features')}>Features</button></li>
+              <li><Link href="/pricing" className="hover:text-white cursor-pointer block">Pricing</Link></li>
             </ul>
           </div>
 
           <div>
             <h4 className="font-semibold text-white mb-4">Company</h4>
             <ul className="space-y-2 text-sm">
+              <li><Link href="/team" className="hover:text-white cursor-pointer block">Our Team</Link></li>
+              <li><Link href="/press" className="hover:text-white cursor-pointer block">Press</Link></li>
               <li><Link href="/about" className="hover:text-white cursor-pointer block">About Us</Link></li>
-              <li><Link href="/blog" className="hover:text-white cursor-pointer block">Blog</Link></li>
               <li><Link href="/careers" className="hover:text-white cursor-pointer block">Careers</Link></li>
               <li><Link href="/contact" className="hover:text-white cursor-pointer block">Contact</Link></li>
             </ul>
           </div>
 
           <div>
-            <h4 className="font-semibold text-white mb-4">Legal & Account</h4>
+            <h4 className="font-semibold text-white mb-4">Resources</h4>
             <ul className="space-y-2 text-sm">
+              <li><Link href="/blog" className="hover:text-white cursor-pointer block">Blog & Insights</Link></li>
+              <li><Link href="/help" className="hover:text-white cursor-pointer block">Help Center</Link></li>
+              <li><Link href="/faq" className="hover:text-white cursor-pointer block">FAQs</Link></li>
+              <li><Link href="/grievance-redressal" className="hover:text-white cursor-pointer block">Grievance Redressal</Link></li>
+              <li><Link href="/investor-charter" className="hover:text-white cursor-pointer block">Investor Charter</Link></li>
+            </ul>
+          </div>
+
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-8 mb-8">
+
+          <div>
+            <h4 className="font-semibold text-white mb-4">Legal & Compliance</h4>
+            <ul className="space-y-2 text-sm grid md:grid-cols-2 gap-x-4">
+              <li><Link href="/risk-disclosure" className="hover:text-white cursor-pointer block">Risk Disclosure</Link></li>
+              <li><Link href="/sebi-regulations" className="hover:text-white cursor-pointer block">SEBI Regulations</Link></li>
               <li><Link href="/terms" className="hover:text-white cursor-pointer block">Terms of Service</Link></li>
               <li><Link href="/privacy-policy" className="hover:text-white cursor-pointer block">Privacy Policy</Link></li>
               <li><Link href="/cookie-policy" className="hover:text-white cursor-pointer block">Cookie Policy</Link></li>
               <li><Link href="/sebi" className="hover:text-white cursor-pointer block">SEBI Compliance</Link></li>
               <li><Link href="/refund-policy" className="hover:text-white cursor-pointer block">Refund Policy</Link></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="font-semibold text-white mb-4">Account</h4>
+            <ul className="space-y-2 text-sm">
               <li><Link href="/login" className="hover:text-white cursor-pointer block">Login</Link></li>
               <li><Link href="/signup" className="hover:text-white cursor-pointer block">Create Account</Link></li>
             </ul>
