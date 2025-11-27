@@ -8,7 +8,7 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "Security vulnerability Fix"
+$CommitMessage = "Footer link Fix"
 #----------------------
 
 function Get-GitCredential {

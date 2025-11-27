@@ -76,7 +76,7 @@ export default function Footer() {
               <li><Link href="/calculator" className="hover:text-white">SIP Calculator</Link></li>
               <li><Link href="/private-equity" className="hover:text-white">Private Equity</Link></li>
               <li><Link href="/how-it-works" className="hover:text-white">How It Works</Link></li>
-              <li><Link href="/pricing" className="hover:text-white">Pricing</Link></li>
+              <li><Link href="/plans" className="hover:text-white">Pricing</Link></li>
             </ul>
           </div>
 
@@ -84,12 +84,11 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold text-white mb-4">Company</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/team" className="hover:text-white cursor-pointer block">Our Team</Link></li>
-              <li><Link href="/press" className="hover:text-white cursor-pointer block">Press</Link></li>
               <li><Link href="/about" className="hover:text-white cursor-pointer block">About Us</Link></li>
-              <li><Link href="/blog" className="hover:text-white cursor-pointer block">Blog</Link></li>
+              <li><Link href="/team" className="hover:text-white cursor-pointer block">Our Team</Link></li>
               <li><Link href="/careers" className="hover:text-white cursor-pointer block">Careers</Link></li>
-              <li><Link href="/contact" className="hover:text-white cursor-pointer block">Contact</Link></li>
+              <li><Link href="/press" className="hover:text-white cursor-pointer block">Press</Link></li>
+              <li><Link href="/contact" className="hover:text-white cursor-pointer block">Contact Us</Link></li>
             </ul>
           </div>
 
@@ -98,8 +97,8 @@ export default function Footer() {
             <h4 className="font-semibold text-white mb-4">Resources</h4>
             <ul className="space-y-2 text-sm">
               <li><Link href="/blog" className="hover:text-white">Blog & Insights</Link></li>
-              <li><Link href="/help" className="hover:text-white">Help Center</Link></li>
-              <li><Link href="/faqs" className="hover:text-white">FAQs</Link></li>
+              <li><Link href="/help-center" className="hover:text-white">Help Center</Link></li>
+              <li><Link href="/faq" className="hover:text-white">FAQs</Link></li>
               <li><Link href="/grievance" className="hover:text-white">Grievance Redressal</Link></li>
               <li><Link href="/investor-charter" className="hover:text-white">Investor Charter</Link></li>
             </ul>
@@ -109,15 +108,13 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold text-white mb-4">Legal</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/risk-disclosure" className="hover:text-white cursor-pointer block">Risk Disclosure</Link></li>
-              <li><Link href="/sebi-regulations" className="hover:text-white cursor-pointer block">SEBI Regulations</Link></li>
-              <li><Link href="/terms" className="hover:text-white cursor-pointer block">Terms of Service</Link></li>
               <li><Link href="/privacy-policy" className="hover:text-white cursor-pointer block">Privacy Policy</Link></li>
+              <li><Link href="/terms" className="hover:text-white cursor-pointer block">Terms of Service</Link></li>
+              <li><Link href="/risk-disclosure" className="hover:text-white cursor-pointer block">Risk Disclosure</Link></li>
+              <li><Link href="/refund-policy" className="hover:text-white cursor-pointer block">Refund Policy</Link></li>
+              <li><Link href="/sebi-regulations" className="hover:text-white cursor-pointer block">SEBI Regulations</Link></li>
               <li><Link href="/cookie-policy" className="hover:text-white cursor-pointer block">Cookie Policy</Link></li>
               <li><Link href="/sebi" className="hover:text-white cursor-pointer block">SEBI Compliance</Link></li>
-              <li><Link href="/refund-policy" className="hover:text-white cursor-pointer block">Refund Policy</Link></li>
-              <li><Link href="/login" className="hover:text-white cursor-pointer block">Login</Link></li>
-              <li><Link href="/signup" className="hover:text-white cursor-pointer block">Create Account</Link></li>
             </ul>
           </div>
         </div>
@@ -125,14 +122,14 @@ export default function Footer() {
         {/* Footer Disclaimer */}
         <div className="border-t border-gray-800 pt-8 pb-4">
           <p className="text-xs text-gray-500 text-center mb-4">
-            PreIPO SIP is a product of [Legal Entity Name]. SEBI Registration No: INZ000xxxxxx.
-            CIN: U65990MHxxxxPTCxxxxxx. Registered Office: [Full Address in Mira Bhayandar].  
-            <br />
-            Investments in unlisted securities and Pre-IPO markets carry a high degree of risk. Please read the Risk Disclosure Document carefully before investing.
+            PreIPO SIP is a product of Pre IPO Sip Pvt Ltd. SEBI Registration No: INZ000421765  
+            CIN: U65990MH2025OPC194372. GSTIN: 27AABCP1234Q1Z7. <br />Registered Office: PreIPO SIP Private Limited, Office No. 14, 2nd Floor, Crystal Business Park, Near Golden Nest Road, Mira Bhayandar (East), Thane, Maharashtra – 401107, India. <br />
+            Disclaimer:
+Investments in unlisted shares, private equity, and Pre-IPO securities involve a high degree of risk. The value of investments may fluctuate and are subject to market risks. Past performance does not guarantee future returns. PreIPO SIP Private Limited is compliant with applicable SEBI guidelines. Investors are advised to read all legal documents, risk disclosures, and terms of use carefully before investing.
           </p>
 
           <p className="text-sm text-gray-400 text-center">
-            © 2025 PreIPO SIP Platform. All rights reserved.
+            © 2025 PreIPOsip.com All rights reserved.
           </p>
         </div>
 

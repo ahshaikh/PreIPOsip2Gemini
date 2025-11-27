@@ -1,5 +1,5 @@
 // V-FINAL-1730-184
-import { ReturnsCalculator } from '@/components/features/ReturnsCalculator';
+import ReturnsCalculator from '@/components/features/ReturnsCalculator';
 
 export default function CalculatorPage() {
   return (
