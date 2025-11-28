@@ -12,56 +12,51 @@ class ProductFactory extends Factory
 
     public function definition(): array
     {
-        $companies = ['TechStart', 'FinGrow', 'HealthFirst', 'EduLearn', 'GreenEnergy'];
+        $companies = ['TechStart', 'FinGrow', 'HealthFirst', 'EduLearn', 'GreenEnergy', 'CloudNine', 'DataPro', 'SmartSolutions'];
         $company = $this->faker->randomElement($companies) . ' ' . $this->faker->unique()->word();
+        $slug = \Illuminate\Support\Str::slug($company);
 
         return [
             'name' => $company,
-            'slug' => \Illuminate\Support\Str::slug($company),
-            'sector' => $this->faker->randomElement(['Technology', 'Healthcare', 'Finance', 'Education', 'Energy']),
-            'description' => $this->faker->paragraphs(2, true),
-            'logo_url' => $this->faker->imageUrl(200, 200, 'business'),
-            'total_shares_available' => $this->faker->numberBetween(100000, 1000000),
-            'price_per_share' => $this->faker->randomFloat(2, 100, 5000),
-            'min_investment' => $this->faker->randomElement([1000, 5000, 10000]),
-            'max_investment' => $this->faker->randomElement([100000, 500000, 1000000]),
-            'is_active' => true,
-            'status' => 'open',
-            'opens_at' => now()->subDays(30),
-            'closes_at' => now()->addDays(60),
+            'slug' => $slug,
+            'sector' => $this->faker->randomElement(['Technology', 'Healthcare', 'Finance', 'Education', 'Energy', 'E-commerce', 'Fintech']),
+            'face_value_per_unit' => $this->faker->randomElement([10, 100, 500, 1000]),
+            'current_market_price' => $this->faker->randomFloat(2, 100, 5000),
+            'last_price_update' => now()->subDays($this->faker->numberBetween(1, 30)),
+            'auto_update_price' => false,
+            'min_investment' => $this->faker->randomElement([1000, 5000, 10000, 25000]),
+            'expected_ipo_date' => $this->faker->dateTimeBetween('+6 months', '+2 years')->format('Y-m-d'),
+            'status' => 'active',
+            'sebi_approval_number' => 'SEBI/' . $this->faker->numerify('####/####'),
+            'sebi_approval_date' => $this->faker->dateTimeBetween('-1 year', 'now')->format('Y-m-d'),
+            'is_featured' => $this->faker->boolean(30),
+            'display_order' => $this->faker->numberBetween(0, 100),
+            'description' => json_encode([
+                'overview' => $this->faker->paragraphs(2, true),
+                'business_model' => $this->faker->paragraph(),
+                'market_opportunity' => $this->faker->paragraph(),
+            ]),
         ];
     }
 
     /**
-     * Product is closed for investment.
+     * Product is featured.
      */
-    public function closed(): static
+    public function featured(): static
     {
         return $this->state(fn(array $attributes) => [
-            'status' => 'closed',
-            'closes_at' => now()->subDays(10),
+            'is_featured' => true,
+            'display_order' => $this->faker->numberBetween(1, 10),
         ]);
     }
 
     /**
-     * Product is coming soon.
+     * Product is inactive.
      */
-    public function upcoming(): static
+    public function inactive(): static
     {
         return $this->state(fn(array $attributes) => [
-            'status' => 'upcoming',
-            'opens_at' => now()->addDays(30),
-            'closes_at' => now()->addDays(90),
-        ]);
-    }
-
-    /**
-     * Product has limited availability.
-     */
-    public function limited(): static
-    {
-        return $this->state(fn(array $attributes) => [
-            'total_shares_available' => 1000,
+            'status' => 'inactive',
         ]);
     }
 }
