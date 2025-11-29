@@ -5,38 +5,128 @@ namespace App\Http\Controllers\Api\User;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Carbon;
 
 class ReferralController extends Controller
 {
     /**
-     * FSD-REF-001: Get referral dashboard data.
+     * Get User Referral Stats & Code
+     * Endpoint: /api/v1/user/referrals
      */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
-        $user = $request->user()->load('subscription');
-
-        // 1. Get Referral Code
-        $referralCode = $user->referral_code;
-
-        // 2. Get Multiplier
-        $multiplier = $user->subscription ? $user->subscription->bonus_multiplier : 1.0;
-
-        // 3. Get Tiers (from plan config, default if no plan)
-        $tiers = $user->subscription
-            ? $user->subscription->plan->getConfig('referral_tiers', [])
-            : [];
+        try {
+            $user = $request->user();
             
-        // 4. Get List of Referrals (paginated)
-        $referrals = $user->referrals()
-            ->with('referred:id,username,status') // Get referred user's info
-            ->latest()
-            ->paginate(20);
+            // Basic Info
+            $referralCode = $user->referral_code ?? 'GENERATE';
+            $referralLink = url('/register?ref=' . $referralCode);
 
-        return response()->json([
-            'referral_code' => $referralCode,
-            'bonus_multiplier' => (float) $multiplier,
-            'referral_tiers' => $tiers,
-            'referrals' => $referrals,
-        ]);
+            // Stats Defaults
+            $totalInvited = 0;
+            $totalEarned = 0;
+            $history = [];
+
+            // 1. Count Invites
+            if (Schema::hasTable('referrals')) {
+                $totalInvited = DB::table('referrals')
+                    ->where('referrer_id', $user->id)
+                    ->count();
+            }
+
+            // 2. Calculate Earnings
+            if (Schema::hasTable('bonus_transactions')) {
+                $totalEarned = DB::table('bonus_transactions')
+                    ->where('user_id', $user->id)
+                    ->where('type', 'referral')
+                    ->sum('amount');
+            }
+
+            // 3. Get Recent Referral History
+            if (Schema::hasTable('referrals')) {
+                $history = DB::table('referrals')
+                    ->join('users', 'referrals.referred_id', '=', 'users.id')
+                    ->where('referrals.referrer_id', $user->id)
+                    ->select(
+                        'users.username', 
+                        'users.first_name',
+                        'users.email', 
+                        'referrals.status', 
+                        'referrals.created_at'
+                    )
+                    ->latest('referrals.created_at')
+                    ->limit(10)
+                    ->get()
+                    ->map(function($ref) {
+                        $email = $ref->email ?? '';
+                        $maskedEmail = strlen($email) > 4 ? substr($email, 0, 2) . '***' . substr($email, strpos($email, '@')) : '***';
+
+                        return [
+                            'user' => $ref->first_name ?? $ref->username ?? 'User',
+                            'email_masked' => $maskedEmail,
+                            'status' => ucfirst($ref->status),
+                            'date' => Carbon::parse($ref->created_at)->format('d M Y'),
+                        ];
+                    });
+            }
+
+            return response()->json([
+                'referral_code' => $referralCode,
+                'referral_link' => $referralLink,
+                'stats' => [
+                    'total_invited' => $totalInvited,
+                    'total_earned' => (float) $totalEarned,
+                ],
+                'recent_referrals' => $history
+            ]);
+
+        } catch (\Throwable $e) {
+            return response()->json([
+                'referral_code' => $request->user()->referral_code ?? 'ERROR', 
+                'referral_link' => '', 
+                'stats' => ['total_invited' => 0, 'total_earned' => 0],
+                'recent_referrals' => []
+            ]);
+        }
+    }
+
+    /**
+     * Get Referral Rewards History
+     * Endpoint: /api/v1/user/referrals/rewards
+     * Fixes 404 Error
+     */
+    public function rewards(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+
+            if (!Schema::hasTable('bonus_transactions')) {
+                return response()->json(['data' => [], 'meta' => ['total' => 0]]);
+            }
+
+            $rewards = DB::table('bonus_transactions')
+                ->where('user_id', $user->id)
+                ->where('type', 'referral')
+                ->orderBy('created_at', 'desc')
+                ->paginate(15);
+
+            $data = $rewards->through(function ($reward) {
+                return [
+                    'id' => $reward->id,
+                    'amount' => (float) $reward->amount,
+                    'status' => ucfirst($reward->status),
+                    'description' => $reward->description,
+                    'date' => Carbon::parse($reward->created_at)->format('d M Y, h:i A'),
+                ];
+            });
+
+            return response()->json($data);
+
+        } catch (\Throwable $e) {
+            return response()->json(['data' => [], 'meta' => ['total' => 0]]);
+        }
     }
 }

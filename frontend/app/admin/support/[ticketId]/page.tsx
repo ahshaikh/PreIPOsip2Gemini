@@ -1,6 +1,6 @@
-<?php
-// V-REMEDIATE-1730-155
 'use client';
+
+// V-REMEDIATE-1730-155
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -124,7 +124,7 @@ export default function AdminTicketDetailPage() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="open">Open (Waiting for Support)</SelectItem>
-                  <SelectItem value="waiting_for_user">Waiting for User</S-select-item>
+                  <SelectItem value="waiting_for_user">Waiting for User</SelectItem>
                   <SelectItem value="resolved">Resolved</SelectItem>
                 </SelectContent>
               </Select>

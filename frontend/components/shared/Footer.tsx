@@ -72,7 +72,7 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold text-white mb-4">Platform</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/listings" className="hover:text-white">Explore Listings</Link></li>
+              <li><Link href="/products" className="hover:text-white">Explore Listings</Link></li>
               <li><Link href="/calculator" className="hover:text-white">SIP Calculator</Link></li>
               <li><Link href="/private-equity" className="hover:text-white">Private Equity</Link></li>
               <li><Link href="/how-it-works" className="hover:text-white">How It Works</Link></li>

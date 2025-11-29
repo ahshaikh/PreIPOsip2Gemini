@@ -7,7 +7,7 @@ import { Linkedin, Mail, Award, Users, Target, Heart } from "lucide-react";
 
 const leadership = [
   {
-    name: "Rajesh Sharma",
+    name: "Abdul Hakim Shaikh",
     role: "Founder & CEO",
     image: "/api/placeholder/400/400",
     bio: "15+ years in fintech and investment banking. Previously led digital transformation at a leading investment firm.",

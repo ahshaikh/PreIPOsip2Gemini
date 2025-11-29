@@ -416,7 +416,7 @@ export default function SupportPage() {
                   { href: '/subscription', label: 'Manage Subscription', icon: CheckCircle },
                   { href: '/wallet', label: 'Wallet & Withdrawals', icon: Clock },
                   { href: '/referrals', label: 'Referral Program', icon: HelpCircle },
-                  { href: '/Profile', label: 'Account Settings', icon: MessageSquare },
+                  { href: '/profile', label: 'Account Settings', icon: MessageSquare },
                 ].map((link) => (
                   <Link
                     key={link.href}

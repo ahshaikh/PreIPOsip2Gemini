@@ -111,8 +111,10 @@ class BulkPurchase extends Model
     protected function grossMarginPercentage(): Attribute
     {
         return Attribute::make(
-            get: fn () => {
-                if ($this->actual_cost_paid == 0) return 0;
+            get: function ()  {
+                if ($this->actual_cost_paid == 0) {
+                    return 0;
+                }
                 return ($this->gross_margin / $this->actual_cost_paid) * 100;
             }
         );

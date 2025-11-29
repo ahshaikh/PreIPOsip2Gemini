@@ -128,7 +128,7 @@ export default function RiskDisclosurePage() {
                     <li>Are willing to hold investments through market volatility</li>
                   </ul>
                   <p className="font-semibold pt-2 text-orange-600">
-                    If you cannot accept these conditions, pre-IPO investing is NOT suitable for you.
+                    If you cannot accept these conditions, pre-ipo investing is NOT suitable for you. Please do NOT Invest in pre-ipo shares, spcially through preiposip.com
                   </p>
                 </div>
               </div>

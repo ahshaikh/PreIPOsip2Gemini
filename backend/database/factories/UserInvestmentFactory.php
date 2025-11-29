@@ -1,5 +1,4 @@
 <?php
-// V-FACTORY (Created for comprehensive test coverage)
 
 namespace Database\Factories;
 
@@ -7,6 +6,7 @@ use App\Models\UserInvestment;
 use App\Models\User;
 use App\Models\Product;
 use App\Models\BulkPurchase;
+use App\Models\Payment;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class UserInvestmentFactory extends Factory
@@ -15,35 +15,40 @@ class UserInvestmentFactory extends Factory
 
     public function definition(): array
     {
+        $shares = $this->faker->numberBetween(10, 1000);
+        $price  = $this->faker->randomFloat(2, 100, 2000);
+        $total  = $shares * $price;
+
         return [
-            'user_id' => User::factory(),
-            'product_id' => Product::factory(),
+            'user_id'          => User::factory(),
+            'product_id'       => Product::factory(),
+            'payment_id'       => null,
             'bulk_purchase_id' => null,
-            'shares' => $this->faker->numberBetween(10, 1000),
-            'price_per_share' => $this->faker->randomFloat(2, 100, 2000),
-            'total_amount' => function (array $attributes) {
-                return $attributes['shares'] * $attributes['price_per_share'];
-            },
-            'source' => 'sip',
-            'status' => 'active',
-            'allocated_at' => now(),
+
+            // Required by DB
+            'shares'           => $shares,
+            'price_per_share'  => $price,
+            'total_amount'     => $total,
+
+            // Required & no default in DB
+            'units_allocated'  => $shares,
+            'value_allocated'  => $total,
+
+            'source'           => 'sip',
+            'status'           => 'active',
+            'allocated_at'     => now(),
+            'exited_at'        => null,
         ];
     }
 
-    /**
-     * Investment from bulk purchase.
-     */
     public function fromBulkPurchase(): static
     {
         return $this->state(fn(array $attributes) => [
             'bulk_purchase_id' => BulkPurchase::factory(),
-            'source' => 'bulk',
+            'source'           => 'bulk',
         ]);
     }
 
-    /**
-     * Investment from SIP.
-     */
     public function fromSip(): static
     {
         return $this->state(fn(array $attributes) => [
@@ -51,24 +56,18 @@ class UserInvestmentFactory extends Factory
         ]);
     }
 
-    /**
-     * Investment is pending allocation.
-     */
     public function pendingAllocation(): static
     {
         return $this->state(fn(array $attributes) => [
-            'status' => 'pending',
+            'status'       => 'pending',
             'allocated_at' => null,
         ]);
     }
 
-    /**
-     * Investment is sold/exited.
-     */
     public function exited(): static
     {
         return $this->state(fn(array $attributes) => [
-            'status' => 'exited',
+            'status'    => 'exited',
             'exited_at' => now(),
         ]);
     }

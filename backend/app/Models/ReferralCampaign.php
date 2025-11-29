@@ -3,14 +3,25 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany; // <-- Import
 use Illuminate\Support\Carbon;
 
 class ReferralCampaign extends Model
 {
+    use HasFactory;
     protected $fillable = [
-        'name', 'start_date', 'end_date', 'multiplier', 'bonus_amount', 'is_active'
+        'name', 
+        'slug',
+        'description',
+        'bonus_amount',
+	'starts_at', 
+	'ends_at', 
+	'multiplier', 
+	'bonus_amount', 
+	'is_active',
+        'max_referrals',
     ];
 
     protected $casts = [

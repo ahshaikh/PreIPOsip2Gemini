@@ -51,7 +51,7 @@ const notificationNav = [
 const settingsNav = [
     { href: '/admin/settings/system', label: 'General Settings', icon: Settings },
     { href: '/admin/settings/plans', label: 'Plan Management', icon: Package },
-    { href: '/admin/settings/products', label: 'Product Management', icon: ShoppingCart },
+    { href: '/admin/settings/product', label: 'Product Management', icon: ShoppingCart },
     { href: '/admin/settings/bonuses', label: 'Bonus Config', icon: Gift },
     { href: '/admin/settings/referral-campaigns', label: 'Referral Campaigns', icon: Zap },
     { href: '/admin/settings/roles', label: 'Role Management', icon: ShieldCheck },

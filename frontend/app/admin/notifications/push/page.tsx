@@ -508,7 +508,8 @@ export default function PushNotificationsPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {displaySegments.map((segment: any) => (
+                      {/* FIX: Defensive check for displaySegments */}
+                      {(Array.isArray(displaySegments) ? displaySegments : []).map((segment: any) => (
                         <SelectItem key={segment.id} value={segment.id}>
                           {segment.name} ({segment.count?.toLocaleString()})
                         </SelectItem>
@@ -538,7 +539,8 @@ export default function PushNotificationsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-2">
-                  {displayTemplates.slice(0, 4).map((template: NotificationTemplate) => (
+                  {/* FIX: Defensive check for displayTemplates.slice */}
+                  {(Array.isArray(displayTemplates) ? displayTemplates : []).slice(0, 4).map((template: NotificationTemplate) => (
                     <div
                       key={template.id}
                       className="p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
@@ -580,7 +582,8 @@ export default function PushNotificationsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {displayNotifications.slice(0, 5).map((notification: PushNotification) => (
+                  {/* FIX: Defensive check for displayNotifications.slice */}
+                  {(Array.isArray(displayNotifications) ? displayNotifications : []).slice(0, 5).map((notification: PushNotification) => (
                     <TableRow key={notification.id}>
                       <TableCell className="font-medium">{notification.title}</TableCell>
                       <TableCell className="capitalize">{notification.target_audience.replace(/_/g, " ")}</TableCell>
@@ -645,7 +648,8 @@ export default function PushNotificationsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {displayNotifications.map((notification: PushNotification) => (
+                  {/* FIX: Defensive check for displayNotifications.map */}
+                  {(Array.isArray(displayNotifications) ? displayNotifications : []).map((notification: PushNotification) => (
                     <TableRow key={notification.id}>
                       <TableCell className="font-medium">{notification.title}</TableCell>
                       <TableCell className="max-w-[200px] truncate">{notification.body}</TableCell>
@@ -705,7 +709,8 @@ export default function PushNotificationsPage() {
               </div>
             </CardHeader>
             <CardContent>
-              {displayNotifications.filter((n: PushNotification) => n.status === "scheduled").length === 0 ? (
+              {/* FIX: Defensive check for displayNotifications.filter */}
+              {(Array.isArray(displayNotifications) ? displayNotifications : []).filter((n: PushNotification) => n.status === "scheduled").length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>No scheduled notifications</p>
@@ -724,7 +729,8 @@ export default function PushNotificationsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {displayNotifications
+                    {/* FIX: Defensive check for displayNotifications.filter.map */}
+                    {(Array.isArray(displayNotifications) ? displayNotifications : [])
                       .filter((n: PushNotification) => n.status === "scheduled")
                       .map((notification: PushNotification) => (
                         <TableRow key={notification.id}>
@@ -778,7 +784,8 @@ export default function PushNotificationsPage() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {displayTemplates.map((template: NotificationTemplate) => (
+                {/* FIX: Defensive check for displayTemplates.map */}
+                {(Array.isArray(displayTemplates) ? displayTemplates : []).map((template: NotificationTemplate) => (
                   <Card key={template.id} className="hover:shadow-md transition-shadow">
                     <CardHeader className="pb-2">
                       <div className="flex items-center justify-between">
@@ -828,7 +835,8 @@ export default function PushNotificationsPage() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {displaySegments.map((segment: any) => (
+                {/* FIX: Defensive check for displaySegments.map */}
+                {(Array.isArray(displaySegments) ? displaySegments : []).map((segment: any) => (
                   <Card key={segment.id} className="hover:shadow-md transition-shadow">
                     <CardContent className="pt-6">
                       <div className="flex items-center gap-4">
@@ -954,7 +962,8 @@ export default function PushNotificationsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {displayNotifications
+                  {/* FIX: Defensive check for displayNotifications.filter.sort.slice.map */}
+                  {(Array.isArray(displayNotifications) ? displayNotifications : [])
                     .filter((n: PushNotification) => n.status === "sent")
                     .sort((a: PushNotification, b: PushNotification) =>
                       (b.clicked / b.total_recipients) - (a.clicked / a.total_recipients)
@@ -1033,7 +1042,8 @@ export default function PushNotificationsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {displaySegments.map((segment: any) => (
+                  {/* FIX: Defensive check for displaySegments */}
+                  {(Array.isArray(displaySegments) ? displaySegments : []).map((segment: any) => (
                     <SelectItem key={segment.id} value={segment.id}>
                       {segment.name} ({segment.count?.toLocaleString()} users)
                     </SelectItem>

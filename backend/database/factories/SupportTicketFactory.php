@@ -1,5 +1,4 @@
 <?php
-// V-FACTORY (Created for comprehensive test coverage)
 
 namespace Database\Factories;
 
@@ -14,77 +13,33 @@ class SupportTicketFactory extends Factory
     public function definition(): array
     {
         return [
-            'user_id' => User::factory(),
-            'subject' => $this->faker->sentence(),
-            'description' => $this->faker->paragraphs(2, true),
-            'category' => $this->faker->randomElement(['payment', 'kyc', 'bonus', 'withdrawal', 'technical', 'other']),
-            'priority' => $this->faker->randomElement(['low', 'medium', 'high', 'urgent']),
-            'status' => 'open',
+            'user_id'      => User::factory(),
+            'ticket_code'  => strtoupper($this->faker->bothify('TCKT-#####')),
+            'subject'      => $this->faker->sentence(6),
+            'category'     => $this->faker->randomElement(['other','billing','technical','account']),
+            'priority'     => $this->faker->randomElement(['low','medium','high']),
+            'status'       => $this->faker->randomElement(['open','pending','resolved','closed']),
+            'sla_hours'    => $this->faker->optional(0.7)->numberBetween(24,168),
+            'assigned_to'  => null,
+            'resolved_by'  => null,
+            'resolved_at'  => null,
+            'closed_at'    => null,
+            'rating'       => null,
+            'rating_feedback' => null,
         ];
     }
 
-    /**
-     * Ticket is in progress.
-     */
-    public function inProgress(): static
+    public function open(): static
     {
-        return $this->state(fn(array $attributes) => [
-            'status' => 'in_progress',
-            'assigned_to' => User::factory(),
-        ]);
+        return $this->state(fn() => ['status' => 'open']);
     }
 
-    /**
-     * Ticket is resolved.
-     */
     public function resolved(): static
     {
-        return $this->state(fn(array $attributes) => [
+        return $this->state(fn() => [
             'status' => 'resolved',
             'resolved_at' => now(),
-        ]);
-    }
-
-    /**
-     * Ticket is closed.
-     */
-    public function closed(): static
-    {
-        return $this->state(fn(array $attributes) => [
-            'status' => 'closed',
-            'closed_at' => now(),
-        ]);
-    }
-
-    /**
-     * High priority ticket.
-     */
-    public function urgent(): static
-    {
-        return $this->state(fn(array $attributes) => [
-            'priority' => 'urgent',
-        ]);
-    }
-
-    /**
-     * Payment related ticket.
-     */
-    public function paymentIssue(): static
-    {
-        return $this->state(fn(array $attributes) => [
-            'category' => 'payment',
-            'subject' => 'Payment not reflecting in account',
-        ]);
-    }
-
-    /**
-     * KYC related ticket.
-     */
-    public function kycIssue(): static
-    {
-        return $this->state(fn(array $attributes) => [
-            'category' => 'kyc',
-            'subject' => 'KYC verification pending',
+            'resolved_by' => User::factory(),
         ]);
     }
 }

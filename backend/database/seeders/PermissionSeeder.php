@@ -1,5 +1,5 @@
 <?php
-// V-FINAL-1730-417 (Created)
+// V-FINAL-1730-417 (Fixed & Robust)
 
 namespace Database\Seeders;
 
@@ -20,6 +20,9 @@ class PermissionSeeder extends Seeder
 
         // --- DEFINE PERMISSIONS (FSD-SYS-129) ---
         $permissions = [
+            // Dashboard
+            'dashboard.view',
+            
             // Users
             'users.view', 'users.create', 'users.edit', 'users.delete', 
             'users.suspend', 'users.adjust_wallet', 'users.manage_roles',
@@ -37,27 +40,35 @@ class PermissionSeeder extends Seeder
             'bonuses.manage_config', 'bonuses.award_manual', 'bonuses.manage_campaigns',
             // Reports
             'reports.view_financial', 'reports.view_user', 'reports.export',
-            // Settings
+            
+            // Settings - EXPANDED
             'settings.view_system', 'settings.edit_system', 'settings.manage_theme',
             'settings.manage_cms', 'settings.manage_notifications',
+            'settings.view', 'settings.edit', 
+            
             // System Health
-            'system.view_health', 'system.view_logs', 'system.manage_backups'
+            'system.view_health', 'system.view_logs', 'system.manage_backups',
+            
+            // Notifications
+            'notifications.view', 'notifications.send'
         ];
         
         foreach ($permissions as $permission) {
-            Permission::findOrCreate($permission, 'web');
+            Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }
 
         // --- ASSIGN TO ROLES ---
         
         // Super Admin (Gets everything)
-        $superAdmin = Role::findByName('super-admin');
+        $superAdmin = Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
         $superAdmin->givePermissionTo(Permission::all());
 
-        // Admin (Gets almost everything, except core system)
-        $admin = Role::findByName('admin');
+        // Admin (Gets almost everything)
+        $admin = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
         $admin->givePermissionTo([
-            'users.view', 'users.create', 'users.edit', 'users.suspend', 'users.adjust_wallet',
+            'dashboard.view',
+            'users.view', 'users.create', 'users.edit', 'users.suspend', 'users.adjust_wallet', 'users.manage_roles',
+            
             'kyc.view_queue', 'kyc.approve', 'kyc.reject',
             'plans.view', 'plans.create', 'plans.edit',
             'products.view', 'products.create', 'products.edit',
@@ -65,23 +76,41 @@ class PermissionSeeder extends Seeder
             'withdrawals.view_queue', 'withdrawals.approve', 'withdrawals.reject', 'withdrawals.complete',
             'bonuses.manage_config', 'bonuses.award_manual', 'bonuses.manage_campaigns',
             'reports.view_financial', 'reports.view_user', 'reports.export',
-            'settings.manage_cms', 'settings.manage_notifications',
+            
+            // Settings
+            'settings.manage_cms', 
+            'settings.manage_notifications', 
+            'settings.view', 
+            'settings.edit',
+            'settings.view_system',
+            'settings.edit_system',
+            
+            // SYSTEM ACCESS (Fixes 403 on IP Whitelist, Logs, Health)
+            'system.view_health', 
+            'system.view_logs', 
+            'system.manage_backups', // Required for IP Whitelist route
+            
+            'notifications.view', 'notifications.send'
         ]);
         
         // Support (Limited access)
-        $support = Role::findByName('support');
+        $support = Role::firstOrCreate(['name' => 'support', 'guard_name' => 'web']);
         $support->givePermissionTo([
+            'dashboard.view',
             'users.view',
             'kyc.view_queue', 'kyc.approve', 'kyc.reject',
             'payments.view',
         ]);
         
         // Finance (Limited access)
-        $finance = Role::findByName('finance');
+        $finance = Role::firstOrCreate(['name' => 'finance', 'guard_name' => 'web']);
         $finance->givePermissionTo([
+            'dashboard.view',
             'payments.view', 'payments.refund', 'payments.offline_entry',
             'withdrawals.view_queue', 'withdrawals.approve', 'withdrawals.reject', 'withdrawals.complete',
             'reports.view_financial', 'reports.export',
         ]);
+        
+        $this->command->info('Permissions seeded and assigned to roles successfully!');
     }
 }

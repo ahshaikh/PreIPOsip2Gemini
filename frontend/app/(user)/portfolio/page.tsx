@@ -1,5 +1,6 @@
-// V-PHASE5-1730-119 | V-ENHANCED-PORTFOLIO
 'use client';
+
+// V-PHASE5-1730-119 | V-ENHANCED-PORTFOLIO
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -38,13 +39,13 @@ export default function PortfolioPage() {
   // Calculate portfolio metrics
   const totalInvested = parseFloat(data?.summary?.total_invested || 0);
   const currentValue = parseFloat(data?.summary?.current_value || 0);
-  const unrealizedGain = parseFloat(data?.summary?.unrealized_gain || 0);
+  const unrealizedGain = parseFloat(data?.summary?.total_returns || 0); // Updated key based on controller
   const gainPercentage = totalInvested > 0 ? ((unrealizedGain / totalInvested) * 100).toFixed(2) : '0.00';
   const isPositive = unrealizedGain >= 0;
 
   // Calculate allocation percentages
   const holdings = data?.holdings || [];
-  const totalHoldingValue = holdings.reduce((acc: number, h: any) => acc + parseFloat(h.total_value || 0), 0);
+  const totalHoldingValue = holdings.reduce((acc: number, h: any) => acc + parseFloat(h.current_value || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -158,41 +159,40 @@ export default function PortfolioPage() {
                     <TableRow>
                       <TableHead>Product</TableHead>
                       <TableHead className="text-right">Units</TableHead>
-                      <TableHead className="text-right">Avg. Price</TableHead>
-                      <TableHead className="text-right">Current Price</TableHead>
-                      <TableHead className="text-right">Total Value</TableHead>
+                      <TableHead className="text-right">Cost Basis</TableHead>
+                      <TableHead className="text-right">Current Value</TableHead>
                       <TableHead className="text-right">Gain/Loss</TableHead>
+                      <TableHead className="text-right">ROI %</TableHead>
                       <TableHead className="text-center">Allocation</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {holdings.map((holding: any) => {
-                      const units = parseFloat(holding.total_units || 0);
-                      const totalValue = parseFloat(holding.total_value || 0);
-                      const avgPrice = units > 0 ? totalValue / units : 0;
-                      const currentPrice = parseFloat(holding.product?.current_price || avgPrice);
-                      const currentTotalValue = units * currentPrice;
-                      const gain = currentTotalValue - totalValue;
-                      const gainPct = totalValue > 0 ? ((gain / totalValue) * 100).toFixed(2) : '0.00';
-                      const allocation = totalHoldingValue > 0 ? ((totalValue / totalHoldingValue) * 100).toFixed(1) : '0';
+                    {holdings.map((holding: any, index: number) => {
+                      // Map fields from the updated controller response
+                      const units = parseFloat(holding.total_units || holding.units || 0);
+                      const invested = parseFloat(holding.cost_basis || holding.invested || 0);
+                      const currentVal = parseFloat(holding.current_value || 0);
+                      const gain = parseFloat(holding.unrealized_pl || holding.gain || (currentVal - invested));
+                      const gainPct = parseFloat(holding.roi_percent || 0);
+                      const allocation = totalHoldingValue > 0 ? ((currentVal / totalHoldingValue) * 100).toFixed(1) : '0';
                       const holdingPositive = gain >= 0;
 
                       return (
-                        <TableRow key={holding.product?.id || holding.id}>
+                        // FIX: Added fallback key using product_slug or index to prevent 'unique key' error
+                        <TableRow key={holding.product_slug || holding.id || `holding-${index}`}>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <Building2 className="h-4 w-4 text-muted-foreground" />
                               <div>
-                                <p className="font-medium">{holding.product?.name}</p>
-                                <p className="text-xs text-muted-foreground">{holding.product?.symbol || 'PRE-IPO'}</p>
+                                <p className="font-medium">{holding.product_name}</p>
+                                <p className="text-xs text-muted-foreground">{holding.sector || 'General'}</p>
                               </div>
                             </div>
                           </TableCell>
                           <TableCell className="text-right font-mono">{units.toFixed(4)}</TableCell>
-                          <TableCell className="text-right font-mono">₹{avgPrice.toFixed(2)}</TableCell>
-                          <TableCell className="text-right font-mono">₹{currentPrice.toFixed(2)}</TableCell>
-                          <TableCell className="text-right font-medium">₹{currentTotalValue.toLocaleString('en-IN')}</TableCell>
+                          <TableCell className="text-right font-mono">₹{invested.toLocaleString('en-IN')}</TableCell>
+                          <TableCell className="text-right font-medium">₹{currentVal.toLocaleString('en-IN')}</TableCell>
                           <TableCell className="text-right">
                             <div className={`flex items-center justify-end gap-1 ${holdingPositive ? 'text-green-600' : 'text-red-600'}`}>
                               {holdingPositive ? (
@@ -200,8 +200,11 @@ export default function PortfolioPage() {
                               ) : (
                                 <ArrowDownRight className="h-3 w-3" />
                               )}
-                              <span className="font-medium">{holdingPositive ? '+' : ''}{gainPct}%</span>
+                              <span className="font-medium">₹{Math.abs(gain).toLocaleString('en-IN')}</span>
                             </div>
+                          </TableCell>
+                          <TableCell className={`text-right font-mono ${holdingPositive ? 'text-green-600' : 'text-red-600'}`}>
+                            {gainPct.toFixed(2)}%
                           </TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center gap-2">
@@ -249,8 +252,8 @@ export default function PortfolioPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {transactions?.data?.map((tx: any) => (
-                    <TableRow key={tx.id}>
+                  {transactions?.data?.map((tx: any, idx: number) => (
+                    <TableRow key={tx.id || `tx-${idx}`}>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -259,15 +262,15 @@ export default function PortfolioPage() {
                       </TableCell>
                       <TableCell>
                         <Badge variant={tx.type === 'buy' ? 'default' : 'secondary'}>
-                          {tx.type?.toUpperCase()}
+                          {tx.type?.toUpperCase() || 'INVEST'}
                         </Badge>
                       </TableCell>
-                      <TableCell className="font-medium">{tx.product?.name || 'N/A'}</TableCell>
+                      <TableCell className="font-medium">{tx.product_name || tx.product?.name || 'N/A'}</TableCell>
                       <TableCell className="text-right font-mono">{parseFloat(tx.units || 0).toFixed(4)}</TableCell>
                       <TableCell className="text-right font-mono">₹{parseFloat(tx.price || 0).toFixed(2)}</TableCell>
                       <TableCell className="text-right font-medium">₹{parseFloat(tx.amount || 0).toLocaleString('en-IN')}</TableCell>
                       <TableCell>
-                        <Badge variant={tx.status === 'completed' ? 'success' : tx.status === 'pending' ? 'warning' : 'destructive'}>
+                        <Badge variant={tx.status === 'completed' ? 'default' : tx.status === 'pending' ? 'outline' : 'destructive'}>
                           {tx.status}
                         </Badge>
                       </TableCell>
@@ -297,13 +300,13 @@ export default function PortfolioPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {holdings.map((holding: any) => {
-                    const value = parseFloat(holding.total_value || 0);
+                  {holdings.map((holding: any, idx: number) => {
+                    const value = parseFloat(holding.current_value || 0);
                     const allocation = totalHoldingValue > 0 ? ((value / totalHoldingValue) * 100) : 0;
                     return (
-                      <div key={holding.product?.id} className="space-y-2">
+                      <div key={holding.product_slug || `alloc-${idx}`} className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">{holding.product?.name}</span>
+                          <span className="text-sm font-medium">{holding.product_name}</span>
                           <span className="text-sm text-muted-foreground">{allocation.toFixed(1)}%</span>
                         </div>
                         <Progress value={allocation} />
@@ -370,7 +373,7 @@ export default function PortfolioPage() {
       <Dialog open={!!selectedHolding} onOpenChange={() => setSelectedHolding(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{selectedHolding?.product?.name}</DialogTitle>
+            <DialogTitle>{selectedHolding?.product?.name || selectedHolding?.product_name}</DialogTitle>
             <DialogDescription>Detailed holding information</DialogDescription>
           </DialogHeader>
           {selectedHolding && (

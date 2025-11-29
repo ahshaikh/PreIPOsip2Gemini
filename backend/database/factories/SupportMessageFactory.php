@@ -12,17 +12,24 @@ class SupportMessageFactory extends Factory
     protected $model = SupportMessage::class;
 
     public function definition(): array
-    {
-        return [
-            'support_ticket_id' => SupportTicket::factory(),
-            'user_id' => User::factory(),
-            'message' => $this->faker->paragraphs(2, true),
-            'is_internal' => $this->faker->boolean(10),
-            'attachments' => $this->faker->optional()->passthrough(json_encode([
-                ['filename' => 'screenshot.png', 'path' => 'attachments/screenshot.png'],
-            ])),
-        ];
-    }
+{
+    return [
+        'support_ticket_id' => SupportTicket::factory(),
+        'user_id' => User::factory(),
+        'message' => $this->faker->paragraphs(2, true),
+
+        // Correct column name
+        'is_admin_reply' => $this->faker->boolean(10),  // 10% chance admin reply
+
+        'attachments' => $this->faker->optional()->passthrough(json_encode([
+            [
+                'filename' => 'screenshot.png',
+                'path' => 'attachments/screenshot.png'
+            ]
+        ])),
+    ];
+}
+
 
     public function internal(): static
     {

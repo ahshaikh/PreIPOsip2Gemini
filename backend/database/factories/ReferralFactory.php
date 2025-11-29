@@ -1,5 +1,4 @@
 <?php
-// V-FACTORY (Created for comprehensive test coverage)
 
 namespace Database\Factories;
 
@@ -15,40 +14,38 @@ class ReferralFactory extends Factory
     public function definition(): array
     {
         return [
-            'referrer_id' => User::factory(),
-            'referred_id' => User::factory(),
+            'referrer_id'          => User::factory(),
+            'referred_id'          => User::factory(),
             'referral_campaign_id' => null,
-            'status' => 'pending',
-            'bonus_amount' => $this->faker->randomFloat(2, 100, 1000),
-            'bonus_credited' => false,
+            'status'               => 'pending',
+            'completed_at'         => null,
         ];
     }
 
     /**
-     * Referral is successful (referred user made first payment).
+     * Referral successful → completed_at filled
      */
     public function successful(): static
     {
         return $this->state(fn(array $attributes) => [
-            'status' => 'successful',
-            'bonus_credited' => true,
-            'credited_at' => now(),
+            'status'       => 'successful',
+            'completed_at' => now(),
         ]);
     }
 
     /**
-     * Referral is pending (referred user registered but no payment).
+     * Referral pending
      */
     public function pending(): static
     {
         return $this->state(fn(array $attributes) => [
-            'status' => 'pending',
-            'bonus_credited' => false,
+            'status'       => 'pending',
+            'completed_at' => null,
         ]);
     }
 
     /**
-     * Referral is part of a campaign.
+     * Referral attached to a campaign
      */
     public function withCampaign(): static
     {

@@ -6,7 +6,7 @@ import { Linkedin, Mail, ArrowRight, Users } from "lucide-react";
 export default function TeamPage() {
   const team = [
     {
-      name: "Rajesh Kumar",
+      name: "Abdul Hakim Shaikh",
       role: "Founder & CEO",
       bio: "15+ years in investment banking and venture capital. Ex-Goldman Sachs.",
       image: "👨‍💼",

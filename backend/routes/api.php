@@ -23,7 +23,7 @@ use App\Http\Controllers\Api\User\SubscriptionController;
 use App\Http\Controllers\Api\User\PaymentController;
 use App\Http\Controllers\Api\User\PortfolioController;
 use App\Http\Controllers\Api\User\BonusController;
-use App\Http\Controllers\Api\User\ReferralController;
+use App\Http\Controllers\Api\User\ReferralController as UserReferralController;
 use App\Http\Controllers\Api\User\WalletController;
 use App\Http\Controllers\Api\User\SupportTicketController as UserSupportTicketController;
 use App\Http\Controllers\Api\User\LuckyDrawController as UserLuckyDrawController;
@@ -33,6 +33,9 @@ use App\Http\Controllers\Api\User\PrivacyController;
 use App\Http\Controllers\Api\User\TwoFactorAuthController;
 use App\Http\Controllers\Api\User\WithdrawalController as UserWithdrawalController;
 use App\Http\Controllers\Api\User\ActivityController;
+use App\Http\Controllers\Api\User\NotificationController as UserNotificationController;
+use App\Http\Controllers\Api\User\UserDashboardController;
+
 
 // Admin Controllers
 use App\Http\Controllers\Api\Admin\AdminDashboardController;
@@ -48,7 +51,6 @@ use App\Http\Controllers\Api\Admin\WithdrawalController;
 use App\Http\Controllers\Api\Admin\LuckyDrawController as AdminLuckyDrawController;
 use App\Http\Controllers\Api\Admin\ProfitShareController as AdminProfitShareController;
 use App\Http\Controllers\Api\Admin\ReportController;
-use App\Http\Controllers\Api\Admin\AdvancedReportController;
 use App\Http\Controllers\Api\Admin\PerformanceMonitoringController;
 use App\Http\Controllers\Api\Admin\SupportTicketController as AdminSupportTicketController;
 use App\Http\Controllers\Api\Admin\PaymentController as AdminPaymentController;
@@ -57,7 +59,7 @@ use App\Http\Controllers\Api\Admin\BlogPostController as AdminBlogController;
 use App\Http\Controllers\Api\Admin\RoleController;
 use App\Http\Controllers\Api\Admin\CmsController;
 use App\Http\Controllers\Api\Admin\ThemeSeoController;
-use App\Http\Controllers\Api\Admin\ReferralCampaignController;
+use App\Http\Controllers\Api\Admin\ReferralController as AdminReferralController; // <-- ALIAS IS HERE
 use App\Http\Controllers\Api\Admin\SystemHealthController;
 use App\Http\Controllers\Api\Admin\AdminActivityController;
 use App\Http\Controllers\Api\Admin\BackupController;
@@ -70,7 +72,6 @@ use App\Http\Controllers\Api\Admin\ComplianceController;
 // Invoice & Webhook
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\WebhookController;
-use App\Http\Controllers\Api\NotificationController; // <-- IMPORT
 
 /*
 |--------------------------------------------------------------------------
@@ -109,6 +110,10 @@ Route::prefix('v1')->group(function () {
     Route::get('/public/blog/{slug}', [PublicBlogController::class, 'publicShow']);
     Route::get('/global-settings', [GlobalSettingsController::class, 'index']);
     Route::get('/products/{slug}/history', [ProductDataController::class, 'getPriceHistory']);
+
+    // --- Dashboard Widgets ---
+    Route::get('/announcements/latest', [UserDashboardController::class, 'announcements']);
+    Route::get('/offers/active', [UserDashboardController::class, 'offers']);
 
     // --- Legal Documents (Public) ---
     Route::get('/legal/documents', [LegalDocumentController::class, 'index']);
@@ -159,6 +164,13 @@ Route::prefix('v1')->group(function () {
             Route::post('/subscription/resume', [SubscriptionController::class, 'resume']);
             Route::post('/subscription/cancel', [SubscriptionController::class, 'cancel']);
             
+            Route::prefix('notifications')->group(function () {
+                Route::get('/', [UserNotificationController::class, 'index']); // Use Alias
+                Route::get('unread-count', [UserNotificationController::class, 'unreadCount']);
+                Route::patch('{id}/read', [UserNotificationController::class, 'markAsRead']);
+                Route::post('mark-all-read', [UserNotificationController::class, 'markAllAsRead']);
+            });
+
             // Payments - Financial operations rate limited
             Route::middleware('throttle:financial')->group(function () {
                 Route::post('/payment/initiate', [PaymentController::class, 'initiate']);
@@ -171,15 +183,19 @@ Route::prefix('v1')->group(function () {
             Route::middleware('throttle:data-heavy')->group(function () {
                 Route::get('/portfolio', [PortfolioController::class, 'index']);
                 Route::get('/bonuses', [BonusController::class, 'index']);
-                Route::get('/referrals', [ReferralController::class, 'index']);
+                Route::get('/bonuses/pending', [BonusController::class, 'pending']); // <--- ADD THIS LINE
+                Route::get('/referrals', [UserReferralController::class, 'index']);
+                Route::get('/referrals/rewards', [UserReferralController::class, 'rewards']); // <--- ADD THIS LINE
             });
 
             // Wallet & Withdrawal - Financial operations rate limited
             Route::get('/wallet', [WalletController::class, 'show']);
+
             Route::middleware('throttle:financial')->group(function () {
                 Route::post('/wallet/deposit/initiate', [WalletController::class, 'initiateDeposit']);
                 Route::post('/wallet/withdraw', [WalletController::class, 'requestWithdrawal']);
             });
+
             Route::get('/withdrawals', [UserWithdrawalController::class, 'index']);
             Route::post('/withdrawals/{withdrawal}/cancel', [UserWithdrawalController::class, 'cancel']);
 
@@ -189,19 +205,13 @@ Route::prefix('v1')->group(function () {
             // Support
             Route::apiResource('/support-tickets', UserSupportTicketController::class)->only(['index', 'store', 'show'])->names('user.support-tickets');
             Route::post('/support-tickets/{supportTicket}/reply', [UserSupportTicketController::class, 'reply']);
-	    Route::post('/support-tickets/{supportTicket}/close', [UserSupportTicketController::class, 'close']); // <-- NEW
-            Route::post('/support-tickets/{supportTicket}/rate', [UserSupportTicketController::class, 'rate']); // <-- NEW
+            Route::post('/support-tickets/{supportTicket}/close', [UserSupportTicketController::class, 'close']);
+            Route::post('/support-tickets/{supportTicket}/rate', [UserSupportTicketController::class, 'rate']);
             
             // Bonus Modules
             Route::get('/lucky-draws', [UserLuckyDrawController::class, 'index']);
             Route::get('/profit-sharing', [UserProfitShareController::class, 'index']);
             
-            // --- UPDATED: Notifications ---
-            Route::get('/notifications', [NotificationController::class, 'index']);
-            Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
-            Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']); // <-- NEW
-            Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']); // <-- NEW
-
             // Legal Document Acceptance (Authenticated)
             Route::get('/legal/documents/{type}/acceptance-status', [LegalDocumentController::class, 'acceptanceStatus']);
             Route::post('/legal/documents/{type}/accept', [LegalDocumentController::class, 'accept']);
@@ -213,18 +223,86 @@ Route::prefix('v1')->group(function () {
             
             Route::get('/dashboard', [AdminDashboardController::class, 'index']);
 
-            // Reports & Health - Resource-intensive operations rate limited
-            Route::middleware('throttle:reports')->group(function () {
-                Route::get('/reports/financial-summary', [ReportController::class, 'getFinancialSummary'])->middleware('permission:reports.view_financial');
-                Route::get('/reports/analytics/users', [AdvancedReportController::class, 'getUserAnalytics'])->middleware('permission:reports.view_user');
-                Route::get('/reports/analytics/products', [AdvancedReportController::class, 'getProductPerformance'])->middleware('permission:products.view');
-                Route::get('/reports/download', [AdvancedReportController::class, 'exportReport'])->middleware('permission:reports.export');
-                Route::get('/inventory/summary', [ReportController::class, 'getInventorySummary'])->middleware('permission:products.view');
-                Route::get('/system/backup/db', [BackupController::class, 'downloadDbDump'])->middleware('permission:system.manage_backups');
+            // -------------------------------------------------------------
+            // ADMIN REPORTS & ANALYTICS
+            // -------------------------------------------------------------
+            // We removed 'throttle:reports' so the page loads immediately (Bypass Fix)
+            Route::prefix('reports')->group(function () {
+                
+                // Financials
+                Route::get('financial-summary', [ReportController::class, 'financialSummary'])
+                    ->middleware('permission:reports.view_financial');
+
+                // Analytics Sub-group
+                Route::prefix('analytics')->group(function () {
+                    Route::get('users', [ReportController::class, 'analyticsUsers'])
+                        ->middleware('permission:reports.view_user');
+                    Route::get('products', [ReportController::class, 'analyticsProducts'])
+                        ->middleware('permission:products.view');
+                });
+
+                // Export (Merged)
+                Route::get('download', [ReportController::class, 'exportReport'])
+                    ->middleware('permission:reports.export');
             });
 
+            // Inventory Summary
+            Route::get('inventory/summary', [ReportController::class, 'getInventorySummary'])
+                ->middleware('permission:products.view');
+
+            // System Backup
+            Route::get('system/backup/db', [BackupController::class, 'downloadDbDump'])
+                ->middleware('permission:system.manage_backups');
+
+            // System Health
             Route::get('/system/health', [SystemHealthController::class, 'index'])->middleware('permission:system.view_health');
             Route::get('/system/activity-logs', [AdminActivityController::class, 'index'])->middleware('permission:system.view_logs');
+
+            // -------------------------------------------------------------
+            // ADMIN REFERRAL MANAGEMENT (Corrected with Alias)
+            // -------------------------------------------------------------
+            Route::prefix('referral-campaigns')->group(function () {
+                // Fixes 500 Error by using the correct alias
+                Route::get('stats', [AdminReferralController::class, 'stats']); 
+                Route::get('/', [AdminReferralController::class, 'index']);
+                Route::post('/', [AdminReferralController::class, 'store']);
+                Route::put('{id}', [AdminReferralController::class, 'update']);
+                Route::delete('{id}', [AdminReferralController::class, 'destroy']);
+            });
+
+            // Individual Referrals List
+            Route::get('referrals', [AdminReferralController::class, 'listReferrals']);
+
+            // -------------------------------------------------------------
+            // ADMIN NOTIFICATIONS
+            // -------------------------------------------------------------
+            Route::prefix('notifications')->group(function () {
+                // Dashboard & System
+                Route::get('/', [AdminNotificationController::class, 'index']);
+                Route::get('unread-count', [AdminNotificationController::class, 'unreadCount']);
+                Route::get('system', [AdminNotificationController::class, 'system']); // Fixes 404
+                
+                // Actions
+                Route::post('mark-all-read', [AdminNotificationController::class, 'markAllAsRead']);
+                Route::patch('{id}/read', [AdminNotificationController::class, 'markAsRead']);
+                Route::delete('{id}', [AdminNotificationController::class, 'destroy']);
+
+                // Push Campaigns
+                Route::get('push', [AdminNotificationController::class, 'pushIndex']);       
+                Route::get('push/stats', [AdminNotificationController::class, 'pushStats']); 
+                Route::get('templates', [AdminNotificationController::class, 'templates']);  
+                Route::post('push/send', [AdminNotificationController::class, 'sendPush']);
+                Route::post('push/schedule', [AdminNotificationController::class, 'schedulePush']);
+                
+                // SMS Testing
+                Route::post('test-sms', [AdminNotificationController::class, 'sendTestSms']);
+            });
+
+            // -------------------------------------------------------------
+            // ADMIN PAYMENTS & USERS
+            // -------------------------------------------------------------
+            Route::get('payments', [AdminPaymentController::class, 'index']);
+            Route::get('payments/{payment}/invoice', [InvoiceController::class, 'download'])->middleware('permission:payments.view');
 
             // Performance Monitoring
             Route::prefix('performance')->group(function () {
@@ -270,25 +348,39 @@ Route::prefix('v1')->group(function () {
             Route::apiResource('/email-templates', EmailTemplateController::class)->middleware('permission:settings.manage_notifications');
             Route::apiResource('/faqs', AdminFaqController::class)->middleware('permission:settings.manage_cms');
             Route::apiResource('/blog-posts', AdminBlogController::class)->middleware('permission:settings.manage_cms');
-            Route::apiResource('/referral-campaigns', ReferralCampaignController::class)->middleware('permission:bonuses.manage_campaigns');
+            // Route::apiResource('/referral-campaigns', AdminReferralCampaignController::class); // DEPRECATED -> Use AdminReferralController group above
             Route::apiResource('/kb-categories', KbCategoryController::class)->middleware('permission:settings.manage_cms');
             Route::apiResource('/kb-articles', KbArticleController::class)->middleware('permission:settings.manage_cms');
 
             // Compliance Manager - Legal Agreements
             Route::prefix('compliance')->middleware('permission:settings.manage_cms')->group(function () {
-                Route::get('/legal-agreements', [ComplianceController::class, 'index']);
-                Route::get('/legal-agreements/stats', [ComplianceController::class, 'stats']);
-                Route::post('/legal-agreements', [ComplianceController::class, 'store']);
-                Route::get('/legal-agreements/{id}', [ComplianceController::class, 'show']);
-                Route::put('/legal-agreements/{id}', [ComplianceController::class, 'update']);
-                Route::delete('/legal-agreements/{id}', [ComplianceController::class, 'destroy']);
-                Route::post('/legal-agreements/{id}/publish', [ComplianceController::class, 'publish']);
-                Route::post('/legal-agreements/{id}/archive', [ComplianceController::class, 'archive']);
-                Route::get('/legal-agreements/{id}/versions', [ComplianceController::class, 'versions']);
-                Route::get('/legal-agreements/{id}/acceptance-stats', [ComplianceController::class, 'acceptanceStats']);
-                Route::get('/legal-agreements/{id}/audit-trail', [ComplianceController::class, 'auditTrail']);
-                Route::get('/legal-agreements/{id}/audit-trail/stats', [ComplianceController::class, 'auditTrailStats']);
-                Route::get('/legal-agreements/{id}/audit-trail/export', [ComplianceController::class, 'exportAuditTrail']);
+                
+                // 1. Dashboard & List (Fixes 404 on /documents)
+                // Maps /api/v1/admin/compliance/documents
+                Route::get('/documents', [ComplianceController::class, 'index']);
+                // Maps /api/v1/admin/compliance/stats (Fixes 404 on /stats if frontend calls it directly)
+                Route::get('/stats', [ComplianceController::class, 'stats']);
+                // Maps /api/v1/admin/compliance/documents/stats (If frontend calls nested)
+                Route::get('/documents/stats', [ComplianceController::class, 'stats']);
+                
+                // 2. CRUD Operations
+                Route::post('/documents', [ComplianceController::class, 'store']);
+                Route::get('/documents/{id}', [ComplianceController::class, 'show']);
+                Route::put('/documents/{id}', [ComplianceController::class, 'update']);
+                Route::delete('/documents/{id}', [ComplianceController::class, 'destroy']);
+                
+                // 3. Actions (Publish/Archive)
+                Route::post('/documents/{id}/publish', [ComplianceController::class, 'publish']);
+                Route::post('/documents/{id}/archive', [ComplianceController::class, 'archive']);
+                
+                // 4. Versioning & Stats
+                Route::get('/documents/{id}/versions', [ComplianceController::class, 'versions']);
+                Route::get('/documents/{id}/acceptance-stats', [ComplianceController::class, 'acceptanceStats']);
+                
+                // 5. Audit Trail
+                Route::get('/documents/{id}/audit-trail', [ComplianceController::class, 'auditTrail']);
+                Route::get('/documents/{id}/audit-trail/stats', [ComplianceController::class, 'auditTrailStats']);
+                Route::get('/documents/{id}/audit-trail/export', [ComplianceController::class, 'exportAuditTrail']);
             });
 
             Route::get('/settings', [SettingsController::class, 'index'])->middleware('permission:settings.view_system');
@@ -315,11 +407,7 @@ Route::prefix('v1')->group(function () {
             // IP Whitelist
             Route::apiResource('/ip-whitelist', IpWhitelistController::class)->middleware('permission:system.manage_backups');
 
-            // Payment Management
-            Route::get('/payments', [AdminPaymentController::class, 'index'])->middleware('permission:payments.view');
-            Route::get('/payments/{payment}/invoice', [InvoiceController::class, 'download'])->middleware('permission:payments.view');
-
-            // Critical payment actions - Rate limited
+            // Critical payment actions
             Route::middleware('throttle:admin-actions')->group(function () {
                 Route::post('/payments/offline', [AdminPaymentController::class, 'storeOffline'])->middleware('permission:payments.offline_entry');
                 Route::post('/payments/{payment}/refund', [AdminPaymentController::class, 'refund'])->middleware('permission:payments.refund');
@@ -330,7 +418,6 @@ Route::prefix('v1')->group(function () {
             // Withdrawals
             Route::get('/withdrawal-queue', [WithdrawalController::class, 'index'])->middleware('permission:withdrawals.view_queue');
 
-            // Critical withdrawal actions - Rate limited
             Route::middleware('throttle:admin-actions')->group(function () {
                 Route::post('/withdrawal-queue/{withdrawal}/approve', [WithdrawalController::class, 'approve'])->middleware('permission:withdrawals.approve');
                 Route::post('/withdrawal-queue/{withdrawal}/complete', [WithdrawalController::class, 'complete'])->middleware('permission:withdrawals.complete');

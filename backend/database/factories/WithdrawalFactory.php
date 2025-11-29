@@ -15,50 +15,27 @@ class WithdrawalFactory extends Factory
     public function definition(): array
     {
         return [
-            'user_id' => User::factory(),
-            'wallet_id' => Wallet::factory(),
-            'amount' => $this->faker->randomFloat(2, 1000, 50000),
-            'status' => 'pending',
-            'bank_account_number' => $this->faker->numerify('##########'),
-            'bank_ifsc' => strtoupper($this->faker->lexify('????')) . $this->faker->numerify('0######'),
-            'bank_name' => $this->faker->company() . ' Bank',
-            'account_holder_name' => $this->faker->name(),
+            'user_id'     => User::factory(),
+            'wallet_id'   => Wallet::factory(),
+            'amount'      => $amount = $this->faker->randomFloat(2, 500, 50000),
+
+            'fee'         => 0,
+            'tds_deducted'=> 0,
+            'net_amount'  => $amount,
+
+            'status'      => 'pending',
+
+            'bank_details'=> [
+                'bank_account_number' => $this->faker->bankAccountNumber(),
+                'bank_ifsc'           => 'TEST0001234',
+                'bank_name'           => $this->faker->company(),
+                'account_holder_name' => $this->faker->name(),
+            ],
+
+            'admin_id'    => null,
+            'utr_number'  => null,
+            'rejection_reason' => null,
             'requested_at' => now(),
         ];
-    }
-
-    /**
-     * Withdrawal is approved.
-     */
-    public function approved(): static
-    {
-        return $this->state(fn(array $attributes) => [
-            'status' => 'approved',
-            'approved_at' => now(),
-        ]);
-    }
-
-    /**
-     * Withdrawal is processed.
-     */
-    public function processed(): static
-    {
-        return $this->state(fn(array $attributes) => [
-            'status' => 'processed',
-            'approved_at' => now()->subHours(2),
-            'processed_at' => now(),
-            'utr_number' => $this->faker->uuid(),
-        ]);
-    }
-
-    /**
-     * Withdrawal is rejected.
-     */
-    public function rejected(): static
-    {
-        return $this->state(fn(array $attributes) => [
-            'status' => 'rejected',
-            'rejection_reason' => $this->faker->sentence(),
-        ]);
     }
 }
