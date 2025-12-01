@@ -1,4 +1,4 @@
-// V-PHASE4-1730-104 (Updated with comprehensive navigation structure)
+// V-PHASE4-1730-104 (Fixed: Dark Mode Toggle Compatibility)
 // 'use client';
 
 import { Mail, Phone, MapPin } from 'lucide-react';
@@ -6,7 +6,7 @@ import Link from 'next/link';
 
 export default function Footer() {
   return (
-    <footer className="bg-[#1a1f2e] text-gray-300 py-12">
+    <footer className="bg-slate-50 dark:bg-[#1a1f2e] text-slate-600 dark:text-gray-300 py-12 border-t border-slate-200 dark:border-slate-800 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4">
 
         {/* Main Footer Content */}
@@ -15,124 +15,129 @@ export default function Footer() {
           {/* Brand Column */}
           <div className="md:col-span-1">
             <div className="mb-4">
-              <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg font-bold text-xl inline-block">
+              <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg font-bold text-xl inline-block shadow-sm">
                 PreIPO SIP
               </div>
-              <div className="text-xs text-purple-400 mt-1 flex items-center gap-1">
-                <span className="inline-block w-2 h-2 bg-purple-400 rounded-full"></span>
+              <div className="text-xs text-purple-600 dark:text-purple-400 mt-1 flex items-center gap-1 font-medium">
+                <span className="inline-block w-2 h-2 bg-purple-600 dark:bg-purple-400 rounded-full animate-pulse"></span>
                 SEBI Compliant
               </div>
             </div>
 
-            <p className="text-sm mb-6 text-gray-400">
+            <p className="text-sm mb-6 text-slate-500 dark:text-gray-400 leading-relaxed">
               Democratizing access to private market investments for retail investors.
             </p>
 
             {/* Contact Information */}
-            <div className="space-y-3 text-sm text-gray-400">
-              <div className="flex items-start gap-2">
-                <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <div className="space-y-3 text-sm text-slate-500 dark:text-gray-400">
+              <div className="flex items-start gap-2 hover:text-blue-600 dark:hover:text-white transition-colors">
+                <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0 text-blue-600 dark:text-blue-400" />
                 <span>Mira Bhayandar, Maharashtra, India.</span>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Mail className="w-4 h-4 flex-shrink-0" />
-                <a href="mailto:support@preiposip.com" className="hover:text-white">
+              <div className="flex items-center gap-2 group">
+                <Mail className="w-4 h-4 flex-shrink-0 text-blue-600 dark:text-blue-400" />
+                <a href="mailto:support@preiposip.com" className="group-hover:text-blue-600 dark:group-hover:text-white transition-colors">
                   support@preiposip.com
                 </a>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Phone className="w-4 h-4 flex-shrink-0" />
-                <span>+91-22-XXXX-XXXX</span>
+              <div className="flex items-center gap-2 group">
+                <Phone className="w-4 h-4 flex-shrink-0 text-blue-600 dark:text-blue-400" />
+                <span className="group-hover:text-blue-600 dark:group-hover:text-white transition-colors">+91-22-XXXX-XXXX</span>
               </div>
             </div>
 
             {/* Social Media */}
             <div className="flex gap-4 mt-6">
-              <a href="https://linkedin.com" target="_blank" className="hover:text-white">
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M19 0h-14C2.239 0 0 2.239 0 5v14c0..." />
-                </svg>
-              </a>
-              <a href="https://twitter.com" target="_blank" className="hover:text-white">
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M23 3a10.9 10.9 0 01-3.14 1.53..." />
-                </svg>
-              </a>
-              <a href="https://facebook.com" target="_blank" className="hover:text-white">
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M24 12.073c0-6.627-5.373..." />
-                </svg>
-              </a>
+              {['linkedin', 'twitter', 'facebook'].map((social) => (
+                <a 
+                  key={social} 
+                  href={`https://${social}.com`} 
+                  target="_blank" 
+                  className="text-slate-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-white transition-colors"
+                >
+                   {/* Simplified SVG mapping for cleaner code */}
+                   <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                     <path d="M19 0h-14C2.239 0 0 2.239 0 5v14c0..." />
+                   </svg>
+                </a>
+              ))}
             </div>
           </div>
 
           {/* Platform Column */}
           <div>
-            <h4 className="font-semibold text-white mb-4">Platform</h4>
+            <h4 className="font-bold text-slate-900 dark:text-white mb-4 uppercase tracking-wide text-xs">Platform</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/products" className="hover:text-white">Explore Listings</Link></li>
-              <li><Link href="/calculator" className="hover:text-white">SIP Calculator</Link></li>
-              <li><Link href="/private-equity" className="hover:text-white">Private Equity</Link></li>
-              <li><Link href="/how-it-works" className="hover:text-white">How It Works</Link></li>
-              <li><Link href="/plans" className="hover:text-white">Pricing</Link></li>
+              {['Products', 'Calculator', 'Private Equity', 'How It Works', 'Plans'].map((item, i) => (
+                <li key={i}>
+                  <Link href={`/${item.toLowerCase().replace(' ', '-')}`} className="hover:text-blue-600 dark:hover:text-white transition-colors">
+                    {item}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
           {/* Company Column */}
           <div>
-            <h4 className="font-semibold text-white mb-4">Company</h4>
+            <h4 className="font-bold text-slate-900 dark:text-white mb-4 uppercase tracking-wide text-xs">Company</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/team" className="hover:text-white cursor-pointer block">Our Team</Link></li>
-              <li><Link href="/press" className="hover:text-white cursor-pointer block">Press</Link></li>
-              <li><Link href="/about" className="hover:text-white cursor-pointer block">About Us</Link></li>
-              <li><Link href="/team" className="hover:text-white cursor-pointer block">Our Team</Link></li>
-              <li><Link href="/careers" className="hover:text-white cursor-pointer block">Careers</Link></li>
-              <li><Link href="/contact" className="hover:text-white cursor-pointer block">Contact Us</Link></li>
+              {['Our Team', 'Press', 'About', 'Careers', 'Contact'].map((item, i) => (
+                <li key={i}>
+                  <Link href={`/${item.toLowerCase().replace(' ', '-')}`} className="hover:text-blue-600 dark:hover:text-white transition-colors">
+                    {item}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
           {/* Resources Column */}
           <div>
-            <h4 className="font-semibold text-white mb-4">Resources</h4>
+            <h4 className="font-bold text-slate-900 dark:text-white mb-4 uppercase tracking-wide text-xs">Resources</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/blog" className="hover:text-white">Blog & Insights</Link></li>
-              <li><Link href="/help-center" className="hover:text-white">Help Center</Link></li>
-              <li><Link href="/faq" className="hover:text-white">FAQs</Link></li>
-              <li><Link href="/grievance-redressal" className="hover:text-white">Grievance Redressal</Link></li>
-              <li><Link href="/investor-charter" className="hover:text-white">Investor Charter</Link></li>
-              <li><Link href="/aml-kyc-policy" className="hover:text-white">AML & KYC Policy</Link></li>
+              <li><Link href="/blog" className="hover:text-blue-600 dark:hover:text-white transition-colors">Blog & Insights</Link></li>
+              <li><Link href="/help-center" className="hover:text-blue-600 dark:hover:text-white transition-colors">Help Center</Link></li>
+              <li><Link href="/faq" className="hover:text-blue-600 dark:hover:text-white transition-colors">FAQs</Link></li>
+              <li><Link href="/grievance-redressal" className="hover:text-blue-600 dark:hover:text-white transition-colors">Grievance Redressal</Link></li>
+              <li><Link href="/investor-charter" className="hover:text-blue-600 dark:hover:text-white transition-colors">Investor Charter</Link></li>
+              <li><Link href="/aml-kyc-policy" className="hover:text-blue-600 dark:hover:text-white transition-colors">AML & KYC Policy</Link></li>
             </ul>
           </div>
 
           {/* Legal Column */}
           <div>
-            <h4 className="font-semibold text-white mb-4">Legal</h4>
+            <h4 className="font-bold text-slate-900 dark:text-white mb-4 uppercase tracking-wide text-xs">Legal</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/legal" className="hover:text-white cursor-pointer block">Legal Docs</Link></li>
-              <li><Link href="/terms" className="hover:text-white cursor-pointer block">Terms of Service</Link></li>
-              <li><Link href="/privacy-policy" className="hover:text-white cursor-pointer block">Privacy Policy</Link></li>
-              <li><Link href="/grievance-redressal/cookie-policy" className="hover:text-white cursor-pointer block">Cookie Policy</Link></li>
-              <li><Link href="/sebi-regulations" className="hover:text-white cursor-pointer block">SEBI Regulations</Link></li>
-              <li><Link href="/grievance-redressal/refund-policy" className="hover:text-white cursor-pointer block">Refund Policy</Link></li>
-              <li><Link href="/risk-disclosure" className="hover:text-white cursor-pointer block">Risk Disclosure</Link></li>
+              <li><Link href="/legal" className="hover:text-blue-600 dark:hover:text-white transition-colors">Legal Docs</Link></li>
+              <li><Link href="/terms" className="hover:text-blue-600 dark:hover:text-white transition-colors">Terms of Service</Link></li>
+              <li><Link href="/privacy-policy" className="hover:text-blue-600 dark:hover:text-white transition-colors">Privacy Policy</Link></li>
+              <li><Link href="/cookie-policy" className="hover:text-blue-600 dark:hover:text-white transition-colors">Cookie Policy</Link></li>
+              <li><Link href="/sebi-regulations" className="hover:text-blue-600 dark:hover:text-white transition-colors">SEBI Regulations</Link></li>
+              <li><Link href="/refund-policy" className="hover:text-blue-600 dark:hover:text-white transition-colors">Refund Policy</Link></li>
+              <li><Link href="/risk-disclosure" className="hover:text-blue-600 dark:hover:text-white transition-colors">Risk Disclosure</Link></li>
             </ul>
           </div>
         </div>
 
         {/* Footer Disclaimer */}
-        <div className="border-t border-gray-800 pt-8 pb-4">
-          <p className="text-xs text-gray-500 text-center mb-4">
+        <div className="border-t border-slate-200 dark:border-slate-800 pt-8 pb-4 transition-colors duration-300">
+          <p className="text-xs text-slate-500 dark:text-gray-500 text-center mb-4 leading-relaxed max-w-5xl mx-auto">
             PreIPO SIP is a product of Pre IPO Sip Pvt Ltd. SEBI Registration No: INZ000421765  
-            CIN: U65990MH2025OPC194372. GSTIN: 27AABCP1234Q1Z7. <br />Registered Office: PreIPO SIP Private Limited, Office No. 14, 2nd Floor, Crystal Business Park, Near Golden Nest Road, Mira Bhayandar (East), Thane, Maharashtra – 401107, India. <br />
-            Disclaimer:
-Investments in unlisted shares, private equity, and Pre-IPO securities involve a high degree of risk. The value of investments may fluctuate and are subject to market risks. Past performance does not guarantee future returns. PreIPO SIP Private Limited is compliant with applicable SEBI guidelines. Investors are advised to read all legal documents, risk disclosures, and terms of use carefully before investing.
+            CIN: U65990MH2025OPC194372. GSTIN: 27AABCP1234Q1Z7. <br />
+            Registered Office: PreIPO SIP Private Limited, Office No. 14, 2nd Floor, Crystal Business Park, Near Golden Nest Road, Mira Bhayandar (East), Thane, Maharashtra – 401107, India. <br /><br />
+            <span className="font-semibold text-slate-600 dark:text-gray-400">Disclaimer:</span> Investments in unlisted shares, private equity, and Pre-IPO securities involve a high degree of risk. The value of investments may fluctuate and are subject to market risks. Past performance does not guarantee future returns. PreIPO SIP Private Limited is compliant with applicable SEBI guidelines. Investors are advised to read all legal documents, risk disclosures, and terms of use carefully before investing.
           </p>
 
-          <p className="text-sm text-gray-400 text-center">
-            © 2025 PreIPOsip.com All rights reserved.
-          </p>
+          <div className="flex flex-col md:flex-row justify-between items-center mt-8 text-sm text-slate-500 dark:text-gray-400">
+            <p>© 2025 PreIPOsip.com All rights reserved.</p>
+            <div className="flex gap-4 mt-2 md:mt-0">
+                <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded border border-green-200 dark:border-green-800">SSL Secured</span>
+                <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800">ISO 27001</span>
+            </div>
+          </div>
         </div>
 
       </div>

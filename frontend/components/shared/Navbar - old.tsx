@@ -2,7 +2,6 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image"; // Added Image import
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import {
@@ -225,23 +224,16 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* LOGO */}
-            <Link href="/" className="flex items-center space-x-3 group">
-            <div className="relative h-10 w-[150px] flex items-center bg-transparent">
-                <Image
-                    src="/preiposip.png"
-                    alt="PreIPO SIP"
-                    width={75}
-                    height={20}
-                    className="object-contain bg-transparent"
-                />
-              </div>
-
-              <div className="hidden lg:flex items-center space-x-1 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded-full">
-                <Shield className="w-3 h-3" />
-                <span className="font-medium">SEBI Compliant</span>
-              </div>
-            </Link>
-
+          <Link href="/" className="flex items-center space-x-3 group">
+            <div className="gradient-primary text-white px-4 py-2 rounded-lg font-bold text-xl transition-transform group-hover:scale-105">
+              PreIPO SIP
+            
+            {/* Trust Badge */}
+            <div className="hidden lg:flex items-center space-x-1 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded-full">
+              <Shield className="w-3 h-3" />
+              <span className="font-medium">SEBI Compliant</span>
+            </div></div>
+          </Link>
 
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center space-x-1">

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,7 +84,8 @@ import {
   Smartphone,
   ArrowRight,
   Copy,
-  CheckCircle2
+  CheckCircle2,
+  Shield 
 } from "lucide-react";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
@@ -117,7 +119,6 @@ export function UserTopNav({ user }: { user: any }) {
     queryFn: async () => {
       const response = await api.get("/user/wallet");
       const data = response.data;
-      // Handle nested data structures
       return data?.data || data;
     }
   });
@@ -127,7 +128,6 @@ export function UserTopNav({ user }: { user: any }) {
     queryKey: ["user-notifications"],
     queryFn: async () => {
       const response = await api.get("/user/notifications");
-      // Ensure we return an array - handle both direct array and nested data structures
       const data = response.data;
       if (Array.isArray(data)) return data;
       if (data?.data && Array.isArray(data.data)) return data.data;
@@ -143,7 +143,6 @@ export function UserTopNav({ user }: { user: any }) {
     queryFn: async () => {
       const response = await api.get("/announcements/latest");
       const data = response.data;
-      // Handle nested data structures
       return data?.data || data;
     }
   });
@@ -154,7 +153,6 @@ export function UserTopNav({ user }: { user: any }) {
     queryFn: async () => {
       const response = await api.get("/offers/active");
       const data = response.data;
-      // Handle nested data structures - ensure we return an array
       if (Array.isArray(data)) return data;
       if (data?.data && Array.isArray(data.data)) return data.data;
       if (data?.offers && Array.isArray(data.offers)) return data.offers;
@@ -197,8 +195,6 @@ export function UserTopNav({ user }: { user: any }) {
     document.documentElement.classList.toggle("dark", newTheme === "dark");
   };
 
-  // Search is now handled by GlobalSearch component
-
   const handleLogout = async () => {
     try {
       await api.post("/logout");
@@ -235,14 +231,12 @@ export function UserTopNav({ user }: { user: any }) {
         });
         return;
       }
-      // Process withdrawal
       handleWithdrawal(amount);
     }
   };
 
   const handleWithdrawal = async (amount: number) => {
     try {
-      // Auto-approve withdrawals under ₹50,000
       const autoApprove = amount < 50000;
       const referenceNumber = `WD${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
@@ -311,7 +305,6 @@ export function UserTopNav({ user }: { user: any }) {
 
   return (
     <>
-      {/* Announcement Bar */}
       {announcementVisible && currentAnnouncement && (
         <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-2 px-4">
           <div className="container mx-auto flex items-center justify-between">
@@ -333,16 +326,24 @@ export function UserTopNav({ user }: { user: any }) {
         </div>
       )}
 
-      {/* Main Navigation Bar */}
       <div className="sticky top-0 z-50 bg-background border-b">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
-            {/* Logo */}
+            {/* Logo Section */}
             <div className="flex items-center gap-6">
-              <Link href="/dashboard" className="flex items-center gap-2">
-                <div className="gradient-primary text-white px-3 py-1.5 rounded-lg font-bold text-lg">
-                  PreIPO SIP
+              <Link href="/dashboard" className="flex items-center gap-3 group">
+                 {/* Image Logo */}
+                <div className="relative h-10 w-[150px] flex items-center bg-transparent">
+                   <Image 
+                     src="/preiposip.png" 
+                     alt="PreIPO SIP" 
+                     width={75} 
+                     height={20} 
+                     className="object-contain bg-transparent"
+                     />
                 </div>
+                 
+                 {/* Trust Badge removed here */}
               </Link>
 
               {/* Main Links - Desktop */}
@@ -545,9 +546,7 @@ export function UserTopNav({ user }: { user: any }) {
                   <DropdownMenuLabel>Language</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {languages.map((lang) => (
-                    <DropdownMenuItem
-                      key={lang.code}
-                      onClick={() => setLanguage(lang.code)}
+                    <DropdownMenuItem key={lang.code} onClick={() => setLanguage(lang.code)}
                       className={cn(language === lang.code && "bg-muted")}
                     >
                       {lang.name}

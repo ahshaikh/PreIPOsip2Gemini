@@ -8,7 +8,7 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "Fixed All Server Errors"
+$CommitMessage = "Added all legal and footer pages"
 #----------------------
 
 function Get-GitCredential {
