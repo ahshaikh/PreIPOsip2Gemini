@@ -40,6 +40,7 @@ import {
 const navItems = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/users', label: 'User Management', icon: Users },
+  { href: '/admin/company-users', label: 'Company Users', icon: Building2 },
   { href: '/admin/payments', label: 'Payments', icon: CreditCard },
   { href: '/admin/kyc-queue', label: 'KYC Queue', icon: FileCheck2 },
   { href: '/admin/withdrawal-queue', label: 'Withdrawal Queue', icon: DollarSign },
