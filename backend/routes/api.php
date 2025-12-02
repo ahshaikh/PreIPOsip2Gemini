@@ -72,6 +72,7 @@ use App\Http\Controllers\Api\Admin\DealController;
 use App\Http\Controllers\Api\Admin\CompanyController;
 use App\Http\Controllers\Api\Admin\TutorialController;
 use App\Http\Controllers\Api\Admin\ContentReportController;
+use App\Http\Controllers\Api\Admin\CompanyUserController;
 
 // Company User Controllers
 use App\Http\Controllers\Api\Company\AuthController as CompanyAuthController;
@@ -81,6 +82,7 @@ use App\Http\Controllers\Api\Company\DocumentController as CompanyDocumentContro
 use App\Http\Controllers\Api\Company\TeamMemberController;
 use App\Http\Controllers\Api\Company\FundingRoundController;
 use App\Http\Controllers\Api\Company\CompanyUpdateController;
+use App\Http\Controllers\Api\Company\CompanyDealController;
 
 // Invoice & Webhook
 use App\Http\Controllers\Api\InvoiceController;
@@ -486,6 +488,20 @@ Route::prefix('v1')->group(function () {
                 Route::put('/{id}', [ContentReportController::class, 'update'])->middleware('permission:settings.manage_cms');
                 Route::delete('/{id}', [ContentReportController::class, 'destroy'])->middleware('permission:settings.manage_cms');
             });
+
+            // -------------------------------------------------------------
+            // COMPANY USER MANAGEMENT (Admin)
+            // -------------------------------------------------------------
+            Route::prefix('company-users')->middleware('permission:users.view')->group(function () {
+                Route::get('/', [CompanyUserController::class, 'index']);
+                Route::get('/statistics', [CompanyUserController::class, 'statistics']);
+                Route::get('/{id}', [CompanyUserController::class, 'show']);
+                Route::post('/{id}/approve', [CompanyUserController::class, 'approve'])->middleware('permission:users.edit');
+                Route::post('/{id}/reject', [CompanyUserController::class, 'reject'])->middleware('permission:users.edit');
+                Route::post('/{id}/suspend', [CompanyUserController::class, 'suspend'])->middleware('permission:users.suspend');
+                Route::post('/{id}/reactivate', [CompanyUserController::class, 'reactivate'])->middleware('permission:users.edit');
+                Route::delete('/{id}', [CompanyUserController::class, 'destroy'])->middleware('permission:users.delete');
+            });
         });
 
         // ========================================================================
@@ -556,6 +572,16 @@ Route::prefix('v1')->group(function () {
                     Route::get('/{id}', [CompanyUpdateController::class, 'show']);
                     Route::put('/{id}', [CompanyUpdateController::class, 'update']);
                     Route::delete('/{id}', [CompanyUpdateController::class, 'destroy']);
+                });
+
+                // Company Deal Listings (Share Offerings)
+                Route::prefix('deals')->group(function () {
+                    Route::get('/', [CompanyDealController::class, 'index']);
+                    Route::post('/', [CompanyDealController::class, 'store']);
+                    Route::get('/statistics', [CompanyDealController::class, 'statistics']);
+                    Route::get('/{id}', [CompanyDealController::class, 'show']);
+                    Route::put('/{id}', [CompanyDealController::class, 'update']);
+                    Route::delete('/{id}', [CompanyDealController::class, 'destroy']);
                 });
             });
         });

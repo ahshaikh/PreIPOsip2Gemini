@@ -11,7 +11,8 @@ import {
   TrendingUp,
   Newspaper,
   LogOut,
-  User
+  User,
+  Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -20,6 +21,7 @@ import companyApi from '@/lib/companyApi';
 const navItems = [
   { href: '/company/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/company/profile', label: 'Company Profile', icon: Building2 },
+  { href: '/company/deals', label: 'Share Offerings', icon: Sparkles },
   { href: '/company/financial-reports', label: 'Financial Reports', icon: FileText },
   { href: '/company/documents', label: 'Documents', icon: FolderOpen },
   { href: '/company/team', label: 'Team Members', icon: Users },
