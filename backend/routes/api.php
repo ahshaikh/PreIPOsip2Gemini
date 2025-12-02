@@ -68,6 +68,21 @@ use App\Http\Controllers\Api\Admin\NotificationController as AdminNotificationCo
 use App\Http\Controllers\Api\Admin\KbArticleController;
 use App\Http\Controllers\Api\Admin\KbCategoryController;
 use App\Http\Controllers\Api\Admin\ComplianceController;
+use App\Http\Controllers\Api\Admin\DealController;
+use App\Http\Controllers\Api\Admin\CompanyController;
+use App\Http\Controllers\Api\Admin\TutorialController;
+use App\Http\Controllers\Api\Admin\ContentReportController;
+use App\Http\Controllers\Api\Admin\CompanyUserController;
+
+// Company User Controllers
+use App\Http\Controllers\Api\Company\AuthController as CompanyAuthController;
+use App\Http\Controllers\Api\Company\CompanyProfileController;
+use App\Http\Controllers\Api\Company\FinancialReportController;
+use App\Http\Controllers\Api\Company\DocumentController as CompanyDocumentController;
+use App\Http\Controllers\Api\Company\TeamMemberController;
+use App\Http\Controllers\Api\Company\FundingRoundController;
+use App\Http\Controllers\Api\Company\CompanyUpdateController;
+use App\Http\Controllers\Api\Company\CompanyDealController;
 
 // Invoice & Webhook
 use App\Http\Controllers\Api\InvoiceController;
@@ -138,6 +153,8 @@ Route::prefix('v1')->group(function () {
             Route::get('/profile', [ProfileController::class, 'show']);
             Route::put('/profile', [ProfileController::class, 'update']);
             Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar']);
+            Route::get('/bank-details', [ProfileController::class, 'getBankDetails']);
+            Route::put('/bank-details', [ProfileController::class, 'updateBankDetails']);
             Route::post('/security/password', [SecurityController::class, 'updatePassword']);
             Route::get('/security/export-data', [PrivacyController::class, 'export']);
             Route::post('/security/delete-account', [PrivacyController::class, 'deleteAccount']);
@@ -182,14 +199,19 @@ Route::prefix('v1')->group(function () {
             // Portfolio & Bonuses - Data-heavy endpoints rate limited
             Route::middleware('throttle:data-heavy')->group(function () {
                 Route::get('/portfolio', [PortfolioController::class, 'index']);
+                Route::get('/portfolio/statement', [PortfolioController::class, 'downloadStatement']);
+                Route::get('/portfolio/transactions', [PortfolioController::class, 'transactions']);
                 Route::get('/bonuses', [BonusController::class, 'index']);
-                Route::get('/bonuses/pending', [BonusController::class, 'pending']); // <--- ADD THIS LINE
+                Route::get('/bonuses/pending', [BonusController::class, 'pending']);
+                Route::get('/bonuses/export', [BonusController::class, 'export']);
                 Route::get('/referrals', [UserReferralController::class, 'index']);
-                Route::get('/referrals/rewards', [UserReferralController::class, 'rewards']); // <--- ADD THIS LINE
+                Route::get('/referrals/rewards', [UserReferralController::class, 'rewards']);
             });
 
             // Wallet & Withdrawal - Financial operations rate limited
             Route::get('/wallet', [WalletController::class, 'show']);
+            Route::get('/wallet/statement', [WalletController::class, 'downloadStatement']);
+            Route::get('/wallet/withdrawals', [WalletController::class, 'withdrawals']);
 
             Route::middleware('throttle:financial')->group(function () {
                 Route::post('/wallet/deposit/initiate', [WalletController::class, 'initiateDeposit']);
@@ -438,6 +460,130 @@ Route::prefix('v1')->group(function () {
             Route::apiResource('/support-tickets', AdminSupportTicketController::class)->names('admin.support-tickets')->middleware('permission:users.view');
             Route::post('/support-tickets/{supportTicket}/reply', [AdminSupportTicketController::class, 'reply'])->middleware('permission:users.edit');
             Route::put('/support-tickets/{supportTicket}/status', [AdminSupportTicketController::class, 'updateStatus'])->middleware('permission:users.edit');
+
+            // -------------------------------------------------------------
+            // CONTENT MANAGEMENT SYSTEM
+            // -------------------------------------------------------------
+            // Deals Management (Live Deals, Upcoming Deals)
+            Route::prefix('deals')->group(function () {
+                Route::get('/', [DealController::class, 'index'])->middleware('permission:products.view');
+                Route::post('/', [DealController::class, 'store'])->middleware('permission:products.create');
+                Route::get('/statistics', [DealController::class, 'statistics'])->middleware('permission:products.view');
+                Route::get('/{id}', [DealController::class, 'show'])->middleware('permission:products.view');
+                Route::put('/{id}', [DealController::class, 'update'])->middleware('permission:products.edit');
+                Route::delete('/{id}', [DealController::class, 'destroy'])->middleware('permission:products.delete');
+            });
+
+            // Companies Directory
+            Route::apiResource('/companies', CompanyController::class)->middleware('permission:products.view');
+
+            // Tutorials Management
+            Route::apiResource('/tutorials', TutorialController::class)->middleware('permission:settings.manage_cms');
+
+            // Reports Management (Market Analysis, Research Reports)
+            Route::prefix('content-reports')->group(function () {
+                Route::get('/', [ContentReportController::class, 'index'])->middleware('permission:settings.manage_cms');
+                Route::post('/', [ContentReportController::class, 'store'])->middleware('permission:settings.manage_cms');
+                Route::get('/{id}', [ContentReportController::class, 'show'])->middleware('permission:settings.manage_cms');
+                Route::put('/{id}', [ContentReportController::class, 'update'])->middleware('permission:settings.manage_cms');
+                Route::delete('/{id}', [ContentReportController::class, 'destroy'])->middleware('permission:settings.manage_cms');
+            });
+
+            // -------------------------------------------------------------
+            // COMPANY USER MANAGEMENT (Admin)
+            // -------------------------------------------------------------
+            Route::prefix('company-users')->middleware('permission:users.view')->group(function () {
+                Route::get('/', [CompanyUserController::class, 'index']);
+                Route::get('/statistics', [CompanyUserController::class, 'statistics']);
+                Route::get('/{id}', [CompanyUserController::class, 'show']);
+                Route::post('/{id}/approve', [CompanyUserController::class, 'approve'])->middleware('permission:users.edit');
+                Route::post('/{id}/reject', [CompanyUserController::class, 'reject'])->middleware('permission:users.edit');
+                Route::post('/{id}/suspend', [CompanyUserController::class, 'suspend'])->middleware('permission:users.suspend');
+                Route::post('/{id}/reactivate', [CompanyUserController::class, 'reactivate'])->middleware('permission:users.edit');
+                Route::delete('/{id}', [CompanyUserController::class, 'destroy'])->middleware('permission:users.delete');
+            });
+        });
+
+        // ========================================================================
+        // COMPANY USER ROUTES
+        // ========================================================================
+        // Public Company Registration & Login
+        Route::prefix('company')->group(function () {
+            Route::middleware('throttle:login')->group(function () {
+                Route::post('/register', [CompanyAuthController::class, 'register']);
+                Route::post('/login', [CompanyAuthController::class, 'login']);
+            });
+
+            // Authenticated Company User Routes
+            Route::middleware('auth:sanctum')->group(function () {
+                // Authentication
+                Route::post('/logout', [CompanyAuthController::class, 'logout']);
+                Route::get('/profile', [CompanyAuthController::class, 'profile']);
+                Route::put('/profile', [CompanyAuthController::class, 'updateProfile']);
+                Route::post('/change-password', [CompanyAuthController::class, 'changePassword']);
+
+                // Company Profile Management
+                Route::prefix('company-profile')->group(function () {
+                    Route::put('/update', [CompanyProfileController::class, 'update']);
+                    Route::post('/upload-logo', [CompanyProfileController::class, 'uploadLogo']);
+                    Route::get('/dashboard', [CompanyProfileController::class, 'dashboard']);
+                });
+
+                // Financial Reports
+                Route::prefix('financial-reports')->group(function () {
+                    Route::get('/', [FinancialReportController::class, 'index']);
+                    Route::post('/', [FinancialReportController::class, 'store']);
+                    Route::get('/{id}', [FinancialReportController::class, 'show']);
+                    Route::put('/{id}', [FinancialReportController::class, 'update']);
+                    Route::delete('/{id}', [FinancialReportController::class, 'destroy']);
+                    Route::get('/{id}/download', [FinancialReportController::class, 'download']);
+                });
+
+                // Documents Management
+                Route::prefix('documents')->group(function () {
+                    Route::get('/', [CompanyDocumentController::class, 'index']);
+                    Route::post('/', [CompanyDocumentController::class, 'store']);
+                    Route::get('/{id}', [CompanyDocumentController::class, 'show']);
+                    Route::put('/{id}', [CompanyDocumentController::class, 'update']);
+                    Route::delete('/{id}', [CompanyDocumentController::class, 'destroy']);
+                    Route::get('/{id}/download', [CompanyDocumentController::class, 'download']);
+                });
+
+                // Team Members
+                Route::prefix('team-members')->group(function () {
+                    Route::get('/', [TeamMemberController::class, 'index']);
+                    Route::post('/', [TeamMemberController::class, 'store']);
+                    Route::put('/{id}', [TeamMemberController::class, 'update']);
+                    Route::delete('/{id}', [TeamMemberController::class, 'destroy']);
+                });
+
+                // Funding Rounds
+                Route::prefix('funding-rounds')->group(function () {
+                    Route::get('/', [FundingRoundController::class, 'index']);
+                    Route::post('/', [FundingRoundController::class, 'store']);
+                    Route::put('/{id}', [FundingRoundController::class, 'update']);
+                    Route::delete('/{id}', [FundingRoundController::class, 'destroy']);
+                });
+
+                // Company Updates/News
+                Route::prefix('updates')->group(function () {
+                    Route::get('/', [CompanyUpdateController::class, 'index']);
+                    Route::post('/', [CompanyUpdateController::class, 'store']);
+                    Route::get('/{id}', [CompanyUpdateController::class, 'show']);
+                    Route::put('/{id}', [CompanyUpdateController::class, 'update']);
+                    Route::delete('/{id}', [CompanyUpdateController::class, 'destroy']);
+                });
+
+                // Company Deal Listings (Share Offerings)
+                Route::prefix('deals')->group(function () {
+                    Route::get('/', [CompanyDealController::class, 'index']);
+                    Route::post('/', [CompanyDealController::class, 'store']);
+                    Route::get('/statistics', [CompanyDealController::class, 'statistics']);
+                    Route::get('/{id}', [CompanyDealController::class, 'show']);
+                    Route::put('/{id}', [CompanyDealController::class, 'update']);
+                    Route::delete('/{id}', [CompanyDealController::class, 'destroy']);
+                });
+            });
         });
     });
 });

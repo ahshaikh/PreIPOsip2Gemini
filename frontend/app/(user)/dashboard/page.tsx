@@ -12,13 +12,29 @@ import { useQuery } from "@tanstack/react-query";
 import {
   CreditCard, ShieldAlert, Target, TrendingUp, Wallet,
   Gift, Users, Calendar, Bell, ArrowUpRight, ArrowDownRight,
-  PieChart, Activity, Clock, CheckCircle, AlertCircle, Zap
+  PieChart, Activity, Clock, CheckCircle, AlertCircle, Zap, X
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
+  const [kycBannerDismissed, setKycBannerDismissed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const dismissed = localStorage.getItem('kyc_banner_dismissed');
+      return dismissed ? parseInt(dismissed) >= 2 : false;
+    }
+    return false;
+  });
+
+  // Fetch user profile
+  const { data: user } = useQuery({
+    queryKey: ['userProfile'],
+    queryFn: async () => {
+      const { data } = await api.get('/user/profile');
+      return data.user || data;
+    }
+  });
 
   // Dashboard summary
   const { data: summary, isLoading } = useQuery({
@@ -89,12 +105,24 @@ export default function DashboardPage() {
     ? Object.values(bonuses.summary).reduce((acc: number, val: any) => acc + (Number(val) || 0), 0)
     : 0;
 
+  const handleDismissKycBanner = () => {
+    if (typeof window !== 'undefined') {
+      const count = parseInt(localStorage.getItem('kyc_banner_dismissed') || '0');
+      localStorage.setItem('kyc_banner_dismissed', (count + 1).toString());
+      setKycBannerDismissed(count + 1 >= 2);
+    }
+  };
+
+  const firstName = user?.profile?.first_name || user?.first_name || '';
+
   return (
     <div className="space-y-6">
       {/* Welcome Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Welcome Back!</h1>
+          <h1 className="text-3xl font-bold">
+            Welcome Back{firstName ? `, ${firstName}` : ''}!
+          </h1>
           <p className="text-muted-foreground">Here's an overview of your investments and activities.</p>
         </div>
         <div className="flex items-center gap-2">
@@ -110,13 +138,19 @@ export default function DashboardPage() {
       </div>
 
       {/* KYC Alerts */}
-      {kycStatus === 'verified' && (
-        <Alert variant="success" className="border-green-500/50 bg-green-500/10">
+      {kycStatus === 'verified' && !kycBannerDismissed && (
+        <Alert variant="success" className="border-green-500/50 bg-green-500/10 relative">
           <CheckCircle className="h-4 w-4 text-green-500" />
           <AlertTitle className="text-green-600">KYC Verified!</AlertTitle>
           <AlertDescription>
             Your account is fully verified. You can now start investing.
           </AlertDescription>
+          <button
+            onClick={handleDismissKycBanner}
+            className="absolute top-2 right-2 p-1 hover:bg-green-500/20 rounded"
+          >
+            <X className="h-4 w-4 text-green-600" />
+          </button>
         </Alert>
       )}
 

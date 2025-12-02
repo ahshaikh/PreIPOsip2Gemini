@@ -64,15 +64,25 @@ class SubscriptionController extends Controller
         $sub = Subscription::where('user_id', $user->id)->where('status', 'active')->firstOrFail();
         $newPlan = Plan::findOrFail($validated['new_plan_id']);
 
+        // Check if same plan
+        if ($newPlan->id === $sub->plan_id) {
+            return response()->json(['message' => 'You are already on this plan.'], 400);
+        }
+
         try {
             if ($newPlan->monthly_amount > $sub->amount) {
+                // UPGRADE
                 $prorated = $this->service->upgradePlan($sub, $newPlan);
-                $message = "Plan upgraded. A pro-rata charge of ₹{$prorated} has been created.";
-                if ($prorated == 0) $message = "Plan upgraded. Changes effective next cycle.";
+                $message = "Plan upgraded successfully. A pro-rata charge of ₹{$prorated} has been created.";
+                if ($prorated == 0) $message = "Plan upgraded successfully. Changes effective next cycle.";
                 return response()->json(['message' => $message]);
-            } else {
+            } elseif ($newPlan->monthly_amount < $sub->amount) {
+                // DOWNGRADE
                 $this->service->downgradePlan($sub, $newPlan);
-                return response()->json(['message' => 'Plan downgraded. Changes effective next cycle.']);
+                return response()->json(['message' => 'Plan downgraded successfully. Changes effective next cycle.']);
+            } else {
+                // Same amount but different plan
+                return response()->json(['message' => 'Cannot change to a plan with the same amount.'], 400);
             }
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 400);

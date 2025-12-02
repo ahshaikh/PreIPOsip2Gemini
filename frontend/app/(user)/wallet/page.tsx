@@ -131,6 +131,24 @@ export default function WalletPage() {
     addMoneyMutation.mutate(amount);
   };
 
+  const handleDownloadStatement = async () => {
+    try {
+      const response = await api.get('/user/wallet/statement', {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `wallet-statement-${new Date().toISOString().split('T')[0]}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success("Statement Downloaded", { description: "Your wallet statement has been downloaded" });
+    } catch (error: any) {
+      toast.error("Download Failed", { description: error.response?.data?.message || "Unable to download statement" });
+    }
+  };
+
   if (isLoading) return <div className="flex items-center justify-center h-64">Loading wallet...</div>;
 
   const balance = parseFloat(data?.wallet?.balance || 0);
@@ -324,7 +342,7 @@ export default function WalletPage() {
           </DialogContent>
         </Dialog>
 
-        <Button variant="outline" size="icon">
+        <Button variant="outline" size="icon" onClick={handleDownloadStatement}>
           <Download className="h-4 w-4" />
         </Button>
       </div>
