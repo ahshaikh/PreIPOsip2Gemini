@@ -184,14 +184,19 @@ Route::prefix('v1')->group(function () {
             // Portfolio & Bonuses - Data-heavy endpoints rate limited
             Route::middleware('throttle:data-heavy')->group(function () {
                 Route::get('/portfolio', [PortfolioController::class, 'index']);
+                Route::get('/portfolio/statement', [PortfolioController::class, 'downloadStatement']);
+                Route::get('/portfolio/transactions', [PortfolioController::class, 'transactions']);
                 Route::get('/bonuses', [BonusController::class, 'index']);
-                Route::get('/bonuses/pending', [BonusController::class, 'pending']); // <--- ADD THIS LINE
+                Route::get('/bonuses/pending', [BonusController::class, 'pending']);
+                Route::get('/bonuses/export', [BonusController::class, 'export']);
                 Route::get('/referrals', [UserReferralController::class, 'index']);
-                Route::get('/referrals/rewards', [UserReferralController::class, 'rewards']); // <--- ADD THIS LINE
+                Route::get('/referrals/rewards', [UserReferralController::class, 'rewards']);
             });
 
             // Wallet & Withdrawal - Financial operations rate limited
             Route::get('/wallet', [WalletController::class, 'show']);
+            Route::get('/wallet/statement', [WalletController::class, 'downloadStatement']);
+            Route::get('/wallet/withdrawals', [WalletController::class, 'withdrawals']);
 
             Route::middleware('throttle:financial')->group(function () {
                 Route::post('/wallet/deposit/initiate', [WalletController::class, 'initiateDeposit']);
