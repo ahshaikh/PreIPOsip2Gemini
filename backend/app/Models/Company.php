@@ -38,11 +38,61 @@ class Company extends Model
         'key_metrics' => 'array',
         'investors' => 'array',
         'is_featured' => 'boolean',
+        'is_verified' => 'boolean',
+        'profile_completed' => 'boolean',
     ];
 
     public function deals()
     {
         return $this->hasMany(Deal::class, 'company_name', 'name');
+    }
+
+    /**
+     * Relationship: Company has many company users
+     */
+    public function companyUsers()
+    {
+        return $this->hasMany(CompanyUser::class);
+    }
+
+    /**
+     * Relationship: Company has many financial reports
+     */
+    public function financialReports()
+    {
+        return $this->hasMany(CompanyFinancialReport::class);
+    }
+
+    /**
+     * Relationship: Company has many documents
+     */
+    public function documents()
+    {
+        return $this->hasMany(CompanyDocument::class);
+    }
+
+    /**
+     * Relationship: Company has many updates
+     */
+    public function updates()
+    {
+        return $this->hasMany(CompanyUpdate::class);
+    }
+
+    /**
+     * Relationship: Company has many team members
+     */
+    public function teamMembers()
+    {
+        return $this->hasMany(CompanyTeamMember::class);
+    }
+
+    /**
+     * Relationship: Company has many funding rounds
+     */
+    public function fundingRounds()
+    {
+        return $this->hasMany(CompanyFundingRound::class);
     }
 
     public function scopeActive($query)
@@ -58,5 +108,10 @@ class Company extends Model
     public function scopeBySector($query, $sector)
     {
         return $query->where('sector', $sector);
+    }
+
+    public function scopeVerified($query)
+    {
+        return $query->where('is_verified', true);
     }
 }

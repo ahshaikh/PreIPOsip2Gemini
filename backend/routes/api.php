@@ -73,6 +73,15 @@ use App\Http\Controllers\Api\Admin\CompanyController;
 use App\Http\Controllers\Api\Admin\TutorialController;
 use App\Http\Controllers\Api\Admin\ContentReportController;
 
+// Company User Controllers
+use App\Http\Controllers\Api\Company\AuthController as CompanyAuthController;
+use App\Http\Controllers\Api\Company\CompanyProfileController;
+use App\Http\Controllers\Api\Company\FinancialReportController;
+use App\Http\Controllers\Api\Company\DocumentController as CompanyDocumentController;
+use App\Http\Controllers\Api\Company\TeamMemberController;
+use App\Http\Controllers\Api\Company\FundingRoundController;
+use App\Http\Controllers\Api\Company\CompanyUpdateController;
+
 // Invoice & Webhook
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\WebhookController;
@@ -476,6 +485,78 @@ Route::prefix('v1')->group(function () {
                 Route::get('/{id}', [ContentReportController::class, 'show'])->middleware('permission:settings.manage_cms');
                 Route::put('/{id}', [ContentReportController::class, 'update'])->middleware('permission:settings.manage_cms');
                 Route::delete('/{id}', [ContentReportController::class, 'destroy'])->middleware('permission:settings.manage_cms');
+            });
+        });
+
+        // ========================================================================
+        // COMPANY USER ROUTES
+        // ========================================================================
+        // Public Company Registration & Login
+        Route::prefix('company')->group(function () {
+            Route::middleware('throttle:login')->group(function () {
+                Route::post('/register', [CompanyAuthController::class, 'register']);
+                Route::post('/login', [CompanyAuthController::class, 'login']);
+            });
+
+            // Authenticated Company User Routes
+            Route::middleware('auth:sanctum')->group(function () {
+                // Authentication
+                Route::post('/logout', [CompanyAuthController::class, 'logout']);
+                Route::get('/profile', [CompanyAuthController::class, 'profile']);
+                Route::put('/profile', [CompanyAuthController::class, 'updateProfile']);
+                Route::post('/change-password', [CompanyAuthController::class, 'changePassword']);
+
+                // Company Profile Management
+                Route::prefix('company-profile')->group(function () {
+                    Route::put('/update', [CompanyProfileController::class, 'update']);
+                    Route::post('/upload-logo', [CompanyProfileController::class, 'uploadLogo']);
+                    Route::get('/dashboard', [CompanyProfileController::class, 'dashboard']);
+                });
+
+                // Financial Reports
+                Route::prefix('financial-reports')->group(function () {
+                    Route::get('/', [FinancialReportController::class, 'index']);
+                    Route::post('/', [FinancialReportController::class, 'store']);
+                    Route::get('/{id}', [FinancialReportController::class, 'show']);
+                    Route::put('/{id}', [FinancialReportController::class, 'update']);
+                    Route::delete('/{id}', [FinancialReportController::class, 'destroy']);
+                    Route::get('/{id}/download', [FinancialReportController::class, 'download']);
+                });
+
+                // Documents Management
+                Route::prefix('documents')->group(function () {
+                    Route::get('/', [CompanyDocumentController::class, 'index']);
+                    Route::post('/', [CompanyDocumentController::class, 'store']);
+                    Route::get('/{id}', [CompanyDocumentController::class, 'show']);
+                    Route::put('/{id}', [CompanyDocumentController::class, 'update']);
+                    Route::delete('/{id}', [CompanyDocumentController::class, 'destroy']);
+                    Route::get('/{id}/download', [CompanyDocumentController::class, 'download']);
+                });
+
+                // Team Members
+                Route::prefix('team-members')->group(function () {
+                    Route::get('/', [TeamMemberController::class, 'index']);
+                    Route::post('/', [TeamMemberController::class, 'store']);
+                    Route::put('/{id}', [TeamMemberController::class, 'update']);
+                    Route::delete('/{id}', [TeamMemberController::class, 'destroy']);
+                });
+
+                // Funding Rounds
+                Route::prefix('funding-rounds')->group(function () {
+                    Route::get('/', [FundingRoundController::class, 'index']);
+                    Route::post('/', [FundingRoundController::class, 'store']);
+                    Route::put('/{id}', [FundingRoundController::class, 'update']);
+                    Route::delete('/{id}', [FundingRoundController::class, 'destroy']);
+                });
+
+                // Company Updates/News
+                Route::prefix('updates')->group(function () {
+                    Route::get('/', [CompanyUpdateController::class, 'index']);
+                    Route::post('/', [CompanyUpdateController::class, 'store']);
+                    Route::get('/{id}', [CompanyUpdateController::class, 'show']);
+                    Route::put('/{id}', [CompanyUpdateController::class, 'update']);
+                    Route::delete('/{id}', [CompanyUpdateController::class, 'destroy']);
+                });
             });
         });
     });
