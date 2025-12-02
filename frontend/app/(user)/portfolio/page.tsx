@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import api from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { toast } from "sonner";
 import {
   TrendingUp, TrendingDown, PieChart, BarChart3, ArrowUpRight,
   ArrowDownRight, Wallet, Target, Info, Download, Calendar,
@@ -21,6 +22,24 @@ import {
 export default function PortfolioPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedHolding, setSelectedHolding] = useState<any>(null);
+
+  const handleDownloadStatement = async () => {
+    try {
+      const response = await api.get('/user/portfolio/statement', {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `portfolio-statement-${new Date().toISOString().split('T')[0]}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success("Statement Downloaded", { description: "Your portfolio statement has been downloaded" });
+    } catch (error: any) {
+      toast.error("Download Failed", { description: error.response?.data?.message || "Unable to download statement" });
+    }
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ['portfolio'],
@@ -55,7 +74,7 @@ export default function PortfolioPage() {
           <h1 className="text-3xl font-bold">My Portfolio</h1>
           <p className="text-muted-foreground">Track your investment performance and holdings.</p>
         </div>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" onClick={handleDownloadStatement}>
           <Download className="mr-2 h-4 w-4" /> Download Statement
         </Button>
       </div>

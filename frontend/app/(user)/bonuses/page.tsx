@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import api from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { toast } from "sonner";
 import {
   Gift, Users, TrendingUp, Wallet, Calendar, Download,
   Search, Filter, Star, Award, Target, Sparkles, CreditCard,
@@ -72,6 +73,24 @@ export default function BonusesPage() {
     return (Number(value) || 0) > (Number(max.value) || 0) ? { type, value } : max;
   }, { type: '', value: 0 });
 
+  const handleExportHistory = async () => {
+    try {
+      const response = await api.get('/user/bonuses/export', {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `bonuses-history-${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success("Export Successful", { description: "Your bonus history has been downloaded" });
+    } catch (error: any) {
+      toast.error("Export Failed", { description: error.response?.data?.message || "Unable to export bonus history" });
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -80,7 +99,7 @@ export default function BonusesPage() {
           <h1 className="text-3xl font-bold">My Bonuses</h1>
           <p className="text-muted-foreground">Track all your rewards and bonus earnings.</p>
         </div>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" onClick={handleExportHistory}>
           <Download className="mr-2 h-4 w-4" /> Export History
         </Button>
       </div>
