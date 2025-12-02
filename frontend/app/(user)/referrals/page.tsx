@@ -44,7 +44,8 @@ export default function ReferralsPage() {
   const baseUrl = typeof window !== 'undefined'
     ? window.location.origin
     : process.env.NEXT_PUBLIC_SITE_URL || 'https://preiposip.com';
-  const referralLink = `${baseUrl}/signup?ref=${data?.stats?.referral_code}`;
+  const referralCode = data?.stats?.referral_code || data?.referral_code || data?.user?.referral_code || '';
+  const referralLink = `${baseUrl}/signup?ref=${referralCode}`;
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(referralLink);
@@ -52,9 +53,8 @@ export default function ReferralsPage() {
   };
 
   const copyCode = () => {
-    const code = data?.stats?.referral_code || data?.referral_code || '';
-    if (code) {
-      navigator.clipboard.writeText(code);
+    if (referralCode) {
+      navigator.clipboard.writeText(referralCode);
       toast.success("Code Copied!", { description: "Referral code copied to clipboard" });
     } else {
       toast.error("No referral code available");
@@ -76,18 +76,18 @@ export default function ReferralsPage() {
   };
 
   const shareOnWhatsApp = () => {
-    const text = `Join me on PreIPO SIP! Use my referral code ${data?.stats?.referral_code} to get started: ${referralLink}`;
+    const text = `Join me on PreIPO SIP! Use my referral code ${referralCode} to get started: ${referralLink}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   const shareViaEmail = () => {
     const subject = 'Join me on PreIPO SIP';
-    const body = `Hi,\n\nI've been investing in pre-IPO companies through PreIPO SIP and thought you might be interested too!\n\nUse my referral link to sign up: ${referralLink}\n\nOr use my referral code: ${data?.stats?.referral_code}`;
+    const body = `Hi,\n\nI've been investing in pre-IPO companies through PreIPO SIP and thought you might be interested too!\n\nUse my referral link to sign up: ${referralLink}\n\nOr use my referral code: ${referralCode}`;
     window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   const shareOnTelegram = () => {
-    const text = `Join me on PreIPO SIP! Use my code ${data?.stats?.referral_code} to get started: ${referralLink}`;
+    const text = `Join me on PreIPO SIP! Use my code ${referralCode} to get started: ${referralLink}`;
     window.open(`https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -97,32 +97,32 @@ export default function ReferralsPage() {
   };
 
   const shareOnThreads = () => {
-    const text = `Join me on PreIPO SIP and start investing in pre-IPO companies! Use my referral code: ${data?.stats?.referral_code}`;
+    const text = `Join me on PreIPO SIP and start investing in pre-IPO companies! Use my referral code: ${referralCode}`;
     window.open(`https://threads.net/intent/post?text=${encodeURIComponent(text + ' ' + referralLink)}`, '_blank');
   };
 
   const shareOnDiscord = () => {
     // Discord doesn't have a direct share URL, so we copy a formatted message
-    const message = `🚀 Join me on PreIPO SIP!\n\nInvest in pre-IPO companies with zero fees.\nUse my referral code: **${data?.stats?.referral_code}**\n${referralLink}`;
+    const message = `🚀 Join me on PreIPO SIP!\n\nInvest in pre-IPO companies with zero fees.\nUse my referral code: **${referralCode}**\n${referralLink}`;
     navigator.clipboard.writeText(message);
     toast.success("Message Copied!", { description: "Paste this in Discord to share" });
   };
 
   const shareOnSignal = () => {
     // Signal doesn't have a web share URL, copy message for manual sharing
-    const message = `Join me on PreIPO SIP! Use my referral code ${data?.stats?.referral_code} to get started: ${referralLink}`;
+    const message = `Join me on PreIPO SIP! Use my referral code ${referralCode} to get started: ${referralLink}`;
     navigator.clipboard.writeText(message);
     toast.success("Message Copied!", { description: "Paste this in Signal to share" });
   };
 
   const shareOnLine = () => {
-    const text = `Join me on PreIPO SIP! Use code ${data?.stats?.referral_code}`;
+    const text = `Join me on PreIPO SIP! Use code ${referralCode}`;
     window.open(`https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(text)}`, '_blank');
   };
 
   const shareOnInstagram = () => {
     // Instagram doesn't support direct web sharing, copy to clipboard with instructions
-    const message = `📈 Join me on PreIPO SIP!\n\nInvest in pre-IPO companies with zero fees 💰\n\nUse my referral code: ${data?.stats?.referral_code}\nLink: ${referralLink}`;
+    const message = `📈 Join me on PreIPO SIP!\n\nInvest in pre-IPO companies with zero fees 💰\n\nUse my referral code: ${referralCode}\nLink: ${referralLink}`;
     navigator.clipboard.writeText(message);
     toast.success("Message Copied!", { description: "Paste this in your Instagram Story or Bio" });
   };
@@ -164,7 +164,7 @@ export default function ReferralsPage() {
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Your Code:</span>
               <Badge variant="secondary" className="font-mono text-lg px-3 py-1">
-                {data?.stats?.referral_code || data?.referral_code || 'LOADING...'}
+                {referralCode || 'LOADING...'}
               </Badge>
               <Button variant="ghost" size="sm" onClick={copyCode} title="Copy referral code">
                 <Copy className="h-4 w-4" />

@@ -287,7 +287,7 @@ export function UserTopNav({ user }: { user: any }) {
   ];
 
   const marketingLinks = [
-    { href: "/blog", label: "Learn", icon: BookOpen },
+    { href: "/learn", label: "Learn", icon: BookOpen },
     { href: "/referrals", label: "Invite Friends", icon: Users },
     { href: "/materials", label: "Download", icon: Download },
   ];
@@ -563,7 +563,7 @@ export function UserTopNav({ user }: { user: any }) {
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={user?.profile?.avatar_url} />
                       <AvatarFallback>
-                        {user?.profile?.first_name?.[0] || user?.username?.[0] || "U"}
+                        <User className="h-4 w-4" />
                       </AvatarFallback>
                     </Avatar>
                     <ChevronDown className="h-4 w-4 text-muted-foreground hidden sm:block" />
@@ -594,7 +594,7 @@ export function UserTopNav({ user }: { user: any }) {
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/bank-details">
+                      <Link href="/profile?tab=bank-details">
                         <Building className="mr-2 h-4 w-4" />
                         Bank Details
                       </Link>
@@ -805,7 +805,7 @@ export function UserTopNav({ user }: { user: any }) {
 
       {/* Step 2: Payment Method Selection Dialog */}
       <Dialog open={paymentMethodDialogOpen} onOpenChange={setPaymentMethodDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Choose Payment Method</DialogTitle>
             <DialogDescription>
