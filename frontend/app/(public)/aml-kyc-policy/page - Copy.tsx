@@ -1,9 +1,8 @@
 import LegalDocumentViewer from "@/components/legal/LegalDocumentViewer";
-import AMLKYCContent from "@/components/aml/AMLKYCContent";
 
 export const metadata = {
-  title: "AML & KYC Policy | PreIPO SIP",
-  description: "Review the AML & KYC compliance framework, due diligence standards, reporting obligations, and regulatory requirements governing PreIPO SIP.",
+  title: 'AML & KYC Policy | PreIPO SIP',
+  description: 'Learn about our Anti-Money Laundering and Know Your Customer policies and procedures.',
 };
 
 export default function AMLKYCPolicyPage() {
@@ -13,7 +12,6 @@ export default function AMLKYCPolicyPage() {
       title="AML & KYC Policy"
       showAcceptance={false}
       requireAuth={false}
-      customContent={<AMLKYCContent />}
     />
   );
 }
