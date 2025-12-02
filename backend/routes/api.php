@@ -83,6 +83,14 @@ use App\Http\Controllers\Api\Company\TeamMemberController;
 use App\Http\Controllers\Api\Company\FundingRoundController;
 use App\Http\Controllers\Api\Company\CompanyUpdateController;
 use App\Http\Controllers\Api\Company\CompanyDealController;
+use App\Http\Controllers\Api\Company\CompanyAnalyticsController;
+use App\Http\Controllers\Api\Company\InvestorInterestController;
+use App\Http\Controllers\Api\Company\CompanyQnaController;
+use App\Http\Controllers\Api\Company\CompanyWebinarController;
+use App\Http\Controllers\Api\Company\OnboardingWizardController;
+
+// Public Company Controllers
+use App\Http\Controllers\Api\Public\CompanyProfileController as PublicCompanyProfileController;
 
 // Invoice & Webhook
 use App\Http\Controllers\Api\InvoiceController;
@@ -134,6 +142,13 @@ Route::prefix('v1')->group(function () {
     Route::get('/legal/documents', [LegalDocumentController::class, 'index']);
     Route::get('/legal/documents/{type}', [LegalDocumentController::class, 'show']);
     Route::get('/legal/documents/{type}/download', [LegalDocumentController::class, 'download']);
+
+    // --- Public Company Profiles ---
+    Route::prefix('companies')->group(function () {
+        Route::get('/', [PublicCompanyProfileController::class, 'index']);
+        Route::get('/sectors', [PublicCompanyProfileController::class, 'sectors']);
+        Route::get('/{slug}', [PublicCompanyProfileController::class, 'show']);
+    });
 
     // --- KYC CALLBACK (Public) ---
     Route::get('/kyc/digilocker/callback', [KycController::class, 'handleDigiLockerCallback']);
@@ -582,6 +597,50 @@ Route::prefix('v1')->group(function () {
                     Route::get('/{id}', [CompanyDealController::class, 'show']);
                     Route::put('/{id}', [CompanyDealController::class, 'update']);
                     Route::delete('/{id}', [CompanyDealController::class, 'destroy']);
+                });
+
+                // Analytics Dashboard
+                Route::prefix('analytics')->group(function () {
+                    Route::get('/dashboard', [CompanyAnalyticsController::class, 'dashboard']);
+                    Route::get('/trends', [CompanyAnalyticsController::class, 'trends']);
+                    Route::get('/export', [CompanyAnalyticsController::class, 'export']);
+                });
+
+                // Investor Interest Management
+                Route::prefix('investor-interests')->group(function () {
+                    Route::get('/', [InvestorInterestController::class, 'index']);
+                    Route::get('/statistics', [InvestorInterestController::class, 'statistics']);
+                    Route::get('/{id}', [InvestorInterestController::class, 'show']);
+                    Route::put('/{id}/status', [InvestorInterestController::class, 'updateStatus']);
+                });
+
+                // Q&A Management
+                Route::prefix('qna')->group(function () {
+                    Route::get('/', [CompanyQnaController::class, 'index']);
+                    Route::get('/statistics', [CompanyQnaController::class, 'statistics']);
+                    Route::post('/{id}/answer', [CompanyQnaController::class, 'answer']);
+                    Route::put('/{id}', [CompanyQnaController::class, 'update']);
+                    Route::delete('/{id}', [CompanyQnaController::class, 'destroy']);
+                });
+
+                // Webinar Scheduling & Management
+                Route::prefix('webinars')->group(function () {
+                    Route::get('/', [CompanyWebinarController::class, 'index']);
+                    Route::post('/', [CompanyWebinarController::class, 'store']);
+                    Route::get('/statistics', [CompanyWebinarController::class, 'statistics']);
+                    Route::get('/{id}', [CompanyWebinarController::class, 'show']);
+                    Route::put('/{id}', [CompanyWebinarController::class, 'update']);
+                    Route::delete('/{id}', [CompanyWebinarController::class, 'destroy']);
+                    Route::get('/{id}/registrations', [CompanyWebinarController::class, 'registrations']);
+                    Route::post('/{id}/recording', [CompanyWebinarController::class, 'uploadRecording']);
+                });
+
+                // Onboarding Wizard
+                Route::prefix('onboarding')->group(function () {
+                    Route::get('/progress', [OnboardingWizardController::class, 'getProgress']);
+                    Route::post('/complete-step', [OnboardingWizardController::class, 'completeStep']);
+                    Route::post('/skip', [OnboardingWizardController::class, 'skipOnboarding']);
+                    Route::get('/recommendations', [OnboardingWizardController::class, 'getRecommendations']);
                 });
             });
         });
