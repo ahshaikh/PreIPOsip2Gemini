@@ -84,14 +84,63 @@ class ProfileController extends Controller
                 // A more robust system would store the *path* not the *URL*
             }
 
-            // Save the new URL
+            // Save the new URL (only to user_profiles table)
             $user->profile->update(['avatar_url' => $url]);
-            $user->update(['avatar_url' => $url]); // Also update user table for quick access
 
             return response()->json(['message' => 'Avatar updated', 'avatar_url' => $url]);
 
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 400);
         }
+    }
+
+    /**
+     * Get user's bank details from KYC
+     */
+    public function getBankDetails(Request $request)
+    {
+        $user = $request->user();
+        $kyc = $user->kyc;
+
+        if (!$kyc) {
+            return response()->json([
+                'bank_account' => null,
+                'bank_ifsc' => null,
+                'account_holder_name' => null,
+            ]);
+        }
+
+        return response()->json([
+            'bank_account' => $kyc->bank_account,
+            'bank_ifsc' => $kyc->bank_ifsc,
+            'account_holder_name' => $user->profile->first_name . ' ' . $user->profile->last_name,
+        ]);
+    }
+
+    /**
+     * Update user's bank details in KYC
+     */
+    public function updateBankDetails(Request $request)
+    {
+        $validated = $request->validate([
+            'bank_account' => 'required|string|min:9|max:18',
+            'bank_ifsc' => 'required|string|size:11|regex:/^[A-Z]{4}0[A-Z0-9]{6}$/',
+        ]);
+
+        $user = $request->user();
+
+        // Get or create KYC record
+        $kyc = $user->kyc;
+        if (!$kyc) {
+            $kyc = $user->kyc()->create($validated);
+        } else {
+            $kyc->update($validated);
+        }
+
+        return response()->json([
+            'message' => 'Bank details updated successfully',
+            'bank_account' => $kyc->bank_account,
+            'bank_ifsc' => $kyc->bank_ifsc,
+        ]);
     }
 }

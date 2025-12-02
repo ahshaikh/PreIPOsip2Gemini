@@ -46,7 +46,7 @@ class SupportTicketController extends Controller
     {
         $validated = $request->validate([
             'subject' => 'required|string|max:255',
-            'category' => 'required|string|in:technical,investment,payment,kyc,withdrawal,bonus,account,other',
+            'category' => 'required|string|in:technical,investment,payment,kyc,withdrawal,bonus,account,subscription,general,other',
             'priority' => 'required|string|in:low,medium,high',
             'message' => 'required|string|min:20',
             'attachment' => 'nullable|file|mimes:jpg,jpeg,png,pdf,zip|max:10240', // 10MB

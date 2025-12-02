@@ -138,6 +138,8 @@ Route::prefix('v1')->group(function () {
             Route::get('/profile', [ProfileController::class, 'show']);
             Route::put('/profile', [ProfileController::class, 'update']);
             Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar']);
+            Route::get('/bank-details', [ProfileController::class, 'getBankDetails']);
+            Route::put('/bank-details', [ProfileController::class, 'updateBankDetails']);
             Route::post('/security/password', [SecurityController::class, 'updatePassword']);
             Route::get('/security/export-data', [PrivacyController::class, 'export']);
             Route::post('/security/delete-account', [PrivacyController::class, 'deleteAccount']);
