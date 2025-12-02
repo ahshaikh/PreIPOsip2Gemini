@@ -23,7 +23,9 @@ export default function Footer() {
                   alt="PreIPO SIP Logo"
                   width={120}
                   height={32}
-                  className="object-contain"
+                  className="object-contain dark:brightness-110"
+                  priority
+                  unoptimized
                 />
               </div>
               <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg font-bold text-xl inline-block shadow-sm">

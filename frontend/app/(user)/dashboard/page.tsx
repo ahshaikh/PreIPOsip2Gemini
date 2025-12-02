@@ -49,9 +49,14 @@ export default function DashboardPage() {
   const { data: kycStatus } = useQuery({
     queryKey: ['kycStatus'],
     queryFn: async () => {
-      const { data } = await api.get('/user/kyc');
-      return data.status;
-    }
+      try {
+        const { data } = await api.get('/user/kyc');
+        return data?.status || data?.kyc?.status || 'pending';
+      } catch (error) {
+        return 'pending';
+      }
+    },
+    retry: false,
   });
 
   // Subscription status
