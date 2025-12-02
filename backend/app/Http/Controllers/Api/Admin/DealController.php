@@ -1,0 +1,195 @@
+<?php
+
+namespace App\Http\Controllers\Api\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\Deal;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
+
+class DealController extends Controller
+{
+    /**
+     * Display a listing of deals
+     */
+    public function index(Request $request)
+    {
+        $query = Deal::query()->with('product');
+
+        // Filter by deal type
+        if ($request->filled('deal_type')) {
+            $query->where('deal_type', $request->deal_type);
+        }
+
+        // Filter by status
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Filter by sector
+        if ($request->filled('sector')) {
+            $query->where('sector', $request->sector);
+        }
+
+        // Search
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                  ->orWhere('company_name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        // Sort
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortOrder = $request->get('sort_order', 'desc');
+        $query->orderBy($sortBy, $sortOrder);
+
+        $deals = $query->paginate($request->get('per_page', 15));
+
+        return response()->json($deals);
+    }
+
+    /**
+     * Store a newly created deal
+     */
+    public function store(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'title' => 'required|string|max:255',
+            'company_name' => 'required|string|max:255',
+            'sector' => 'required|string|max:255',
+            'deal_type' => 'required|in:live,upcoming,closed',
+            'description' => 'nullable|string',
+            'company_logo' => 'nullable|string',
+            'min_investment' => 'nullable|numeric|min:0',
+            'max_investment' => 'nullable|numeric|min:0',
+            'valuation' => 'nullable|numeric|min:0',
+            'share_price' => 'nullable|numeric|min:0',
+            'total_shares' => 'nullable|integer|min:0',
+            'available_shares' => 'nullable|integer|min:0',
+            'deal_opens_at' => 'nullable|date',
+            'deal_closes_at' => 'nullable|date|after:deal_opens_at',
+            'highlights' => 'nullable|array',
+            'documents' => 'nullable|array',
+            'video_url' => 'nullable|url',
+            'status' => 'required|in:draft,active,paused,closed',
+            'is_featured' => 'boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
+        $data['slug'] = Str::slug($data['title']) . '-' . Str::random(6);
+
+        // Calculate days remaining if deal closes
+        if (isset($data['deal_closes_at'])) {
+            $data['days_remaining'] = now()->diffInDays($data['deal_closes_at'], false);
+        }
+
+        $deal = Deal::create($data);
+
+        return response()->json([
+            'message' => 'Deal created successfully',
+            'deal' => $deal
+        ], 201);
+    }
+
+    /**
+     * Display the specified deal
+     */
+    public function show($id)
+    {
+        $deal = Deal::with('product')->findOrFail($id);
+        return response()->json($deal);
+    }
+
+    /**
+     * Update the specified deal
+     */
+    public function update(Request $request, $id)
+    {
+        $deal = Deal::findOrFail($id);
+
+        $validator = Validator::make($request->all(), [
+            'title' => 'sometimes|required|string|max:255',
+            'company_name' => 'sometimes|required|string|max:255',
+            'sector' => 'sometimes|required|string|max:255',
+            'deal_type' => 'sometimes|required|in:live,upcoming,closed',
+            'description' => 'nullable|string',
+            'company_logo' => 'nullable|string',
+            'min_investment' => 'nullable|numeric|min:0',
+            'max_investment' => 'nullable|numeric|min:0',
+            'valuation' => 'nullable|numeric|min:0',
+            'share_price' => 'nullable|numeric|min:0',
+            'total_shares' => 'nullable|integer|min:0',
+            'available_shares' => 'nullable|integer|min:0',
+            'deal_opens_at' => 'nullable|date',
+            'deal_closes_at' => 'nullable|date',
+            'highlights' => 'nullable|array',
+            'documents' => 'nullable|array',
+            'video_url' => 'nullable|url',
+            'status' => 'sometimes|required|in:draft,active,paused,closed',
+            'is_featured' => 'boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
+
+        // Update slug if title changed
+        if (isset($data['title']) && $data['title'] !== $deal->title) {
+            $data['slug'] = Str::slug($data['title']) . '-' . Str::random(6);
+        }
+
+        // Recalculate days remaining
+        if (isset($data['deal_closes_at'])) {
+            $data['days_remaining'] = now()->diffInDays($data['deal_closes_at'], false);
+        }
+
+        $deal->update($data);
+
+        return response()->json([
+            'message' => 'Deal updated successfully',
+            'deal' => $deal
+        ]);
+    }
+
+    /**
+     * Remove the specified deal
+     */
+    public function destroy($id)
+    {
+        $deal = Deal::findOrFail($id);
+        $deal->delete();
+
+        return response()->json([
+            'message' => 'Deal deleted successfully'
+        ]);
+    }
+
+    /**
+     * Get deal statistics
+     */
+    public function statistics()
+    {
+        $stats = [
+            'total_deals' => Deal::count(),
+            'live_deals' => Deal::live()->count(),
+            'upcoming_deals' => Deal::upcoming()->count(),
+            'closed_deals' => Deal::where('deal_type', 'closed')->count(),
+            'featured_deals' => Deal::featured()->count(),
+            'deals_by_sector' => Deal::selectRaw('sector, COUNT(*) as count')
+                ->groupBy('sector')
+                ->get(),
+        ];
+
+        return response()->json($stats);
+    }
+}

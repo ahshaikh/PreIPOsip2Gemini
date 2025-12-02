@@ -3,6 +3,7 @@
 
 import { Mail, Phone, MapPin } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function Footer() {
   return (
@@ -15,6 +16,16 @@ export default function Footer() {
           {/* Brand Column */}
           <div className="md:col-span-1">
             <div className="mb-4">
+              {/* Company Logo */}
+              <div className="mb-3">
+                <Image
+                  src="/preiposip.png"
+                  alt="PreIPO SIP Logo"
+                  width={120}
+                  height={32}
+                  className="object-contain"
+                />
+              </div>
               <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg font-bold text-xl inline-block shadow-sm">
                 PreIPO SIP
               </div>

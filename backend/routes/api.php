@@ -68,6 +68,10 @@ use App\Http\Controllers\Api\Admin\NotificationController as AdminNotificationCo
 use App\Http\Controllers\Api\Admin\KbArticleController;
 use App\Http\Controllers\Api\Admin\KbCategoryController;
 use App\Http\Controllers\Api\Admin\ComplianceController;
+use App\Http\Controllers\Api\Admin\DealController;
+use App\Http\Controllers\Api\Admin\CompanyController;
+use App\Http\Controllers\Api\Admin\TutorialController;
+use App\Http\Controllers\Api\Admin\ContentReportController;
 
 // Invoice & Webhook
 use App\Http\Controllers\Api\InvoiceController;
@@ -445,6 +449,34 @@ Route::prefix('v1')->group(function () {
             Route::apiResource('/support-tickets', AdminSupportTicketController::class)->names('admin.support-tickets')->middleware('permission:users.view');
             Route::post('/support-tickets/{supportTicket}/reply', [AdminSupportTicketController::class, 'reply'])->middleware('permission:users.edit');
             Route::put('/support-tickets/{supportTicket}/status', [AdminSupportTicketController::class, 'updateStatus'])->middleware('permission:users.edit');
+
+            // -------------------------------------------------------------
+            // CONTENT MANAGEMENT SYSTEM
+            // -------------------------------------------------------------
+            // Deals Management (Live Deals, Upcoming Deals)
+            Route::prefix('deals')->group(function () {
+                Route::get('/', [DealController::class, 'index'])->middleware('permission:products.view');
+                Route::post('/', [DealController::class, 'store'])->middleware('permission:products.create');
+                Route::get('/statistics', [DealController::class, 'statistics'])->middleware('permission:products.view');
+                Route::get('/{id}', [DealController::class, 'show'])->middleware('permission:products.view');
+                Route::put('/{id}', [DealController::class, 'update'])->middleware('permission:products.edit');
+                Route::delete('/{id}', [DealController::class, 'destroy'])->middleware('permission:products.delete');
+            });
+
+            // Companies Directory
+            Route::apiResource('/companies', CompanyController::class)->middleware('permission:products.view');
+
+            // Tutorials Management
+            Route::apiResource('/tutorials', TutorialController::class)->middleware('permission:settings.manage_cms');
+
+            // Reports Management (Market Analysis, Research Reports)
+            Route::prefix('content-reports')->group(function () {
+                Route::get('/', [ContentReportController::class, 'index'])->middleware('permission:settings.manage_cms');
+                Route::post('/', [ContentReportController::class, 'store'])->middleware('permission:settings.manage_cms');
+                Route::get('/{id}', [ContentReportController::class, 'show'])->middleware('permission:settings.manage_cms');
+                Route::put('/{id}', [ContentReportController::class, 'update'])->middleware('permission:settings.manage_cms');
+                Route::delete('/{id}', [ContentReportController::class, 'destroy'])->middleware('permission:settings.manage_cms');
+            });
         });
     });
 });
