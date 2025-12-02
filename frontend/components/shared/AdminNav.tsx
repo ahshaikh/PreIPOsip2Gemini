@@ -29,7 +29,12 @@ import {
   Zap,
   Activity,
   Database,
-  Shield // <-- Re-import (or Check)
+  Shield,
+  TrendingUp,
+  Building2,
+  GraduationCap,
+  FileBarChart,
+  Layers
 } from 'lucide-react';
 
 const navItems = [
@@ -42,6 +47,14 @@ const navItems = [
   { href: '/admin/lucky-draws', label: 'Lucky Draw', icon: Ticket },
   { href: '/admin/profit-sharing', label: 'Profit Sharing', icon: PieChart },
   { href: '/admin/support', label: 'Support Tickets', icon: LifeBuoy },
+];
+
+const contentManagementNav = [
+    { href: '/admin/content/deals', label: 'Deals Management', icon: TrendingUp },
+    { href: '/admin/content/companies', label: 'Companies', icon: Building2 },
+    { href: '/admin/content/tutorials', label: 'Tutorials', icon: GraduationCap },
+    { href: '/admin/content/reports', label: 'Reports & Analysis', icon: FileBarChart },
+    { href: '/admin/content/sectors', label: 'Sectors', icon: Layers },
 ];
 
 const notificationNav = [
@@ -93,6 +106,9 @@ export function AdminNav() {
     <nav className="flex flex-col space-y-1">
       <h4 className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Main</h4>
       {navItems.map(renderLink)}
+
+      <h4 className="px-3 pt-4 pb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Content Management</h4>
+      {contentManagementNav.map(renderLink)}
 
       <h4 className="px-3 pt-4 pb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Notifications</h4>
       {notificationNav.map(renderLink)}
