@@ -41,7 +41,11 @@ class DatabaseSeeder extends Seeder
         // 7. Admin User
         $this->call(UserSeeder::class); // Creates the Super Admin
 
-        // 8. --- "Chaos Seeder" ---
+        // 8. Cms And Bonus
+        $this->call(CmsAndBonusSeeder::class);
+        $this->call(ContentManagementSeeder::class);
+
+        // 9. --- "Chaos Seeder" ---
         // Only run this in 'local' or 'staging' environments
         if (App::environment(['local', 'staging'])) {
             $this->call(TestDataSetSeeder::class);

@@ -83,87 +83,57 @@ class ExhaustivePreIPOSeeder extends Seeder
     private $plans = [];
     private $bulkPurchases = [];
 
-    public function run(): void
-    {
-        $this->command->info('🚀 Starting Exhaustive PreIPO SIP Platform Seeder...');
+public function run(): void
+{
+    $this->command->info('🚀 Starting Exhaustive PreIPO SIP Platform Seeder...');
 
-        DB::beginTransaction();
+    DB::beginTransaction();
+
+    // Ordered list of seeding steps
+    $steps = [
+        'System Configuration'        => 'seedSystemConfiguration',
+        'Roles & Permissions'         => 'seedRolesAndPermissions',
+        'Legal Documents'             => 'seedLegalDocuments',
+        'Products'                    => 'seedProducts',
+        'Investment Plans'            => 'seedPlans',
+        'Admin Users'                 => 'seedAdminUsers',
+        'CMS Content'                 => 'seedCMSContent',
+        'Communication Templates'     => 'seedCommunicationTemplates',
+        'Regular Users'               => 'seedRegularUsers',
+        'Subscriptions & Payments'    => 'seedSubscriptionsAndPayments',
+        'User Investments'            => 'seedUserInvestments',
+        'Wallets & Transactions'      => 'seedWalletsAndTransactions',
+        'Withdrawals'                 => 'seedWithdrawals',
+        'Bonuses'                     => 'seedBonuses',
+        'Referrals'                   => 'seedReferrals',
+        'Lucky Draws'                 => 'seedLuckyDraws',
+        'Profit Sharing'              => 'seedProfitSharing',
+        'Support Tickets'             => 'seedSupportTickets',
+        'Activity Logs'               => 'seedActivityLogs',
+        'Notifications'               => 'seedNotifications',
+    ];
+
+    foreach ($steps as $label => $method) {
+        $this->command->info("➡ Running: {$label}");
 
         try {
-            // 1. System Configuration
-            $this->seedSystemConfiguration();
-
-            // 2. Roles & Permissions
-            $this->seedRolesAndPermissions();
-
-            // 3. Legal & Compliance
-            $this->seedLegalDocuments();
-
-            // 4. Products (Pre-IPO Companies)
-            $this->seedProducts();
-
-            // 5. Investment Plans
-            $this->seedPlans();
-
-            // 6. CMS Content (Public/Visitor Data)
-            $this->seedCMSContent();
-
-            // 7. Communication Templates
-            $this->seedCommunicationTemplates();
-
-            // 8. Admin Users
-            $this->seedAdminUsers();
-
-            // 9. Regular Users (Comprehensive Scenarios)
-            $this->seedRegularUsers();
-
-            // 10. Subscriptions & Payments
-            $this->seedSubscriptionsAndPayments();
-
-            // 11. User Investments
-            $this->seedUserInvestments();
-
-            // 12. Wallets & Transactions
-            $this->seedWalletsAndTransactions();
-
-            // 13. Withdrawals
-            $this->seedWithdrawals();
-
-            // 14. Bonus System
-            $this->seedBonuses();
-
-            // 15. Referral System
-            $this->seedReferrals();
-
-            // 16. Lucky Draws
-            $this->seedLuckyDraws();
-
-            // 17. Profit Sharing
-            $this->seedProfitSharing();
-
-            // 18. Support Tickets
-            $this->seedSupportTickets();
-
-            // 19. Activity Logs
-            $this->seedActivityLogs();
-
-            // 20. Notifications
-            $this->seedNotifications();
-
-            DB::commit();
-
-            $this->command->info('✅ Exhaustive seeding completed successfully!');
-            $this->printSeederSummary();
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            $this->command->error('❌ Seeding failed: ' . $e->getMessage());
-            $this->command->error($e->getTraceAsString());
-            throw $e;
+            $this->{$method}();
+        } catch (\Throwable $e) {
+            $this->command->error("❌ Error in {$label}");
+            $this->command->error("Message: " . $e->getMessage());
+            $this->command->error("File: " . $e->getFile() . ':' . $e->getLine());
+            $this->command->error("--------------------------------------------------");
+            continue; // continue to next seeding step even if this one fails
         }
     }
 
-    // ==========================================
+    DB::commit();
+
+    $this->command->info('✅ Exhaustive seeding completed (with possible warnings).');
+    $this->printSeederSummary();
+}
+
+// ==========================================
     // 1. SYSTEM CONFIGURATION
     // ==========================================
 
@@ -1076,7 +1046,7 @@ HTML;
                 'title' => 'Understanding Pre-IPO Investments',
                 'slug' => 'understanding-pre-ipo-investments',
                 'content' => 'Pre-IPO investments offer unique opportunities...',
-                'excerpt' => 'Learn about Pre-IPO investing',
+        //        'excerpt' => 'Learn about Pre-IPO investing',
                 'author_id' => 1,
                 'status' => 'published',
                 'published_at' => Carbon::now(),
@@ -1085,7 +1055,7 @@ HTML;
                 'title' => 'Top 5 Pre-IPO Companies to Watch in 2025',
                 'slug' => 'top-5-pre-ipo-companies-2025',
                 'content' => 'These companies are poised for IPO success...',
-                'excerpt' => 'Our top picks for 2025',
+        //        'excerpt' => 'Our top picks for 2025',
                 'author_id' => 1,
                 'status' => 'published',
                 'published_at' => Carbon::now(),
@@ -1579,40 +1549,46 @@ HTML;
     }
 
     private function seedReferrals(): void
-    {
-        $this->command->info('🔗 Seeding Referrals...');
+{
+    $this->command->info('🔗 Seeding Referrals...');
 
-        // Create referral campaign
-        ReferralCampaign::create([
-            'name' => 'New Year Referral Campaign 2025',
-            'start_date' => Carbon::now()->subMonths(2),
-            'end_date' => Carbon::now()->addMonths(4),
-            'multiplier' => 1.5,
-            'bonus_amount' => 500,
-            'is_active' => true,
-        ]);
+    // Create referral campaign
+    ReferralCampaign::create([
+        'name' => 'New Year Referral Campaign 2025',
+        'start_date' => Carbon::now()->subMonths(2),
+        'end_date' => Carbon::now()->addMonths(4),
+        'multiplier' => 1.5,
+        'bonus_amount' => 500,
+        'is_active' => true,
+    ]);
 
-        // Create referral chains
-        $usersForReferral = collect($this->regularUsers)->take(50);
+    // Create referral chains
+    $usersForReferral = collect($this->regularUsers)->take(50);
 
-        foreach ($usersForReferral as $index => $referrer) {
-            // Each user refers 0-5 people
-            $referralCount = mt_rand(0, 5);
+    foreach ($usersForReferral as $index => $referrer) {
+        // Each user refers 0–5 people
+        $referralCount = mt_rand(0, 5);
 
-            for ($i = 0; $i < $referralCount; $i++) {
-                if ($index + $i + 1 < count($this->regularUsers)) {
-                    $referred = $this->regularUsers[$index + $i + 1];
+        for ($i = 0; $i < $referralCount; $i++) {
 
-                    Referral::create([
-                        'referrer_id' => $referrer->id,
-                        'referred_id' => $referred->id,
-                        'status' => mt_rand(0, 100) > 30 ? 'completed' : 'pending',
-                        'completed_at' => mt_rand(0, 100) > 30 ? Carbon::now() : null,
-                    ]);
+            if ($index + $i + 1 < count($this->regularUsers)) {
+
+                $referred = $this->regularUsers[$index + $i + 1];
+
+                // 🔥 SKIP if this user is already referred
+                if (Referral::where('referred_id', $referred->id)->exists()) {
+                    continue;
                 }
+
+                Referral::create([
+                    'referrer_id' => $referrer->id,
+                    'referred_id' => $referred->id,
+                    'status' => mt_rand(0, 100) > 30 ? 'completed' : 'pending',
+                    'completed_at' => mt_rand(0, 100) > 30 ? Carbon::now() : null,
+                ]);
             }
         }
-
+    }
         $this->command->info('   ✓ Referrals seeded');
     }
 
@@ -1623,11 +1599,11 @@ HTML;
         $luckyDraw = LuckyDraw::create([
             'name' => 'December 2024 Lucky Draw',
             'draw_date' => Carbon::now()->subDays(10),
-            'prize_structure' => json_encode([
-                ['rank' => 1, 'prize' => 50000],
-                ['rank' => 2, 'prize' => 25000],
-                ['rank' => 3, 'prize' => 10000],
-            ]),
+            'prize_structure' => [
+                ['count' => 1, 'amount' => 50000],
+                ['count' => 1, 'amount' => 25000],
+                ['count' => 1, 'amount' => 10000],
+            ],
             'status' => 'completed',
         ]);
 

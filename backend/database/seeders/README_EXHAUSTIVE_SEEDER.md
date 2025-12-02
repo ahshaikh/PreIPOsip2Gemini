@@ -175,25 +175,25 @@ php artisan db:seed --class=ExhaustivePreIPOSeeder
 
 ## Data Distribution Summary
 
-| Category | Count | Notes |
-|----------|-------|-------|
-| **Admin Users** | 5 | All roles covered |
-| **Regular Users** | 155 | All user states |
-| **Products** | 20 | 5 detailed, 15 basic |
-| **Plans** | 4 | All price tiers |
-| **Subscriptions** | ~108 | 70% of verified users |
-| **Payments** | ~648-1296 | 3-12 per subscription |
-| **Bulk Purchases** | 40-60 | 2-3 per product |
-| **User Investments** | 200 | Top payments |
-| **Wallets** | 155 | 1 per regular user |
-| **Transactions** | 775-2325 | 5-15 per wallet |
-| **Withdrawals** | 30 | Various statuses |
-| **Bonuses** | 300+ | Progressive + milestone |
-| **Referrals** | ~125 | 0-5 per user |
-| **Lucky Draw Entries** | 50 | Active subscribers |
-| **Support Tickets** | 40 | With messages |
-| **Activity Logs** | 1550-4650 | 10-30 per user |
-| **Notifications** | 250-750 | 5-15 per user (50 users) |
+| Category                | Count     | Notes                     |
+|-------------------------|-----------|---------------------------|
+| **Admin Users**         | 5         | All roles covered         |
+| **Regular Users**       | 155       | All user states           |
+| **Products**            | 20        | 5 detailed, 15 basic      |
+| **Plans**               | 4         | All price tiers           |
+| **Subscriptions**       | ~108      | 70% of verified users     |
+| **Payments**            | ~648-1296 | 3-12 per subscription     |
+| **Bulk Purchases**      | 40-60     | 2-3 per product           |
+| **User Investments**    | 200       | Top payments              |
+| **Wallets**             | 155       | 1 per regular user        |
+| **Transactions**        | 775-2325  | 5-15 per wallet           |
+| **Withdrawals**         | 30        | Various statuses          |
+| **Bonuses**             | 300+      | Progressive + milestone   |
+| **Referrals**           | ~125      | 0-5 per user              |
+| **Lucky Draw Entries**  | 50        | Active subscribers        |
+| **Support Tickets**     | 40        | With messages             |
+| **Activity Logs**       | 1550-4650 | 10-30 per user            |
+| **Notifications**       | 250-750   | 5-15 per user (50 users)  |
 
 ---
 

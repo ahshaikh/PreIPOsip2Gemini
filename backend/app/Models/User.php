@@ -119,8 +119,22 @@ class User extends Authenticatable
     public function referrals(): HasMany { return $this->hasMany(Referral::class, 'referrer_id'); }
     public function referrer(): HasOne { return $this->hasOne(Referral::class, 'referred_id'); }
     public function notificationPreferences(): HasMany { return $this->hasMany(UserNotificationPreference::class); }
+
+    /**
+     * Determine if the user can receive a particular notification.
+     */
     public function canReceiveNotification(string $key): bool {
         $pref = $this->notificationPreferences->where('preference_key', $key)->first();
         return $pref ? $pref->is_enabled : true;
+    }
+
+    /**
+     * 🔥 ADDED — Required for Lucky Draw Seeder
+     * Users CAN have many payments because payments table has a user_id field.
+     * Without this relationship, any call like $user->payments() will fail.
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
     }
 }

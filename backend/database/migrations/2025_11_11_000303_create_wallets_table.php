@@ -34,8 +34,8 @@ return new class extends Migration
             
             $table->decimal('tds_deducted', 10, 2)->default(0);
             $table->text('description');
-            
-            $table->morphs('reference'); // Links to Payment, Withdrawal, Bonus
+
+            $table->nullableMorphs('reference'); // Links to Payment, Withdrawal, Bonus
             $table->timestamps();
         });
 
