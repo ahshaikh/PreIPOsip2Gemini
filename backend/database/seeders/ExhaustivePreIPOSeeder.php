@@ -249,68 +249,66 @@ public function run(): void
         // Reset cached roles and permissions
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // Define all permissions
+        // Define all permissions - MUST MATCH route middleware checks exactly
         $permissions = [
-            // User Management
-            'view-users', 'create-users', 'edit-users', 'delete-users', 'export-users', 'import-users',
-            'suspend-users', 'restore-users', 'adjust-user-balance',
+            // User Management (users.*)
+            'users.view', 'users.create', 'users.edit', 'users.delete', 'users.export', 'users.import',
+            'users.suspend', 'users.restore', 'users.adjust_wallet', 'users.manage_roles',
 
-            // KYC Management
-            'view-kyc', 'approve-kyc', 'reject-kyc', 'export-kyc',
+            // KYC Management (kyc.*)
+            'kyc.view_queue', 'kyc.approve', 'kyc.reject', 'kyc.export',
 
-            // Plan Management
-            'view-plans', 'create-plans', 'edit-plans', 'delete-plans',
+            // Plan Management (plans.*)
+            'plans.view', 'plans.create', 'plans.edit', 'plans.delete',
 
-            // Product Management
-            'view-products', 'create-products', 'edit-products', 'delete-products',
+            // Product Management (products.*)
+            'products.view', 'products.create', 'products.edit', 'products.delete',
 
             // Bulk Purchase Management
-            'view-bulk-purchases', 'create-bulk-purchases', 'edit-bulk-purchases', 'delete-bulk-purchases',
+            'bulk_purchases.view', 'bulk_purchases.create', 'bulk_purchases.edit', 'bulk_purchases.delete',
 
-            // Payment Management
-            'view-payments', 'create-payments', 'refund-payments', 'export-payments',
+            // Payment Management (payments.*)
+            'payments.view', 'payments.create', 'payments.refund', 'payments.export',
+            'payments.offline_entry', 'payments.approve',
 
-            // Withdrawal Management
-            'view-withdrawals', 'approve-withdrawals', 'reject-withdrawals', 'process-withdrawals',
+            // Withdrawal Management (withdrawals.*)
+            'withdrawals.view', 'withdrawals.approve', 'withdrawals.reject', 'withdrawals.process',
 
-            // Bonus Management
-            'view-bonuses', 'create-bonuses', 'adjust-bonuses', 'delete-bonuses',
+            // Bonus Management (bonuses.*)
+            'bonuses.view', 'bonuses.create', 'bonuses.adjust', 'bonuses.delete',
 
-            // Referral Management
-            'view-referrals', 'manage-referral-campaigns',
+            // Referral Management (referrals.*)
+            'referrals.view', 'referrals.manage_campaigns',
 
-            // Lucky Draw Management
-            'view-lucky-draws', 'create-lucky-draws', 'execute-lucky-draws', 'delete-lucky-draws',
+            // Lucky Draw Management (lucky_draws.*)
+            'lucky_draws.view', 'lucky_draws.create', 'lucky_draws.execute', 'lucky_draws.delete',
 
-            // Profit Sharing Management
-            'view-profit-sharing', 'create-profit-sharing', 'calculate-profit-sharing',
-            'distribute-profit-sharing', 'reverse-profit-sharing',
+            // Profit Sharing Management (profit_sharing.*)
+            'profit_sharing.view', 'profit_sharing.create', 'profit_sharing.calculate',
+            'profit_sharing.distribute', 'profit_sharing.reverse',
 
-            // Support Management
-            'view-support-tickets', 'assign-support-tickets', 'resolve-support-tickets', 'close-support-tickets',
+            // Support Management (support.*)
+            'support.view_tickets', 'support.assign_tickets', 'support.resolve_tickets', 'support.close_tickets',
 
-            // CMS Management
-            'view-pages', 'create-pages', 'edit-pages', 'delete-pages', 'publish-pages',
-            'view-blog', 'create-blog', 'edit-blog', 'delete-blog', 'publish-blog',
-            'view-faqs', 'create-faqs', 'edit-faqs', 'delete-faqs',
-            'view-kb', 'create-kb', 'edit-kb', 'delete-kb',
+            // CMS Management (settings.manage_cms)
+            'settings.manage_cms',
 
-            // Compliance Management
-            'view-compliance', 'create-compliance', 'edit-compliance', 'delete-compliance',
-            'publish-compliance', 'archive-compliance',
+            // Notification Management (settings.manage_notifications)
+            'settings.manage_notifications',
 
-            // Notification Management
-            'view-notifications', 'send-notifications', 'schedule-notifications',
+            // Settings Management (settings.*)
+            'settings.view_system', 'settings.edit_system', 'settings.manage_theme',
 
-            // Settings Management
-            'view-settings', 'edit-settings', 'edit-email-templates', 'edit-sms-templates',
+            // Compliance Management (compliance.*)
+            'compliance.view', 'compliance.create', 'compliance.edit', 'compliance.delete',
+            'compliance.publish', 'compliance.archive',
 
-            // Report Access
-            'view-reports', 'export-reports', 'view-financial-reports', 'view-analytics',
+            // Report Access (reports.*)
+            'reports.view', 'reports.export', 'reports.view_financial', 'reports.view_user',
 
-            // System Management
-            'view-activity-logs', 'view-system-health', 'manage-ip-whitelist',
-            'manage-feature-flags', 'manage-roles', 'manage-permissions',
+            // System Management (system.*)
+            'system.view_logs', 'system.view_health', 'system.manage_backups',
+            'system.manage_ip_whitelist', 'system.manage_feature_flags',
         ];
 
         foreach ($permissions as $permission) {
@@ -330,40 +328,37 @@ public function run(): void
         $superAdmin->givePermissionTo(Permission::all());
 
         $admin->givePermissionTo([
-            'view-users', 'edit-users', 'suspend-users',
-            'view-kyc', 'approve-kyc', 'reject-kyc',
-            'view-plans', 'create-plans', 'edit-plans',
-            'view-products', 'create-products', 'edit-products',
-            'view-payments', 'refund-payments',
-            'view-withdrawals', 'approve-withdrawals', 'reject-withdrawals',
-            'view-bonuses', 'create-bonuses',
-            'view-referrals',
-            'view-support-tickets', 'assign-support-tickets', 'resolve-support-tickets',
-            'view-reports', 'export-reports',
+            'users.view', 'users.edit', 'users.suspend',
+            'kyc.view_queue', 'kyc.approve', 'kyc.reject',
+            'plans.view', 'plans.create', 'plans.edit',
+            'products.view', 'products.create', 'products.edit',
+            'payments.view', 'payments.refund',
+            'withdrawals.view', 'withdrawals.approve', 'withdrawals.reject',
+            'bonuses.view', 'bonuses.create',
+            'referrals.view',
+            'support.view_tickets', 'support.assign_tickets', 'support.resolve_tickets',
+            'reports.view', 'reports.export',
         ]);
 
         $kycOfficer->givePermissionTo([
-            'view-users', 'view-kyc', 'approve-kyc', 'reject-kyc', 'export-kyc',
+            'users.view', 'kyc.view_queue', 'kyc.approve', 'kyc.reject', 'kyc.export',
         ]);
 
         $supportAgent->givePermissionTo([
-            'view-support-tickets', 'assign-support-tickets', 'resolve-support-tickets', 'close-support-tickets',
-            'view-users',
+            'support.view_tickets', 'support.assign_tickets', 'support.resolve_tickets', 'support.close_tickets',
+            'users.view',
         ]);
 
         $contentManager->givePermissionTo([
-            'view-pages', 'create-pages', 'edit-pages', 'delete-pages', 'publish-pages',
-            'view-blog', 'create-blog', 'edit-blog', 'delete-blog', 'publish-blog',
-            'view-faqs', 'create-faqs', 'edit-faqs', 'delete-faqs',
-            'view-kb', 'create-kb', 'edit-kb', 'delete-kb',
+            'settings.manage_cms',
         ]);
 
         $financeManager->givePermissionTo([
-            'view-payments', 'export-payments', 'refund-payments',
-            'view-withdrawals', 'approve-withdrawals', 'reject-withdrawals', 'process-withdrawals',
-            'view-bonuses', 'create-bonuses', 'adjust-bonuses',
-            'view-profit-sharing', 'create-profit-sharing', 'calculate-profit-sharing', 'distribute-profit-sharing',
-            'view-financial-reports', 'view-reports', 'export-reports',
+            'payments.view', 'payments.export', 'payments.refund',
+            'withdrawals.view', 'withdrawals.approve', 'withdrawals.reject', 'withdrawals.process',
+            'bonuses.view', 'bonuses.create', 'bonuses.adjust',
+            'profit_sharing.view', 'profit_sharing.create', 'profit_sharing.calculate', 'profit_sharing.distribute',
+            'reports.view_financial', 'reports.view', 'reports.export',
         ]);
 
         // User role has no admin permissions
