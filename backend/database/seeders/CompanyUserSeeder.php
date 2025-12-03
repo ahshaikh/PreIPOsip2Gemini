@@ -7,11 +7,11 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use App\Models\Company;
 use App\Models\CompanyUser;
-use App\Models\TeamMember;
-use App\Models\FundingRound;
+use App\Models\CompanyTeamMember;
+use App\Models\CompanyFundingRound;
 use App\Models\CompanyUpdate;
-use App\Models\FinancialReport;
-use App\Models\Document;
+use App\Models\CompanyFinancialReport;
+use App\Models\CompanyDocument;
 use App\Models\CompanyAnalytics;
 use App\Models\InvestorInterest;
 use App\Models\CompanyQna;
@@ -174,13 +174,12 @@ class CompanyUserSeeder extends Seeder
         ];
 
         foreach ($positions as $position) {
-            TeamMember::create([
+            CompanyTeamMember::create([
                 'company_id' => $company->id,
                 'name' => fake()->name(),
                 'designation' => $position[0],
                 'bio' => $position[1],
                 'linkedin_url' => 'https://linkedin.com/in/' . Str::slug(fake()->name()),
-                'email' => fake()->unique()->safeEmail(),
             ]);
         }
 
@@ -198,14 +197,14 @@ class CompanyUserSeeder extends Seeder
 
         $startYear = 2020;
         foreach ($rounds as $index => $round) {
-            FundingRound::create([
+            CompanyFundingRound::create([
                 'company_id' => $company->id,
                 'round_name' => $round[0],
                 'amount_raised' => $round[1],
                 'valuation' => $round[1] * (10 + $index),
-                'date' => $round[2],
-                'lead_investors' => $round[3],
-                'investors_count' => rand(3, 8),
+                'round_date' => $round[2],
+                'investors' => explode(', ', $round[3]), // Convert to array
+                'description' => "Funding round {$round[0]} for " . $company->name,
             ]);
         }
 
@@ -245,6 +244,9 @@ class CompanyUserSeeder extends Seeder
 
     private function createFinancialReports(Company $company)
     {
+        // Get the company user for uploaded_by
+        $companyUser = CompanyUser::where('company_id', $company->id)->first();
+
         $years = [2022, 2023, 2024];
         $types = ['Annual Report', 'Quarterly Report'];
 
@@ -252,23 +254,31 @@ class CompanyUserSeeder extends Seeder
             if ($year == 2024) {
                 // Only Q1 and Q2 for 2024
                 for ($quarter = 1; $quarter <= 2; $quarter++) {
-                    FinancialReport::create([
+                    $quarterName = "Q{$quarter}";
+                    CompanyFinancialReport::create([
                         'company_id' => $company->id,
-                        'report_type' => 'Quarterly Report',
+                        'uploaded_by' => $companyUser->id,
+                        'report_type' => 'financial_statement',
+                        'title' => "{$quarterName} {$year} Financial Report",
                         'year' => $year,
-                        'quarter' => $quarter,
+                        'quarter' => $quarterName,
                         'status' => 'published',
                         'file_path' => "/storage/reports/{$company->slug}-q{$quarter}-{$year}.pdf",
+                        'file_name' => "{$company->slug}-q{$quarter}-{$year}.pdf",
                     ]);
                 }
             } else {
                 // Annual report for previous years
-                FinancialReport::create([
+                CompanyFinancialReport::create([
                     'company_id' => $company->id,
-                    'report_type' => 'Annual Report',
+                    'uploaded_by' => $companyUser->id,
+                    'report_type' => 'annual_report',
+                    'title' => "{$year} Annual Report",
                     'year' => $year,
+                    'quarter' => 'Annual',
                     'status' => 'published',
                     'file_path' => "/storage/reports/{$company->slug}-annual-{$year}.pdf",
+                    'file_name' => "{$company->slug}-annual-{$year}.pdf",
                 ]);
             }
         }
@@ -278,19 +288,25 @@ class CompanyUserSeeder extends Seeder
 
     private function createDocuments(Company $company)
     {
+        // Get the company user for uploaded_by
+        $companyUser = CompanyUser::where('company_id', $company->id)->first();
+
         $documents = [
             ['Investor Pitch Deck', 'pitch_deck', 'Comprehensive pitch deck showcasing our vision and growth'],
-            ['Business Plan 2024', 'business_plan', 'Detailed business plan and roadmap for 2024'],
-            ['Product Overview', 'product', 'Overview of our product features and benefits'],
+            ['Business Plan 2024', 'other', 'Detailed business plan and roadmap for 2024'],
+            ['Product Overview', 'investor_presentation', 'Overview of our product features and benefits'],
         ];
 
         foreach ($documents as $doc) {
-            Document::create([
+            $fileName = Str::slug($doc[0]) . ".pdf";
+            CompanyDocument::create([
                 'company_id' => $company->id,
+                'uploaded_by' => $companyUser->id,
                 'title' => $doc[0],
-                'type' => $doc[1],
+                'document_type' => $doc[1],
                 'description' => $doc[2],
-                'file_path' => "/storage/documents/{$company->slug}-" . Str::slug($doc[0]) . ".pdf",
+                'file_path' => "/storage/documents/{$company->slug}-{$fileName}",
+                'file_name' => $fileName,
                 'is_public' => true,
                 'status' => 'active',
             ]);
