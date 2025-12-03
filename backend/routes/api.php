@@ -136,7 +136,11 @@ Route::prefix('v1')->group(function () {
 
     // --- Dashboard Widgets ---
     Route::get('/announcements/latest', [UserDashboardController::class, 'announcements']);
-    Route::get('/offers/active', [UserDashboardController::class, 'offers']);
+
+    // --- Offers ---
+    Route::get('/offers/active', [App\Http\Controllers\Api\User\OfferController::class, 'index']);
+    Route::get('/offers/{id}', [App\Http\Controllers\Api\User\OfferController::class, 'show']);
+    Route::post('/offers/validate', [App\Http\Controllers\Api\User\OfferController::class, 'validateCode']);
 
     // --- Legal Documents (Public) ---
     Route::get('/legal/documents', [LegalDocumentController::class, 'index']);

@@ -231,10 +231,8 @@ export default function OfferDetailPage() {
 
           {/* CTA Section */}
           <div className="flex flex-col sm:flex-row gap-4">
-            <Button size="lg" className="flex-1" asChild>
-              <a href="/subscribe">
-                Start Investing Now
-              </a>
+            <Button size="lg" className="flex-1" onClick={() => router.push('/plans')}>
+              Start Investing Now
             </Button>
             <Button size="lg" variant="outline" className="flex-1" onClick={copyCode}>
               <Copy className="mr-2 h-4 w-4" />
