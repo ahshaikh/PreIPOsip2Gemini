@@ -18,12 +18,15 @@ import {
   TrendingUp,
   FileText,
   Download,
-  ExternalLink
+  ExternalLink,
+  BarChart3,
+  Youtube
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface Company {
   id: number;
@@ -44,12 +47,71 @@ interface Company {
   employees_count?: number;
   is_verified: boolean;
   status: string;
+  isin?: string;
+  pan?: string;
+  tan?: string;
+  gst?: string;
   financial_reports: any[];
   documents: any[];
   team_members: any[];
   funding_rounds: any[];
   updates: any[];
+  youtube_videos?: string[];
 }
+
+// Mock data for Key Indicators (in real app, this would come from API)
+const keyIndicators = {
+  faceValue: 10.0,
+  bookValue: 7210.0,
+  priceToEarning: 18.9,
+  priceToSales: 1.2,
+  priceToBook: 3.6,
+  outstandingShares: 0.5,
+  marketCap: 13125.0,
+  debtToEquity: 0.08,
+  dividendPerShare: 200.0,
+  dividendPercent: 0.8,
+  returnOnAssets: 9.5,
+  returnOnEquity: 12.2,
+  rowc: null,
+};
+
+// Mock data for Shareholders
+const shareholders = [
+  { name: 'Ajit Thomas', percentage: 49.4 },
+  { name: 'Dilip thomas', percentage: 34.2 },
+  { name: 'The Highland Produce Co. Ltd', percentage: 0.8 },
+  { name: 'The Rajagiri Rubber and Produce Co. Ltd', percentage: 0.5 },
+  { name: 'Priyalatha Thomas', percentage: 0.1 },
+  { name: 'Ashwin Thomas', percentage: 0.1 },
+  { name: 'Divesh Thomas', percentage: 0.1 },
+  { name: 'All Others', percentage: 14.8 },
+];
+
+// Mock chart data (in real app, this would come from API)
+const revenueGrowthData = [
+  { year: '2020', value: 12.5 },
+  { year: '2021', value: 18.3 },
+  { year: '2022', value: 24.7 },
+  { year: '2023', value: 31.2 },
+  { year: '2024', value: 35.8 },
+];
+
+const ebitdaMarginData = [
+  { year: '2020', value: 15.2 },
+  { year: '2021', value: 17.8 },
+  { year: '2022', value: 19.5 },
+  { year: '2023', value: 22.1 },
+  { year: '2024', value: 24.6 },
+];
+
+const epsGrowthData = [
+  { year: '2020', value: 8.3 },
+  { year: '2021', value: 12.7 },
+  { year: '2022', value: 16.4 },
+  { year: '2023', value: 21.8 },
+  { year: '2024', value: 28.5 },
+];
 
 export default function PublicCompanyProfile() {
   const params = useParams();
@@ -169,41 +231,73 @@ export default function PublicCompanyProfile() {
       {/* Main Content */}
       <div className="container py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Sidebar */}
+          {/* Left Sidebar */}
           <div className="space-y-6">
-            {/* Key Metrics */}
+            {/* Key Indicators */}
             <Card>
               <CardHeader>
-                <CardTitle>Key Metrics</CardTitle>
+                <CardTitle className="text-lg font-bold">KEY INDICATORS</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {company.latest_valuation && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Valuation</p>
-                    <p className="text-2xl font-bold text-blue-600">
-                      {formatCurrency(company.latest_valuation)}
-                    </p>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center py-2 border-b">
+                    <span className="text-sm font-medium text-gray-600">FACE VALUE/SHARE</span>
+                    <span className="font-semibold">{keyIndicators.faceValue}</span>
                   </div>
-                )}
-                {company.employees_count && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Employees</p>
-                    <p className="text-xl font-semibold flex items-center gap-2">
-                      <Users className="w-5 h-5" />
-                      {company.employees_count}
-                    </p>
+                  <div className="flex justify-between items-center py-2 border-b">
+                    <span className="text-sm font-medium text-gray-600">BOOK VALUE/SHARE</span>
+                    <span className="font-semibold">{keyIndicators.bookValue.toFixed(1)}</span>
                   </div>
-                )}
-                {company.funding_rounds?.length > 0 && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Funding Rounds</p>
-                    <p className="text-xl font-semibold">{company.funding_rounds.length}</p>
+                  <div className="flex justify-between items-center py-2 border-b">
+                    <span className="text-sm font-medium text-gray-600">PRICE TO EARNING (PE)</span>
+                    <span className="font-semibold">{keyIndicators.priceToEarning}</span>
                   </div>
-                )}
+                  <div className="flex justify-between items-center py-2 border-b">
+                    <span className="text-sm font-medium text-gray-600">PRICE/SALES</span>
+                    <span className="font-semibold">{keyIndicators.priceToSales}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b">
+                    <span className="text-sm font-medium text-gray-600">PRICE/BOOK</span>
+                    <span className="font-semibold">{keyIndicators.priceToBook}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b">
+                    <span className="text-sm font-medium text-gray-600">OUTSTANDING SHARES (Million)</span>
+                    <span className="font-semibold">{keyIndicators.outstandingShares}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b">
+                    <span className="text-sm font-medium text-gray-600">MARKET CAP (Rs. Million)</span>
+                    <span className="font-semibold">{keyIndicators.marketCap.toFixed(1)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b">
+                    <span className="text-sm font-medium text-gray-600">DEBT/EQUITY</span>
+                    <span className="font-semibold">{keyIndicators.debtToEquity}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b">
+                    <span className="text-sm font-medium text-gray-600">DIVIDEND/SHARE</span>
+                    <span className="font-semibold">{keyIndicators.dividendPerShare.toFixed(1)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b">
+                    <span className="text-sm font-medium text-gray-600">DIVIDEND % (ON CMP)</span>
+                    <span className="font-semibold">{keyIndicators.dividendPercent}%</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b">
+                    <span className="text-sm font-medium text-gray-600">RETURN ON TOTAL ASSETS</span>
+                    <span className="font-semibold">{keyIndicators.returnOnAssets}%</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b">
+                    <span className="text-sm font-medium text-gray-600">RETURN ON EQUITY</span>
+                    <span className="font-semibold">{keyIndicators.returnOnEquity}%</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b">
+                    <span className="text-sm font-medium text-gray-600">ROWC</span>
+                    <span className="font-semibold">{keyIndicators.rowc || '-'}</span>
+                  </div>
+                </div>
               </CardContent>
             </Card>
+            <p className="text-xs text-gray-500 px-2">* Ratio is calculated based on latest financial & current share price.</p>
 
-            {/* Contact Information */}
+            {/* Contact Information - Enhanced */}
             <Card>
               <CardHeader>
                 <CardTitle>Contact Information</CardTitle>
@@ -233,6 +327,50 @@ export default function PublicCompanyProfile() {
                     {company.address}
                   </p>
                 )}
+                <div className="pt-4 mt-4 border-t space-y-2">
+                  {company.isin && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-600">ISIN:</span>
+                      <span className="text-sm font-mono">{company.isin || 'INE944K01010'}</span>
+                    </div>
+                  )}
+                  {company.pan && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-600">PAN:</span>
+                      <span className="text-sm font-mono">{company.pan || 'AABCA8810G'}</span>
+                    </div>
+                  )}
+                  {company.tan && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-600">TAN:</span>
+                      <span className="text-sm font-mono">{company.tan || 'ABCDE2589G'}</span>
+                    </div>
+                  )}
+                  {company.gst && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-600">GST:</span>
+                      <span className="text-sm font-mono">{company.gst || 'ABCABCDE2589G1YZ'}</span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Shareholders */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Shareholders</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {shareholders.map((shareholder, index) => (
+                    <div key={index} className="flex justify-between items-center py-2 border-b last:border-0">
+                      <span className="text-sm text-gray-700">{shareholder.name}</span>
+                      <span className="font-semibold text-blue-600">{shareholder.percentage}%</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-4 text-sm text-red-600 font-medium">Shareholders Report: Not Filed</p>
               </CardContent>
             </Card>
 
@@ -263,6 +401,106 @@ export default function PublicCompanyProfile() {
 
           {/* Main Content Area */}
           <div className="lg:col-span-2">
+            {/* Financial Charts - 3 Panel Dashboard */}
+            <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Revenue Growth Chart */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4" />
+                    Revenue Growth %
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  <ResponsiveContainer width="100%" height={180}>
+                    <BarChart data={revenueGrowthData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis dataKey="year" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} />
+                      <Tooltip />
+                      <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              {/* EBITDA Margin Chart */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4" />
+                    EBITDA Margin %
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  <ResponsiveContainer width="100%" height={180}>
+                    <BarChart data={ebitdaMarginData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis dataKey="year" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} />
+                      <Tooltip />
+                      <Bar dataKey="value" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              {/* EPS Growth Chart */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4" />
+                    EPS Growth %
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  <ResponsiveContainer width="100%" height={180}>
+                    <BarChart data={epsGrowthData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis dataKey="year" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} />
+                      <Tooltip />
+                      <Bar dataKey="value" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* YouTube Videos Section */}
+            {company.youtube_videos && company.youtube_videos.length > 0 && (
+              <Card className="mb-6">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Youtube className="w-5 h-5 text-red-600" />
+                    Company Videos
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {company.youtube_videos.map((videoUrl, index) => {
+                      // Extract video ID from YouTube URL
+                      const videoId = videoUrl.split('v=')[1]?.split('&')[0] || videoUrl.split('/').pop();
+                      return (
+                        <div key={index} className="aspect-video">
+                          <iframe
+                            width="100%"
+                            height="100%"
+                            src={`https://www.youtube.com/embed/${videoId}`}
+                            title={`Company Video ${index + 1}`}
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                            className="rounded-lg"
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Tabs defaultValue="overview" className="space-y-6">
               <TabsList className="grid grid-cols-5 w-full">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
