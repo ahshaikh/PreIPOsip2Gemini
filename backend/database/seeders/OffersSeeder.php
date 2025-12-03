@@ -16,8 +16,10 @@ class OffersSeeder extends Seeder
     {
         $this->command->info('🎁 Seeding Offers...');
 
-        // Clear existing offers
+        // Clear existing offers with foreign key checks disabled
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         DB::table('offers')->truncate();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
         $offers = [
             [
