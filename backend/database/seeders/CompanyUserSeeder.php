@@ -116,11 +116,13 @@ class CompanyUserSeeder extends Seeder
             // Create Company User (Admin)
             $companyUser = CompanyUser::create([
                 'company_id' => $company->id,
-                'name' => 'Admin ' . explode(' ', $companyData['name'])[0],
+                'contact_person_name' => 'Admin ' . explode(' ', $companyData['name'])[0],
+                'contact_person_designation' => 'Administrator',
                 'email' => 'admin@' . strtolower(str_replace(' ', '', $companyData['name'])) . '.com',
                 'password' => Hash::make('password123'),
-                'role' => 'admin',
+                'phone' => '+91 ' . rand(7000000000, 9999999999),
                 'status' => 'active',
+                'is_verified' => true,
                 'email_verified_at' => now(),
             ]);
 
