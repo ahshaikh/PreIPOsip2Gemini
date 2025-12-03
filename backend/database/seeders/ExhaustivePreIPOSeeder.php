@@ -1235,6 +1235,26 @@ HTML;
                 'last_name' => $adminData['last_name'],
             ]);
 
+            // Create verified KYC for admin users (admins shouldn't be blocked by KYC)
+            $kyc = UserKyc::create([
+                'user_id' => $user->id,
+                'status' => 'verified',
+                'pan_number' => 'ADMIN' . str_pad($user->id, 5, '0', STR_PAD_LEFT) . 'A',
+                'aadhaar_number' => str_pad(mt_rand(100000000000, 999999999999), 12, '0', STR_PAD_LEFT),
+                'submitted_at' => Carbon::now(),
+                'verified_at' => Carbon::now(),
+            ]);
+
+            // Create KYC documents for admin
+            KycDocument::create([
+                'user_kyc_id' => $kyc->id,
+                'doc_type' => 'pan_card',
+                'file_path' => '/storage/kyc/admin_pan_' . $user->id . '.pdf',
+                'file_name' => 'admin_pan_card.pdf',
+                'mime_type' => 'application/pdf',
+                'status' => 'approved',
+            ]);
+
             $user->assignRole($adminData['role']);
             $this->adminUsers[] = $user;
         }
