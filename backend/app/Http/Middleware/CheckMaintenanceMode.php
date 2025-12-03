@@ -50,7 +50,7 @@ class CheckMaintenanceMode
 
         // 2. Admin users bypass maintenance
         $user = $request->user();
-        if ($user && $user->hasRole(['Admin', 'Super Admin', 'KYC Officer', 'Support Agent', 'Content Manager', 'Finance Manager'])) {
+        if ($user && $user->hasRole(['admin', 'super-admin'])) {
             return $next($request);
         }
 

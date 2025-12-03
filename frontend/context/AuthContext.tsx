@@ -77,10 +77,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Yes. Send them to the special /subscribe page
       router.push('/subscribe');
     } else {
-      // No. This is a normal login. Send to dashboard based on role.
-      const isAdmin = userData.roles && userData.roles.some(r =>
-        ['Super Admin', 'Admin', 'KYC Officer', 'Support Agent', 'Content Manager', 'Finance Manager'].includes(r.name)
-      );
+      // No. This is a normal login. Send to dashboard.
+      const isAdmin = userData.roles && userData.roles.some(r => r.name === 'admin' || r.name === 'super-admin');
       router.push(isAdmin ? '/admin/dashboard' : '/dashboard');
     }
     // ------------------------------------

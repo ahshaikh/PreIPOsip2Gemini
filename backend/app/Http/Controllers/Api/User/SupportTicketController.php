@@ -78,7 +78,7 @@ class SupportTicketController extends Controller
         ]);
 
         // Notify admins of new ticket
-        $admins = User::role(['Admin', 'Super Admin', 'Support Agent'])->get();
+        $admins = User::role('admin')->get();
         foreach ($admins as $admin) {
             $this->notificationService->send($admin, 'support.new_ticket', [
                 'ticket_code' => $ticket->ticket_code,
@@ -136,7 +136,7 @@ class SupportTicketController extends Controller
         $supportTicket->update(['status' => 'open']); // User replied
 
         // Notify admins of user reply
-        $admins = User::role(['Admin', 'Super Admin', 'Support Agent'])->get();
+        $admins = User::role('admin')->get();
         foreach ($admins as $admin) {
             $this->notificationService->send($admin, 'support.user_reply', [
                 'ticket_code' => $supportTicket->ticket_code,
