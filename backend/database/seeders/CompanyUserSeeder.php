@@ -215,27 +215,34 @@ class CompanyUserSeeder extends Seeder
 
     private function createCompanyUpdates(Company $company)
     {
+        // Get the company user for created_by
+        $companyUser = CompanyUser::where('company_id', $company->id)->first();
+
         $updates = [
             [
                 'title' => 'Record Quarter: ' . $company->name . ' Achieves 150% Revenue Growth',
                 'content' => "We're thrilled to announce that {$company->name} has achieved record-breaking performance this quarter with 150% YoY revenue growth. This milestone reflects our team's dedication and our customers' trust in our platform.",
+                'update_type' => 'milestone',
             ],
             [
                 'title' => 'Expanding to 10 New Cities Across India',
                 'content' => "We're excited to share that {$company->name} is expanding operations to 10 new cities, bringing our innovative solutions to millions more customers. This expansion is part of our vision to be accessible nationwide.",
+                'update_type' => 'news',
             ],
             [
                 'title' => 'New Strategic Partnership Announcement',
                 'content' => "We've partnered with leading enterprises to enhance our service offerings and deliver even more value to our customers. This collaboration will accelerate innovation and market reach.",
+                'update_type' => 'partnership',
             ],
         ];
 
         foreach ($updates as $index => $update) {
             CompanyUpdate::create([
                 'company_id' => $company->id,
+                'created_by' => $companyUser->id,
                 'title' => $update['title'],
                 'content' => $update['content'],
-                'type' => ['milestone', 'announcement', 'partnership'][rand(0, 2)],
+                'update_type' => $update['update_type'],
                 'status' => 'published',
                 'published_at' => now()->subDays(rand(10, 90)),
             ]);
@@ -363,6 +370,9 @@ class CompanyUserSeeder extends Seeder
 
     private function createQnA(Company $company)
     {
+        // Get the company user for answered_by
+        $companyUser = CompanyUser::where('company_id', $company->id)->first();
+
         $questions = [
             'What is your current monthly recurring revenue (MRR)?',
             'How do you plan to use the funds raised?',
@@ -381,6 +391,7 @@ class CompanyUserSeeder extends Seeder
                 'company_id' => $company->id,
                 'question' => $question,
                 'answer' => $isAnswered ? "Thank you for your question. " . fake()->paragraph(3) : null,
+                'answered_by' => $isAnswered ? $companyUser->id : null,
                 'answered_at' => $isAnswered ? now()->subDays(rand(1, 30)) : null,
                 'is_public' => $isAnswered && rand(0, 1),
                 'is_featured' => $isAnswered && rand(0, 1) == 1,
@@ -395,6 +406,9 @@ class CompanyUserSeeder extends Seeder
 
     private function createWebinars(Company $company)
     {
+        // Get the company user for created_by
+        $companyUser = CompanyUser::where('company_id', $company->id)->first();
+
         $webinarTypes = ['webinar', 'investor_call', 'ama', 'product_demo'];
         $titles = [
             'Q4 2024 Investor Update & Growth Strategy',
@@ -411,6 +425,7 @@ class CompanyUserSeeder extends Seeder
 
             $webinar = CompanyWebinar::create([
                 'company_id' => $company->id,
+                'created_by' => $companyUser->id,
                 'title' => $title,
                 'description' => "Join us for an exclusive session where we'll discuss {$company->name}'s latest updates and answer your questions.",
                 'type' => $webinarTypes[$index],
