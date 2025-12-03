@@ -101,7 +101,19 @@ export default function SubscriptionPage() {
     }
   });
 
-  // 5. Invoice Download Handler
+  // 5. Resume Subscription Mutation
+  const resumeMutation = useMutation({
+    mutationFn: () => api.post('/user/subscription/resume'),
+    onSuccess: () => {
+      toast.success("Subscription Resumed!", { description: "Your subscription is now active again." });
+      queryClient.invalidateQueries({ queryKey: ['subscription'] });
+    },
+    onError: (error: any) => {
+      toast.error("Resume Failed", { description: error.response?.data?.message });
+    }
+  });
+
+  // 6. Invoice Download Handler
   const handleDownloadInvoice = async (paymentId: number) => {
     setIsDownloading(paymentId);
     try {
@@ -183,6 +195,24 @@ export default function SubscriptionPage() {
           )}
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Paused Subscription Alert */}
+          {sub.status === 'paused' && (
+            <Alert className="border-yellow-500/50 bg-yellow-500/10">
+              <Zap className="h-4 w-4 text-yellow-500" />
+              <AlertTitle className="text-yellow-700">Subscription Paused</AlertTitle>
+              <AlertDescription>
+                <p className="mb-4">Your subscription is currently paused{sub.pause_ends_at && ` until ${new Date(sub.pause_ends_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}`}. You can resume it anytime.</p>
+                <Button
+                  onClick={() => resumeMutation.mutate()}
+                  disabled={resumeMutation.isPending}
+                  className="bg-yellow-600 hover:bg-yellow-700"
+                >
+                  {resumeMutation.isPending ? "Resuming..." : "Resume Subscription"}
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Pending Payment Alert */}
           {pendingPayment && (
             <Alert variant="default" className="border-primary/50 bg-primary/5">
