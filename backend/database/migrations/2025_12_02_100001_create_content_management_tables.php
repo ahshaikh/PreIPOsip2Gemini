@@ -130,12 +130,19 @@ return new class extends Migration
             $table->string('name');
             $table->string('slug')->unique();
             $table->text('description')->nullable();
+            $table->string('email')->nullable();
+            $table->string('phone')->nullable();
+            $table->string('address')->nullable();
+            $table->string('city')->nullable();
+            $table->string('state')->nullable();
+            $table->string('country')->nullable();
             $table->string('logo')->nullable();
             $table->string('website')->nullable();
             $table->string('sector');
             $table->string('founded_year')->nullable();
             $table->string('headquarters')->nullable();
             $table->string('ceo_name')->nullable();
+            $table->integer('employees_count')->nullable();
 
             // Financial info
             $table->decimal('latest_valuation', 20, 2)->nullable();
