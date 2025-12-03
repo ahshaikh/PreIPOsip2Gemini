@@ -118,7 +118,7 @@ return new class extends Migration
         });
 
         // Add company_id relationship to existing companies table if needed
-        if (!Schema::hasColumn('companies', 'is_verified')) {
+        if (Schema::hasTable('companies') && !Schema::hasColumn('companies', 'is_verified')) {
             Schema::table('companies', function (Blueprint $table) {
                 $table->boolean('is_verified')->default(false)->after('status');
                 $table->boolean('profile_completed')->default(false)->after('is_verified');
@@ -139,7 +139,7 @@ return new class extends Migration
         Schema::dropIfExists('company_financial_reports');
         Schema::dropIfExists('company_users');
 
-        if (Schema::hasColumn('companies', 'is_verified')) {
+        if (Schema::hasTable('companies') && Schema::hasColumn('companies', 'is_verified')) {
             Schema::table('companies', function (Blueprint $table) {
                 $table->dropColumn(['is_verified', 'profile_completed', 'profile_completion_percentage']);
             });
