@@ -25,9 +25,8 @@ class SubscriptionController extends Controller
             ->latest()
             ->first();
 
-        if (!$subscription) {
-            return response()->json(null, 404);
-        }
+        // Return null with success status if no subscription exists
+        // This allows frontend to handle gracefully instead of showing loading forever
         return response()->json($subscription);
     }
 
