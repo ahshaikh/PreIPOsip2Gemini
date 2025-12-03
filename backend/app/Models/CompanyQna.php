@@ -9,6 +9,8 @@ class CompanyQna extends Model
 {
     use HasFactory;
 
+    protected $table = 'company_qna';
+
     protected $fillable = [
         'company_id',
         'user_id',
