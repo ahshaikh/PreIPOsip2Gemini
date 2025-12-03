@@ -317,14 +317,14 @@ public function run(): void
             Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }
 
-        // Create Roles
-        $superAdmin = Role::firstOrCreate(['name' => 'Super Admin', 'guard_name' => 'web']);
-        $admin = Role::firstOrCreate(['name' => 'Admin', 'guard_name' => 'web']);
-        $kycOfficer = Role::firstOrCreate(['name' => 'KYC Officer', 'guard_name' => 'web']);
-        $supportAgent = Role::firstOrCreate(['name' => 'Support Agent', 'guard_name' => 'web']);
-        $contentManager = Role::firstOrCreate(['name' => 'Content Manager', 'guard_name' => 'web']);
-        $financeManager = Role::firstOrCreate(['name' => 'Finance Manager', 'guard_name' => 'web']);
-        $user = Role::firstOrCreate(['name' => 'User', 'guard_name' => 'web']);
+        // Create Roles - using lowercase hyphenated names for consistency with middleware
+        $superAdmin = Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
+        $admin = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+        $kycOfficer = Role::firstOrCreate(['name' => 'kyc-officer', 'guard_name' => 'web']);
+        $supportAgent = Role::firstOrCreate(['name' => 'support', 'guard_name' => 'web']);
+        $contentManager = Role::firstOrCreate(['name' => 'content-manager', 'guard_name' => 'web']);
+        $financeManager = Role::firstOrCreate(['name' => 'finance-manager', 'guard_name' => 'web']);
+        $user = Role::firstOrCreate(['name' => 'user', 'guard_name' => 'web']);
 
         // Assign permissions to roles
         $superAdmin->givePermissionTo(Permission::all());
@@ -1175,7 +1175,7 @@ HTML;
                 'username' => 'superadmin',
                 'mobile' => '9999999999',
                 'password' => Hash::make('password123'),
-                'role' => 'Super Admin',
+                'role' => 'super-admin',
                 'first_name' => 'Super',
                 'last_name' => 'Admin',
             ],
@@ -1184,7 +1184,7 @@ HTML;
                 'username' => 'admin',
                 'mobile' => '9999999998',
                 'password' => Hash::make('password123'),
-                'role' => 'Admin',
+                'role' => 'admin',
                 'first_name' => 'Admin',
                 'last_name' => 'User',
             ],
@@ -1193,7 +1193,7 @@ HTML;
                 'username' => 'kyc_officer',
                 'mobile' => '9999999997',
                 'password' => Hash::make('password123'),
-                'role' => 'KYC Officer',
+                'role' => 'kyc-officer',
                 'first_name' => 'KYC',
                 'last_name' => 'Officer',
             ],
@@ -1202,7 +1202,7 @@ HTML;
                 'username' => 'support_agent',
                 'mobile' => '9999999996',
                 'password' => Hash::make('password123'),
-                'role' => 'Support Agent',
+                'role' => 'support',
                 'first_name' => 'Support',
                 'last_name' => 'Agent',
             ],
@@ -1211,7 +1211,7 @@ HTML;
                 'username' => 'finance_manager',
                 'mobile' => '9999999995',
                 'password' => Hash::make('password123'),
-                'role' => 'Finance Manager',
+                'role' => 'finance-manager',
                 'first_name' => 'Finance',
                 'last_name' => 'Manager',
             ],
@@ -1349,7 +1349,7 @@ HTML;
             ]);
         }
 
-        $user->assignRole('User');
+        $user->assignRole('user');
 
         return $user;
     }
