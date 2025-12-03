@@ -283,7 +283,7 @@ export function UserTopNav({ user }: { user: any }) {
   const mainLinks = [
     { href: "/portfolio", label: "Portfolio", icon: TrendingUp },
     { href: "/transactions", label: "Transactions", icon: CreditCard },
-    { href: "/subscribe", label: "Plans", icon: Package },
+    { href: "/plans", label: "Plans", icon: Package },
   ];
 
   const marketingLinks = [
@@ -383,18 +383,7 @@ export function UserTopNav({ user }: { user: any }) {
               </nav>
             </div>
 
-            {/* Center - Search Bar */}
-            <div className="hidden md:flex flex-1 max-w-md mx-4">
-              <Button
-                variant="outline"
-                className="w-full justify-start text-muted-foreground"
-                onClick={() => setSearchOpen(true)}
-              >
-                <Search className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Search investments, companies, or plans...</span>
-                <span className="sm:hidden">Search...</span>
-              </Button>
-            </div>
+            {/* Search removed - not functional yet */}
 
             {/* Right Side Actions */}
             <div className="flex items-center gap-2">

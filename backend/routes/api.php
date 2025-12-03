@@ -170,6 +170,11 @@ Route::prefix('v1')->group(function () {
             Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar']);
             Route::get('/bank-details', [ProfileController::class, 'getBankDetails']);
             Route::put('/bank-details', [ProfileController::class, 'updateBankDetails']);
+
+            // User Settings
+            Route::get('/settings', [App\Http\Controllers\Api\User\UserSettingsController::class, 'index']);
+            Route::put('/settings', [App\Http\Controllers\Api\User\UserSettingsController::class, 'update']);
+
             Route::post('/security/password', [SecurityController::class, 'updatePassword']);
             Route::get('/security/export-data', [PrivacyController::class, 'export']);
             Route::post('/security/delete-account', [PrivacyController::class, 'deleteAccount']);
