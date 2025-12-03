@@ -256,7 +256,7 @@ Route::prefix('v1')->group(function () {
 
         // === ADMIN ROUTES ===
         // V-SECURITY-FIX: IP whitelist MUST be checked BEFORE role check
-        Route::prefix('admin')->middleware(['admin.ip', 'role:admin|super-admin'])->group(function () {
+        Route::prefix('admin')->middleware(['admin.ip', 'role:Super Admin|Admin|KYC Officer|Support Agent|Content Manager|Finance Manager'])->group(function () {
             
             Route::get('/dashboard', [AdminDashboardController::class, 'index']);
 

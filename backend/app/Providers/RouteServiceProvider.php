@@ -58,10 +58,10 @@ class RouteServiceProvider extends ServiceProvider
         // API
         RateLimiter::for('api', function ($request) use ($policies) {
             $user = $request->user();
-            if ($user && $user->hasRole('super-admin')) {
+            if ($user && $user->hasRole('Super Admin')) {
                 return Limit::none();
             }
-            $limit = $user && $user->hasRole('admin')
+            $limit = $user && $user->hasRole(['Admin', 'KYC Officer', 'Support Agent', 'Content Manager', 'Finance Manager'])
                 ? $policies['api']['admin']
                 : $policies['api']['default'];
             return Limit::perMinute($limit)->by($user?->id ?? $request->ip());
@@ -70,10 +70,10 @@ class RouteServiceProvider extends ServiceProvider
         // FINANCIAL
         RateLimiter::for('financial', function ($request) use ($policies) {
             $user = $request->user();
-            if ($user && $user->hasRole('super-admin')) {
+            if ($user && $user->hasRole('Super Admin')) {
                 return Limit::none();
             }
-            $limit = $user && $user->hasRole('admin')
+            $limit = $user && $user->hasRole(['Admin', 'Finance Manager'])
                 ? $policies['financial']['admin']
                 : $policies['financial']['default'];
             return Limit::perMinute($limit)->by($user?->id ?? $request->ip())
@@ -85,10 +85,10 @@ class RouteServiceProvider extends ServiceProvider
         // REPORTS
         RateLimiter::for('reports', function ($request) use ($policies) {
             $user = $request->user();
-            if ($user && $user->hasRole('super-admin')) {
+            if ($user && $user->hasRole('Super Admin')) {
                 return Limit::none();
             }
-            $limit = $user && $user->hasRole('admin')
+            $limit = $user && $user->hasRole(['Admin', 'Finance Manager'])
                 ? $policies['reports']['admin']
                 : $policies['reports']['default'];
             return Limit::perHour($limit)->by($user?->id ?? $request->ip())
@@ -100,10 +100,10 @@ class RouteServiceProvider extends ServiceProvider
         // DATA-HEAVY
         RateLimiter::for('data-heavy', function ($request) use ($policies) {
             $user = $request->user();
-            if ($user && $user->hasRole('super-admin')) {
+            if ($user && $user->hasRole('Super Admin')) {
                 return Limit::none();
             }
-            $limit = $user && $user->hasRole('admin')
+            $limit = $user && $user->hasRole(['Admin', 'KYC Officer', 'Support Agent', 'Content Manager', 'Finance Manager'])
                 ? $policies['data-heavy']['admin']
                 : $policies['data-heavy']['default'];
             return Limit::perMinute($limit)->by($user?->id ?? $request->ip())
@@ -115,10 +115,10 @@ class RouteServiceProvider extends ServiceProvider
         // ADMIN-ACTIONS
         RateLimiter::for('admin-actions', function ($request) use ($policies) {
             $user = $request->user();
-            if ($user && $user->hasRole('super-admin')) {
+            if ($user && $user->hasRole('Super Admin')) {
                 return Limit::none();
             }
-            $limit = $user && $user->hasRole('admin')
+            $limit = $user && $user->hasRole(['Admin', 'KYC Officer', 'Support Agent', 'Content Manager', 'Finance Manager'])
                 ? $policies['admin-actions']['admin']
                 : $policies['admin-actions']['default'];
             return Limit::perMinute($limit)->by($user?->id ?? $request->ip())

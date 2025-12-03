@@ -31,7 +31,7 @@ class SupportService
     {
         // Find an active admin/support agent
         // In V2, this logic would be "least busy". For V1, we find the first.
-        $agent = User::role(['admin', 'support'])
+        $agent = User::role(['Admin', 'Super Admin', 'Support Agent'])
             ->where('status', 'active')
             ->first();
 
@@ -58,7 +58,7 @@ class SupportService
             $ticket->update(['priority' => 'high']);
 
             // Dispatch notification to admin team
-            $admins = User::role('admin')->get();
+            $admins = User::role(['Admin', 'Super Admin', 'Support Agent'])->get();
             foreach ($admins as $admin) {
                 $this->notificationService->send($admin, 'support.sla_breach', [
                     'ticket_code' => $ticket->ticket_code,

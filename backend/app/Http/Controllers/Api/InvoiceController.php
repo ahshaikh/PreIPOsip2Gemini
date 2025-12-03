@@ -14,7 +14,7 @@ class InvoiceController extends Controller
     {
         // Security: Ensure user owns the payment OR is an admin
         $user = $request->user();
-        if ($user->id !== $payment->user_id && !$user->hasRole(['admin', 'super-admin'])) {
+        if ($user->id !== $payment->user_id && !$user->hasRole(['Admin', 'Super Admin', 'Finance Manager'])) {
             abort(403);
         }
 

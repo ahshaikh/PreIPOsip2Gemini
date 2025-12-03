@@ -36,8 +36,8 @@ class RoleController extends Controller
 
     public function update(Request $request, Role $role)
     {
-        // Prevent editing super-admin
-        if ($role->name === 'super-admin') {
+        // Prevent editing Super Admin
+        if ($role->name === 'Super Admin') {
             return response()->json(['message' => 'Cannot edit Super Admin role.'], 403);
         }
 
@@ -57,7 +57,7 @@ class RoleController extends Controller
 
     public function destroy(Role $role)
     {
-        if ($role->name === 'super-admin' || $role->name === 'admin') {
+        if ($role->name === 'Super Admin' || $role->name === 'Admin') {
             return response()->json(['message' => 'Cannot delete system roles.'], 403);
         }
 
