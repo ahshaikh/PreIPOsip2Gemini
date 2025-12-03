@@ -83,6 +83,7 @@ class PermissionsSeeder extends Seeder
 
             // Withdrawal Management
             'withdrawals.view',
+            'withdrawals.view_queue',
             'withdrawals.approve',
             'withdrawals.reject',
             'withdrawals.process',
@@ -92,6 +93,7 @@ class PermissionsSeeder extends Seeder
             'bonuses.create',
             'bonuses.adjust',
             'bonuses.delete',
+            'bonuses.manage_config',
 
             // Referral Management
             'referrals.view',
