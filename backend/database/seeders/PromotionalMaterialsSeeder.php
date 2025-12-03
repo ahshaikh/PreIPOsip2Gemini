@@ -15,9 +15,11 @@ class PromotionalMaterialsSeeder extends Seeder
     {
         $this->command->info('📦 Seeding Promotional Materials...');
 
-        // Clear existing materials
+        // Clear existing materials with foreign key checks disabled
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         DB::table('promotional_material_downloads')->truncate();
         DB::table('promotional_materials')->truncate();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
         $materials = [
             // Banners & Images
