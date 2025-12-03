@@ -175,6 +175,11 @@ Route::prefix('v1')->group(function () {
             Route::get('/settings', [App\Http\Controllers\Api\User\UserSettingsController::class, 'index']);
             Route::put('/settings', [App\Http\Controllers\Api\User\UserSettingsController::class, 'update']);
 
+            // Promotional Materials
+            Route::get('/promotional-materials', [App\Http\Controllers\Api\User\PromotionalMaterialController::class, 'index']);
+            Route::get('/promotional-materials/stats', [App\Http\Controllers\Api\User\PromotionalMaterialController::class, 'stats']);
+            Route::post('/promotional-materials/{material}/download', [App\Http\Controllers\Api\User\PromotionalMaterialController::class, 'trackDownload']);
+
             Route::post('/security/password', [SecurityController::class, 'updatePassword']);
             Route::get('/security/export-data', [PrivacyController::class, 'export']);
             Route::post('/security/delete-account', [PrivacyController::class, 'deleteAccount']);
