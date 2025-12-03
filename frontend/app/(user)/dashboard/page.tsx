@@ -362,7 +362,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             <Button variant="outline" className="w-full justify-start" asChild>
-              <Link href="/subscribe">
+              <Link href="/plans">
                 <Target className="mr-2 h-4 w-4" /> Subscribe to a Plan
               </Link>
             </Button>

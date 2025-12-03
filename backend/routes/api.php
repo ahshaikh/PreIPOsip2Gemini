@@ -136,7 +136,11 @@ Route::prefix('v1')->group(function () {
 
     // --- Dashboard Widgets ---
     Route::get('/announcements/latest', [UserDashboardController::class, 'announcements']);
-    Route::get('/offers/active', [UserDashboardController::class, 'offers']);
+
+    // --- Offers ---
+    Route::get('/offers/active', [App\Http\Controllers\Api\User\OfferController::class, 'index']);
+    Route::get('/offers/{id}', [App\Http\Controllers\Api\User\OfferController::class, 'show']);
+    Route::post('/offers/validate', [App\Http\Controllers\Api\User\OfferController::class, 'validateCode']);
 
     // --- Legal Documents (Public) ---
     Route::get('/legal/documents', [LegalDocumentController::class, 'index']);
@@ -170,6 +174,16 @@ Route::prefix('v1')->group(function () {
             Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar']);
             Route::get('/bank-details', [ProfileController::class, 'getBankDetails']);
             Route::put('/bank-details', [ProfileController::class, 'updateBankDetails']);
+
+            // User Settings
+            Route::get('/settings', [App\Http\Controllers\Api\User\UserSettingsController::class, 'index']);
+            Route::put('/settings', [App\Http\Controllers\Api\User\UserSettingsController::class, 'update']);
+
+            // Promotional Materials
+            Route::get('/promotional-materials', [App\Http\Controllers\Api\User\PromotionalMaterialController::class, 'index']);
+            Route::get('/promotional-materials/stats', [App\Http\Controllers\Api\User\PromotionalMaterialController::class, 'stats']);
+            Route::post('/promotional-materials/{material}/download', [App\Http\Controllers\Api\User\PromotionalMaterialController::class, 'trackDownload']);
+
             Route::post('/security/password', [SecurityController::class, 'updatePassword']);
             Route::get('/security/export-data', [PrivacyController::class, 'export']);
             Route::post('/security/delete-account', [PrivacyController::class, 'deleteAccount']);

@@ -10,6 +10,7 @@ use App\Services\WalletService;      // This service handles the *money*
 use App\Http\Requests\User\WithdrawalRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class WalletController extends Controller
 {
@@ -82,5 +83,39 @@ class WalletController extends Controller
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 400);
         }
+    }
+
+    /**
+     * Download wallet statement as PDF
+     */
+    public function downloadStatement(Request $request)
+    {
+        $user = $request->user();
+        $wallet = Wallet::where('user_id', $user->id)->first();
+
+        if (!$wallet) {
+            return response()->json(['message' => 'Wallet not found'], 404);
+        }
+
+        // Get all transactions
+        $transactions = $wallet->transactions()
+            ->with('reference')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Prepare data for PDF
+        $data = [
+            'user' => $user,
+            'wallet' => $wallet,
+            'transactions' => $transactions,
+            'generated_at' => now()->format('d M Y, h:i A'),
+        ];
+
+        // Generate PDF
+        $pdf = Pdf::loadView('pdf.wallet-statement', $data);
+
+        // Return PDF download
+        $filename = 'wallet-statement-' . $user->id . '-' . now()->format('Y-m-d') . '.pdf';
+        return $pdf->download($filename);
     }
 }
