@@ -133,8 +133,8 @@ class KycController extends Controller
     {
         $doc = KycDocument::findOrFail($id);
         $user = $request->user();
-        
-        if ($user->id !== $doc->kyc->user_id && !$user->hasRole(['admin', 'super-admin'])) {
+
+        if ($user->id !== $doc->kyc->user_id && !$user->hasRole(['Admin', 'Super Admin', 'KYC Officer'])) {
             abort(403);
         }
         if (!Storage::exists($doc->file_path)) {

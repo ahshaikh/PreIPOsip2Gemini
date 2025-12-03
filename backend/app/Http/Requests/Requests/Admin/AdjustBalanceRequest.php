@@ -10,7 +10,7 @@ class AdjustBalanceRequest extends FormRequest
     public function authorize(): bool
     {
         // Ensure the user is an admin
-        return $this->user()->hasRole(['admin', 'super-admin']);
+        return $this->user()->hasRole(['Admin', 'Super Admin', 'Finance Manager']);
     }
 
     public function rules(): array

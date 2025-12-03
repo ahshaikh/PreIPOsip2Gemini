@@ -90,7 +90,7 @@ class AdminBalanceAdjustmentRequest extends FormRequest
 
             // Validate daily adjustment limit for non-super-admins
             $admin = $this->user();
-            if (!$admin->hasRole('super-admin')) {
+            if (!$admin->hasRole('Super Admin')) {
                 $dailyLimit = (float) setting('admin_daily_adjustment_limit', 100000);
 
                 $todayAdjustments = \App\Models\ActivityLog::where('user_id', $admin->id)

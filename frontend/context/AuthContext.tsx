@@ -79,7 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } else {
       // No. This is a normal login. Send to dashboard based on role.
       const isAdmin = userData.roles && userData.roles.some(r =>
-        ['Super Admin', 'Admin', 'KYC Officer', 'Support Agent', 'Finance Manager'].includes(r.name)
+        ['Super Admin', 'Admin', 'KYC Officer', 'Support Agent', 'Content Manager', 'Finance Manager'].includes(r.name)
       );
       router.push(isAdmin ? '/admin/dashboard' : '/dashboard');
     }
