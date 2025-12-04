@@ -89,40 +89,50 @@ class BonusCalculatorService
             Log::warning("Bonus multiplier capped for Subscription {$subscription->id}: {$rawMultiplier} -> {$multiplier}");
         }
 
-        // 1. Progressive Monthly Bonus
+        // 0. Welcome Bonus (First Payment Only)
+        $paidCount = $subscription->payments()->where('status', 'paid')->count();
+        if ($paidCount === 1 && setting('welcome_bonus_enabled', true)) {
+            $welcomeBonus = $this->calculateWelcomeBonus($payment, $plan);
+            if ($welcomeBonus > 0) {
+                $totalBonus += $welcomeBonus;
+                $this->createBonusTransaction($payment, 'welcome_bonus', $welcomeBonus, 1.0, 'Welcome Bonus - First Investment');
+            }
+        }
+
+        // 1. Progressive Monthly Bonus (mapped as loyalty_bonus for frontend)
         if (setting('progressive_bonus_enabled', true)) {
             $progressiveBonus = $this->calculateProgressive($payment, $plan, $multiplier);
             if ($progressiveBonus > 0) {
                 $totalBonus += $progressiveBonus;
-                $this->createBonusTransaction($payment, 'progressive', $progressiveBonus, $multiplier, 'Progressive Monthly Bonus');
+                $this->createBonusTransaction($payment, 'loyalty_bonus', $progressiveBonus, $multiplier, 'Loyalty Bonus - Month ' . $paidCount);
             }
         }
-        
+
         // 2. Milestone Bonus
         if (setting('milestone_bonus_enabled', true)) {
             $milestoneBonus = $this->calculateMilestone($payment, $plan, $multiplier);
             if ($milestoneBonus > 0) {
                 $totalBonus += $milestoneBonus;
-                $this->createBonusTransaction($payment, 'milestone', $milestoneBonus, $multiplier, 'Milestone Bonus');
+                $this->createBonusTransaction($payment, 'milestone_bonus', $milestoneBonus, $multiplier, 'Milestone Bonus - Payment #' . $paidCount);
             }
         }
 
-        // 3. Consistency Bonus
+        // 3. Consistency Bonus (mapped as cashback for frontend)
         // testLatePaymentSkipsConsistencyBonus: This check is correct.
         if (setting('consistency_bonus_enabled', true) && $payment->is_on_time) {
             $consistencyBonus = $this->calculateConsistency($payment, $plan);
             if ($consistencyBonus > 0) {
                 $totalBonus += $consistencyBonus;
-                $this->createBonusTransaction($payment, 'consistency', $consistencyBonus, 1.0, 'On-Time Payment Bonus');
+                $this->createBonusTransaction($payment, 'cashback', $consistencyBonus, 1.0, 'Cashback - On-Time Payment');
             }
         }
-        
+
         // --- NEW: Send Notification (Gap 3 Fix) ---
         if ($totalBonus > 0) {
             $user->notify(new BonusCredited($totalBonus, 'SIP'));
         }
         // ------------------------------------------
-        
+
         Log::info("Total bonus calculated for Payment {$payment->id}: {$totalBonus}");
         return $totalBonus;
     }
@@ -202,6 +212,20 @@ class BonusCalculatorService
             }
         }
         return $bonus;
+    }
+
+    /**
+     * 0. Calculates Welcome Bonus (First Payment)
+     */
+    private function calculateWelcomeBonus(Payment $payment, $plan): float
+    {
+        // Get welcome bonus configuration
+        $config = $this->getPlanConfig($plan, 'welcome_bonus_config', ['amount' => 500]);
+
+        // Default to 500 if not configured
+        $welcomeAmount = (float) ($config['amount'] ?? 500);
+
+        return round($welcomeAmount, 2);
     }
 
     /**
