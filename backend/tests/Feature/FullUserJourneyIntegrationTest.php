@@ -52,7 +52,7 @@ class FullUserJourneyIntegrationTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function complete_user_registration_to_first_bonus_journey()
     {
         // ==================== STEP 1: USER REGISTRATION ====================
@@ -137,7 +137,7 @@ class FullUserJourneyIntegrationTest extends TestCase
         $this->assertEquals(50, $wallet->balance);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_wallet_adjustment_flow()
     {
         // Create user with wallet
@@ -185,7 +185,7 @@ class FullUserJourneyIntegrationTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function milestone_bonus_awarded_at_correct_month()
     {
         // Create user with subscription
@@ -243,7 +243,7 @@ class FullUserJourneyIntegrationTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function referral_multiplier_affects_bonus_calculation()
     {
         // Create user with 2x multiplier (e.g., from referral campaign)
@@ -303,7 +303,7 @@ class FullUserJourneyIntegrationTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function withdrawal_flow_with_locked_balance()
     {
         $user = User::factory()->create();
@@ -345,7 +345,7 @@ class FullUserJourneyIntegrationTest extends TestCase
         $this->assertEquals('completed', $unlockTransaction->status);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function bulk_bonus_award_to_multiple_users()
     {
         // Create multiple users
@@ -374,7 +374,7 @@ class FullUserJourneyIntegrationTest extends TestCase
         }
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function settings_update_clears_cache_correctly()
     {
         // Pre-populate cache
@@ -398,7 +398,7 @@ class FullUserJourneyIntegrationTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function concurrent_wallet_operations_maintain_integrity()
     {
         $user = User::factory()->create();

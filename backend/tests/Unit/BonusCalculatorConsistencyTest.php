@@ -48,7 +48,7 @@ class BonusCalculatorConsistencyTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_consistency_bonus_awarded_for_on_time_payment()
     {
         $payment = Payment::factory()->create([
@@ -65,7 +65,7 @@ class BonusCalculatorConsistencyTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_consistency_bonus_not_awarded_for_late_payment()
     {
         $payment = Payment::factory()->create([
@@ -79,7 +79,7 @@ class BonusCalculatorConsistencyTest extends TestCase
         $this->assertDatabaseMissing('bonus_transactions', ['type' => 'consistency']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_consistency_bonus_amount_varies_by_plan()
     {
         // Plan B gives ₹500
@@ -104,7 +104,7 @@ class BonusCalculatorConsistencyTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_consistency_bonus_multiplies_for_streak()
     {
         // Set streak to 6 months
@@ -125,7 +125,7 @@ class BonusCalculatorConsistencyTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_consistency_bonus_streak_resets_on_late_payment()
     {
         // This test confirms the *result* of a reset streak
@@ -149,7 +149,7 @@ class BonusCalculatorConsistencyTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_consistency_bonus_uses_configured_amounts()
     {
         // Change config to a weird amount
@@ -171,7 +171,7 @@ class BonusCalculatorConsistencyTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_consistency_bonus_respects_grace_period()
     {
         // The service *itself* only checks the `is_on_time` boolean.
@@ -190,7 +190,7 @@ class BonusCalculatorConsistencyTest extends TestCase
         $this->assertDatabaseHas('bonus_transactions', ['type' => 'consistency']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_consistency_bonus_respects_global_toggle()
     {
         // Turn off this bonus type

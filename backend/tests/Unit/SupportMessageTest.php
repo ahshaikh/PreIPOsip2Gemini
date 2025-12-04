@@ -25,7 +25,7 @@ class SupportMessageTest extends TestCase
         $this->ticket = SupportTicket::factory()->create(['user_id' => $this->user->id]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_message_belongs_to_ticket()
     {
         $message = SupportMessage::factory()->create([
@@ -37,7 +37,7 @@ class SupportMessageTest extends TestCase
         $this->assertEquals($this->ticket->id, $message->ticket->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_message_belongs_to_sender()
     {
         $message = SupportMessage::factory()->create([
@@ -50,7 +50,7 @@ class SupportMessageTest extends TestCase
         $this->assertEquals($this->user->id, $message->sender->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_message_tracks_is_admin_reply()
     {
         // 1. User's message

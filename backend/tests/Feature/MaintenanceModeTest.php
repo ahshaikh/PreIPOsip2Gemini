@@ -45,7 +45,7 @@ class MaintenanceModeTest extends TestCase
         \Illuminate\Support\Facades\Cache::flush();
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_maintenance_mode_blocks_all_users()
     {
         $this->turnMaintenanceOn();
@@ -56,7 +56,7 @@ class MaintenanceModeTest extends TestCase
         $response->assertStatus(503);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_maintenance_mode_allows_admins()
     {
         $this->turnMaintenanceOn();
@@ -72,7 +72,7 @@ class MaintenanceModeTest extends TestCase
         $response->assertStatus(200);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_maintenance_mode_shows_custom_message()
     {
         $this->turnMaintenanceOn("Be Right Back!");
@@ -83,7 +83,7 @@ class MaintenanceModeTest extends TestCase
         $response->assertJson(['message' => 'Be Right Back!']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_maintenance_mode_respects_ip_whitelist()
     {
         // 127.0.0.1 is the default IP for tests

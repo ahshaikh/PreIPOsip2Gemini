@@ -25,7 +25,7 @@ class TransactionTest extends TestCase
         $this->wallet = Wallet::create(['user_id' => $this->user->id, 'balance' => 1000]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_transaction_belongs_to_wallet()
     {
         $txn = $this->wallet->deposit(100, 'deposit', 'test');
@@ -34,7 +34,7 @@ class TransactionTest extends TestCase
         $this->assertEquals($this->wallet->id, $txn->wallet->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_transaction_type_enum_validates()
     {
         // This confirms we can store valid types
@@ -45,7 +45,7 @@ class TransactionTest extends TestCase
         $this->assertEquals('withdrawal', $txn2->fresh()->type);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_transaction_status_enum_validates()
     {
         // Test default
@@ -57,7 +57,7 @@ class TransactionTest extends TestCase
         $this->assertEquals('pending', $txn->fresh()->status);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_transaction_tracks_before_balance()
     {
         $this->assertEquals(1000, $this->wallet->balance);
@@ -68,7 +68,7 @@ class TransactionTest extends TestCase
         $this->assertEquals(1000, $txn->balance_before);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_transaction_tracks_after_balance()
     {
         $this->assertEquals(1000, $this->wallet->balance);
@@ -79,7 +79,7 @@ class TransactionTest extends TestCase
         $this->assertEquals(1500, $txn->balance_after);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_transaction_has_unique_transaction_id()
     {
         $txn1 = $this->wallet->deposit(10, 'deposit', 'test');
@@ -94,7 +94,7 @@ class TransactionTest extends TestCase
         DB::table('transactions')->where('id', $txn2->id)->update(['transaction_id' => $txn1->transaction_id]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_transaction_scope_completed_filters_correctly()
     {
         $this->wallet->deposit(10, 'deposit', 'test'); // Status: completed
@@ -103,7 +103,7 @@ class TransactionTest extends TestCase
         $this->assertEquals(1, Transaction::completed()->count());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_transaction_scope_pending_filters_correctly()
     {
         $this->wallet->deposit(10, 'deposit', 'test'); // Status: completed

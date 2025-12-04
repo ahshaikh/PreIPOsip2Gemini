@@ -52,18 +52,7 @@ class PerformanceTest extends TestCase // Or WebTestCase
         };
     }
 
-    /**
-     * @test
-     * Corresponds to: PerformanceTest::testConcurrentPaymentProcessing
-     *
-     * This test doesn't run in parallel, but it tests the *outcome*
-     * of a potential race condition. It ensures that two requests
-     * for an amount that would overdraft the account if run
-     * concurrently are handled correctly by an atomic process.
-     *
-     * We start with $100. Two requests for $70 are made.
-     * Expected: One succeeds, one fails. Final balance is $30.
-     */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testConcurrentPaymentProcessing()
     {
         // Initial state check (optional)

@@ -32,7 +32,7 @@ class SubscriptionTest extends TestCase
         $this->planB = Plan::factory()->create(['monthly_amount' => 5000]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function user_can_create_subscription()
     {
         $response = $this->actingAs($this->user)
@@ -54,7 +54,7 @@ class SubscriptionTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function user_can_upgrade_plan()
     {
         $sub = Subscription::factory()->create([
@@ -75,7 +75,7 @@ class SubscriptionTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function user_can_pause_subscription()
     {
         $sub = Subscription::factory()->create([
@@ -95,7 +95,7 @@ class SubscriptionTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function user_can_cancel_subscription()
     {
         $sub = Subscription::factory()->create([

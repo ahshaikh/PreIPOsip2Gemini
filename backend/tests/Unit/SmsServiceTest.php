@@ -26,7 +26,7 @@ class SmsServiceTest extends TestCase
         $this->user = User::factory()->create(['mobile' => '9876543210']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_send_sms_uses_correct_template_id()
     {
         Http::fake([
@@ -41,7 +41,7 @@ class SmsServiceTest extends TestCase
         });
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_send_sms_replaces_variables()
     {
         // Note: This logic is in the JOB, not the service.
@@ -53,7 +53,7 @@ class SmsServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_send_sms_limits_to_160_chars()
     {
         $longMessage = str_repeat('a', 200); // 200 chars
@@ -68,7 +68,7 @@ class SmsServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_send_sms_logs_delivery()
     {
         Http::fake(['*' => Http::response(['message_id' => 'abc'], 200)]);
@@ -83,7 +83,7 @@ class SmsServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_send_sms_handles_msg91_failure()
     {
         // Simulate a 500 error from the gateway
@@ -95,7 +95,7 @@ class SmsServiceTest extends TestCase
         $this->assertStringContainsString('Server Error', $log->fresh()->error_message);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_send_sms_respects_user_preferences()
     {
         // 1. User opts out of 'auth_sms'

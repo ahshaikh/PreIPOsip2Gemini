@@ -38,14 +38,14 @@ class BulkPurchaseTest extends TestCase
         return BulkPurchase::create(array_merge($defaults, $overrides));
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_bulk_purchase_belongs_to_product()
     {
         $purchase = $this->createPurchase();
         $this->assertInstanceOf(Product::class, $purchase->product);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_bulk_purchase_calculates_discount_percentage()
     {
         // 100k (face) - 80k (cost) = 20k discount. 20k / 100k = 20%
@@ -53,14 +53,14 @@ class BulkPurchaseTest extends TestCase
         $this->assertEquals(20.00, $purchase->discount_percentage);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_bulk_purchase_calculates_extra_allocation_percentage()
     {
         $purchase = $this->createPurchase(['extra_allocation_percentage' => 30]);
         $this->assertEquals(30.00, $purchase->extra_allocation_percentage);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_bulk_purchase_calculates_total_value_received()
     {
         // 100k (face) * (1 + 0.25) = 125,000
@@ -68,7 +68,7 @@ class BulkPurchaseTest extends TestCase
         $this->assertEquals(125000, $purchase->total_value_received);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_bulk_purchase_calculates_gross_margin()
     {
         // 125k (total) - 80k (cost) = 45,000 margin
@@ -76,7 +76,7 @@ class BulkPurchaseTest extends TestCase
         $this->assertEquals(45000, $purchase->gross_margin);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_bulk_purchase_calculates_gross_margin_percentage()
     {
         // 45k (margin) / 80k (cost) * 100 = 56.25%
@@ -84,7 +84,7 @@ class BulkPurchaseTest extends TestCase
         $this->assertEquals(56.25, $purchase->gross_margin_percentage);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_bulk_purchase_tracks_allocated_amount()
     {
         $purchase = $this->createPurchase(); // Total: 125k, Remaining: 125k
@@ -96,7 +96,7 @@ class BulkPurchaseTest extends TestCase
         $this->assertEquals(25000, $purchase->fresh()->allocated_amount);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_bulk_purchase_calculates_available_amount()
     {
         $purchase = $this->createPurchase(); // Total: 125k, Remaining: 125k
@@ -107,7 +107,7 @@ class BulkPurchaseTest extends TestCase
         $this->assertEquals(100000, $purchase->fresh()->available_amount);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_bulk_purchase_validates_cost_positive()
     {
         $this->expectException(\InvalidArgumentException::class);
@@ -116,7 +116,7 @@ class BulkPurchaseTest extends TestCase
         $this->createPurchase(['actual_cost_paid' => -100]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_bulk_purchase_validates_face_value_positive()
     {
         $this->expectException(\InvalidArgumentException::class);

@@ -65,7 +65,7 @@ class BonusCalculatorCelebrationTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_birthday_bonus_awarded_on_user_birthday()
     {
         // Travel to User A's birthday
@@ -83,7 +83,7 @@ class BonusCalculatorCelebrationTest extends TestCase
         $this->assertDatabaseMissing('bonus_transactions', ['user_id' => $this->userB->id]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_birthday_bonus_amount_varies_by_plan()
     {
         // Travel to User B's birthday
@@ -98,7 +98,7 @@ class BonusCalculatorCelebrationTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_anniversary_bonus_awarded_on_subscription_anniversary()
     {
         // Travel to both users' anniversary (Nov 14)
@@ -119,7 +119,7 @@ class BonusCalculatorCelebrationTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_anniversary_bonus_amount_varies_by_year()
     {
         $this->travelTo(Carbon::parse('2025-11-14'));
@@ -139,7 +139,7 @@ class BonusCalculatorCelebrationTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_festival_bonus_awarded_for_configured_events()
     {
         // Create a festival for today
@@ -169,7 +169,7 @@ class BonusCalculatorCelebrationTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_celebration_bonus_respects_global_toggle()
     {
         Setting::updateOrCreate(['key' => 'celebration_bonus_enabled'], ['value' => 'false']);

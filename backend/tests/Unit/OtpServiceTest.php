@@ -24,7 +24,7 @@ class OtpServiceTest extends TestCase
         $this->user = User::factory()->create();
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_generate_otp_creates_6_digit_code()
     {
         $otp = $this->service->generate($this->user, 'email');
@@ -34,7 +34,7 @@ class OtpServiceTest extends TestCase
         $this->assertMatchesRegularExpression('/^[0-9]+$/', $otp->otp_code);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_generate_otp_sets_10_minute_expiry()
     {
         $otp = $this->service->generate($this->user, 'email');
@@ -45,7 +45,7 @@ class OtpServiceTest extends TestCase
         );
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_generate_otp_stores_in_database()
     {
         $this->service->generate($this->user, 'mobile');
@@ -56,18 +56,18 @@ class OtpServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_verify_otp_validates_correct_code()
     {
         $otp = $this->service->generate($this->user, 'email');
-        
+
         $result = $this->service->verify($this->user, 'email', $otp->otp_code);
-        
+
         $this->assertTrue($result);
         $this->assertDatabaseMissing('otps', ['id' => $otp->id]); // Should be deleted on success
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_verify_otp_rejects_expired_code()
     {
         $otp = $this->service->generate($this->user, 'email');
@@ -79,7 +79,7 @@ class OtpServiceTest extends TestCase
         $this->service->verify($this->user, 'email', $otp->otp_code);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_verify_otp_rejects_incorrect_code()
     {
         $this->service->generate($this->user, 'email');
@@ -89,7 +89,7 @@ class OtpServiceTest extends TestCase
         $this->assertFalse($result);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_verify_otp_increments_attempt_count()
     {
         $otp = $this->service->generate($this->user, 'email');
@@ -99,11 +99,11 @@ class OtpServiceTest extends TestCase
         $this->assertEquals(1, $otp->fresh()->attempts);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_verify_otp_blocks_after_3_attempts()
     {
         $otp = $this->service->generate($this->user, 'email');
-        
+
         $this->service->verify($this->user, 'email', '000000'); // Fail 1
         $this->service->verify($this->user, 'email', '000000'); // Fail 2
         $this->service->verify($this->user, 'email', '000000'); // Fail 3 (Blocks)
@@ -116,25 +116,25 @@ class OtpServiceTest extends TestCase
         $this->service->verify($this->user, 'email', $otp->otp_code); // Fail 4 (Should throw)
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_resend_otp_respects_cooldown_period()
     {
         // Generate first OTP
         $this->service->generate($this->user, 'email');
-        
+
         // Immediately try to generate another
         $secondAttempt = $this->service->generate($this->user, 'email');
-        
+
         $this->assertNull($secondAttempt); // Should fail due to cooldown
 
         // Travel 61 seconds into future
         $this->travel(61)->seconds();
-        
+
         $thirdAttempt = $this->service->generate($this->user, 'email');
         $this->assertNotNull($thirdAttempt); // Should succeed
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_otp_cleanup_deletes_expired_entries()
     {
         // Create an old OTP

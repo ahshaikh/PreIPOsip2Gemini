@@ -8,7 +8,7 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "Added all legal and footer pages"
+$CommitMessage = "Upgraded About Us Page"
 #----------------------
 
 function Get-GitCredential {

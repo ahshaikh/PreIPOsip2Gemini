@@ -21,7 +21,7 @@ class ProductPriceHistoryTest extends TestCase
         $this->product = Product::factory()->create();
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_price_history_belongs_to_product()
     {
         $history = ProductPriceHistory::create([
@@ -34,7 +34,7 @@ class ProductPriceHistoryTest extends TestCase
         $this->assertEquals($this->product->id, $history->product->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_price_history_tracks_price_changes()
     {
         $history = ProductPriceHistory::create([
@@ -49,7 +49,7 @@ class ProductPriceHistoryTest extends TestCase
         $this->assertEquals(120.50, $history->fresh()->price);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_price_history_validates_price_positive()
     {
         $this->expectException(\InvalidArgumentException::class);
@@ -62,7 +62,7 @@ class ProductPriceHistoryTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_price_history_orders_by_date_descending()
     {
         // Create 3 records out of order

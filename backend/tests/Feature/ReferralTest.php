@@ -32,7 +32,7 @@ class ReferralTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function multiplier_increases_when_referrals_complete()
     {
         // Create 3 referrals (Tier 1 threshold is 3)
@@ -56,7 +56,7 @@ class ReferralTest extends TestCase
         $this->assertEquals(1.5, $sub->bonus_multiplier);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function multiplier_increases_to_tier_2_at_5_referrals()
     {
         $referees = User::factory()->count(5)->create();

@@ -25,8 +25,7 @@ class AuthTest extends TestCase
     }
 
     // --- REGISTRATION TESTS ---
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_register_creates_user_with_hashed_password()
     {
         $response = $this->postJson('/api/v1/register', [
@@ -45,7 +44,7 @@ class AuthTest extends TestCase
         $this->assertTrue(Hash::check('Secret123!', $user->password));
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_register_creates_wallet_for_new_user()
     {
         $this->postJson('/api/v1/register', [
@@ -61,7 +60,7 @@ class AuthTest extends TestCase
         $this->assertEquals(0, $user->wallet->balance);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_register_creates_profile_for_new_user()
     {
         $this->postJson('/api/v1/register', [
@@ -76,7 +75,7 @@ class AuthTest extends TestCase
         $this->assertTrue($user->profile()->exists());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_register_generates_unique_referral_code()
     {
         $this->postJson('/api/v1/register', [
@@ -92,7 +91,7 @@ class AuthTest extends TestCase
         $this->assertEquals(10, strlen($user->referral_code));
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_register_sends_otp_email_and_sms()
     {
         Queue::fake();
@@ -117,7 +116,7 @@ class AuthTest extends TestCase
         });
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_register_validates_referral_code_if_provided()
     {
         // Create a referrer
@@ -138,7 +137,7 @@ class AuthTest extends TestCase
         $this->assertEquals($referrer->id, $user->referred_by);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_register_rejects_invalid_referral_code()
     {
         $response = $this->postJson('/api/v1/register', [
@@ -155,8 +154,7 @@ class AuthTest extends TestCase
     }
 
     // --- LOGIN TESTS ---
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_login_validates_credentials()
     {
         $user = User::factory()->create([
@@ -179,7 +177,7 @@ class AuthTest extends TestCase
         $response->assertStatus(200);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_login_generates_jwt_token()
     {
         $user = User::factory()->create(['status' => 'active', 'password' => Hash::make('password')]);
@@ -195,7 +193,7 @@ class AuthTest extends TestCase
         $this->assertNotEmpty($response->json('token'));
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_login_updates_last_login_timestamp()
     {
         $user = User::factory()->create(['status' => 'active', 'password' => Hash::make('password')]);
@@ -210,7 +208,7 @@ class AuthTest extends TestCase
         $this->assertNotNull($user->fresh()->last_login_at);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_login_rejects_suspended_account()
     {
         $user = User::factory()->create([
@@ -227,7 +225,7 @@ class AuthTest extends TestCase
                  ->assertJsonFragment(['message' => 'Your account is not active. Please verify or contact support.']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_login_rejects_blocked_account()
     {
         $user = User::factory()->create([
@@ -244,7 +242,7 @@ class AuthTest extends TestCase
                  ->assertJsonFragment(['message' => 'Your account is not active. Please verify or contact support.']);
     }
     
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_logout_revokes_token()
     {
         $user = User::factory()->create(['status' => 'active']);

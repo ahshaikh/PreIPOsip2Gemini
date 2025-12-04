@@ -39,8 +39,7 @@ class AdminUserControllerTest extends TestCase
     }
 
     // ==================== INDEX TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_list_users()
     {
         $response = $this->actingAs($this->admin)
@@ -56,7 +55,7 @@ class AdminUserControllerTest extends TestCase
             ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_search_users_by_username()
     {
         User::factory()->create(['username' => 'searchme123'])->assignRole('user');
@@ -71,7 +70,7 @@ class AdminUserControllerTest extends TestCase
         $this->assertEquals('searchme123', $data[0]['username']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_search_users_by_email()
     {
         User::factory()->create(['email' => 'findme@test.com'])->assignRole('user');
@@ -83,7 +82,7 @@ class AdminUserControllerTest extends TestCase
         $this->assertGreaterThanOrEqual(1, count($response->json('data')));
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function unauthenticated_user_cannot_list_users()
     {
         $response = $this->getJson('/api/v1/admin/users');
@@ -91,7 +90,7 @@ class AdminUserControllerTest extends TestCase
         $response->assertStatus(401);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function regular_user_cannot_list_users()
     {
         $response = $this->actingAs($this->user)
@@ -101,8 +100,7 @@ class AdminUserControllerTest extends TestCase
     }
 
     // ==================== SHOW TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_view_user_details()
     {
         $response = $this->actingAs($this->admin)
@@ -122,7 +120,7 @@ class AdminUserControllerTest extends TestCase
             ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function show_masks_sensitive_data()
     {
         $response = $this->actingAs($this->admin)
@@ -135,7 +133,7 @@ class AdminUserControllerTest extends TestCase
         $this->assertEquals('****234F', $kyc['pan_number']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function show_returns_controlled_response()
     {
         // Create subscription with plan for complete test
@@ -157,7 +155,7 @@ class AdminUserControllerTest extends TestCase
         $this->assertArrayNotHasKey('transactions', $wallet);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function show_returns_stats_summary()
     {
         BonusTransaction::create([
@@ -183,8 +181,7 @@ class AdminUserControllerTest extends TestCase
     }
 
     // ==================== STORE TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_create_user()
     {
         $userData = [
@@ -205,7 +202,7 @@ class AdminUserControllerTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function store_validates_unique_username()
     {
         $userData = [
@@ -223,7 +220,7 @@ class AdminUserControllerTest extends TestCase
             ->assertJsonValidationErrors(['username']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function store_validates_mobile_format()
     {
         $userData = [
@@ -241,7 +238,7 @@ class AdminUserControllerTest extends TestCase
             ->assertJsonValidationErrors(['mobile']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function store_creates_associated_records()
     {
         $userData = [
@@ -265,8 +262,7 @@ class AdminUserControllerTest extends TestCase
     }
 
     // ==================== UPDATE TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_update_user_status()
     {
         $response = $this->actingAs($this->admin)
@@ -281,7 +277,7 @@ class AdminUserControllerTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function update_validates_status_enum()
     {
         $response = $this->actingAs($this->admin)
@@ -294,8 +290,7 @@ class AdminUserControllerTest extends TestCase
     }
 
     // ==================== SUSPEND TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_suspend_user_with_reason()
     {
         $response = $this->actingAs($this->admin)
@@ -310,7 +305,7 @@ class AdminUserControllerTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function suspend_requires_reason()
     {
         $response = $this->actingAs($this->admin)
@@ -320,7 +315,7 @@ class AdminUserControllerTest extends TestCase
             ->assertJsonValidationErrors(['reason']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function suspend_logs_activity()
     {
         $response = $this->actingAs($this->admin)
@@ -336,8 +331,7 @@ class AdminUserControllerTest extends TestCase
     }
 
     // ==================== ADJUST BALANCE TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_credit_user_wallet()
     {
         $response = $this->actingAs($this->admin)
@@ -351,7 +345,7 @@ class AdminUserControllerTest extends TestCase
         $this->assertEquals(6000, $response->json('new_balance')); // 5000 + 1000
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_debit_user_wallet()
     {
         $response = $this->actingAs($this->admin)
@@ -365,7 +359,7 @@ class AdminUserControllerTest extends TestCase
         $this->assertEquals(4500, $response->json('new_balance')); // 5000 - 500
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function debit_fails_for_insufficient_balance()
     {
         $response = $this->actingAs($this->admin)
@@ -380,8 +374,7 @@ class AdminUserControllerTest extends TestCase
     }
 
     // ==================== BULK ACTION TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_bulk_activate_users()
     {
         $users = User::factory()->count(3)->create(['status' => 'suspended']);
@@ -404,7 +397,7 @@ class AdminUserControllerTest extends TestCase
         }
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_bulk_suspend_users()
     {
         $users = User::factory()->count(2)->create(['status' => 'active']);
@@ -427,7 +420,7 @@ class AdminUserControllerTest extends TestCase
         }
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_bulk_award_bonus()
     {
         $users = User::factory()->count(2)->create();
@@ -449,7 +442,7 @@ class AdminUserControllerTest extends TestCase
         }
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function bulk_bonus_validates_amount()
     {
         $response = $this->actingAs($this->admin)
@@ -464,8 +457,7 @@ class AdminUserControllerTest extends TestCase
     }
 
     // ==================== IMPORT TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_import_users_from_csv()
     {
         Storage::fake('local');
@@ -483,7 +475,7 @@ class AdminUserControllerTest extends TestCase
         $this->assertDatabaseHas('users', ['username' => 'importuser2']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function import_validates_csv_headers()
     {
         Storage::fake('local');
@@ -500,7 +492,7 @@ class AdminUserControllerTest extends TestCase
             ->assertJsonFragment(['message' => "Missing required column: 'username'. Expected headers: username, email, mobile"]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function import_skips_duplicate_users()
     {
         Storage::fake('local');
@@ -518,7 +510,7 @@ class AdminUserControllerTest extends TestCase
         $this->assertEquals(1, $response->json('skipped'));
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function import_validates_email_format()
     {
         Storage::fake('local');
@@ -536,7 +528,7 @@ class AdminUserControllerTest extends TestCase
         $this->assertStringContainsString('Invalid email format', $response->json('errors')[0]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function import_validates_mobile_format()
     {
         Storage::fake('local');
@@ -555,8 +547,7 @@ class AdminUserControllerTest extends TestCase
     }
 
     // ==================== EXPORT TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_export_users_to_csv()
     {
         $response = $this->actingAs($this->admin)

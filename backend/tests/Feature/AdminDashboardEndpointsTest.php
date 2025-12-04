@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Cache;
 
 class AdminDashboardEndpointsTest extends TestCase
 {
-    use RefreshDatabase;
+//    use RefreshDatabase;
 
     protected $admin;
     protected $user;
@@ -22,8 +22,8 @@ class AdminDashboardEndpointsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
-        $this->seed(\Database\Seeders\SettingsSeeder::class);
+//        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+//        $this->seed(\Database\Seeders\SettingsSeeder::class);
         
         $this->admin = User::factory()->create();
         $this->admin->assignRole('admin');
@@ -32,7 +32,7 @@ class AdminDashboardEndpointsTest extends TestCase
         $this->user->assignRole('user');
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testDashboardRequiresAdminAuth()
     {
         // 1. No auth
@@ -45,7 +45,7 @@ class AdminDashboardEndpointsTest extends TestCase
         $this->actingAs($this->admin)->getJson('/api/v1/admin/dashboard')->assertStatus(200);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testDashboardShowsTotalUsers()
     {
         User::factory()->count(10)->create()->each(fn($u) => $u->assignRole('user'));
@@ -56,7 +56,7 @@ class AdminDashboardEndpointsTest extends TestCase
         $response->assertJsonPath('kpis.total_users', 11);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testDashboardShowsTotalRevenue()
     {
         Payment::factory()->create(['status' => 'paid', 'amount' => 5000]);
@@ -68,7 +68,7 @@ class AdminDashboardEndpointsTest extends TestCase
         $response->assertJsonPath('kpis.total_revenue', 8000);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testDashboardShowsPendingKycs()
     {
         UserKyc::factory()->create(['status' => 'submitted']);
@@ -80,7 +80,7 @@ class AdminDashboardEndpointsTest extends TestCase
         $response->assertJsonPath('kpis.pending_kyc', 2);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testDashboardShowsPendingWithdrawals()
     {
         Withdrawal::factory()->create(['status' => 'pending']);
@@ -91,7 +91,7 @@ class AdminDashboardEndpointsTest extends TestCase
         $response->assertJsonPath('kpis.pending_withdrawals', 1);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testGetDashboardStatsReturnsCorrectMetrics()
     {
         // This test combines the above
@@ -111,20 +111,20 @@ class AdminDashboardEndpointsTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testDashboardShowsRecentActivity()
     {
         ActivityLog::factory()->create(['description' => 'User logged in']);
         ActivityLog::factory()->create(['description' => 'Payment failed']);
-        
+
         $response = $this->actingAs($this->admin)->getJson('/api/v1/admin/dashboard');
-        
+
         $response->assertStatus(200);
         $response->assertJsonCount(2, 'recent_activity');
         $response->assertJsonPath('recent_activity.0.description', 'Payment failed'); // Latest first
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testDashboardChartsLoadCorrectly()
     {
         Payment::factory()->create(['status' => 'paid', 'amount' => 1234, 'paid_at' => now()->subDays(2)]);
@@ -138,7 +138,7 @@ class AdminDashboardEndpointsTest extends TestCase
         $response->assertJsonPath('charts.revenue_over_time.0.total', 1234);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testDashboardRespondsUnder500ms()
     {
         // Note: This test is environment-dependent, but we can check it's not critically slow.
@@ -151,7 +151,7 @@ class AdminDashboardEndpointsTest extends TestCase
         $this->assertLessThan(500, $duration, "Dashboard took over 500ms to respond.");
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testDashboardHandlesConcurrentAccess()
     {
         // This isn't a true concurrency test, but it ensures that

@@ -55,7 +55,7 @@ class WebhookValidationTest extends TestCase
         ];
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testRazorpayWebhookSignatureValidation()
     {
         // 1. Arrange: Tell the mock service to return TRUE
@@ -74,7 +74,7 @@ class WebhookValidationTest extends TestCase
         $response->assertStatus(200);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testInvalidSignatureRejected()
     {
         // 1. Arrange: Tell the mock service to return FALSE
@@ -94,12 +94,12 @@ class WebhookValidationTest extends TestCase
         $response->assertJson(['error' => 'Invalid Signature']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testWebhookIdempotency()
     {
         // This tests that a duplicate webhook event is ignored
         Queue::fake(); // We will check if the job is pushed
-        
+
         // 1. Arrange
         $this->razorpayMock->shouldReceive('verifyWebhookSignature')
             ->twice() // We will call the webhook twice
@@ -112,7 +112,7 @@ class WebhookValidationTest extends TestCase
             'gateway_order_id' => 'order_idem_123',
             'status' => 'pending'
         ]);
-        
+
         $payload = $this->getPaymentPayload('order_idem_123', 'pay_idem_123');
 
         // 2. Act: First call (The "Real" event)
@@ -121,7 +121,7 @@ class WebhookValidationTest extends TestCase
         // 3. Assert: Job was pushed, payment is 'paid'
         Queue::assertPushed(ProcessSuccessfulPaymentJob::class, 1);
         $this->assertEquals('paid', $payment->fresh()->status);
-        
+
         // 4. Act: Second call (The "Duplicate" event)
         $this->postJson('/api/v1/webhooks/razorpay', $payload, ['X-Razorpay-Signature' => 'valid']);
 
@@ -130,7 +130,7 @@ class WebhookValidationTest extends TestCase
         Queue::assertPushed(ProcessSuccessfulPaymentJob::class, 1); // Still 1
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testWebhookRetryHandling()
     {
         // This is the same functional test as Idempotency.

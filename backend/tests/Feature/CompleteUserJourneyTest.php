@@ -94,7 +94,7 @@ class CompleteUserJourneyTest extends TestCase
         );
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testRegistrationToFirstPaymentFlow()
     {
         Queue::fake(); // Prevent jobs from running automatically
@@ -126,7 +126,7 @@ class CompleteUserJourneyTest extends TestCase
         $this->assertGreaterThan(0, $this->user->wallet->fresh()->balance);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testKycSubmissionToApprovalFlow()
     {
         // 1. Submit KYC
@@ -154,7 +154,7 @@ class CompleteUserJourneyTest extends TestCase
         $this->assertEquals('verified', $kyc->fresh()->status);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testSubscriptionPauseAndResumeFlow()
     {
         $sub = Subscription::factory()->create(['user_id' => $this->user->id, 'status' => 'active']);
@@ -170,7 +170,7 @@ class CompleteUserJourneyTest extends TestCase
         $this->assertEquals('active', $sub->fresh()->status);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testSubscriptionCancellationFlow()
     {
         $sub = Subscription::factory()->create(['user_id' => $this->user->id, 'status' => 'active']);
@@ -181,7 +181,7 @@ class CompleteUserJourneyTest extends TestCase
         $this->assertEquals('cancelled', $sub->fresh()->status);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testWithdrawalRequestToCompletionFlow()
     {
         $this->user->kyc->update(['status' => 'verified']);
@@ -207,7 +207,7 @@ class CompleteUserJourneyTest extends TestCase
         $this->assertEquals('completed', $withdrawal->fresh()->status);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testReferralBonusCompleteFlow()
     {
         $referrer = User::factory()->create();
@@ -230,7 +230,7 @@ class CompleteUserJourneyTest extends TestCase
         $this->assertDatabaseHas('bonus_transactions', ['user_id' => $referrer->id, 'type' => 'referral']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testMilestoneBonusCompleteFlow()
     {
         // 1. Create 11 past paid payments
@@ -259,7 +259,7 @@ class CompleteUserJourneyTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testProfitShareDistributionFlow()
     {
         $this->user->update(['created_at' => now()->subMonths(4)]); // Make eligible
@@ -276,7 +276,7 @@ class CompleteUserJourneyTest extends TestCase
         $this->assertGreaterThan(0, $this->user->wallet->fresh()->balance);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testLuckyDrawEntryToWinnerFlow()
     {
         $draw = LuckyDraw::factory()->create(['status' => 'open', 'prize_structure' => [
@@ -300,7 +300,7 @@ class CompleteUserJourneyTest extends TestCase
         $this->assertEquals(1000, $this->user->wallet->fresh()->balance);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testAutoDebitFailureAndRetryFlow()
     {
         Queue::fake();
@@ -323,7 +323,7 @@ class CompleteUserJourneyTest extends TestCase
         Queue::assertPushed(RetryAutoDebitJob::class);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testKycRejectionAndResubmissionFlow()
     {
         $kyc = $this->user->kyc;
@@ -351,7 +351,7 @@ class CompleteUserJourneyTest extends TestCase
         $this->assertEquals('verified', $kyc->fresh()->status);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testCelebrationBonusOnBirthdayFlow()
     {
         // 1. Set user's birthday to today

@@ -25,7 +25,7 @@ class ReferralSystemTest extends TestCase
         $this->seed(\Database\Seeders\PlanSeeder::class); // Loads referral tiers
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function referrer_gets_bonus_and_tier_upgrade_on_referee_payment()
     {
         // 1. Setup Referrer (User A)

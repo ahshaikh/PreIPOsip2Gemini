@@ -56,7 +56,7 @@ class ProfitShareServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_calculate_profit_uses_correct_formula()
     {
         // 2 users with same investment weight (1000). Total weight = 2000.
@@ -80,7 +80,7 @@ class ProfitShareServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_calculate_distribution_checks_eligibility()
     {
         // User C: Ineligible (New User)
@@ -94,7 +94,7 @@ class ProfitShareServiceTest extends TestCase
         $this->assertDatabaseMissing('user_profit_shares', ['user_id' => $userC->id]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_calculate_distribution_applies_plan_percentage()
     {
         // This is implicitly tested in test_calculate_profit_uses_correct_formula
@@ -106,7 +106,7 @@ class ProfitShareServiceTest extends TestCase
         $this->assertDatabaseHas('user_profit_shares', ['user_id' => $this->userB->id, 'amount' => 5000]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_distribute_to_wallets_credits_correctly()
     {
         $admin = User::factory()->create();
@@ -125,7 +125,7 @@ class ProfitShareServiceTest extends TestCase
         $this->assertEquals('distributed', $this->period->fresh()->status);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_reversal_debits_wallets_correctly()
     {
         $admin = User::factory()->create();

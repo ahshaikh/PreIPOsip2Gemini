@@ -20,7 +20,7 @@ class SocialLoginReferralTest extends TestCase
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function it_can_process_referral_code_during_google_login()
     {
         // Create a referrer user
@@ -62,7 +62,7 @@ class SocialLoginReferralTest extends TestCase
         $this->assertEquals('pending', $referral->status);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function it_handles_invalid_referral_code_gracefully()
     {
         // Mock Socialite
@@ -93,7 +93,7 @@ class SocialLoginReferralTest extends TestCase
         $this->assertEquals(0, Referral::where('referred_id', $newUser->id)->count());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function it_prevents_self_referral()
     {
         // Create a user
@@ -127,7 +127,7 @@ class SocialLoginReferralTest extends TestCase
             ->count());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function google_redirect_includes_referral_code_in_state()
     {
         $response = $this->get('/api/v1/auth/google?referral_code=TEST123');

@@ -29,7 +29,7 @@ class ProcessMonthlyLuckyDrawTest extends TestCase
         $this->serviceMock = $this->mock(LuckyDrawService::class);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_creates_draw_for_current_month()
     {
         // 1. Travel to the 1st of the month
@@ -50,7 +50,7 @@ class ProcessMonthlyLuckyDrawTest extends TestCase
         $this->travelBack();
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_allocates_entries_to_active_users()
     {
         // Allocation is tested in GenerateLuckyDrawEntryJobTest
@@ -62,7 +62,7 @@ class ProcessMonthlyLuckyDrawTest extends TestCase
         );
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_executes_draw_and_selects_winners()
     {
         // 1. Create an open draw due today

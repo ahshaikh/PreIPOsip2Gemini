@@ -45,7 +45,7 @@ class RegisterRequestTest extends TestCase
         ], $overrides);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_validates_username_format()
     {
         // Fails: required
@@ -65,7 +65,7 @@ class RegisterRequestTest extends TestCase
         $this->assertTrue($this->validate($this->getValidData(['username' => 'valid_user-123']))->passes());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_validates_email_format()
     {
         // Fails: required
@@ -79,7 +79,7 @@ class RegisterRequestTest extends TestCase
         $this->assertFalse($this->validate($this->getValidData(['email' => 'taken@example.com']))->passes());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_validates_mobile_10_digits()
     {
         // Fails: required
@@ -96,7 +96,7 @@ class RegisterRequestTest extends TestCase
         $this->assertFalse($this->validate($this->getValidData(['mobile' => '1111111111']))->passes());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_validates_password_complexity()
     {
         // Fails: required
@@ -121,7 +121,7 @@ class RegisterRequestTest extends TestCase
         $this->assertTrue($this->validate($this->getValidData(['password' => 'Password123!', 'password_confirmation' => 'Password123!']))->passes());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_validates_referral_code_if_provided()
     {
         // 1. Passes if null (it's nullable)

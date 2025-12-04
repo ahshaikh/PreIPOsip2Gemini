@@ -25,7 +25,7 @@ class ProductTest extends TestCase
         $this->product = Product::factory()->create();
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_product_has_bulk_purchases_relationship()
     {
         BulkPurchase::factory()->create(['product_id' => $this->product->id]);
@@ -34,7 +34,7 @@ class ProductTest extends TestCase
         $this->assertEquals(1, $this->product->bulkPurchases->count());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_product_has_investments_relationship()
     {
         UserInvestment::factory()->create(['product_id' => $this->product->id]);
@@ -42,7 +42,7 @@ class ProductTest extends TestCase
         $this->assertTrue($this->product->investments()->exists());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_product_has_price_history_relationship()
     {
         ProductPriceHistory::factory()->create([
@@ -55,15 +55,15 @@ class ProductTest extends TestCase
         $this->assertEquals(100, $this->product->priceHistory->first()->price);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_product_slug_is_unique()
     {
         $this->expectException(QueryException::class);
-        
+
         Product::factory()->create(['slug' => $this->product->slug]); // Fails
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_product_validates_face_value_positive()
     {
         $this->expectException(\InvalidArgumentException::class);
@@ -72,7 +72,7 @@ class ProductTest extends TestCase
         Product::factory()->create(['face_value_per_unit' => 0]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_product_status_enum_validates()
     {
         $validStatuses = ['active', 'upcoming', 'listed', 'closed'];
@@ -84,7 +84,7 @@ class ProductTest extends TestCase
         $this->assertFalse($validator->passes());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_product_calculates_total_allocated()
     {
         // No allocations yet
@@ -98,7 +98,7 @@ class ProductTest extends TestCase
         $this->assertEquals(8000, $this->product->fresh()->total_allocated);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_product_soft_deletes_correctly()
     {
         $productId = $this->product->id;

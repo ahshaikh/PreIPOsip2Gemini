@@ -28,7 +28,7 @@ class SettingTest extends TestCase
         Cache::flush();
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_setting_key_is_unique()
     {
         Setting::create(['key' => 'unique_key', 'value' => 'a']);
@@ -38,7 +38,7 @@ class SettingTest extends TestCase
         Setting::create(['key' => 'unique_key', 'value' => 'b']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_setting_value_casts_by_type()
     {
         // This test validates the setting() helper function
@@ -58,7 +58,7 @@ class SettingTest extends TestCase
         $this->assertIsString(setting('test_str'));
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_setting_type_enum_validates()
     {
         $validTypes = ['string', 'number', 'boolean', 'json', 'text'];
@@ -76,7 +76,7 @@ class SettingTest extends TestCase
         $this->assertFalse($validator->passes());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_setting_retrieves_by_key()
     {
         Setting::create(['key' => 'find_me', 'value' => 'Found!']);
@@ -84,7 +84,7 @@ class SettingTest extends TestCase
         $this->assertEquals('Found!', setting('find_me'));
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_setting_returns_default_if_not_found()
     {
         $value = setting('non_existent', 'Default');
@@ -92,7 +92,7 @@ class SettingTest extends TestCase
         $this->assertEquals('Default', $value);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_setting_json_type_decodes_correctly()
     {
         $json = '{"a": 1, "b": "test"}';
@@ -105,7 +105,7 @@ class SettingTest extends TestCase
         $this->assertEquals('test', $result['b']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_setting_boolean_type_converts_correctly()
     {
         Setting::create(['key' => 'bool_true', 'value' => 'true', 'type' => 'boolean']);
@@ -119,7 +119,7 @@ class SettingTest extends TestCase
         $this->assertFalse(setting('bool_0'));
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_setting_tracks_updated_by_admin()
     {
         $setting = Setting::create(['key' => 'audit_test', 'value' => 'initial']);

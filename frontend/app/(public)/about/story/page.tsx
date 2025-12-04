@@ -9,37 +9,37 @@ export default function OurStoryPage() {
       year: "2019",
       title: "The Idea",
       description:
-        "Our founders, frustrated by the lack of access to pre-IPO investments for retail investors, envisioned a platform that would democratize wealth creation.",
+        "Our founders noticed a pattern: pre-IPO opportunities were generating extraordinary wealth, but only for a select few. Retail investors—despite being the backbone of India’s public markets—were consistently excluded. This sparked a bold question: Can we democratize access to the private markets?",
     },
     {
       year: "2020",
-      title: "PreIPOsip is Born",
+      title: "Building the Foundation",
       description:
-        "After months of research and regulatory approvals, PreIPOsip was officially launched. We onboarded our first 100 investors and facilitated ₹5 Crores in investments.",
+        "After months of research and understanding regulatory frameworks, we launched the early version of PreIPOsip. The goal was simple: offer transparent, structured access to private-market opportunities for everyday investors.",
     },
     {
       year: "2021",
-      title: "Rapid Growth",
+      title: "Strengthening the Ecosystem",
       description:
-        "Crossed 10,000 investors and ₹500 Crores AUM. Launched our mobile app and expanded to 50+ pre-IPO companies across multiple sectors.",
+        "We expanded our due-diligence capabilities, formed relationships with private companies across sectors, and enhanced the investor experience with new tools and transparency features.",
     },
     {
       year: "2022",
-      title: "Unicorn Portfolio",
+      title: "Product Evolution",
       description:
-        "Several of our portfolio companies achieved unicorn status. Our investors saw average returns of 287%. Crossed 25,000 investor milestone.",
+        "Introduced richer insights, improved dashboards, and a stronger compliance-first infrastructure. Focus shifted to scalability, investor education, and secure transaction workflows.",
     },
     {
       year: "2023",
-      title: "Industry Leader",
+      title: "Scaling the Vision",
       description:
-        "Became India's most trusted pre-IPO platform with 50,000+ investors and ₹2,500+ Crores AUM. Won 'Best FinTech Platform' award.",
+        "We expanded our ecosystem, improved platform transparency, and refined operational processes to align with industry best practices and investor protection standards.",
     },
     {
       year: "2024",
-      title: "The Future",
+      title: "The Road Ahead",
       description:
-        "Expanding our offerings with secondary market trading, IPO advisory, and institutional-grade research. Our mission continues.",
+        "Our mission continues: building India’s most transparent, technology-driven platform for accessing private-market investments—designed for millions of future investors.",
     },
   ];
 
@@ -51,18 +51,20 @@ export default function OurStoryPage() {
           <div className="text-center max-w-4xl mx-auto">
             <div className="inline-flex items-center space-x-2 bg-purple-100 dark:bg-purple-900/30 rounded-full px-6 py-3 mb-8">
               <Sparkles className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-              <span className="font-semibold text-purple-900 dark:text-purple-300">Our Journey</span>
+              <span className="font-semibold text-purple-900 dark:text-purple-300">
+                Our Journey
+              </span>
             </div>
 
-            <h1 className="text-5xl lg:text-6xl font-black text-gray-900 dark:text-white mb-6 leading-tight">
-              From a Bold Idea to
+            <h1 className="text-5xl lg:text-5xl font-black text-gray-900 dark:text-white mb-6 leading-tight">
+              From a Bold Question to
               <span className="block text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-400 dark:to-blue-400">
-                India's Leading Platform
+                A New Path for Indian Investors
               </span>
             </h1>
 
             <p className="text-xl text-gray-600 dark:text-gray-400 leading-relaxed">
-              The story of how we're revolutionizing pre-IPO investments in India
+              The story of how we're reimagining access to pre-IPO opportunities<br></br>—one transparent step at a time.
             </p>
           </div>
         </div>
@@ -76,41 +78,46 @@ export default function OurStoryPage() {
               <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-6">
                 It Started With A Simple Question
               </h2>
+
               <div className="space-y-6 text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
                 <p>
-                  In 2019, our founders were frustrated. They had watched their wealthy friends and
-                  institutional investors make massive returns by investing in companies before their IPOs.
-                  Meanwhile, retail investors like them were locked out of these opportunities.
+                  In 2019, our founders were struck by an uncomfortable truth: early-stage wealth creation was accessible only to institutions and ultra-wealthy investors. Retail investors—who actively participate in IPOs—were consistently left out of the most valuable phase.
                 </p>
+
                 <p>
                   <strong className="text-gray-900 dark:text-white">
-                    "Why should only the ultra-rich have access to unicorn investments?"
+                    “Why should only the ultra-rich have access to high-growth private companies?”
                   </strong>
                 </p>
+
                 <p>
-                  This simple question sparked an idea: What if we could create a platform that made
-                  pre-IPO investments accessible, transparent, and simple for every Indian investor?
+                  This sparked the idea for PreIPOsip: a platform built to provide structured, transparent, and technology-driven access to private-market opportunities for everyday investors.
                 </p>
+
                 <p>
-                  After months of research, countless regulatory hurdles, and building relationships with
-                  top pre-IPO companies, PreIPOsip was born in 2020.
+                  After deep research, regulatory understanding, and forming partnerships within the ecosystem, the first version of PreIPOsip launched in 2020.
                 </p>
               </div>
             </div>
 
+            {/* Values */}
             <div className="grid grid-cols-2 gap-6">
               {[
                 { icon: Rocket, label: "Innovation First", color: "purple" },
-                { icon: Users, label: "Customer Obsessed", color: "blue" },
-                { icon: TrendingUp, label: "Results Driven", color: "green" },
+                { icon: Users, label: "Investor Focused", color: "blue" },
+                { icon: TrendingUp, label: "Growth Mindset", color: "green" },
                 { icon: Award, label: "Excellence Always", color: "amber" },
               ].map((value, i) => (
                 <div
                   key={i}
                   className="bg-gradient-to-br from-gray-50 to-white dark:from-slate-900 dark:to-slate-800 rounded-2xl p-8 text-center border border-gray-200 dark:border-slate-700"
                 >
-                  <div className={`w-16 h-16 bg-${value.color}-100 dark:bg-${value.color}-900/30 rounded-xl flex items-center justify-center mb-4 mx-auto`}>
-                    <value.icon className={`w-8 h-8 text-${value.color}-600 dark:text-${value.color}-400`} />
+                  <div
+                    className={`w-16 h-16 bg-${value.color}-100 dark:bg-${value.color}-900/30 rounded-xl flex items-center justify-center mb-4 mx-auto`}
+                  >
+                    <value.icon
+                      className={`w-8 h-8 text-${value.color}-600 dark:text-${value.color}-400`}
+                    />
                   </div>
                   <div className="text-sm font-bold text-gray-900 dark:text-white">{value.label}</div>
                 </div>
@@ -128,7 +135,7 @@ export default function OurStoryPage() {
               Our Journey Through The Years
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-400">
-              From humble beginnings to industry leadership
+              A timeline of evolution, learning, and continuous innovation.
             </p>
           </div>
 
@@ -150,9 +157,7 @@ export default function OurStoryPage() {
                       index % 2 === 1 ? "lg:text-right lg:col-start-1" : "lg:col-start-2"
                     }`}
                   >
-                    <div
-                      className={`inline-block bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xl font-black px-6 py-3 rounded-xl mb-4 shadow-lg`}
-                    >
+                    <div className="inline-block bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xl font-black px-6 py-3 rounded-xl mb-4 shadow-lg">
                       {item.year}
                     </div>
                     <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
@@ -163,14 +168,14 @@ export default function OurStoryPage() {
                     </p>
                   </div>
 
-                  {/* Empty space for alternating layout */}
+                  {/* Empty Spacer */}
                   <div
                     className={`hidden lg:block ${
                       index % 2 === 1 ? "lg:col-start-2" : "lg:col-start-1"
                     }`}
                   />
 
-                  {/* Timeline dot */}
+                  {/* Dot */}
                   <div className="hidden lg:block absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white dark:bg-slate-950 border-4 border-purple-600 rounded-full z-10" />
                 </div>
               ))}
@@ -187,22 +192,22 @@ export default function OurStoryPage() {
               Key Milestones
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-400">
-              Achievements we're proud of
+              Highlights from our evolving journey.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { value: "50,000+", label: "Happy Investors" },
-              { value: "₹2,500Cr+", label: "Total AUM" },
-              { value: "287%", label: "Avg. Returns" },
-              { value: "100+", label: "Portfolio Companies" },
+              { value: "Growing", label: "Investor Community" },
+              { value: "Expanding", label: "Private-Market Access" },
+              { value: "Evolving", label: "Platform Capabilities" },
+              { value: "Strengthening", label: "Partnership Network" },
             ].map((stat, i) => (
               <div
                 key={i}
                 className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-slate-900 dark:to-slate-800 rounded-2xl p-8 text-center border border-gray-200 dark:border-slate-700"
               >
-                <div className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-400 dark:to-blue-400 mb-3">
+                <div className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-400 dark:to-blue-400 mb-3">
                   {stat.value}
                 </div>
                 <div className="text-gray-600 dark:text-gray-400 font-medium">{stat.label}</div>
@@ -215,11 +220,9 @@ export default function OurStoryPage() {
       {/* CTA */}
       <section className="py-20 bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-700 dark:to-blue-700">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl font-bold text-white mb-6">
-            Be Part of Our Story
-          </h2>
+          <h2 className="text-4xl font-bold text-white mb-6">Be Part of Our Story</h2>
           <p className="text-xl text-purple-100 mb-8">
-            Join thousands of investors who are building wealth with PreIPOsip
+            Join a growing community helping to shape the future of private-market investing in India.
           </p>
 
           <Link

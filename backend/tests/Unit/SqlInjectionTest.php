@@ -8,13 +8,7 @@ use Mockery;
 
 class SqlInjectionTest extends TestCase
 {
-    /**
-     * @test
-     * Corresponds to: SecurityEndpointTest::testSqlInjectionPreventionWorks
-     *
-     * This test validates that the repository/service layer uses
-     * parameterized queries, not string concatenation.
-     */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testSqlInjectionPreventionWorks()
     {
         // The malicious payload
@@ -53,7 +47,7 @@ class SqlInjectionTest extends TestCase
 
         // Call the method with the malicious input
         $userRepository->findUserByUsername($maliciousInput);
-        
+
         // The test passes if the mock's expectations (set with expects()) are met.
     }
 }

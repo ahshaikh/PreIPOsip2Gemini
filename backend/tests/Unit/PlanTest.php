@@ -21,7 +21,7 @@ class PlanTest extends TestCase
         parent::setUp();
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_plan_has_configs_relationship()
     {
         $plan = Plan::factory()->create();
@@ -35,7 +35,7 @@ class PlanTest extends TestCase
         $this->assertEquals('test_key', $plan->configs->first()->config_key);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_plan_has_features_relationship()
     {
         $plan = Plan::factory()->create();
@@ -48,7 +48,7 @@ class PlanTest extends TestCase
         $this->assertEquals('Zero Fees', $plan->features->first()->feature_text);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_plan_has_subscriptions_relationship()
     {
         $plan = Plan::factory()->create();
@@ -62,7 +62,7 @@ class PlanTest extends TestCase
         $this->assertEquals($user->id, $plan->subscriptions->first()->user_id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_plan_scope_active_returns_only_active()
     {
         Plan::factory()->create(['is_active' => true]);
@@ -71,7 +71,7 @@ class PlanTest extends TestCase
         $this->assertEquals(1, Plan::active()->count());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_plan_calculates_total_investment()
     {
         $plan = Plan::factory()->create([
@@ -83,7 +83,7 @@ class PlanTest extends TestCase
         $this->assertEquals(180000, $plan->total_investment);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_plan_gets_config_value_by_key()
     {
         $plan = Plan::factory()->create();
@@ -95,7 +95,7 @@ class PlanTest extends TestCase
         $this->assertEquals(10, $plan->getConfig('bonus_rate'));
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_plan_returns_default_if_config_missing()
     {
         $plan = Plan::factory()->create();
@@ -105,7 +105,7 @@ class PlanTest extends TestCase
         $this->assertEquals('default_value', $value);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_plan_slug_is_unique()
     {
         Plan::factory()->create(['slug' => 'plan-a']);
@@ -115,7 +115,7 @@ class PlanTest extends TestCase
         Plan::factory()->create(['slug' => 'plan-a']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_plan_validates_monthly_amount_positive()
     {
         $this->expectException(\InvalidArgumentException::class);
@@ -124,7 +124,7 @@ class PlanTest extends TestCase
         Plan::factory()->create(['monthly_amount' => -100]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_plan_validates_duration_positive()
     {
         $this->expectException(\InvalidArgumentException::class);
@@ -133,7 +133,7 @@ class PlanTest extends TestCase
         Plan::factory()->create(['duration_months' => 0]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_plan_soft_deletes_correctly()
     {
         $plan = Plan::factory()->create();
@@ -145,7 +145,7 @@ class PlanTest extends TestCase
         $this->assertNotNull(Plan::withTrashed()->find($planId));
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_plan_can_be_archived()
     {
         $plan = Plan::factory()->create(['is_active' => true]);

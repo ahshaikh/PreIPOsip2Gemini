@@ -44,7 +44,7 @@ class PaymentWebhookServiceTest extends TestCase
             ->andReturn($isValid);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_handle_payment_captured_updates_payment_status()
     {
         $this->mockSignatureValidation(true);
@@ -75,7 +75,7 @@ class PaymentWebhookServiceTest extends TestCase
         $this->assertEquals('paid', $payment->fresh()->status);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_handle_payment_captured_triggers_allocation()
     {
         $this->mockSignatureValidation(true);
@@ -97,7 +97,7 @@ class PaymentWebhookServiceTest extends TestCase
         Queue::assertPushed(ProcessSuccessfulPaymentJob::class);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_handle_payment_failed_updates_status()
     {
         $this->mockSignatureValidation(true);
@@ -125,7 +125,7 @@ class PaymentWebhookServiceTest extends TestCase
         $this->assertEquals('failed', $payment->fresh()->status);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_handle_payment_failed_sends_notification()
     {
         $this->mockSignatureValidation(true);
@@ -143,7 +143,7 @@ class PaymentWebhookServiceTest extends TestCase
         Queue::assertPushed(SendPaymentFailedEmailJob::class);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_handle_refund_processed_updates_records()
     {
         $this->mockSignatureValidation(true);
@@ -175,7 +175,7 @@ class PaymentWebhookServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_webhook_rejects_invalid_signature()
     {
         $this->razorpayMock->shouldReceive('verifyWebhookSignature')
@@ -188,7 +188,7 @@ class PaymentWebhookServiceTest extends TestCase
                  ->assertJson(['error' => 'Invalid Signature']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_webhook_handles_duplicate_events()
     {
         $this->razorpayMock->shouldReceive('verifyWebhookSignature')->twice()->andReturn(true);
@@ -211,7 +211,7 @@ class PaymentWebhookServiceTest extends TestCase
         Queue::assertPushed(ProcessSuccessfulPaymentJob::class, 1);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_webhook_logs_all_events()
     {
         Log::shouldReceive('info')->atLeast()->once();

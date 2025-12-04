@@ -41,10 +41,7 @@ class UserDataSecurityTest extends TestCase // Or WebTestCase
         $this->user456 = (object)['id' => 456, 'role' => 'ROLE_USER'];
     }
 
-    /**
-     * @test
-     * Corresponds to: SecurityEndpointTest::testUnauthorizedAccessToOtherUserDataFails
-     */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testUnauthorizedAccessToOtherUserDataFails()
     {
         // Log in as User 123

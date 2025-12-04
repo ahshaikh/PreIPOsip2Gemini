@@ -51,7 +51,7 @@ class UserSupportEndpointsTest extends TestCase
         ];
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testUserCanCreateTicket()
     {
         $response = $this->actingAs($this->user)->postJson('/api/v1/user/support-tickets', 
@@ -68,7 +68,7 @@ class UserSupportEndpointsTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testUserCanViewOwnTickets()
     {
         SupportTicket::factory()->create(['user_id' => $this->user->id]);
@@ -79,7 +79,7 @@ class UserSupportEndpointsTest extends TestCase
         $response->assertJsonCount(1, 'data');
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testUserCanReplyToTicket()
     {
         $ticket = SupportTicket::factory()->create(['user_id' => $this->user->id]);
@@ -96,7 +96,7 @@ class UserSupportEndpointsTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testUserCanCloseTicket()
     {
         $ticket = SupportTicket::factory()->create(['user_id' => $this->user->id, 'status' => 'open']);
@@ -107,17 +107,17 @@ class UserSupportEndpointsTest extends TestCase
         $this->assertEquals('resolved', $ticket->fresh()->status);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testUserCannotViewOtherUsersTickets()
     {
         $otherTicket = SupportTicket::factory()->create(['user_id' => $this->otherUser->id]);
 
         $response = $this->actingAs($this->user)->getJson("/api/v1/user/support-tickets/{$otherTicket->id}");
-        
+
         $response->assertStatus(403); // Forbidden
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testUserCanAttachFilesToTicket()
     {
         Storage::fake('public');
@@ -134,7 +134,7 @@ class UserSupportEndpointsTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testUserReceivesNotificationOnReply()
     {
         Notification::fake();
@@ -148,7 +148,7 @@ class UserSupportEndpointsTest extends TestCase
         Notification::assertSentTo($this->user, SupportReplyNotification::class);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testUserCanRateTicketResolution()
     {
         $ticket = SupportTicket::factory()->create(['user_id' => $this->user->id, 'status' => 'resolved']);

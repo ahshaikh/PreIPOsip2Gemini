@@ -39,7 +39,7 @@ class WithdrawalRequestTest extends TestCase
         ], $overrides);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_validates_amount_positive()
     {
         $response = $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw',
@@ -50,7 +50,7 @@ class WithdrawalRequestTest extends TestCase
                  ->assertJsonValidationErrors('amount');
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_validates_amount_minimum()
     {
         $response = $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw',
@@ -61,7 +61,7 @@ class WithdrawalRequestTest extends TestCase
                  ->assertJsonValidationErrors('amount');
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_validates_sufficient_balance()
     {
         $response = $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw',
@@ -72,7 +72,7 @@ class WithdrawalRequestTest extends TestCase
                  ->assertJsonValidationErrors('amount', 'Insufficient wallet balance.');
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_validates_kyc_approved()
     {
         $this->user->kyc->update(['status' => 'pending']); // Un-verify
@@ -85,7 +85,7 @@ class WithdrawalRequestTest extends TestCase
         $response->assertJson(['message' => 'KYC must be verified to request a withdrawal.']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_validates_bank_details_present()
     {
         $response = $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw',
@@ -96,7 +96,7 @@ class WithdrawalRequestTest extends TestCase
                  ->assertJsonValidationErrors(['bank_details.account', 'bank_details.ifsc']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_validates_withdrawal_limit_per_day()
     {
         // 1. First withdrawal (40,000) - OK

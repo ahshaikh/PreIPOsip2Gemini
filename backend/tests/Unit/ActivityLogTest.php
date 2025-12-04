@@ -21,7 +21,7 @@ class ActivityLogTest extends TestCase
         $this->user = User::factory()->create();
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_log_belongs_to_user()
     {
         $log = ActivityLog::create([
@@ -33,7 +33,7 @@ class ActivityLogTest extends TestCase
         $this->assertEquals($this->user->id, $log->user->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_log_tracks_action_type()
     {
         $log = ActivityLog::create([
@@ -44,7 +44,7 @@ class ActivityLogTest extends TestCase
         $this->assertEquals('login_success', $log->action);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_log_tracks_ip_address()
     {
         $log = ActivityLog::create([
@@ -56,7 +56,7 @@ class ActivityLogTest extends TestCase
         $this->assertEquals('192.168.1.1', $log->ip_address);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_log_tracks_user_agent()
     {
         $agent = 'Mozilla/5.0...';
@@ -69,7 +69,7 @@ class ActivityLogTest extends TestCase
         $this->assertEquals($agent, $log->user_agent);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_log_stores_old_and_new_values()
     {
         $old = ['status' => 'pending'];
@@ -91,19 +91,19 @@ class ActivityLogTest extends TestCase
         $this->assertEquals('approved', $retrieved->new_values['status']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_log_filters_by_date_range()
     {
         // 1. Log from 5 days ago
         ActivityLog::factory()->create([
             'created_at' => now()->subDays(5)
         ]);
-        
+
         // 2. Log from today
         ActivityLog::factory()->create([
             'created_at' => now()
         ]);
-        
+
         // 3. Log from 10 days ago
         ActivityLog::factory()->create([
             'created_at' => now()->subDays(10)

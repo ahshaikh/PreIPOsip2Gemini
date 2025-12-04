@@ -134,6 +134,11 @@ Route::prefix('v1')->group(function () {
     Route::get('/global-settings', [GlobalSettingsController::class, 'index']);
     Route::get('/products/{slug}/history', [ProductDataController::class, 'getPriceHistory']);
 
+    // Help Center Public Access
+    Route::get('/help-center/menu', [App\Http\Controllers\Api\Public\HelpCenterController::class, 'menu']);
+    Route::get('/help-center/articles/{slug}', [App\Http\Controllers\Api\Public\HelpCenterController::class, 'show']);
+    Route::post('/help-center/feedback', [App\Http\Controllers\Api\Public\HelpCenterController::class, 'storeFeedback']);
+
     // --- Dashboard Widgets ---
     Route::get('/announcements/latest', [UserDashboardController::class, 'announcements']);
 
@@ -402,9 +407,19 @@ Route::prefix('v1')->group(function () {
             Route::apiResource('/email-templates', EmailTemplateController::class)->middleware('permission:settings.manage_notifications');
             Route::apiResource('/faqs', AdminFaqController::class)->middleware('permission:settings.manage_cms');
             Route::apiResource('/blog-posts', AdminBlogController::class)->middleware('permission:settings.manage_cms');
+
             // Route::apiResource('/referral-campaigns', AdminReferralCampaignController::class); // DEPRECATED -> Use AdminReferralController group above
+
             Route::apiResource('/kb-categories', KbCategoryController::class)->middleware('permission:settings.manage_cms');
             Route::apiResource('/kb-articles', KbArticleController::class)->middleware('permission:settings.manage_cms');
+
+            // Help Center Analytics (NEW)
+            Route::prefix('help-center-analytics')->group(function () {
+                Route::get('/stats', [App\Http\Controllers\Api\Admin\HelpCenterDashboardController::class, 'stats']);
+                Route::get('/feedback', [App\Http\Controllers\Api\Admin\HelpCenterDashboardController::class, 'feedback']);
+                Route::get('/visits', [App\Http\Controllers\Api\Admin\HelpCenterDashboardController::class, 'visits']);
+                Route::get('/needs-attention', [App\Http\Controllers\Api\Admin\HelpCenterDashboardController::class, 'needsAttention']);
+            });
 
             // Compliance Manager - Legal Agreements
             Route::prefix('compliance')->middleware('permission:settings.manage_cms')->group(function () {

@@ -34,7 +34,7 @@ class UserProfileEndpointsTest extends TestCase
         $this->seed(\Database\Seeders\SettingsSeeder::class);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testUnauthorizedAccessToProfileFails()
     {
         // No actingAs()
@@ -42,7 +42,7 @@ class UserProfileEndpointsTest extends TestCase
         $response->assertStatus(401); // Unauthorized
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testGetProfileReturnsUserData()
     {
         $response = $this->actingAs($this->user)->getJson('/api/v1/user/profile');
@@ -55,7 +55,7 @@ class UserProfileEndpointsTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testProfileIncludesKycStatus()
     {
         $response = $this->actingAs($this->user)->getJson('/api/v1/user/profile');
@@ -64,7 +64,7 @@ class UserProfileEndpointsTest extends TestCase
         $response->assertJsonPath('kyc.status', 'verified');
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testUpdateProfileWithValidData()
     {
         $response = $this->actingAs($this->user)->putJson('/api/v1/user/profile', [
@@ -81,7 +81,7 @@ class UserProfileEndpointsTest extends TestCase
         ]);
     }
     
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testProfileUpdateValidation()
     {
         $response = $this->actingAs($this->user)->putJson('/api/v1/user/profile', [
@@ -92,7 +92,7 @@ class UserProfileEndpointsTest extends TestCase
         $response->assertJsonValidationErrors('dob');
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testUploadAvatarSucceeds()
     {
         Storage::fake('public'); // Fake the storage
@@ -112,7 +112,7 @@ class UserProfileEndpointsTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testChangePasswordWithValidData()
     {
         $response = $this->actingAs($this->user)->postJson('/api/v1/user/security/password', [
@@ -131,7 +131,7 @@ class UserProfileEndpointsTest extends TestCase
         $this->assertDatabaseHas('password_histories', ['user_id' => $this->user->id]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testChangePasswordRequiresOldPassword()
     {
         $response = $this->actingAs($this->user)->postJson('/api/v1/user/security/password', [

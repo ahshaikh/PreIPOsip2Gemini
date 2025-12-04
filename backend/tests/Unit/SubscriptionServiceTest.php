@@ -35,7 +35,7 @@ class SubscriptionServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_create_subscription_validates_kyc_required()
     {
         $this->user->kyc->update(['status' => 'pending']);
@@ -46,7 +46,7 @@ class SubscriptionServiceTest extends TestCase
         $this->service->createSubscription($this->user, $this->plan);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_create_subscription_sets_next_payment_date()
     {
         // Freeze time to check dates accurately
@@ -64,7 +64,7 @@ class SubscriptionServiceTest extends TestCase
         $this->travelBack();
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_pause_subscription_validates_limit()
     {
         $sub = Subscription::factory()->create(['status' => 'active']);
@@ -75,7 +75,7 @@ class SubscriptionServiceTest extends TestCase
         $this->service->pauseSubscription($sub, 4);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_pause_subscription_updates_status()
     {
         $sub = Subscription::factory()->create([
@@ -93,7 +93,7 @@ class SubscriptionServiceTest extends TestCase
         );
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_resume_subscription_recalculates_dates()
     {
         $sub = Subscription::factory()->create(['status' => 'paused']);
@@ -104,7 +104,7 @@ class SubscriptionServiceTest extends TestCase
         $this->assertNull($sub->fresh()->pause_start_date);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_upgrade_plan_calculates_prorated_amount()
     {
         $this->travelTo(Carbon::parse('2025-01-01'));
@@ -143,7 +143,7 @@ class SubscriptionServiceTest extends TestCase
         $this->travelBack();
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_downgrade_plan_calculates_refund()
     {
         $expensivePlan = Plan::factory()->create(['monthly_amount' => 5000]);
@@ -159,7 +159,7 @@ class SubscriptionServiceTest extends TestCase
         $this->assertEquals($this->plan->id, $sub->fresh()->plan_id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_cancel_subscription_processes_refund()
     {
         $sub = Subscription::factory()->create(['status' => 'active']);

@@ -41,7 +41,7 @@ class ServiceIntegrationTest extends TestCase
         $this->seed(\Database\Seeders\ProductSeeder::class);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_payment_webhook_service_triggers_bonus_and_allocation()
     {
         // 1. Setup
@@ -67,7 +67,7 @@ class ServiceIntegrationTest extends TestCase
         Queue::assertPushed(ProcessSuccessfulPaymentJob::class);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_email_service_queues_for_async_delivery()
     {
         Queue::fake();
@@ -80,7 +80,7 @@ class ServiceIntegrationTest extends TestCase
         Queue::assertPushed(\App\Jobs\ProcessEmailJob::class);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_subscription_service_calculates_prorated_amounts()
     {
         $user = User::factory()->create();
@@ -102,7 +102,7 @@ class ServiceIntegrationTest extends TestCase
         $this->assertDatabaseHas('payments', ['amount' => 1500, 'gateway' => 'upgrade_charge']);
     }
     
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_file_upload_service_validates_file_types()
     {
         $service = $this->app->make(FileUploadService::class);
@@ -114,7 +114,7 @@ class ServiceIntegrationTest extends TestCase
         $service->upload($fakeFile); // Default mimes
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_file_upload_service_scans_for_viruses()
     {
         $service = $this->app->make(FileUploadService::class);
@@ -127,7 +127,7 @@ class ServiceIntegrationTest extends TestCase
         $service->upload($virusFile);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_file_upload_service_encrypts_sensitive_files()
     {
         Storage::fake('public');
@@ -149,7 +149,7 @@ class ServiceIntegrationTest extends TestCase
         $this->assertEquals('a', Crypt::decrypt($rawContent));
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_settings_service_invalidates_cache_on_update()
     {
         $admin = User::factory()->create();

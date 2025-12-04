@@ -25,7 +25,7 @@ class InventoryServiceTest extends TestCase
         $this->product = Product::factory()->create();
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_check_available_inventory_calculates_correctly()
     {
         // 100k available in first batch
@@ -47,7 +47,7 @@ class InventoryServiceTest extends TestCase
         $this->assertEquals(150000, $available);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_low_stock_alert_triggers_at_10_percent()
     {
         // 100k Total, 10k Remaining (10% Left, 90% Sold)
@@ -69,7 +69,7 @@ class InventoryServiceTest extends TestCase
         $this->assertFalse($this->service->checkLowStock($this->product));
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_reorder_suggestion_based_on_allocation_rate()
     {
         // 1. Inventory: 30,000 available

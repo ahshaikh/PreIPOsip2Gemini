@@ -29,28 +29,29 @@ export default function WhyTrustUsPage() {
             </div>
 
             <h1 className="text-5xl lg:text-6xl font-black text-gray-900 dark:text-white mb-6 leading-tight">
-              Your Trust is Our
+              Your Trust Is Our
               <span className="block text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-blue-600 dark:from-green-400 dark:to-blue-400">
                 Greatest Responsibility
               </span>
             </h1>
 
             <p className="text-xl text-gray-600 dark:text-gray-400 leading-relaxed">
-              We understand that trust is earned, not given. Here's why 50,000+ investors trust PreIPOsip with their hard-earned money.
+              Trust isn’t demanded — it’s earned. Here’s how we work every day to build a secure,
+              transparent, and reliable pre-IPO investing experience for our growing community.
             </p>
           </div>
         </div>
       </section>
 
-      {/* Regulatory Compliance */}
+      {/* Regulatory Alignment */}
       <section className="py-20 border-t border-gray-200 dark:border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              100% Regulatory Compliant
+              Built with Regulatory Alignment
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-400">
-              We operate under strict regulatory oversight and compliance
+              Operating with strict standards of compliance, transparency, and investor protection.
             </p>
           </div>
 
@@ -58,29 +59,29 @@ export default function WhyTrustUsPage() {
             {[
               {
                 icon: Shield,
-                title: "SEBI Registered",
+                title: "SEBI-Aligned Processes",
                 description:
-                  "Registered with Securities and Exchange Board of India (SEBI) as an authorized investment platform.",
-                badge: "RIA-100123",
+                  "Our platform follows SEBI-aligned frameworks for transparency, investor protection, and responsible access.",
+                badge: "Aligned",
               },
               {
                 icon: FileCheck,
-                title: "RBI Approved",
+                title: "RBI-Compliant Payments",
                 description:
-                  "All payment gateways are RBI-approved. Your transactions are secure and compliant.",
-                badge: "Verified",
+                  "All transactions are processed through certified RBI-compliant payment gateways, ensuring your money is always secure.",
+                badge: "Verified Gateway",
               },
               {
                 icon: Award,
-                title: "ISO 27001 Certified",
+                title: "Industry Best Practices",
                 description:
-                  "International certification for information security management systems.",
-                badge: "Certified",
+                  "We follow industry-grade standards for security, data privacy, and operational integrity.",
+                badge: "Standards",
               },
             ].map((item, index) => (
               <div
                 key={index}
-                className="bg-gradient-to-br from-gray-50 to-white dark:from-slate-900 dark:to-slate-800 rounded-2xl p-8 border border-gray-200 dark:border-slate-700"
+                className="bg-gradient-to-br from-gray-50 to-white dark:from-slate-900 dark:to-slate-8  00 rounded-2xl p-8 border border-gray-200 dark:border-slate-700"
               >
                 <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center mb-6">
                   <item.icon className="w-8 h-8 text-green-600 dark:text-green-400" />
@@ -108,7 +109,7 @@ export default function WhyTrustUsPage() {
               Bank-Grade Security
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-400">
-              Your data and investments are protected with enterprise-grade security
+              Your data and transactions are protected with enterprise-level safeguards.
             </p>
           </div>
 
@@ -117,22 +118,26 @@ export default function WhyTrustUsPage() {
               {
                 icon: Lock,
                 title: "256-Bit Encryption",
-                description: "All data is encrypted using military-grade encryption standards.",
+                description:
+                  "All sensitive data is protected with encryption standards used by global financial institutions.",
               },
               {
                 icon: Shield,
-                title: "2FA Authentication",
-                description: "Two-factor authentication for all account access and transactions.",
+                title: "Secure Authentication",
+                description:
+                  "Multi-layered authentication safeguards account access and transaction integrity.",
               },
               {
                 icon: AlertCircle,
-                title: "Fraud Detection",
-                description: "AI-powered fraud detection system monitors all activities 24/7.",
+                title: "Risk & Fraud Monitoring",
+                description:
+                  "Automated risk detection systems continuously monitor platform activity for anomalies.",
               },
               {
                 icon: FileCheck,
-                title: "Regular Audits",
-                description: "Third-party security audits conducted quarterly by certified firms.",
+                title: "Independent Audits",
+                description:
+                  "External audit partners help ensure ongoing security, compliance, and operational rigor.",
               },
             ].map((measure, index) => (
               <div
@@ -160,21 +165,21 @@ export default function WhyTrustUsPage() {
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div>
               <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-6">
-                Complete Transparency
+                Radical Transparency
               </h2>
               <p className="text-lg text-gray-700 dark:text-gray-300 mb-8 leading-relaxed">
-                We believe in radical transparency. Every aspect of our platform, deals, and processes
-                is open and accessible to our investors.
+                We believe transparency builds trust. Every investor deserves clear, accessible,
+                and complete information before making a decision.
               </p>
 
               <div className="space-y-4">
                 {[
-                  "Detailed company financials and reports for every deal",
-                  "Real-time portfolio tracking and performance metrics",
-                  "Complete fee structure with zero hidden charges",
-                  "Regular updates on portfolio company progress",
+                  "Comprehensive company profiles and financial insights",
+                  "Detailed risk disclosures and deal-by-deal transparency",
+                  "Clear fee structure with no hidden charges",
+                  "Real-time investment tracking and updates",
+                  "Direct access to founder presentations and Q&As",
                   "Transparent exit strategies and timelines",
-                  "Direct access to founder videos and Q&A sessions",
                 ].map((item, i) => (
                   <div key={i} className="flex items-start space-x-3">
                     <CheckCircle2 className="w-6 h-6 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
@@ -198,7 +203,7 @@ export default function WhyTrustUsPage() {
                   <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">Exit Fee</div>
                   <div className="text-3xl font-black text-gray-900 dark:text-white">₹0</div>
                   <div className="text-sm text-green-600 dark:text-green-400 font-semibold">
-                    Zero Exit Charges
+                    No Surprise Exit Charges
                   </div>
                 </div>
 
@@ -206,7 +211,7 @@ export default function WhyTrustUsPage() {
                   <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">Hidden Fees</div>
                   <div className="text-3xl font-black text-gray-900 dark:text-white">₹0</div>
                   <div className="text-sm text-green-600 dark:text-green-400 font-semibold">
-                    100% Transparent Pricing
+                    Transparent Pricing Always
                   </div>
                 </div>
               </div>
@@ -220,19 +225,19 @@ export default function WhyTrustUsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Trusted by Thousands
+              A Platform Built for Trust
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-400">
-              Numbers that speak for themselves
+              Growing responsibly, transparently, and with your confidence at the center.
             </p>
           </div>
 
           <div className="grid md:grid-cols-4 gap-8">
             {[
-              { icon: Users, value: "50,000+", label: "Active Investors" },
-              { icon: BarChart3, value: "₹2,500Cr+", label: "Total AUM" },
-              { icon: Star, value: "4.9/5", label: "Platform Rating" },
-              { icon: Award, value: "94%", label: "Success Rate" },
+              { icon: Users, value: "Growing", label: "Investor Community" },
+              { icon: BarChart3, value: "Expanding", label: "Investment Opportunities" },
+              { icon: Star, value: "Reliable", label: "User Experience" },
+              { icon: Award, value: "Trusted", label: "Industry Alignment" },
             ].map((stat, i) => (
               <div
                 key={i}
@@ -241,7 +246,7 @@ export default function WhyTrustUsPage() {
                 <div className="w-14 h-14 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center mb-4 mx-auto">
                   <stat.icon className="w-7 h-7 text-purple-600 dark:text-purple-400" />
                 </div>
-                <div className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-400 dark:to-blue-400 mb-2">
+                <div className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-400 dark:to-blue-400 mb-2">
                   {stat.value}
                 </div>
                 <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
@@ -257,10 +262,10 @@ export default function WhyTrustUsPage() {
       <section className="py-20 bg-gradient-to-r from-green-600 to-blue-600 dark:from-green-700 dark:to-blue-700">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-bold text-white mb-6">
-            Experience The Trust Yourself
+            See the Difference Yourself
           </h2>
           <p className="text-xl text-green-100 mb-8">
-            Join 50,000+ investors who trust PreIPOsip with their investments
+            Join our growing community and explore a transparent, secure approach to pre-IPO investing.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -282,7 +287,7 @@ export default function WhyTrustUsPage() {
           <div className="flex items-center justify-center space-x-8 mt-12 text-white/90">
             <div className="flex items-center space-x-2">
               <Shield className="w-5 h-5" />
-              <span className="text-sm">SEBI Registered</span>
+              <span className="text-sm">SEBI-Aligned</span>
             </div>
             <div className="flex items-center space-x-2">
               <Lock className="w-5 h-5" />
@@ -290,7 +295,7 @@ export default function WhyTrustUsPage() {
             </div>
             <div className="flex items-center space-x-2">
               <Award className="w-5 h-5" />
-              <span className="text-sm">ISO Certified</span>
+              <span className="text-sm">Industry Best Practices</span>
             </div>
           </div>
         </div>

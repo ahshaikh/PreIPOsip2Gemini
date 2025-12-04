@@ -8,7 +8,7 @@ use App\Services\NotificationService;
 use App\Jobs\ProcessNotificationJob;
 use App\Models\User;
 use App\Models\UserNotificationPreference;
-use Illuminate.Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 
 class NotificationServiceTest extends TestCase
@@ -26,7 +26,6 @@ class NotificationServiceTest extends TestCase
         $this->user = User::factory()->create();
     }
 
-    /** @test */
     public function test_send_notification_chooses_correct_channel()
     {
         Queue::fake();
@@ -42,7 +41,6 @@ class NotificationServiceTest extends TestCase
         });
     }
 
-    /** @test */
     public function test_send_notification_respects_priority()
     {
         Queue::fake();
@@ -60,7 +58,6 @@ class NotificationServiceTest extends TestCase
         Queue::assertPushedOn('notifications', ProcessNotificationJob::class);
     }
 
-    /** @test */
     public function test_send_notification_batches_bulk_sends()
     {
         Queue::fake();
@@ -73,7 +70,6 @@ class NotificationServiceTest extends TestCase
         Queue::assertPushed(ProcessNotificationJob::class, 10);
     }
 
-    /** @test */
     public function test_send_notification_tracks_delivery_status()
     {
         // This is tested in SmsServiceTest and EmailServiceTest
@@ -82,7 +78,6 @@ class NotificationServiceTest extends TestCase
         $this->assertTrue(true);
     }
 
-    /** @test */
     public function test_send_notification_retries_on_failure()
     {
         // This is tested by checking the $tries property on the Job
@@ -90,7 +85,6 @@ class NotificationServiceTest extends TestCase
         $this->assertEquals(3, $job->tries);
     }
 
-    /** @test */
     public function test_send_notification_respects_user_preferences()
     {
         Queue::fake();
@@ -116,7 +110,6 @@ class NotificationServiceTest extends TestCase
         });
     }
 
-    /** @test */
     public function test_send_notification_logs_all_attempts()
     {
         // This is tested in SmsServiceTest and EmailServiceTest, which

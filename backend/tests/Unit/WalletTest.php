@@ -25,14 +25,14 @@ class WalletTest extends TestCase
         $this->wallet = Wallet::create(['user_id' => $this->user->id, 'balance' => 0]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_wallet_belongs_to_user()
     {
         $this->assertInstanceOf(User::class, $this->wallet->user);
         $this->assertEquals($this->user->id, $this->wallet->user->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_wallet_has_transactions_relationship()
     {
         Transaction::create([
@@ -46,17 +46,17 @@ class WalletTest extends TestCase
         $this->assertEquals(1, $this->wallet->transactions->count());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_wallet_balance_is_decimal_with_2_places()
     {
         $this->wallet->update(['balance' => 123.456]);
-        
+
         // When retrieved, it should be cast to 2 decimal places
         // Note: The accessor casts to float, but the DB stores as decimal.
         $this->assertEquals('123.46', $this->wallet->fresh()->balance); // Casting to 2dp
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_wallet_deposit_increases_balance()
     {
         $this->wallet->deposit(500, 'deposit', 'Test Deposit');
@@ -65,7 +65,7 @@ class WalletTest extends TestCase
         $this->assertDatabaseHas('transactions', ['amount' => 500]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_wallet_withdraw_decreases_balance()
     {
         $this->wallet->deposit(1000, 'deposit', 'Initial');
@@ -75,7 +75,7 @@ class WalletTest extends TestCase
         $this->assertDatabaseHas('transactions', ['amount' => -300]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_wallet_withdraw_validates_sufficient_balance()
     {
         $this->expectException(\Exception::class);
@@ -84,7 +84,7 @@ class WalletTest extends TestCase
         $this->wallet->withdraw(100, 'withdrawal', 'Test');
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_wallet_balance_never_negative()
     {
         // This test verifies the DB-level CHECK constraint from our migration
@@ -95,7 +95,7 @@ class WalletTest extends TestCase
         DB::table('wallets')->where('id', $this->wallet->id)->update(['balance' => -50]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_wallet_tracks_total_deposited()
     {
         $this->wallet->deposit(100, 'deposit', 'Test 1');
@@ -106,7 +106,7 @@ class WalletTest extends TestCase
         $this->assertEquals(300, $this->wallet->total_deposited);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_wallet_tracks_total_withdrawn()
     {
         $this->wallet->deposit(1000, 'deposit', 'Test 1');
@@ -117,7 +117,7 @@ class WalletTest extends TestCase
         $this->assertEquals(300, $this->wallet->total_withdrawn);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_wallet_calculates_available_balance()
     {
         $this->wallet->update(['balance' => 500, 'locked_balance' => 100]);

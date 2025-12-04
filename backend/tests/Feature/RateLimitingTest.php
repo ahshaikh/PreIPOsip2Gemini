@@ -17,7 +17,7 @@ class RateLimitingTest extends TestCase
         // No seeding needed, we are testing the route directly
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_rate_limit_allows_within_limit()
     {
         // 5 attempts should *not* be 429
@@ -30,12 +30,12 @@ class RateLimitingTest extends TestCase
                 'login' => 'attacker@example.com',
                 'password' => 'wrong'
             ]);
-            
+
             $response->assertStatus(422); // Validation Failed
         }
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_rate_limit_blocks_after_max_attempts()
     {
         // 5 attempts are fine (422)
@@ -51,11 +51,11 @@ class RateLimitingTest extends TestCase
             'login' => 'attacker@example.com',
             'password' => 'wrong'
         ]);
-        
+
         $response->assertStatus(429); // Too Many Requests
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_rate_limit_returns_correct_headers()
     {
         for ($i = 0; $i < 5; $i++) {
@@ -63,14 +63,14 @@ class RateLimitingTest extends TestCase
         }
 
         $response = $this->postJson('/api/v1/login', ['login' => 'a']);
-        
+
         $response->assertStatus(429);
         $response->assertHeader('X-RateLimit-Limit', 5);
         $response->assertHeader('X-RateLimit-Remaining', 0);
         $response->assertHeader('Retry-After', 60); // 60 seconds
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_rate_limit_resets_after_time_window()
     {
         for ($i = 0; $i < 6; $i++) {

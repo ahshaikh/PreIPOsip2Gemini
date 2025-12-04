@@ -26,7 +26,7 @@ class WithdrawalTest extends TestCase
         $this->admin = User::factory()->create();
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_withdrawal_belongs_to_user()
     {
         $withdrawal = Withdrawal::factory()->create([
@@ -38,7 +38,7 @@ class WithdrawalTest extends TestCase
         $this->assertEquals($this->user->id, $withdrawal->user->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_withdrawal_belongs_to_wallet()
     {
         $withdrawal = Withdrawal::factory()->create([
@@ -50,7 +50,7 @@ class WithdrawalTest extends TestCase
         $this->assertEquals($this->wallet->id, $withdrawal->wallet->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_withdrawal_status_enum_validates()
     {
         $validStatuses = ['pending', 'approved', 'processing', 'completed', 'rejected'];
@@ -68,7 +68,7 @@ class WithdrawalTest extends TestCase
         $this->assertFalse($validator->passes());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_withdrawal_validates_amount_positive()
     {
         $this->expectException(\InvalidArgumentException::class);
@@ -81,7 +81,7 @@ class WithdrawalTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_withdrawal_validates_sufficient_balance()
     {
         // This logic is (and should be) in the Wallet model, not Withdrawal.
@@ -94,7 +94,7 @@ class WithdrawalTest extends TestCase
         $this->wallet->withdraw(15000, 'withdrawal', 'Test');
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_withdrawal_calculates_fee()
     {
         $withdrawal = Withdrawal::factory()->create([
@@ -107,7 +107,7 @@ class WithdrawalTest extends TestCase
         $this->assertEquals(50, $withdrawal->fee);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_withdrawal_calculates_net_amount()
     {
         // Test the 'booted' method's auto-calculation
@@ -122,7 +122,7 @@ class WithdrawalTest extends TestCase
         $this->assertEquals(950, $withdrawal->net_amount);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_withdrawal_tracks_processed_by_admin()
     {
         $withdrawal = Withdrawal::factory()->create([

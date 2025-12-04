@@ -47,7 +47,7 @@ class AllocationServiceTest extends TestCase
         $this->payment = Payment::factory()->create(['subscription_id' => $sub->id]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_allocate_to_user_creates_investment_record()
     {
         $this->service->allocateShares($this->payment, 1000);
@@ -61,7 +61,7 @@ class AllocationServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_allocate_to_user_deducts_from_bulk_purchase()
     {
         $this->service->allocateShares($this->payment, 1000);
@@ -72,7 +72,7 @@ class AllocationServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_allocate_to_user_handles_insufficient_inventory()
     {
         // Try to allocate 200,000 when only 125,000 is available
@@ -97,7 +97,7 @@ class AllocationServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_allocation_logs_audit_trail_on_success()
     {
         $this->service->allocateShares($this->payment, 1000);
@@ -110,7 +110,7 @@ class AllocationServiceTest extends TestCase
         ]);
     }
     
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_allocation_logs_audit_trail_on_failure()
     {
         $this->service->allocateShares($this->payment, 200000); // Fail
@@ -122,7 +122,7 @@ class AllocationServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_allocate_bonus_and_investment_deducts_from_same_pool()
     {
         // This test confirms our V1 logic: Investment (1000) and Bonus (100)
@@ -143,7 +143,7 @@ class AllocationServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_allocation_distribution_respects_limits()
     {
         // This confirms the FSD requirement is not yet implemented

@@ -27,7 +27,7 @@ class UserProfitShareTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_user_share_belongs_to_user()
     {
         $share = UserProfitShare::create([
@@ -40,7 +40,7 @@ class UserProfitShareTest extends TestCase
         $this->assertEquals($this->user->id, $share->user->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_user_share_belongs_to_profit_share()
     {
         $share = UserProfitShare::create([
@@ -53,7 +53,7 @@ class UserProfitShareTest extends TestCase
         $this->assertEquals($this->profitSharePeriod->id, $share->profitSharePeriod->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_user_share_validates_amount_positive()
     {
         $this->expectException(\InvalidArgumentException::class);
@@ -66,7 +66,7 @@ class UserProfitShareTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_user_share_tracks_credited_to_wallet()
     {
         $bonusTxn = BonusTransaction::factory()->create([

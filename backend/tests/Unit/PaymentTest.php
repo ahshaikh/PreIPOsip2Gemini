@@ -27,7 +27,7 @@ class PaymentTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_payment_belongs_to_user()
     {
         $payment = Payment::create([
@@ -41,7 +41,7 @@ class PaymentTest extends TestCase
         $this->assertEquals($this->user->id, $payment->user->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_payment_belongs_to_subscription()
     {
         $payment = Payment::create([
@@ -54,7 +54,7 @@ class PaymentTest extends TestCase
         $this->assertEquals($this->subscription->id, $payment->subscription->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_payment_status_enum_validates()
     {
         // Verify we can store valid statuses
@@ -68,7 +68,7 @@ class PaymentTest extends TestCase
         $this->assertEquals('refunded', $payment->fresh()->status);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_payment_method_enum_validates()
     {
         $payment = Payment::factory()->create(['method' => 'upi']);
@@ -78,7 +78,7 @@ class PaymentTest extends TestCase
         $this->assertEquals('card', $payment->fresh()->method);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_payment_tracks_razorpay_order_id()
     {
         $orderId = 'order_123456';
@@ -87,7 +87,7 @@ class PaymentTest extends TestCase
         $this->assertEquals($orderId, $payment->gateway_order_id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_payment_tracks_razorpay_payment_id()
     {
         $payId = 'pay_123456';
@@ -96,7 +96,7 @@ class PaymentTest extends TestCase
         $this->assertEquals($payId, $payment->gateway_payment_id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_payment_tracks_signature()
     {
         $sig = 'signature_hash_123';
@@ -105,7 +105,7 @@ class PaymentTest extends TestCase
         $this->assertEquals($sig, $payment->gateway_signature);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_payment_marks_as_on_time_correctly()
     {
         // Case 1: On Time (Paid same day as created)
@@ -124,7 +124,7 @@ class PaymentTest extends TestCase
         $this->assertTrue($payment->verifyOnTimeStatus());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_payment_calculates_due_date()
     {
         // For simple payments, due date is creation date
@@ -134,7 +134,7 @@ class PaymentTest extends TestCase
         $this->assertEquals($now->toDateTimeString(), $payment->due_date->toDateTimeString());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_payment_scope_paid_returns_correct_records()
     {
         Payment::factory()->create(['status' => 'paid']);
@@ -145,7 +145,7 @@ class PaymentTest extends TestCase
         $this->assertEquals('paid', Payment::paid()->first()->status);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_payment_scope_failed_returns_correct_records()
     {
         Payment::factory()->create(['status' => 'paid']);
@@ -155,7 +155,7 @@ class PaymentTest extends TestCase
         $this->assertEquals('failed', Payment::failed()->first()->status);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_payment_scope_pending_returns_correct_records()
     {
         Payment::factory()->create(['status' => 'pending']);

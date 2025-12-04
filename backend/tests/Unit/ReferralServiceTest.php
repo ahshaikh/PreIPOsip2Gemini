@@ -51,7 +51,7 @@ class ReferralServiceTest extends TestCase
         }
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_referral_multiplier_1x_for_0_to_2_referrals()
     {
         // 0 referrals
@@ -64,7 +64,7 @@ class ReferralServiceTest extends TestCase
         $this->assertEquals(1.0, $this->referrer->subscription->fresh()->bonus_multiplier);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_referral_multiplier_1_5x_for_3_to_4_referrals()
     {
         // 3 referrals
@@ -78,7 +78,7 @@ class ReferralServiceTest extends TestCase
         $this->assertEquals(1.5, $this->referrer->subscription->fresh()->bonus_multiplier);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_referral_multiplier_2x_for_5_to_9_referrals()
     {
         $this->createReferrals(5);
@@ -86,7 +86,7 @@ class ReferralServiceTest extends TestCase
         $this->assertEquals(2.0, $this->referrer->subscription->fresh()->bonus_multiplier);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_referral_multiplier_2_5x_for_10_to_19_referrals()
     {
         $this->createReferrals(10);
@@ -94,7 +94,7 @@ class ReferralServiceTest extends TestCase
         $this->assertEquals(2.5, $this->referrer->subscription->fresh()->bonus_multiplier);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_referral_multiplier_3x_for_20_plus_referrals()
     {
         $this->createReferrals(20);
@@ -102,7 +102,7 @@ class ReferralServiceTest extends TestCase
         $this->assertEquals(3.0, $this->referrer->subscription->fresh()->bonus_multiplier);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_referral_multiplier_updates_on_referral_count_change()
     {
         // 4 referrals
@@ -118,7 +118,7 @@ class ReferralServiceTest extends TestCase
         $this->assertEquals(2.0, $this->referrer->subscription->fresh()->bonus_multiplier);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_referral_multiplier_uses_configured_tiers()
     {
         // Create a custom plan with "aggressive" tiers
@@ -143,7 +143,7 @@ class ReferralServiceTest extends TestCase
         $this->assertEquals(9.9, $this->referrer->subscription->fresh()->bonus_multiplier);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_referral_multiplier_varies_by_plan()
     {
         // User A (on default plan)

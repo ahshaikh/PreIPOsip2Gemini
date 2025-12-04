@@ -131,74 +131,83 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Why We Exist */}
-      <section className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            {/* Left - Content */}
-            <div>
-              <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-6">
-                Why PreIPOsip Exists
-              </h2>
-              <div className="space-y-6 text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
-                <p>
-                  For decades, pre-IPO investments were an exclusive playground for venture capitalists,
-                  ultra-rich individuals, and institutional investors. Regular retail investors were
-                  locked out of this wealth-creating opportunity.
-                </p>
-                <p>
-                  <strong className="text-gray-900 dark:text-white">We're changing that.</strong> PreIPOsip was founded with a simple belief: every
-                  Indian investor deserves access to high-growth investment opportunities before companies
-                  go public.
-                </p>
-                <p>
-                  Through cutting-edge technology, regulatory compliance, and transparent processes,
-                  we've created a platform where retail investors can invest in tomorrow's unicorns
-                  with confidence.
-                </p>
-              </div>
+{/* Why We Exist */}
+<section className="py-20">
+  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="grid lg:grid-cols-2 gap-16 items-center">
+      
+      {/* Left - Content */}
+      <div>
+        <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-6">
+          Why PreIPOsip Exists
+        </h2>
 
-              <div className="mt-8 space-y-4">
-                {[
-                  "50,000+ investors trust PreIPOsip",
-                  "₹2,500+ Crores invested through our platform",
-                  "287% average returns across portfolio",
-                  "100% SEBI compliant and transparent",
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center space-x-3">
-                    <CheckCircle2 className="w-6 h-6 text-green-600 dark:text-green-400 flex-shrink-0" />
-                    <span className="text-gray-700 dark:text-gray-300 font-medium">{item}</span>
-                  </div>
-                ))}
-              </div>
+        <div className="space-y-6 text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
+          <p>
+            For decades, access to pre-IPO investments was limited to venture capital firms, 
+            family offices, and ultra-wealthy individuals. Retail investors—despite being the 
+            backbone of India's financial markets—were largely excluded from these 
+            high-growth opportunities.
+          </p>
+
+          <p>
+            <strong className="text-gray-900 dark:text-white">
+              PreIPOsip was created to change that.
+            </strong>{" "}
+            We believe every Indian investor deserves transparent, compliant, and intelligent 
+            access to private-market opportunities before companies go public.
+          </p>
+
+          <p>
+            Our platform is built on regulatory alignment, rigorous evaluation, and technology-driven 
+            efficiency—empowering investors to participate confidently in the growth stories of 
+            tomorrow’s market leaders.
+          </p>
+        </div>
+
+        <div className="mt-8 space-y-4">
+          {[
+            "SEBI-aligned compliance and transparent investment processes",
+            "Designed to scale toward tens of thousands of retail investors",
+            "Infrastructure capable of supporting ₹2,500Cr+ opportunity flow as we grow",
+            "Curated, high-potential private companies sourced through rigorous evaluation",
+          ].map((item, i) => (
+            <div key={i} className="flex items-center space-x-3">
+              <CheckCircle2 className="w-6 h-6 text-green-600 dark:text-green-400 flex-shrink-0" />
+              <span className="text-gray-700 dark:text-gray-300 font-medium">{item}</span>
             </div>
+          ))}
+        </div>
+      </div>
 
-            {/* Right - Stats */}
-            <div className="grid grid-cols-2 gap-6">
-              {[
-                { value: "2020", label: "Founded" },
-                { value: "50K+", label: "Investors" },
-                { value: "₹2,500Cr+", label: "AUM" },
-                { value: "287%", label: "Avg Returns" },
-                { value: "100+", label: "Companies" },
-                { value: "94%", label: "Success Rate" },
-              ].map((stat, i) => (
-                <div
-                  key={i}
-                  className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-slate-800 dark:to-slate-900 rounded-2xl p-8 text-center border border-gray-200 dark:border-slate-700"
-                >
-                  <div className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-400 dark:to-blue-400 mb-2">
-                    {stat.value}
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-                    {stat.label}
-                  </div>
-                </div>
-              ))}
+      {/* Right - Stats */}
+      <div className="grid grid-cols-2 gap-6">
+        {[
+          { value: "2020", label: "Founded" },
+          { value: "SEBI-Aligned", label: "Compliance" },
+          { value: "100+", label: "Companies Evaluated" },
+          { value: "Growing", label: "Investor Community" },
+          { value: "24/7", label: "Support Availability" },
+          { value: "Vision 2026", label: "Pan-India Access" },
+        ].map((stat, i) => (
+          <div
+            key={i}
+            className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-slate-800 dark:to-slate-900 rounded-2xl p-8 text-center border border-gray-200 dark:border-slate-700"
+          >
+            <div className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-400 dark:to-blue-400 mb-2">
+              {stat.value}
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+              {stat.label}
             </div>
           </div>
-        </div>
-      </section>
+        ))}
+      </div>
+
+    </div>
+  </div>
+</section>
+
 
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-700 dark:to-blue-700">
@@ -207,7 +216,7 @@ export default function AboutPage() {
             Ready to Start Your Investment Journey?
           </h2>
           <p className="text-xl text-purple-100 mb-8">
-            Join 50,000+ investors building wealth with pre-IPO investments
+            Join growing investor community building wealth with pre-IPO investments
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

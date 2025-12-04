@@ -23,6 +23,16 @@ class KbArticle extends Model
         'views',
     ];
 
+    public function views(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(KbArticleView::class);
+    }
+
+    public function feedback(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ArticleFeedback::class, 'article_id', 'id'); // Assuming article_id is the FK
+    }
+
     public function category(): BelongsTo
     {
         return $this->belongsTo(KbCategory::class, 'kb_category_id');

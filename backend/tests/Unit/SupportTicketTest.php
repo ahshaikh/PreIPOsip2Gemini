@@ -26,7 +26,7 @@ class SupportTicketTest extends TestCase
         $this->admin->assignRole('admin');
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_ticket_belongs_to_user()
     {
         $ticket = SupportTicket::factory()->create(['user_id' => $this->user->id]);
@@ -34,7 +34,7 @@ class SupportTicketTest extends TestCase
         $this->assertEquals($this->user->id, $ticket->user->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_ticket_has_messages_relationship()
     {
         $ticket = SupportTicket::factory()->create(['user_id' => $this->user->id]);
@@ -44,7 +44,7 @@ class SupportTicketTest extends TestCase
         $this->assertEquals(1, $ticket->messages->count());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_ticket_status_enum_validates()
     {
         $validStatuses = ['open', 'waiting_for_user', 'waiting_for_support', 'resolved'];
@@ -62,7 +62,7 @@ class SupportTicketTest extends TestCase
         $this->assertFalse($validator->passes());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_ticket_priority_enum_validates()
     {
         $validPriorities = ['low', 'medium', 'high'];
@@ -80,7 +80,7 @@ class SupportTicketTest extends TestCase
         $this->assertFalse($validator->passes());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_ticket_tracks_resolved_by_admin()
     {
         $ticket = SupportTicket::factory()->create([
@@ -94,7 +94,7 @@ class SupportTicketTest extends TestCase
         $this->assertEquals($this->admin->id, $ticket->resolvedBy->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_ticket_auto_closes_after_inactivity()
     {
         // 1. Ticket resolved 8 days ago (Should be found)

@@ -40,7 +40,10 @@ return new class extends Migration
             $table->timestamps();
         });
         
-        DB::statement('ALTER TABLE payments ADD CONSTRAINT payment_amount_must_be_positive CHECK (amount >= 0)');
+        // ✅ Skip constraint for SQLite (test environment)
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement('ALTER TABLE payments ADD CONSTRAINT payment_amount_must_be_positive CHECK (amount >= 0)');
+        }
     }
 
     public function down(): void

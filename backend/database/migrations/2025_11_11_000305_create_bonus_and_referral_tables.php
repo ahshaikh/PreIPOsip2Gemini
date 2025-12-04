@@ -53,7 +53,9 @@ return new class extends Migration
             $table->unique('referred_id');
         });
         
-        DB::statement('ALTER TABLE bonus_transactions ADD CONSTRAINT bonus_amount_not_zero CHECK (amount != 0)');
+            if (DB::getDriverName() !== 'sqlite') {
+                DB::statement('ALTER TABLE bonus_transactions ADD CONSTRAINT bonus_amount_not_zero CHECK (amount != 0)');
+            }
     }
 
     public function down(): void

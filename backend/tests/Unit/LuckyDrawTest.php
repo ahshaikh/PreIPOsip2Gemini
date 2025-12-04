@@ -29,7 +29,7 @@ class LuckyDrawTest extends TestCase
         return [['rank' => 1, 'count' => 1, 'amount' => 1000]];
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_lucky_draw_has_entries_relationship()
     {
         $draw = LuckyDraw::factory()->create(['prize_structure' => $this->validPrizeStructure()]);
@@ -43,7 +43,7 @@ class LuckyDrawTest extends TestCase
         $this->assertEquals(1, $draw->entries->count());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_lucky_draw_status_enum_validates()
     {
         $validStatuses = ['open', 'drawn', 'completed', 'cancelled'];
@@ -61,7 +61,7 @@ class LuckyDrawTest extends TestCase
         $this->assertFalse($validator->passes());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_lucky_draw_calculates_total_entries()
     {
         $draw = LuckyDraw::factory()->create(['prize_structure' => $this->validPrizeStructure()]);
@@ -70,7 +70,7 @@ class LuckyDrawTest extends TestCase
         $this->assertEquals(5, $draw->total_entries);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_lucky_draw_validates_prize_pool_positive()
     {
         $this->expectException(\InvalidArgumentException::class);
@@ -82,7 +82,7 @@ class LuckyDrawTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_lucky_draw_tracks_execution_date()
     {
         $date = now()->addMonth();
@@ -95,7 +95,7 @@ class LuckyDrawTest extends TestCase
         $this->assertEquals($date->toDateString(), $draw->draw_date->toDateString());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_lucky_draw_can_be_executed()
     {
         $draw = LuckyDraw::factory()->create([
@@ -108,24 +108,24 @@ class LuckyDrawTest extends TestCase
         $this->assertEquals('completed', $draw->fresh()->status);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_lucky_draw_cannot_be_executed_twice()
     {
         $draw = LuckyDraw::factory()->create([
             'prize_structure' => $this->validPrizeStructure(),
             'status' => 'open'
         ]);
-        
+
         $draw->execute(); // First execution
         $this->assertEquals('completed', $draw->fresh()->status);
 
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage("Only 'open' draws can be executed.");
-        
+
         $draw->execute(); // Second execution should fail
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_lucky_draw_soft_deletes_correctly()
     {
         $draw = LuckyDraw::factory()->create(['prize_structure' => $this->validPrizeStructure()]);

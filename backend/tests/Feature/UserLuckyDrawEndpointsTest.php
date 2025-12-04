@@ -35,7 +35,7 @@ class UserLuckyDrawEndpointsTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testUserCanViewCurrentDraw()
     {
         // Act
@@ -46,7 +46,7 @@ class UserLuckyDrawEndpointsTest extends TestCase
         $response->assertJsonPath('active_draw.name', 'Current Monthly Draw');
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testUserCanViewOwnEntries()
     {
         // Arrange

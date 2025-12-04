@@ -27,7 +27,7 @@ class BonusTransactionTest extends TestCase
         $this->payment = Payment::factory()->create(['subscription_id' => $this->sub->id]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_bonus_belongs_to_user()
     {
         $bonus = BonusTransaction::create([
@@ -41,7 +41,7 @@ class BonusTransactionTest extends TestCase
         $this->assertEquals($this->user->id, $bonus->user->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_bonus_belongs_to_subscription()
     {
         $bonus = BonusTransaction::create([
@@ -55,7 +55,7 @@ class BonusTransactionTest extends TestCase
         $this->assertEquals($this->sub->id, $bonus->subscription->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_bonus_belongs_to_payment()
     {
         $bonus = BonusTransaction::create([
@@ -70,7 +70,7 @@ class BonusTransactionTest extends TestCase
         $this->assertEquals($this->payment->id, $bonus->payment->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_bonus_type_enum_validates()
     {
         $validTypes = ['progressive', 'milestone', 'consistency', 'referral', 'profit_share', 'celebration', 'lucky_draw'];
@@ -90,7 +90,7 @@ class BonusTransactionTest extends TestCase
         $this->assertFalse($validator->passes());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_bonus_tracks_multiplier_applied()
     {
         $bonus = BonusTransaction::create([
@@ -104,7 +104,7 @@ class BonusTransactionTest extends TestCase
         $this->assertEquals(2.5, $bonus->fresh()->multiplier_applied);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_bonus_tracks_base_amount()
     {
         $bonus = BonusTransaction::create([
@@ -118,7 +118,7 @@ class BonusTransactionTest extends TestCase
         $this->assertEquals(100, $bonus->fresh()->base_amount);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_bonus_calculates_effective_amount()
     {
         // We test the 'booted' logic here
@@ -136,7 +136,7 @@ class BonusTransactionTest extends TestCase
         $this->assertEquals(150.00, $bonus->fresh()->amount);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_bonus_can_be_reversed()
     {
         $bonus = BonusTransaction::create([

@@ -12,7 +12,7 @@ class WebhookRetrySystemTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function webhook_log_is_created_for_incoming_webhook()
     {
         $this->markTestSkipped('Requires webhook signature verification setup');
@@ -21,7 +21,7 @@ class WebhookRetrySystemTest extends TestCase
         // when a webhook is received
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function webhook_can_be_marked_as_failed_and_scheduled_for_retry()
     {
         $webhookLog = WebhookLog::create([
@@ -39,7 +39,7 @@ class WebhookRetrySystemTest extends TestCase
         $this->assertNotNull($webhookLog->fresh()->next_retry_at);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function webhook_is_marked_as_max_retries_reached_after_limit()
     {
         $webhookLog = WebhookLog::create([
@@ -57,7 +57,7 @@ class WebhookRetrySystemTest extends TestCase
         $this->assertEquals(5, $webhookLog->fresh()->retry_count);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function webhook_can_be_marked_as_success()
     {
         $webhookLog = WebhookLog::create([
@@ -75,7 +75,7 @@ class WebhookRetrySystemTest extends TestCase
         $this->assertNotNull($webhook->processed_at);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function pending_retries_scope_returns_due_webhooks()
     {
         // Create a webhook that's due for retry
@@ -106,7 +106,7 @@ class WebhookRetrySystemTest extends TestCase
         $this->assertEquals('pay_due', $dueWebhooks->first()->webhook_id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function exponential_backoff_is_calculated_correctly()
     {
         $webhookLog = WebhookLog::create([
@@ -129,7 +129,7 @@ class WebhookRetrySystemTest extends TestCase
         );
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function retry_job_can_be_dispatched()
     {
         Queue::fake();

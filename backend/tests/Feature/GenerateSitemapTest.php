@@ -3,7 +3,7 @@
 
 namespace Tests\Feature;
 
-use Illuminate.Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Product;
@@ -39,7 +39,6 @@ class GenerateSitemapTest extends TestCase
         parent::tearDown();
     }
 
-    /** @test */
     public function test_generates_sitemap_xml()
     {
         $this->assertFileDoesNotExist($this->sitemapPath);
@@ -54,7 +53,6 @@ class GenerateSitemapTest extends TestCase
         $this->assertFileExists($this->sitemapPath);
     }
 
-    /** @test */
     public function test_includes_all_public_pages()
     {
         $this->artisan('sitemap:generate');
@@ -69,7 +67,6 @@ class GenerateSitemapTest extends TestCase
         $this->assertStringContainsString('<loc>' . env('FRONTEND_URL') . '/login</loc>', $content);
     }
 
-    /** @test */
     public function test_includes_dynamic_routes()
     {
         // 1. Create Published Content

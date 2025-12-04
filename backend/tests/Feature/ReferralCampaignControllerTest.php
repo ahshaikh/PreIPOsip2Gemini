@@ -29,8 +29,7 @@ class ReferralCampaignControllerTest extends TestCase
     }
 
     // ==================== INDEX TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_list_referral_campaigns()
     {
         ReferralCampaign::factory()->count(3)->create();
@@ -42,7 +41,7 @@ class ReferralCampaignControllerTest extends TestCase
             ->assertJsonCount(3);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function campaigns_are_returned_in_latest_order()
     {
         $old = ReferralCampaign::factory()->create(['name' => 'Old Campaign', 'created_at' => now()->subDays(10)]);
@@ -55,7 +54,7 @@ class ReferralCampaignControllerTest extends TestCase
         $this->assertEquals('New Campaign', $response->json()[0]['name']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function regular_user_cannot_list_campaigns()
     {
         $response = $this->actingAs($this->user)
@@ -65,8 +64,7 @@ class ReferralCampaignControllerTest extends TestCase
     }
 
     // ==================== STORE TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_create_referral_campaign()
     {
         $campaignData = [
@@ -90,7 +88,7 @@ class ReferralCampaignControllerTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function store_validates_required_fields()
     {
         $response = $this->actingAs($this->admin)
@@ -100,7 +98,7 @@ class ReferralCampaignControllerTest extends TestCase
             ->assertJsonValidationErrors(['name', 'start_date', 'end_date', 'multiplier', 'bonus_amount']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function store_validates_end_date_after_start_date()
     {
         $campaignData = [
@@ -118,7 +116,7 @@ class ReferralCampaignControllerTest extends TestCase
             ->assertJsonValidationErrors(['end_date']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function store_enforces_maximum_multiplier_cap()
     {
         $campaignData = [
@@ -136,7 +134,7 @@ class ReferralCampaignControllerTest extends TestCase
             ->assertJsonValidationErrors(['multiplier']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function store_enforces_maximum_bonus_amount_cap()
     {
         $campaignData = [
@@ -154,7 +152,7 @@ class ReferralCampaignControllerTest extends TestCase
             ->assertJsonValidationErrors(['bonus_amount']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function store_allows_multiplier_at_maximum_cap()
     {
         $campaignData = [
@@ -171,7 +169,7 @@ class ReferralCampaignControllerTest extends TestCase
         $response->assertStatus(201);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function store_allows_bonus_at_maximum_cap()
     {
         $campaignData = [
@@ -188,7 +186,7 @@ class ReferralCampaignControllerTest extends TestCase
         $response->assertStatus(201);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function store_validates_minimum_multiplier()
     {
         $campaignData = [
@@ -206,7 +204,7 @@ class ReferralCampaignControllerTest extends TestCase
             ->assertJsonValidationErrors(['multiplier']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function store_validates_non_negative_bonus()
     {
         $campaignData = [
@@ -225,8 +223,7 @@ class ReferralCampaignControllerTest extends TestCase
     }
 
     // ==================== UPDATE TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_update_referral_campaign()
     {
         $campaign = ReferralCampaign::factory()->create([
@@ -250,7 +247,7 @@ class ReferralCampaignControllerTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function update_allows_partial_updates()
     {
         $campaign = ReferralCampaign::factory()->create([
@@ -273,7 +270,7 @@ class ReferralCampaignControllerTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function update_enforces_multiplier_cap()
     {
         $campaign = ReferralCampaign::factory()->create(['multiplier' => 1.0]);
@@ -287,7 +284,7 @@ class ReferralCampaignControllerTest extends TestCase
             ->assertJsonValidationErrors(['multiplier']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function update_enforces_bonus_cap()
     {
         $campaign = ReferralCampaign::factory()->create(['bonus_amount' => 100]);
@@ -301,7 +298,7 @@ class ReferralCampaignControllerTest extends TestCase
             ->assertJsonValidationErrors(['bonus_amount']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function update_validates_date_consistency()
     {
         $campaign = ReferralCampaign::factory()->create([
@@ -319,7 +316,7 @@ class ReferralCampaignControllerTest extends TestCase
             ->assertJsonValidationErrors(['end_date']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_toggle_campaign_active_status()
     {
         $campaign = ReferralCampaign::factory()->create(['is_active' => true]);
@@ -337,8 +334,7 @@ class ReferralCampaignControllerTest extends TestCase
     }
 
     // ==================== DESTROY TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_delete_referral_campaign()
     {
         $campaign = ReferralCampaign::factory()->create();
@@ -354,7 +350,7 @@ class ReferralCampaignControllerTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function delete_returns_404_for_nonexistent_campaign()
     {
         $response = $this->actingAs($this->admin)
@@ -363,7 +359,7 @@ class ReferralCampaignControllerTest extends TestCase
         $response->assertStatus(404);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function regular_user_cannot_delete_campaign()
     {
         $campaign = ReferralCampaign::factory()->create();
@@ -375,8 +371,7 @@ class ReferralCampaignControllerTest extends TestCase
     }
 
     // ==================== FRAUD PREVENTION TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function cannot_create_campaign_with_unreasonable_multiplier()
     {
         // Even at max cap, the values should be reasonable
@@ -402,7 +397,7 @@ class ReferralCampaignControllerTest extends TestCase
         $response->assertStatus(422);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function campaign_multiplier_precision_is_respected()
     {
         $campaignData = [

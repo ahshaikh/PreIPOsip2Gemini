@@ -40,7 +40,6 @@ class UserWithdrawalEndpointTest extends TestCase
         ], $overrides);
     }
 
-    /** @test */
     public function testUserCanRequestWithdrawal()
     {
         $response = $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw',
@@ -50,7 +49,6 @@ class UserWithdrawalEndpointTest extends TestCase
         $response->assertJson(['message' => 'Withdrawal request submitted for approval.']);
     }
 
-    /** @test */
     public function testUserCannotWithdrawMoreThanBalance()
     {
         $response = $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw',
@@ -60,7 +58,6 @@ class UserWithdrawalEndpointTest extends TestCase
         $response->assertJsonValidationErrors('amount', 'Insufficient funds');
     }
 
-    /** @test */
     public function testWithdrawalLocksBalance()
     {
         $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw',
@@ -71,7 +68,6 @@ class UserWithdrawalEndpointTest extends TestCase
         $this->assertEquals(3000, $this->wallet->fresh()->locked_balance);
     }
 
-    /** @test */
     public function testUserCanCancelPendingWithdrawal()
     {
         // 1. Create the withdrawal
@@ -90,7 +86,6 @@ class UserWithdrawalEndpointTest extends TestCase
         $this->assertEquals('cancelled', $withdrawal->fresh()->status);
     }
 
-    /** @test */
     public function testUserCanViewWithdrawalHistory()
     {
         $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw', $this->getValidData());
@@ -102,7 +97,6 @@ class UserWithdrawalEndpointTest extends TestCase
         $response->assertJsonPath('data.0.amount', '5000.00');
     }
 
-    /** @test */
     public function testWithdrawalRequiresBankDetails()
     {
         $response = $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw',
@@ -112,7 +106,6 @@ class UserWithdrawalEndpointTest extends TestCase
         $response->assertJsonValidationErrors(['bank_details.account', 'bank_details.ifsc']);
     }
 
-    /** @test */
     public function testWithdrawalRespectsMinimumAmount()
     {
         $response = $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw',
@@ -122,7 +115,6 @@ class UserWithdrawalEndpointTest extends TestCase
         $response->assertJsonValidationErrors('amount');
     }
 
-    /** @test */
     public function testWithdrawalRespectsRateLimiting()
     {
         // 5 requests should be OK (422 for balance, but not 429)
@@ -135,7 +127,6 @@ class UserWithdrawalEndpointTest extends TestCase
         $response->assertStatus(429); // Too Many Requests
     }
 
-    /** @test */
     public function testWithdrawalNotificationSent()
     {
         Notification::fake();
@@ -144,10 +135,4 @@ class UserWithdrawalEndpointTest extends TestCase
 
         Notification::assertSentTo($this->user, WithdrawalRequested::class);
     }
-
-    /** @test */
-    public function testWithdrawalStatusTracking()
-    {
-        $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw', $this->getValidData());
-        
-        $this-
+}

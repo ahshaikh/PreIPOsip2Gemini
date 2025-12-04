@@ -40,7 +40,7 @@ class WithdrawalServiceTest extends TestCase
         Setting::create(['key' => 'min_withdrawal_amount', 'value' => 1000]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_request_withdrawal_validates_kyc_approved()
     {
         $this->user->kyc->update(['status' => 'pending']);
@@ -51,7 +51,7 @@ class WithdrawalServiceTest extends TestCase
         $this->service->requestWithdrawal($this->user, 1000, []);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_request_withdrawal_validates_minimum_amount()
     {
         $this->expectException(\Exception::class);
@@ -60,7 +60,7 @@ class WithdrawalServiceTest extends TestCase
         $this->service->requestWithdrawal($this->user, 500, []); // 500 < 1000
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_approve_withdrawal_initiates_bank_transfer_event()
     {
         Event::fake(); // Tell Laravel to intercept events
@@ -76,15 +76,15 @@ class WithdrawalServiceTest extends TestCase
         });
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_complete_withdrawal_updates_wallet_balance()
     {
         $withdrawal = $this->service->requestWithdrawal($this->user, 1000, []);
-        
+
         // At this point, balance is 4000, locked is 1000
         $this->assertEquals(4000, $this->wallet->fresh()->balance);
         $this->assertEquals(1000, $this->wallet->fresh()->locked_balance);
-        
+
         // Manually approve (to skip event)
         $withdrawal->update(['status' => 'approved']);
 

@@ -31,7 +31,7 @@ class KycTest extends TestCase
         $this->admin->assignRole('admin');
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function user_can_upload_kyc_documents()
     {
         Storage::fake('local'); // Fake storage for encryption test
@@ -63,7 +63,7 @@ class KycTest extends TestCase
         $this->assertDatabaseCount('kyc_documents', 5);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_approve_kyc()
     {
         $kyc = $this->user->kyc;
@@ -79,7 +79,7 @@ class KycTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_reject_kyc_with_reason()
     {
         $kyc = $this->user->kyc;

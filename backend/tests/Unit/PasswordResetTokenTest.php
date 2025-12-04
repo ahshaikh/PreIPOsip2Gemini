@@ -10,13 +10,7 @@ use Tests\TestCase;
 
 class PasswordResetTokenTest extends TestCase
 {
-    /**
-     * @test
-     * Corresponds to: SecurityEndpointTest::testPasswordResetTokenExpiry
-     *
-     * This tests the logic that *finds* a token, ensuring it
-     * ignores expired ones.
-     */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testPasswordResetTokenExpiry()
     {
         $tokenValue = 'some_valid_token_string';

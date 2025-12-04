@@ -24,7 +24,7 @@ class FeatureFlagTest extends TestCase
         $this->user2 = User::factory()->create(['id' => 2]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_feature_flag_checks_if_enabled()
     {
         // 1. Simple ON flag
@@ -45,7 +45,7 @@ class FeatureFlagTest extends TestCase
         $this->assertFalse($flagOff->isEnabled($this->user1));
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_feature_flag_validates_identifier_unique()
     {
         FeatureFlag::factory()->create(['key' => 'unique.flag']);
@@ -56,7 +56,7 @@ class FeatureFlagTest extends TestCase
         FeatureFlag::factory()->create(['key' => 'unique.flag']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_feature_flag_tracks_enabled_for_percentage()
     {
         // 1. Create a 50% rollout flag
@@ -82,7 +82,7 @@ class FeatureFlagTest extends TestCase
         $this->assertTrue($enabledCount > 30 && $enabledCount < 70);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_percentage_flag_is_off_for_guests()
     {
         // A 99% rollout flag
@@ -96,7 +96,7 @@ class FeatureFlagTest extends TestCase
         $this->assertFalse($flag->isEnabled(null));
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_percentage_flag_is_off_if_globally_disabled()
     {
         // A 100% rollout flag that is globally disabled

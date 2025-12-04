@@ -38,7 +38,7 @@ class UserNotificationEndpointsTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testGetNotificationsReturnsUserNotifications()
     {
         $this->createNotification();
@@ -50,7 +50,7 @@ class UserNotificationEndpointsTest extends TestCase
         $response->assertJsonCount(2, 'data');
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testMarkNotificationAsRead()
     {
         $notification = $this->createNotification(false); // Unread
@@ -62,7 +62,7 @@ class UserNotificationEndpointsTest extends TestCase
         $this->assertNotNull($notification->fresh()->read_at);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testMarkAllNotificationsAsRead()
     {
         $this->createNotification(false);
@@ -76,7 +76,7 @@ class UserNotificationEndpointsTest extends TestCase
         $this->assertEquals(0, $this->user->unreadNotifications()->count());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testDeleteNotification()
     {
         $notification = $this->createNotification();
@@ -88,7 +88,7 @@ class UserNotificationEndpointsTest extends TestCase
         $this->assertDatabaseMissing('notifications', ['id' => $notification->id]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testNotificationsPaginated()
     {
         // Create 25 notifications

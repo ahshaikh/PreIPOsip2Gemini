@@ -19,7 +19,7 @@ class UserKycTest extends TestCase
         parent::setUp();
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_kyc_belongs_to_user()
     {
         $user = User::factory()->create();
@@ -29,7 +29,7 @@ class UserKycTest extends TestCase
         $this->assertEquals($user->id, $kyc->user->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_kyc_has_documents_relationship()
     {
         $user = User::factory()->create();
@@ -47,7 +47,7 @@ class UserKycTest extends TestCase
         $this->assertEquals(1, $kyc->documents->count());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_verification_status_enum_validates()
     {
         // We test this using a Validator instance to simulate controller logic
@@ -59,7 +59,7 @@ class UserKycTest extends TestCase
         $this->assertFalse(Validator::make(['status' => 'invalid_status'], $rules)->passes());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_kyc_can_be_approved()
     {
         $user = User::factory()->create();
@@ -71,7 +71,7 @@ class UserKycTest extends TestCase
         $this->assertNotNull($kyc->fresh()->verified_at);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_kyc_can_be_rejected_with_reason()
     {
         $user = User::factory()->create();
@@ -86,7 +86,7 @@ class UserKycTest extends TestCase
         $this->assertEquals('Blurry image', $kyc->fresh()->rejection_reason);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_kyc_calculates_completion_percentage()
     {
         $user = User::factory()->create();
@@ -113,7 +113,7 @@ class UserKycTest extends TestCase
         $this->assertEquals(50, $kyc->fresh()->completion_percentage);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_kyc_checks_all_documents_uploaded()
     {
         $user = User::factory()->create();
@@ -129,7 +129,7 @@ class UserKycTest extends TestCase
         $this->assertFalse($kyc->fresh()->hasAllDocuments());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_kyc_marks_as_complete_when_all_docs_present()
     {
         $user = User::factory()->create();
@@ -148,24 +148,24 @@ class UserKycTest extends TestCase
         $this->assertTrue($kyc->fresh()->hasAllDocuments());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_pan_number_format_validates()
     {
         // Valid PAN
         $this->assertMatchesRegularExpression(UserKyc::PAN_REGEX, 'ABCDE1234F');
-        
+
         // Invalid PANs
         $this->assertDoesNotMatchRegularExpression(UserKyc::PAN_REGEX, '1234567890'); // Numbers only
         $this->assertDoesNotMatchRegularExpression(UserKyc::PAN_REGEX, 'ABCDE1234'); // Too short
         $this->assertDoesNotMatchRegularExpression(UserKyc::PAN_REGEX, 'abcdef1234g'); // Lowercase (regex expects uppercase usually, though input cleaning handles this)
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_aadhaar_number_format_validates()
     {
         // Valid Aadhaar (12 digits)
         $this->assertMatchesRegularExpression(UserKyc::AADHAAR_REGEX, '123456789012');
-        
+
         // Invalid
         $this->assertDoesNotMatchRegularExpression(UserKyc::AADHAAR_REGEX, '1234'); // Too short
         $this->assertDoesNotMatchRegularExpression(UserKyc::AADHAAR_REGEX, '1234abc56789'); // Alphanumeric

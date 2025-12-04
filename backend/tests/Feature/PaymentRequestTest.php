@@ -40,7 +40,7 @@ class PaymentRequestTest extends TestCase
         Setting::create(['key' => 'max_payment_amount', 'value' => 100000, 'type' => 'number']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_validates_subscription_exists()
     {
         $response = $this->actingAs($this->user)->postJson('/api/v1/user/payment/initiate', [
@@ -51,7 +51,7 @@ class PaymentRequestTest extends TestCase
                  ->assertJsonValidationErrors(['payment_id']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_validates_user_owns_subscription()
     {
         // Create a payment owned by *another* user
@@ -69,7 +69,7 @@ class PaymentRequestTest extends TestCase
         $response->assertStatus(403); // Forbidden
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_validates_amount_positive()
     {
         // This is now tested in the *Controller*, not the Request
@@ -85,7 +85,7 @@ class PaymentRequestTest extends TestCase
         $response->assertJson(['message' => 'Payment amount must be between ₹1 and ₹100000.']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_validates_payment_method_enum()
     {
         // This is not part of this request's logic.
@@ -93,7 +93,7 @@ class PaymentRequestTest extends TestCase
         $this->assertTrue(true);
     }
     
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_passes_with_valid_data()
     {
         $response = $this->actingAs($this->user)->postJson('/api/v1/user/payment/initiate', [

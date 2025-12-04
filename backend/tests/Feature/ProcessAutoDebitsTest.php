@@ -3,7 +3,7 @@
 
 namespace Tests\Feature;
 
-use Illuminate.Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use App\Services\AutoDebitService;
 use App\Models\User;
@@ -33,7 +33,6 @@ class ProcessAutoDebitsTest extends TestCase
         $this->serviceMock = $this->mock(AutoDebitService::class);
     }
 
-    /** @test */
     public function test_identifies_subscriptions_due_for_payment()
     {
         // 1. Setup
@@ -66,7 +65,6 @@ class ProcessAutoDebitsTest extends TestCase
         $this->artisan('app:process-auto-debits');
     }
 
-    /** @test */
     public function test_initiates_payment_for_each_subscription()
     {
         // This is identical to the test above, just different naming.
@@ -81,7 +79,6 @@ class ProcessAutoDebitsTest extends TestCase
         $this->artisan('app:process-auto-debits');
     }
 
-    /** @test */
     public function test_retries_failed_payments()
     {
         // This test belongs on the Retry JOB (RetryAutoDebitJobTest),
@@ -108,7 +105,6 @@ class ProcessAutoDebitsTest extends TestCase
         $this->assertTrue(true); // Assertion is in the mock expectations
     }
 
-    /** @test */
     public function test_sends_reminder_before_due_date()
     {
         // This test verifies the command calls the reminder function.
@@ -123,7 +119,6 @@ class ProcessAutoDebitsTest extends TestCase
              ->assertExitCode(0);
     }
 
-    /** @test */
     public function test_suspends_subscription_after_max_failures()
     {
         // This logic is in the Retry Job, not the main command.

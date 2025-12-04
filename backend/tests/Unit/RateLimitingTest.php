@@ -32,10 +32,7 @@ class RateLimitingTest extends TestCase // Or WebTestCase
         };
     }
 
-    /**
-     * @test
-     * Corresponds to: SecurityEndpointTest::testRateLimitingPreventsAbuse
-     */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testRateLimitingPreventsAbuse()
     {
         $endpoint = '/login';

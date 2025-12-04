@@ -51,7 +51,7 @@ class ProfitShareTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_calculate_profit_share()
     {
         $response = $this->actingAs($this->admin)
@@ -66,7 +66,7 @@ class ProfitShareTest extends TestCase
         $this->assertEquals('calculated', $this->period->fresh()->status);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_distribute_profit_share()
     {
         // Calculate first

@@ -4,13 +4,14 @@ import React, { useState, useMemo } from 'react';
 import { Search, ChevronRight, Menu, X, ThumbsUp, ThumbsDown, ArrowRight, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HELP_DATA, Article } from './data';
+import api from '@/lib/api'; // <--- [ADDED] Import the API utility for Auth & Route handling
 
 export default function HelpCenterPage() {
   // --- STATE ---
   const [activeCategoryId, setActiveCategoryId] = useState<string>(HELP_DATA[0].id);
   const [activeArticleId, setActiveArticleId] = useState<string>(HELP_DATA[0].articles[0].id);
   
-  // CHANGED: Now storing only ONE string (or null) instead of an array
+  // Track which category is expanded (Accordion logic)
   const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(HELP_DATA[0].id);
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -71,7 +72,7 @@ export default function HelpCenterPage() {
             <div className="flex items-baseline gap-2">
               <h1 className="text-xl font-bold tracking-tight">Help Center</h1>
               <span className="hidden sm:inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
-                v2.2
+                v2.3
               </span>
             </div>
           </div>
@@ -252,7 +253,7 @@ export default function HelpCenterPage() {
                   <div dangerouslySetInnerHTML={{ __html: activeArticle.content }} />
                 </article>
 
-                {/* Correct Usage */}
+                {/* --- [SMART FEEDBACK COMPONENT] --- */}
                 {/* The 'key' ensures the form resets when you switch articles */}
                 <ArticleFeedback articleId={activeArticle.id} key={activeArticle.id} />
 
@@ -275,7 +276,7 @@ export default function HelpCenterPage() {
   );
 }
 
-// --- NEW FEEDBACK COMPONENT ---
+// --- NEW SMART FEEDBACK COMPONENT ---
 function ArticleFeedback({ articleId }: { articleId: string }) {
   const [status, setStatus] = useState<'idle' | 'helpful' | 'unhelpful' | 'submitting' | 'submitted'>('idle');
   const [comment, setComment] = useState('');
@@ -284,16 +285,14 @@ function ArticleFeedback({ articleId }: { articleId: string }) {
     setStatus('submitting');
     
     try {
-      // Replace with your actual Laravel API URL
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/help-center/feedback`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          article_id: articleId,
-          is_helpful: isHelpful,
-          comment: feedbackComment
-        })
+      // [FIXED] Use 'api' utility. 
+      // It automatically handles the URL prefix (/api/v1) and attaches the User Token if logged in.
+      await api.post('/help-center/feedback', {
+        article_id: articleId,
+        is_helpful: isHelpful,
+        comment: feedbackComment
       });
+
       setStatus('submitted');
     } catch (error) {
       console.error('Feedback failed', error);

@@ -17,8 +17,10 @@ return new class extends Migration
         // Add a CHECK constraint
         // Note: CHECK constraints are supported by MySQL 8.0.16+ and PostgreSQL
         try {
-            DB::statement('ALTER TABLE wallets ADD CONSTRAINT balance_must_be_positive CHECK (balance >= 0)');
-            DB::statement('ALTER TABLE wallets ADD CONSTRAINT locked_balance_must_be_positive CHECK (locked_balance >= 0)');
+            if (DB::getDriverName() !== 'sqlite') {
+                DB::statement('ALTER TABLE wallets ADD CONSTRAINT balance_must_be_positive CHECK (balance >= 0)');
+                DB::statement('ALTER TABLE wallets ADD CONSTRAINT locked_balance_must_be_positive CHECK (locked_balance >= 0)');
+            }
         } catch (\Exception $e) {
             // Failsafe for older MySQL or SQLite versions
             logger('Could not add CHECK constraints to wallets table: ' . $e->getMessage());

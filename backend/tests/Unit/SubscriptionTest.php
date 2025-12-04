@@ -25,7 +25,7 @@ class SubscriptionTest extends TestCase
         $this->plan = Plan::factory()->create(['monthly_amount' => 5000]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_subscription_belongs_to_user()
     {
         $sub = Subscription::create([
@@ -40,7 +40,7 @@ class SubscriptionTest extends TestCase
         $this->assertEquals($this->user->id, $sub->user->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_subscription_belongs_to_plan()
     {
         $sub = Subscription::create([
@@ -55,7 +55,7 @@ class SubscriptionTest extends TestCase
         $this->assertEquals($this->plan->id, $sub->plan->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_subscription_has_payments_relationship()
     {
         $sub = Subscription::factory()->create(['user_id' => $this->user->id]);
@@ -64,7 +64,7 @@ class SubscriptionTest extends TestCase
         $this->assertTrue($sub->payments()->exists());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_subscription_calculates_next_payment_date()
     {
         // This logic is usually handled by the controller/service during creation/payment
@@ -79,7 +79,7 @@ class SubscriptionTest extends TestCase
         $this->assertEquals($date->toDateString(), $sub->next_payment_date->toDateString());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_subscription_calculates_months_completed()
     {
         $sub = Subscription::factory()->create(['user_id' => $this->user->id]);
@@ -99,7 +99,7 @@ class SubscriptionTest extends TestCase
         $this->assertEquals(3, $sub->months_completed);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_subscription_tracks_consecutive_payments()
     {
         $sub = Subscription::factory()->create([
@@ -110,7 +110,7 @@ class SubscriptionTest extends TestCase
         $this->assertEquals(5, $sub->consecutive_payments_count);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_subscription_can_be_paused()
     {
         $sub = Subscription::factory()->create([
@@ -131,7 +131,7 @@ class SubscriptionTest extends TestCase
         $this->assertEquals($originalEndDate->addMonths(2)->toDateString(), $sub->end_date->toDateString());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_subscription_can_be_resumed()
     {
         $sub = Subscription::factory()->create([
@@ -146,7 +146,7 @@ class SubscriptionTest extends TestCase
         $this->assertNull($sub->fresh()->pause_start_date);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_subscription_can_be_cancelled()
     {
         $sub = Subscription::factory()->create([
@@ -161,17 +161,17 @@ class SubscriptionTest extends TestCase
         $this->assertNotNull($sub->fresh()->cancelled_at);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_subscription_validates_pause_limit()
     {
         $sub = Subscription::factory()->create(['user_id' => $this->user->id, 'status' => 'active']);
 
         $this->expectException(\InvalidArgumentException::class);
-        
+
         $sub->pause(4); // Max limit is 3
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_subscription_calculates_total_paid()
     {
         $sub = Subscription::factory()->create(['user_id' => $this->user->id]);
@@ -182,7 +182,7 @@ class SubscriptionTest extends TestCase
         $this->assertEquals(3000, $sub->total_paid);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_subscription_status_enum_validates()
     {
         // Testing via DB query constraint or model update

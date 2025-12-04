@@ -48,7 +48,7 @@ class DatabaseSeeder extends Seeder
         // 9. --- "Chaos Seeder" ---
         // Only run this in 'local' or 'staging' environments
         if (App::environment(['local', 'staging'])) {
-            $this->call(TestDataSetSeeder::class);
+            $this->call(FullSetupSeeder::class);
         }
     }
 }

@@ -76,7 +76,7 @@ class ProcessCelebrationBonusesTest extends TestCase
         parent::tearDown();
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_identifies_birthdays_today_and_awards_bonus()
     {
         // Run the command
@@ -97,7 +97,7 @@ class ProcessCelebrationBonusesTest extends TestCase
         ]);
     }
     
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_awards_birthday_bonus()
     {
         // This is implicitly tested by the test above.
@@ -109,7 +109,7 @@ class ProcessCelebrationBonusesTest extends TestCase
         $this->assertEquals(250, $this->userA->wallet->fresh()->balance);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_identifies_subscription_anniversaries()
     {
         $this->artisan('app:process-celebration-bonuses');
@@ -128,7 +128,7 @@ class ProcessCelebrationBonusesTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_awards_anniversary_bonus()
     {
         // This test verifies the calculation (Base * Years)

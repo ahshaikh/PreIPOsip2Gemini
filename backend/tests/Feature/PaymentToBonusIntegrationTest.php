@@ -70,9 +70,6 @@ class PaymentToBonusIntegrationTest extends TestCase
         $this->seed(\Database\Seeders\ProductSeeder::class);
     }
 
-    /**
-     * Helper to run the full webhook->job pipeline
-     */
     private function runPaymentLifecycle()
     {
         // 1. Trigger Webhook
@@ -91,7 +88,6 @@ class PaymentToBonusIntegrationTest extends TestCase
         );
     }
 
-    /** @test */
     public function testPaymentSuccessTriggersAllBonusCalculations()
     {
         // We test that a Consistency bonus is created
@@ -103,7 +99,6 @@ class PaymentToBonusIntegrationTest extends TestCase
         ]);
     }
 
-    /** @test */
     public function testBonusesCorrectlyCreditedToWallet()
     {
         // Plan A consistency bonus is ₹10
@@ -120,7 +115,6 @@ class PaymentToBonusIntegrationTest extends TestCase
         ]);
     }
 
-    /** @test */
     public function testBonusNotificationsGenerated()
     {
         Notification::fake();
@@ -128,7 +122,6 @@ class PaymentToBonusIntegrationTest extends TestCase
         Notification::assertSentTo($this->user, BonusCredited::class);
     }
 
-    /** @test */
     public function testBonusRecordsCreatedWithCorrectMetadata()
     {
         // Test with a progressive bonus on Month 4
@@ -144,7 +137,6 @@ class PaymentToBonusIntegrationTest extends TestCase
         ]);
     }
 
-    /** @test */
     public function testReferralMultiplierAppliedToAllBonuses()
     {
         // 1. Set multiplier to 2.0x
@@ -167,7 +159,6 @@ class PaymentToBonusIntegrationTest extends TestCase
         ]);
     }
 
-    /** @test */
     public function testPaymentRefundReversesBonuses()
     {
         // 1. Run a payment, generating a 10.00 bonus
@@ -192,7 +183,6 @@ class PaymentToBonusIntegrationTest extends TestCase
         $this->assertDatabaseHas('bonus_transactions', ['type' => 'reversal', 'amount' => -10.00]);
     }
 
-    /** @test */
     public function testLatePaymentSkipsConsistencyBonus()
     {
         // 1. Mark the payment as *late*
@@ -208,8 +198,7 @@ class PaymentToBonusIntegrationTest extends TestCase
         ]);
     }
 
-    /** @test */
-    public.function testBonusCalculationHandlesEdgeCases()
+    public function testBonusCalculationHandlesEdgeCases()
     {
         // Test: test_bonus_calculation_with_zero_payment
         // This is prevented by the DB CHECK constraint we added

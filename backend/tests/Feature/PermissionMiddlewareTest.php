@@ -31,7 +31,7 @@ class PermissionMiddlewareTest extends TestCase
         $this->plan = Plan::factory()->create();
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_permission_allows_authorized_user()
     {
         // The 'admin' role (from seeder) *has* 'plans.view'
@@ -41,7 +41,7 @@ class PermissionMiddlewareTest extends TestCase
         $response->assertStatus(200);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_permission_blocks_unauthorized_user()
     {
         // 'admin' role does NOT have 'system.view_health' by default
@@ -52,7 +52,7 @@ class PermissionMiddlewareTest extends TestCase
                  ->assertJson(['message' => 'Forbidden: You do not have the required permission.']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_permission_checks_granular_permissions()
     {
         // 1. Manually remove 'plans.view' from admin
@@ -74,7 +74,7 @@ class PermissionMiddlewareTest extends TestCase
         $response->assertStatus(200);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_permission_logs_unauthorized_attempts()
     {
         // Mock the Log facade

@@ -38,13 +38,7 @@ class XssPreventionTest extends TestCase
     };
     }
 
-    /**
-     * @test
-     * Corresponds to: SecurityEndpointTest::testXssPreventionInInputs
-     *
-     * This test submits a malicious XSS string and then checks
-     * if the *rendered* output on another page is properly escaped.
-     */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testXssPreventionInInputs()
     {
         $xssPayload = '<script>alert("hacked");</script>';

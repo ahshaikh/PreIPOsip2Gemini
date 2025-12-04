@@ -36,10 +36,7 @@ class CsrfProtectionTest extends TestCase // Or WebTestCase
         $this->user = (object)['id' => 123];
     }
     
-    /**
-     * @test
-     * Corresponds to: SecurityEndpointTest::testCsrfProtectionEnabled
-     */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testCsrfProtectionEnabled()
     {
         $this->client->loginUser($this->user);

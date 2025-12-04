@@ -31,7 +31,7 @@ class SubscriptionLifecycleTest extends TestCase
         $this->planB = Plan::factory()->create(['name' => 'Plan B', 'monthly_amount' => 5000]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function user_can_subscribe_successfully()
     {
         $response = $this->actingAs($this->user)
@@ -45,7 +45,7 @@ class SubscriptionLifecycleTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function user_can_upgrade_plan()
     {
         // Create existing subscription
@@ -67,7 +67,7 @@ class SubscriptionLifecycleTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function user_can_pause_subscription()
     {
         $sub = Subscription::factory()->create([
@@ -91,7 +91,7 @@ class SubscriptionLifecycleTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function user_can_cancel_subscription()
     {
         $sub = Subscription::factory()->create([

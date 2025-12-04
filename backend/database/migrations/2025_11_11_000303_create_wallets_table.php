@@ -60,8 +60,10 @@ return new class extends Migration
             $table->timestamps();
         });
         
-        DB::statement('ALTER TABLE wallets ADD CONSTRAINT balance_must_be_positive CHECK (balance >= 0)');
-        DB::statement('ALTER TABLE wallets ADD CONSTRAINT locked_balance_must_be_positive CHECK (locked_balance >= 0)');
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement('ALTER TABLE wallets ADD CONSTRAINT balance_must_be_positive CHECK (balance >= 0)');
+            DB::statement('ALTER TABLE wallets ADD CONSTRAINT locked_balance_must_be_positive CHECK (locked_balance >= 0)');
+        }
     }
 
     public function down(): void

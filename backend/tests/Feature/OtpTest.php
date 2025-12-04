@@ -20,7 +20,7 @@ class OtpTest extends TestCase
         // We don't need full plans for OTP testing
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function it_verifies_correct_otp_successfully()
     {
         $user = User::factory()->create();
@@ -45,7 +45,7 @@ class OtpTest extends TestCase
         $this->assertNotNull($user->fresh()->email_verified_at);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function it_rejects_incorrect_otp()
     {
         $user = User::factory()->create();
@@ -67,7 +67,7 @@ class OtpTest extends TestCase
                  ->assertJson(['message' => 'Invalid or expired OTP.']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function it_rejects_expired_otp()
     {
         $user = User::factory()->create();

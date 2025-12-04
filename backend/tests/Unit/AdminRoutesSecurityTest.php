@@ -48,10 +48,7 @@ class AdminRoutesSecurityTest extends TestCase // Replace with WebTestCase if us
         $this->adminUser = (object)['username' => 'admin', 'role' => 'ROLE_ADMIN'];
     }
 
-    /**
-     * @test
-     * Corresponds to: SecurityEndpointTest::testUnauthorizedAccessToAdminRoutesFails
-     */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testUnauthorizedAccessToAdminRoutesFails()
     {
         $adminRoutes = ['/admin/dashboard', '/admin/users/delete/1'];

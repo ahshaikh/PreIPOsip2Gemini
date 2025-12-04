@@ -42,7 +42,7 @@ class BonusCalculatorTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function it_does_not_award_progressive_bonus_before_start_month()
     {
         // Simulate Month 3 (Start month is 4)
@@ -56,7 +56,7 @@ class BonusCalculatorTest extends TestCase
         $this->assertDatabaseHas('bonus_transactions', ['type' => 'consistency', 'amount' => 50]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function it_awards_correct_progressive_bonus_on_month_4()
     {
         // Simulate Month 4
@@ -72,7 +72,7 @@ class BonusCalculatorTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function it_multiplies_bonuses_based_on_referral_tier()
     {
         // Set 2.0x Multiplier
@@ -92,7 +92,7 @@ class BonusCalculatorTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function it_awards_milestone_bonus_only_on_exact_month()
     {
         // Simulate Month 12

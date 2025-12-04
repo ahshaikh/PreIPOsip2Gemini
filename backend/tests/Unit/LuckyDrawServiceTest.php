@@ -44,7 +44,7 @@ class LuckyDrawServiceTest extends TestCase
         );
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_create_monthly_draw_sets_correct_date()
     {
         $date = now()->endOfMonth();
@@ -54,7 +54,7 @@ class LuckyDrawServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_allocate_entries_based_on_plan()
     {
         $user = User::factory()->create();
@@ -73,7 +73,7 @@ class LuckyDrawServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_allocate_bonus_entries_for_streaks()
     {
         $user = User::factory()->create();
@@ -96,7 +96,7 @@ class LuckyDrawServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_select_winners_uses_weighted_random()
     {
         // User A: 100 entries
@@ -120,7 +120,7 @@ class LuckyDrawServiceTest extends TestCase
         $this->assertTrue($wins['B'] < 10);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_distribute_prizes_to_wallets()
     {
         $user = User::factory()->create();
@@ -145,7 +145,7 @@ class LuckyDrawServiceTest extends TestCase
         $this->assertEquals('completed', $this->draw->fresh()->status);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_send_winner_notifications()
     {
         Log::shouldReceive('info')->once()->with('Queueing winner notification for User #1');

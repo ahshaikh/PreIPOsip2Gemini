@@ -11,7 +11,7 @@ use App\Models\EmailTemplate;
 use App\Models\EmailLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
-use Illuminate.Support\Facades\Mail;
+use Illuminate\Support\Facades\Mail;
 
 class EmailServiceTest extends TestCase
 {
@@ -34,7 +34,6 @@ class EmailServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
     public function test_send_email_uses_correct_template()
     {
         Queue::fake();
@@ -46,7 +45,6 @@ class EmailServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
     public function test_send_email_replaces_variables()
     {
         Queue::fake();
@@ -56,7 +54,6 @@ class EmailServiceTest extends TestCase
         $this->assertEquals('Your email is test@example.com.', $log->body);
     }
 
-    /** @test */
     public function test_send_email_logs_delivery()
     {
         Queue::fake();
@@ -68,7 +65,6 @@ class EmailServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
     public function test_send_email_handles_sendgrid_failure()
     {
         Mail::fake();
@@ -94,7 +90,6 @@ class EmailServiceTest extends TestCase
         $this->assertEquals('SendGrid Error', $log->fresh()->error_message);
     }
 
-    /** @test */
     public function test_send_email_queues_for_async_delivery()
     {
         Queue::fake();
@@ -102,12 +97,10 @@ class EmailServiceTest extends TestCase
         Queue::assertPushed(ProcessEmailJob::class);
     }
 
-    /** @test */
     public function test_send_email_respects_user_preferences()
     {
         Queue::fake();
         
-        // 1. User opts out
         $this->user->notificationPreferences()->create([
             'preference_key' => 'test_email',
             'is_enabled' => false
@@ -120,7 +113,6 @@ class EmailServiceTest extends TestCase
         Queue::assertNotPushed(ProcessEmailJob::class);
     }
 
-    /** @test */
     public function test_send_email_validates_recipient()
     {
         Queue::fake();
@@ -132,7 +124,6 @@ class EmailServiceTest extends TestCase
         Queue::assertNotPushed(ProcessEmailJob::class);
     }
 
-    /** @test */
     public function test_batch_email_sends_in_chunks()
     {
         Queue::fake();

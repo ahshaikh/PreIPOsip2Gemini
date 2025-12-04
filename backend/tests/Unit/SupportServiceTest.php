@@ -30,7 +30,7 @@ class SupportServiceTest extends TestCase
         $this->admin->assignRole('support');
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_auto_assign_ticket_to_available_agent()
     {
         // 1. Create a ticket (Observer will fire)
@@ -46,7 +46,7 @@ class SupportServiceTest extends TestCase
         $this->assertEquals($this->admin->id, $ticket->assigned_to);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_escalate_ticket_after_sla_breach()
     {
         // 1. Create a ticket 25 hours ago (SLA=24)
@@ -66,7 +66,7 @@ class SupportServiceTest extends TestCase
         $this->assertEquals('high', $ticket->fresh()->priority);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_close_ticket_after_resolution()
     {
         // 1. Create a ticket resolved 8 days ago

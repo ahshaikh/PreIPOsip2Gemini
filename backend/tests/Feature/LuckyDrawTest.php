@@ -35,7 +35,7 @@ class LuckyDrawTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_execute_draw()
     {
         // Create 5 entrants

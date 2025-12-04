@@ -35,7 +35,7 @@ class RazorpayServiceTest extends TestCase
         parent::tearDown();
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_create_order_calls_razorpay_api()
     {
         // Mock the 'order' property and its 'create' method
@@ -54,7 +54,7 @@ class RazorpayServiceTest extends TestCase
         $this->assertEquals('order_123', $result->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_create_order_sets_correct_amount()
     {
         $orderMock = Mockery::mock();
@@ -71,7 +71,7 @@ class RazorpayServiceTest extends TestCase
         $this->service->createOrder(100, 'rec_123');
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_create_order_sets_currency_inr()
     {
         $orderMock = Mockery::mock();
@@ -85,7 +85,7 @@ class RazorpayServiceTest extends TestCase
         $this->service->createOrder(100, 'rec_123');
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_create_order_includes_receipt()
     {
         $orderMock = Mockery::mock();
@@ -99,7 +99,7 @@ class RazorpayServiceTest extends TestCase
         $this->service->createOrder(100, 'rec_unique_1');
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_create_order_handles_api_failure()
     {
         $orderMock = Mockery::mock();
@@ -115,7 +115,7 @@ class RazorpayServiceTest extends TestCase
         $this->service->createOrder(100, 'rec_123');
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_verify_signature_validates_correct_signature()
     {
         $utilityMock = Mockery::mock();
@@ -130,7 +130,7 @@ class RazorpayServiceTest extends TestCase
         $this->assertTrue($result);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_verify_signature_rejects_invalid_signature()
     {
         $utilityMock = Mockery::mock();
@@ -144,7 +144,7 @@ class RazorpayServiceTest extends TestCase
         $this->assertFalse($result);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_capture_payment_calls_razorpay_api()
     {
         $paymentMock = Mockery::mock();
@@ -167,7 +167,7 @@ class RazorpayServiceTest extends TestCase
         $this->service->capturePayment('pay_123', 500);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_capture_payment_validates_amount()
     {
         $this->expectException(\Exception::class);
@@ -176,7 +176,7 @@ class RazorpayServiceTest extends TestCase
         $this->service->capturePayment('pay_123', -100);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_refund_payment_calls_razorpay_api()
     {
         $paymentMock = Mockery::mock();
@@ -197,7 +197,7 @@ class RazorpayServiceTest extends TestCase
         $this->service->refundPayment('pay_123', 100);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_refund_payment_handles_partial_refund()
     {
         $paymentMock = Mockery::mock();
@@ -218,7 +218,7 @@ class RazorpayServiceTest extends TestCase
         $this->service->refundPayment('pay_123', 50);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_fetch_payment_details_calls_api()
     {
         $paymentMock = Mockery::mock();
@@ -232,7 +232,7 @@ class RazorpayServiceTest extends TestCase
         $this->service->fetchPayment('pay_123');
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_webhook_signature_validates_correctly()
     {
         $utilityMock = Mockery::mock();
@@ -247,7 +247,7 @@ class RazorpayServiceTest extends TestCase
         $this->assertTrue($result);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_service_uses_correct_environment_keys()
     {
         // Re-instantiate to test constructor logic
@@ -257,7 +257,7 @@ class RazorpayServiceTest extends TestCase
         $this->assertNotNull($service->getApi());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_service_logs_all_api_calls()
     {
         Log::shouldReceive('info')

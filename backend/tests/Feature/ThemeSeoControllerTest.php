@@ -32,8 +32,7 @@ class ThemeSeoControllerTest extends TestCase
     }
 
     // ==================== THEME UPDATE TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_update_primary_color()
     {
         $response = $this->actingAs($this->admin)
@@ -50,7 +49,7 @@ class ThemeSeoControllerTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_update_secondary_color()
     {
         $response = $this->actingAs($this->admin)
@@ -66,7 +65,7 @@ class ThemeSeoControllerTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_update_font_family()
     {
         $response = $this->actingAs($this->admin)
@@ -82,7 +81,7 @@ class ThemeSeoControllerTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_update_multiple_theme_settings()
     {
         $response = $this->actingAs($this->admin)
@@ -99,7 +98,7 @@ class ThemeSeoControllerTest extends TestCase
         $this->assertDatabaseHas('settings', ['key' => 'theme_font_family', 'value' => 'Roboto']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function theme_validates_hex_color_format()
     {
         $response = $this->actingAs($this->admin)
@@ -111,7 +110,7 @@ class ThemeSeoControllerTest extends TestCase
             ->assertJsonValidationErrors(['primary_color']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function theme_rejects_invalid_hex_format()
     {
         // Test various invalid formats
@@ -134,7 +133,7 @@ class ThemeSeoControllerTest extends TestCase
         }
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function theme_accepts_valid_hex_colors()
     {
         $validColors = [
@@ -155,7 +154,7 @@ class ThemeSeoControllerTest extends TestCase
         }
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function theme_validates_font_family_max_length()
     {
         $response = $this->actingAs($this->admin)
@@ -168,8 +167,7 @@ class ThemeSeoControllerTest extends TestCase
     }
 
     // ==================== LOGO UPLOAD TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_upload_logo()
     {
         Storage::fake('public');
@@ -187,7 +185,7 @@ class ThemeSeoControllerTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function logo_validates_file_type()
     {
         Storage::fake('public');
@@ -201,7 +199,7 @@ class ThemeSeoControllerTest extends TestCase
             ->assertJsonValidationErrors(['logo']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function logo_validates_max_file_size()
     {
         Storage::fake('public');
@@ -215,7 +213,7 @@ class ThemeSeoControllerTest extends TestCase
             ->assertJsonValidationErrors(['logo']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function logo_accepts_valid_image_types()
     {
         Storage::fake('public');
@@ -233,8 +231,7 @@ class ThemeSeoControllerTest extends TestCase
     }
 
     // ==================== FAVICON UPLOAD TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_upload_favicon()
     {
         Storage::fake('public');
@@ -252,7 +249,7 @@ class ThemeSeoControllerTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function favicon_validates_file_type()
     {
         Storage::fake('public');
@@ -266,7 +263,7 @@ class ThemeSeoControllerTest extends TestCase
             ->assertJsonValidationErrors(['favicon']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function favicon_validates_max_file_size()
     {
         Storage::fake('public');
@@ -281,8 +278,7 @@ class ThemeSeoControllerTest extends TestCase
     }
 
     // ==================== SEO UPDATE TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_update_robots_txt()
     {
         $robotsTxt = "User-agent: *\nDisallow: /admin\nAllow: /";
@@ -301,7 +297,7 @@ class ThemeSeoControllerTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_update_meta_title_suffix()
     {
         $response = $this->actingAs($this->admin)
@@ -317,7 +313,7 @@ class ThemeSeoControllerTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function seo_validates_robots_txt_max_length()
     {
         $response = $this->actingAs($this->admin)
@@ -329,7 +325,7 @@ class ThemeSeoControllerTest extends TestCase
             ->assertJsonValidationErrors(['robots_txt']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function seo_validates_meta_title_suffix_max_length()
     {
         $response = $this->actingAs($this->admin)
@@ -342,8 +338,7 @@ class ThemeSeoControllerTest extends TestCase
     }
 
     // ==================== GOOGLE ANALYTICS ID TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_set_google_analytics_ga4_id()
     {
         $response = $this->actingAs($this->admin)
@@ -359,7 +354,7 @@ class ThemeSeoControllerTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_set_google_analytics_ua_id()
     {
         $response = $this->actingAs($this->admin)
@@ -375,7 +370,7 @@ class ThemeSeoControllerTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function seo_validates_google_analytics_id_format()
     {
         $invalidIds = [
@@ -399,7 +394,7 @@ class ThemeSeoControllerTest extends TestCase
         }
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function seo_accepts_valid_google_analytics_ids()
     {
         $validIds = [
@@ -423,8 +418,7 @@ class ThemeSeoControllerTest extends TestCase
     }
 
     // ==================== AUTHORIZATION TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function regular_user_cannot_update_theme()
     {
         $response = $this->actingAs($this->user)
@@ -435,7 +429,7 @@ class ThemeSeoControllerTest extends TestCase
         $response->assertStatus(403);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function regular_user_cannot_update_seo()
     {
         $response = $this->actingAs($this->user)
@@ -446,7 +440,7 @@ class ThemeSeoControllerTest extends TestCase
         $response->assertStatus(403);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function unauthenticated_user_cannot_update_theme()
     {
         $response = $this->postJson('/api/v1/admin/settings/theme', [
@@ -457,8 +451,7 @@ class ThemeSeoControllerTest extends TestCase
     }
 
     // ==================== CACHE CLEARING TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function theme_update_clears_settings_cache()
     {
         // Set initial value in cache
@@ -476,7 +469,7 @@ class ThemeSeoControllerTest extends TestCase
         $this->assertNull($cached);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function seo_update_clears_settings_cache()
     {
         // Set initial value in cache
@@ -495,8 +488,7 @@ class ThemeSeoControllerTest extends TestCase
     }
 
     // ==================== FILE REPLACEMENT TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function uploading_new_logo_deletes_old_one()
     {
         Storage::fake('public');

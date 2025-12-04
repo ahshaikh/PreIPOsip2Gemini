@@ -21,7 +21,7 @@ class PlanConfigTest extends TestCase
         $this->plan = Plan::factory()->create();
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_config_belongs_to_plan()
     {
         $config = PlanConfig::create([
@@ -34,7 +34,7 @@ class PlanConfigTest extends TestCase
         $this->assertEquals($this->plan->id, $config->plan->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_config_key_is_unique_per_plan()
     {
         PlanConfig::create([
@@ -53,7 +53,7 @@ class PlanConfigTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_config_value_is_json_cast()
     {
         $data = ['rate' => 10, 'enabled' => true, 'nested' => ['a' => 1]];
@@ -73,7 +73,7 @@ class PlanConfigTest extends TestCase
         $this->assertEquals(1, $retrieved->value['nested']['a']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_progressive_config_structure_validates()
     {
         // Progressive bonus requires 'rate' and 'start_month'
@@ -89,7 +89,7 @@ class PlanConfigTest extends TestCase
         $this->assertEquals(4, $config->value['start_month']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_milestone_config_structure_validates()
     {
         // Milestone config is an array of objects
@@ -108,7 +108,7 @@ class PlanConfigTest extends TestCase
         $this->assertEquals(1000, $config->value[0]['amount']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_consistency_config_structure_validates()
     {
         // Consistency config has base amount and streak multipliers
@@ -129,7 +129,7 @@ class PlanConfigTest extends TestCase
         $this->assertEquals(3, $config->value['streaks'][0]['multiplier']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_referral_config_structure_validates()
     {
         // Referral tiers structure
@@ -147,7 +147,7 @@ class PlanConfigTest extends TestCase
         $this->assertEquals(2.0, $config->value[1]['multiplier']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_config_can_be_updated()
     {
         $config = PlanConfig::create([

@@ -30,7 +30,7 @@ class AdminWorkflowTest extends TestCase
         $this->user->assignRole('user');
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_approve_kyc()
     {
         $kyc = UserKyc::create([
@@ -50,7 +50,7 @@ class AdminWorkflowTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_approve_and_complete_withdrawal()
     {
         $wallet = Wallet::create(['user_id' => $this->user->id, 'balance' => 5000]);
@@ -80,7 +80,7 @@ class AdminWorkflowTest extends TestCase
         $this->assertDatabaseHas('withdrawals', ['id' => $withdrawal->id, 'status' => 'completed', 'utr_number' => 'UTR12345']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_suspend_user()
     {
         $response = $this->actingAs($this->admin)

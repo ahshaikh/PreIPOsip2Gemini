@@ -35,8 +35,7 @@ class WalletServiceTest extends TestCase
     }
 
     // ==================== DEPOSIT TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function deposit_increases_wallet_balance()
     {
         $transaction = $this->service->deposit($this->user, 500.00, 'deposit', 'Test deposit');
@@ -45,7 +44,7 @@ class WalletServiceTest extends TestCase
         $this->assertInstanceOf(Transaction::class, $transaction);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function deposit_creates_transaction_record()
     {
         $transaction = $this->service->deposit($this->user, 250.50, 'bonus_credit', 'Bonus award');
@@ -60,7 +59,7 @@ class WalletServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function deposit_records_balance_before_and_after()
     {
         // First deposit
@@ -73,7 +72,7 @@ class WalletServiceTest extends TestCase
         $this->assertEquals(300.00, $transaction->balance_after);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function deposit_throws_exception_for_zero_amount()
     {
         $this->expectException(\InvalidArgumentException::class);
@@ -82,7 +81,7 @@ class WalletServiceTest extends TestCase
         $this->service->deposit($this->user, 0, 'deposit', 'Test');
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function deposit_throws_exception_for_negative_amount()
     {
         $this->expectException(\InvalidArgumentException::class);
@@ -91,7 +90,7 @@ class WalletServiceTest extends TestCase
         $this->service->deposit($this->user, -100, 'deposit', 'Test');
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function deposit_stores_reference_when_provided()
     {
         $bonusTransaction = BonusTransaction::create([
@@ -116,8 +115,7 @@ class WalletServiceTest extends TestCase
     }
 
     // ==================== WITHDRAWAL TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function withdraw_decreases_wallet_balance()
     {
         $this->wallet->update(['balance' => 1000]);
@@ -127,7 +125,7 @@ class WalletServiceTest extends TestCase
         $this->assertEquals(700.00, $this->wallet->fresh()->balance);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function withdraw_creates_negative_amount_transaction()
     {
         $this->wallet->update(['balance' => 500]);
@@ -142,7 +140,7 @@ class WalletServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function withdraw_throws_exception_for_insufficient_funds()
     {
         $this->wallet->update(['balance' => 100]);
@@ -153,7 +151,7 @@ class WalletServiceTest extends TestCase
         $this->service->withdraw($this->user, 500, 'withdrawal', 'Test');
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function withdraw_throws_exception_for_zero_amount()
     {
         $this->wallet->update(['balance' => 1000]);
@@ -164,7 +162,7 @@ class WalletServiceTest extends TestCase
         $this->service->withdraw($this->user, 0, 'withdrawal', 'Test');
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function withdraw_with_lock_moves_funds_to_locked_balance()
     {
         $this->wallet->update(['balance' => 1000, 'locked_balance' => 0]);
@@ -184,7 +182,7 @@ class WalletServiceTest extends TestCase
         $this->assertEquals('pending', $transaction->status);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function withdraw_without_lock_immediately_debits()
     {
         $this->wallet->update(['balance' => 1000, 'locked_balance' => 0]);
@@ -205,8 +203,7 @@ class WalletServiceTest extends TestCase
     }
 
     // ==================== UNLOCK FUNDS TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function unlock_funds_moves_from_locked_to_available()
     {
         $this->wallet->update(['balance' => 500, 'locked_balance' => 300]);
@@ -218,7 +215,7 @@ class WalletServiceTest extends TestCase
         $this->assertEquals(100.00, $wallet->locked_balance);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function unlock_funds_creates_positive_transaction()
     {
         $this->wallet->update(['balance' => 500, 'locked_balance' => 300]);
@@ -229,7 +226,7 @@ class WalletServiceTest extends TestCase
         $this->assertEquals('completed', $transaction->status);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function unlock_funds_throws_exception_for_insufficient_locked_balance()
     {
         $this->wallet->update(['balance' => 1000, 'locked_balance' => 100]);
@@ -240,7 +237,7 @@ class WalletServiceTest extends TestCase
         $this->service->unlockFunds($this->user, 500, 'reversal', 'Test');
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function unlock_funds_throws_exception_for_zero_amount()
     {
         $this->wallet->update(['balance' => 500, 'locked_balance' => 300]);
@@ -252,8 +249,7 @@ class WalletServiceTest extends TestCase
     }
 
     // ==================== CONCURRENCY TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function concurrent_deposits_are_handled_safely()
     {
         // Simulate concurrent deposits using transactions
@@ -268,7 +264,7 @@ class WalletServiceTest extends TestCase
         $this->assertCount(5, $results);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function concurrent_withdrawals_respect_balance_limits()
     {
         $this->wallet->update(['balance' => 200]);
@@ -284,8 +280,7 @@ class WalletServiceTest extends TestCase
     }
 
     // ==================== TRANSACTION INTEGRITY TESTS ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function deposit_is_atomic()
     {
         // Create a partial mock to simulate failure after increment
@@ -306,7 +301,7 @@ class WalletServiceTest extends TestCase
         $this->assertTrue(true); // Placeholder - transaction testing is complex
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function transaction_records_are_immutable()
     {
         $transaction = $this->service->deposit($this->user, 100, 'deposit', 'Test');
@@ -319,8 +314,7 @@ class WalletServiceTest extends TestCase
     }
 
     // ==================== EDGE CASES ====================
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function handles_decimal_amounts_correctly()
     {
         $this->service->deposit($this->user, 123.45, 'deposit', 'Decimal test');
@@ -328,7 +322,7 @@ class WalletServiceTest extends TestCase
         $this->assertEquals(123.45, $this->wallet->fresh()->balance);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function handles_large_amounts()
     {
         $this->service->deposit($this->user, 999999.99, 'deposit', 'Large deposit');
@@ -336,7 +330,7 @@ class WalletServiceTest extends TestCase
         $this->assertEquals(999999.99, $this->wallet->fresh()->balance);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function handles_exact_balance_withdrawal()
     {
         $this->wallet->update(['balance' => 500]);
@@ -346,7 +340,7 @@ class WalletServiceTest extends TestCase
         $this->assertEquals(0.00, $this->wallet->fresh()->balance);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function multiple_operations_maintain_correct_running_balance()
     {
         // Deposit 1000

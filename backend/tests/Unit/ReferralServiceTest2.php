@@ -58,7 +58,7 @@ class ReferralServiceTest extends TestCase
         }
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_calculate_multiplier_based_on_count()
     {
         // 0 referrals
@@ -86,7 +86,7 @@ class ReferralServiceTest extends TestCase
         $this->assertEquals(3.0, $this->referrer->subscription->fresh()->bonus_multiplier);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_update_multiplier_on_referral_activation()
     {
         // This test simulates the ProcessReferralJob, which *calls* the service
@@ -122,7 +122,7 @@ class ReferralServiceTest extends TestCase
         $this->assertEquals(1.5, $this->referrer->subscription->fresh()->bonus_multiplier);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_award_campaign_bonus_if_applicable()
     {
         // 1. Create an active campaign

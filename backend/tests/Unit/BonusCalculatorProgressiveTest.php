@@ -49,7 +49,7 @@ class BonusCalculatorProgressiveTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_progressive_bonus_not_awarded_before_start_month()
     {
         // Month 3 Payment
@@ -61,7 +61,7 @@ class BonusCalculatorProgressiveTest extends TestCase
         $this->assertDatabaseMissing('bonus_transactions', ['type' => 'progressive']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_progressive_bonus_calculates_correctly_at_month_4()
     {
         // Month 4 Payment
@@ -77,7 +77,7 @@ class BonusCalculatorProgressiveTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_progressive_bonus_increases_linearly_each_month()
     {
         // Month 5 Payment
@@ -93,7 +93,7 @@ class BonusCalculatorProgressiveTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_progressive_bonus_respects_configured_rate()
     {
         // Change rate to 1.0%
@@ -114,7 +114,7 @@ class BonusCalculatorProgressiveTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_progressive_bonus_applies_referral_multiplier()
     {
         // Set Multiplier to 2.0
@@ -134,7 +134,7 @@ class BonusCalculatorProgressiveTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_progressive_bonus_uses_month_override_if_configured()
     {
         // Override Month 4 to be 5.0% (Instead of 0.5%)
@@ -159,7 +159,7 @@ class BonusCalculatorProgressiveTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_progressive_bonus_caps_at_maximum_percentage()
     {
         // Set Max Cap to 1%
@@ -180,7 +180,7 @@ class BonusCalculatorProgressiveTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_progressive_bonus_uses_payment_amount_as_base()
     {
         // Month 4 Payment of 5000
@@ -196,7 +196,7 @@ class BonusCalculatorProgressiveTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_progressive_bonus_respects_global_toggle()
     {
         // Disable globally
@@ -211,7 +211,7 @@ class BonusCalculatorProgressiveTest extends TestCase
         $this->assertDatabaseMissing('bonus_transactions', ['type' => 'progressive']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_progressive_bonus_formula_evaluation_works()
     {
         // Since we standardized on "Linear + Overrides" instead of unsafe "Eval()",

@@ -9,10 +9,7 @@ use Tests\TestCase;
 
 class LoggingSecurityTest extends TestCase
 {
-    /**
-     * @test
-     * Corresponds to: SecurityEndpointTest::testSensitiveDataNotInLogs
-     */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function testSensitiveDataNotInLogs()
     {
         // Sensitive data

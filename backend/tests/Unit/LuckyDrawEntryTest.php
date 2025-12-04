@@ -25,7 +25,7 @@ class LuckyDrawEntryTest extends TestCase
         $this->draw = LuckyDraw::factory()->create(['prize_structure' => [['rank'=>1, 'count'=>1, 'amount'=>1]]]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_entry_belongs_to_user()
     {
         $entry = LuckyDrawEntry::factory()->create([
@@ -37,7 +37,7 @@ class LuckyDrawEntryTest extends TestCase
         $this->assertEquals($this->user->id, $entry->user->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_entry_belongs_to_lucky_draw()
     {
         $entry = LuckyDrawEntry::factory()->create([
@@ -49,7 +49,7 @@ class LuckyDrawEntryTest extends TestCase
         $this->assertEquals($this->draw->id, $entry->luckyDraw->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_entry_tracks_entries_count()
     {
         $entry = LuckyDrawEntry::factory()->create([
@@ -61,7 +61,7 @@ class LuckyDrawEntryTest extends TestCase
         $this->assertEquals(5, $entry->base_entries);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_entry_tracks_bonus_entries()
     {
         $entry = LuckyDrawEntry::factory()->create([
@@ -73,7 +73,7 @@ class LuckyDrawEntryTest extends TestCase
         $this->assertEquals(3, $entry->bonus_entries);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_entry_calculates_total_entries()
     {
         $entry = LuckyDrawEntry::factory()->create([
@@ -87,7 +87,7 @@ class LuckyDrawEntryTest extends TestCase
         $this->assertEquals(8, $entry->total_entries);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_entry_validates_entries_positive()
     {
         $this->expectException(\InvalidArgumentException::class);

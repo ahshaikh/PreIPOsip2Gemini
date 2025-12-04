@@ -26,7 +26,7 @@ class ReportServiceTest extends TestCase
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_financial_summary_calculates_profit()
     {
         // 1. Revenue
@@ -44,7 +44,7 @@ class ReportServiceTest extends TestCase
         $this->assertEquals(8000, $summary['profit']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_user_growth_report_calculates_correctly()
     {
         User::factory()->count(3)->create(['created_at' => now()->subDay(1)]);
@@ -57,51 +57,51 @@ class ReportServiceTest extends TestCase
         $this->assertEquals(2, $growth[1]['count']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_user_retention_report_calculates_churn()
     {
         // 10 users at start
         User::factory()->count(10)->create(['created_at' => now()->subMonths(2)]);
-        
+
         // 2 users cancelled this month
         User::factory()->count(2)->create([
             'created_at' => now()->subMonths(2),
             'status' => 'cancelled',
             'updated_at' => now()
         ]);
-        
+
         $metrics = $this->service->getRetentionMetrics(now()->subMonth(), now());
 
         $this->assertEquals(2, $metrics['users_lost']);
         $this->assertEquals(20, $metrics['churn_rate']); // 2 / 10
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_kyc_completion_report_calculates_percentage()
     {
         User::factory()->count(3)->create()->each(fn($u) => $u->kyc->update(['status' => 'verified']));
         User::factory()->count(1)->create()->each(fn($u) => $u->kyc->update(['status' => 'pending']));
 
         $percentage = $this->service->getKycCompletion();
-        
+
         $this->assertEquals(75, $percentage); // 3 out of 4
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_tds_calculation_applies_10_percent()
     {
         // User A: Eligible for TDS
         $userA = User::factory()->create();
         BonusTransaction::factory()->create(['user_id' => $userA->id, 'amount' => 15000]); // > 10k
-        
+
         $report = $this->service->getTdsReport(now()->subDay(), now()->addDay());
-        
+
         $this->assertEquals(1, count($report));
         $this->assertEquals(15000, $report[0]['gross_amount']);
         $this->assertEquals(1500, $report[0]['tds_deducted']); // 10%
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_tds_exemption_for_amounts_below_10k()
     {
         // User A: Not eligible
@@ -113,7 +113,7 @@ class ReportServiceTest extends TestCase
         $this->assertEquals(0, count($report));
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_aml_report_flags_suspicious_transactions()
     {
         // User A: New user, small payment (OK)

@@ -18,17 +18,11 @@ class KycSubmitRequestTest extends TestCase
         $this->rules = (new KycSubmitRequest())->rules();
     }
 
-    /**
-     * Helper to run validation
-     */
     private function validate(array $data)
     {
         return Validator::make($data, $this->rules);
     }
 
-    /**
-     * Helper for a 100% valid text payload
-     */
     private function getValidData($overrides = [])
     {
         // We only test text fields here. File upload is separate.
@@ -41,7 +35,6 @@ class KycSubmitRequestTest extends TestCase
         ], $overrides);
     }
 
-    /** @test */
     public function test_validates_pan_format()
     {
         // Fails: Too short
@@ -54,7 +47,6 @@ class KycSubmitRequestTest extends TestCase
         $this->assertTrue($this->validate($this->getValidData(['pan_number' => 'GHIJK5678L']))->passes());
     }
 
-    /** @test */
     public function test_validates_aadhaar_format()
     {
         // Fails: Too short
@@ -68,7 +60,6 @@ class KycSubmitRequestTest extends TestCase
         $this->assertTrue($this->validate($this->getValidData(['aadhaar_number' => '1234 5678 9012']))->passes());
     }
 
-    /** @test */
     public function test_validates_bank_account_format()
     {
         // Fails: Required
@@ -77,20 +68,18 @@ class KycSubmitRequestTest extends TestCase
         $this->assertFalse($this->validate($this->getValidData(['bank_account' => '123456']))->passes());
     }
 
-    /** @test */
     public function test_validates_ifsc_code_format()
     {
         // Fails: Wrong format
         $this->assertFalse($this->validate($this->getValidData(['bank_ifsc' => 'HDFC1234567']))->passes());
         // Fails: Lowercase
-        $this->assertFalse($this->validate($this->getValidData(['bank_ifsc'_ => 'hdfc0001234']))->passes());
+        $this->assertFalse($this->validate($this->getValidData(['bank_ifsc' => 'hdfc0001234']))->passes());
         
         // Passes
         $this->assertTrue($this->validate($this->getValidData(['bank_ifsc' => 'SBIN0000123']))->passes());
         $this->assertTrue($this->validate($this->getValidData(['bank_ifsc' => 'ICIC000ABCD']))->passes());
     }
 
-    /** @test */
     public function test_validates_document_uploads()
     {
         // Test requires a full payload, including files

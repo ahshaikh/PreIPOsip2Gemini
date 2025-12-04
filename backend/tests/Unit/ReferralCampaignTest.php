@@ -14,7 +14,7 @@ class ReferralCampaignTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_campaign_validates_date_range()
     {
         $this->expectException(\InvalidArgumentException::class);
@@ -29,7 +29,7 @@ class ReferralCampaignTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_campaign_validates_bonus_amount_positive()
     {
         $this->expectException(\InvalidArgumentException::class);
@@ -44,7 +44,7 @@ class ReferralCampaignTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_campaign_checks_if_active()
     {
         // 1. Past Campaign
@@ -78,7 +78,7 @@ class ReferralCampaignTest extends TestCase
         $this->assertEquals($active->id, $running->first()->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_campaign_tracks_total_referrals()
     {
         $campaign = ReferralCampaign::factory()->create();

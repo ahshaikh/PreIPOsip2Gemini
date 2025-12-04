@@ -24,7 +24,7 @@ class ReferralTest extends TestCase
         $this->referee = User::factory()->create();
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_referral_belongs_to_referrer()
     {
         $referral = Referral::create([
@@ -36,7 +36,7 @@ class ReferralTest extends TestCase
         $this->assertEquals($this->referrer->id, $referral->referrer->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_referral_belongs_to_referred_user()
     {
         $referral = Referral::create([
@@ -48,7 +48,7 @@ class ReferralTest extends TestCase
         $this->assertEquals($this->referee->id, $referral->referred->id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_referral_status_enum_validates()
     {
         $validStatuses = ['pending', 'completed', 'inactive'];
@@ -66,7 +66,7 @@ class ReferralTest extends TestCase
         $this->assertFalse($validator->passes());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_referral_tracks_activation_date()
     {
         $referral = Referral::create([
@@ -87,7 +87,7 @@ class ReferralTest extends TestCase
         $this->travelBack();
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_referral_validates_referrer_not_self()
     {
         $this->expectException(\InvalidArgumentException::class);
@@ -99,7 +99,7 @@ class ReferralTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_referral_validates_unique_referral()
     {
         // First referral is OK
@@ -119,7 +119,7 @@ class ReferralTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_referral_scope_active_filters_correctly()
     {
         Referral::create([
@@ -139,7 +139,7 @@ class ReferralTest extends TestCase
         $this->assertEquals($user3->id, Referral::completed()->first()->referred_id);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_referral_calculates_bonus_eligible()
     {
         $referral = Referral::create([

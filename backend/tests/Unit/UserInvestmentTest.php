@@ -44,28 +44,24 @@ class UserInvestmentTest extends TestCase
         ]);
     }
 
-    /** @test */
     public function test_investment_belongs_to_user()
     {
         $this->assertInstanceOf(User::class, $this->investment->user);
         $this->assertEquals($this->user->id, $this->investment->user->id);
     }
 
-    /** @test */
     public function test_investment_belongs_to_product()
     {
         $this->assertInstanceOf(Product::class, $this->investment->product);
         $this->assertEquals($this->product->id, $this->investment->product->id);
     }
 
-    /** @test */
-    publicD function test_investment_belongs_to_bulk_purchase()
+    public function test_investment_belongs_to_bulk_purchase()
     {
         $this->assertInstanceOf(BulkPurchase::class, $this->investment->bulkPurchase);
         $this->assertEquals($this->purchase->id, $this->investment->bulkPurchase->id);
     }
 
-    /** @test */
     public function test_investment_tracks_allocation_type()
     {
         $bonus = UserInvestment::create([
@@ -81,27 +77,23 @@ class UserInvestmentTest extends TestCase
         $this->assertEquals('bonus', $bonus->source);
     }
 
-    /** @test */
     public function test_investment_tracks_units_allocated()
     {
         $this->assertEquals(10, $this->investment->units_allocated);
     }
 
-    /** @test */
     public function test_investment_calculates_current_value()
     {
         // 10 units * ₹150 current_market_price = ₹1500
         $this->assertEquals(1500, $this->investment->current_value);
     }
 
-    /** @test */
     public function test_investment_calculates_profit_loss()
     {
         // 1500 (Current Value) - 1000 (Cost Basis) = 500
         $this->assertEquals(500, $this->investment->profit_loss);
     }
 
-    /** @test */
     public function test_investment_calculates_roi_percentage()
     {
         // 500 (Profit) / 1000 (Cost Basis) * 100 = 50%

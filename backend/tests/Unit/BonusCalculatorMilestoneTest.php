@@ -48,7 +48,7 @@ class BonusCalculatorMilestoneTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_milestone_bonus_awarded_at_month_12()
     {
         // Simulate 11 previous paid payments
@@ -73,7 +73,7 @@ class BonusCalculatorMilestoneTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_milestone_bonus_awarded_at_month_24()
     {
         Payment::factory()->count(23)->create(['subscription_id' => $this->subscription->id, 'status' => 'paid']);
@@ -89,7 +89,7 @@ class BonusCalculatorMilestoneTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_milestone_bonus_awarded_at_month_36()
     {
         Payment::factory()->count(35)->create(['subscription_id' => $this->subscription->id, 'status' => 'paid']);
@@ -105,7 +105,7 @@ class BonusCalculatorMilestoneTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_milestone_bonus_not_awarded_if_non_consecutive()
     {
         // 11 payments made, but streak was broken recently
@@ -120,7 +120,7 @@ class BonusCalculatorMilestoneTest extends TestCase
         $this->assertDatabaseMissing('bonus_transactions', ['type' => 'milestone']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_milestone_bonus_amount_varies_by_plan()
     {
         // Create Plan B with higher milestones
@@ -145,7 +145,7 @@ class BonusCalculatorMilestoneTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_milestone_bonus_applies_referral_multiplier()
     {
         $this->subscription->update(['bonus_multiplier' => 2.5, 'consecutive_payments_count' => 12]);
@@ -163,7 +163,7 @@ class BonusCalculatorMilestoneTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_milestone_bonus_uses_configured_amounts()
     {
         // Update config to weird amount
@@ -183,7 +183,7 @@ class BonusCalculatorMilestoneTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_milestone_bonus_supports_custom_milestones()
     {
         // Add an unusual milestone at month 6
@@ -208,7 +208,7 @@ class BonusCalculatorMilestoneTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_milestone_bonus_respects_global_toggle()
     {
         Setting::updateOrCreate(['key' => 'milestone_bonus_enabled'], ['value' => 'false']);
@@ -223,7 +223,7 @@ class BonusCalculatorMilestoneTest extends TestCase
         $this->assertDatabaseMissing('bonus_transactions', ['type' => 'milestone']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_milestone_bonus_only_awarded_once_per_milestone()
     {
         // Month 12 Payment - Awards Bonus

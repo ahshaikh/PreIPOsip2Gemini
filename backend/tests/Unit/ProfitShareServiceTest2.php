@@ -58,7 +58,7 @@ class ProfitShareServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_profit_share_zero_profit_no_distribution()
     {
         $this->period->update(['total_pool' => 0]);
@@ -70,7 +70,7 @@ class ProfitShareServiceTest extends TestCase
         $this->assertEquals('cancelled', $this->period->fresh()->status);
     }
     
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_profit_share_calculation_formula_division_by_zero()
     {
         // Delete all subscriptions so total weight is 0
@@ -82,7 +82,7 @@ class ProfitShareServiceTest extends TestCase
         $this->service->calculateDistribution($this->period);
     }
     
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_calculate_distribution_applies_plan_percentage()
     {
         // Total Weight = 1000 (A) + 2000 (B) = 3000
@@ -105,7 +105,7 @@ class ProfitShareServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_calculate_distribution_checks_eligibility()
     {
         // User C: Ineligible (New User, joined 1 month ago)
@@ -118,7 +118,7 @@ class ProfitShareServiceTest extends TestCase
         $this->assertEquals(2, $this->period->distributions()->count());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_profit_share_tax_deduction_tds()
     {
         // Set TDS threshold to 400
@@ -150,7 +150,7 @@ class ProfitShareServiceTest extends TestCase
         ]);
     }
     
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_profit_share_reversal_insufficient_balance()
     {
         $this->service->calculateDistribution($this->period);

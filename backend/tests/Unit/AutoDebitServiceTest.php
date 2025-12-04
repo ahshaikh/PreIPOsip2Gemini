@@ -34,7 +34,7 @@ class AutoDebitServiceTest extends TestCase
         $this->plan = Plan::factory()->create(['monthly_amount' => 1000]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_identify_due_payments_filters_correctly()
     {
         // 1. Due today (Should be picked)
@@ -68,7 +68,7 @@ class AutoDebitServiceTest extends TestCase
         $this->assertEquals(1, $due->count());
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_initiate_payment_creates_pending_payment()
     {
         $sub = Subscription::factory()->create([
@@ -88,13 +88,13 @@ class AutoDebitServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_retry_failed_payment_respects_max_attempts()
     {
         Queue::fake();
 
         $sub = Subscription::factory()->create(['user_id' => $this->user->id]);
-        
+
         // Payment with 2 retries (Should retry again)
         $payment = Payment::factory()->create([
             'subscription_id' => $sub->id,
@@ -105,19 +105,19 @@ class AutoDebitServiceTest extends TestCase
         // Force fail logic simulation via reflection or specific state if needed,
         // but here we test processRetry logic
         // We'll assume rand() fails for this test logic, or we check logic flow
-        
+
         // Call logic
         $this->service->processRetry($payment);
-        
+
         // If it failed (likely in test env without mock override), it should queue retry #3
         // Note: This is probabilistic in the service currently. 
         // For strict testing, we'd mock the randomizer or inject a PaymentGateway interface.
         // Assuming failure for coverage of the "retry logic":
-        
+
         $this->assertTrue(true); // Placeholder as random logic is hard to assert without mocking rand()
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_suspend_subscription_after_max_failures()
     {
         Queue::fake();
@@ -142,7 +142,7 @@ class AutoDebitServiceTest extends TestCase
         Queue::assertPushed(SendPaymentFailedEmailJob::class);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_send_reminder_notification_triggers_at_correct_time()
     {
         Queue::fake();

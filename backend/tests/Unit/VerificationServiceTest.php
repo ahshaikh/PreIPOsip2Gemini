@@ -30,8 +30,7 @@ class VerificationServiceTest extends TestCase
     }
 
     // --- PAN TESTS ---
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_verify_pan_calls_income_tax_api()
     {
         Http::fake([
@@ -51,7 +50,7 @@ class VerificationServiceTest extends TestCase
         $this->assertTrue($result['valid']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_verify_pan_validates_name_match()
     {
         Http::fake([
@@ -65,7 +64,7 @@ class VerificationServiceTest extends TestCase
         $this->assertEquals('Name mismatch on PAN', $result['error']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_verify_pan_validates_dob_match()
     {
         Http::fake([
@@ -79,7 +78,7 @@ class VerificationServiceTest extends TestCase
         $this->assertEquals('DOB mismatch on PAN', $result['error']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_verify_pan_handles_api_failure()
     {
         Http::fake([
@@ -92,7 +91,7 @@ class VerificationServiceTest extends TestCase
         $this->assertEquals('Service unavailable', $result['error']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_verify_pan_caches_successful_result()
     {
         Cache::shouldReceive('has')->once()->andReturn(false);
@@ -106,8 +105,7 @@ class VerificationServiceTest extends TestCase
     }
 
     // --- AADHAAR TESTS ---
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_verify_aadhaar_calls_digilocker_api()
     {
         Http::fake([
@@ -122,7 +120,7 @@ class VerificationServiceTest extends TestCase
         });
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_verify_aadhaar_validates_name_match()
     {
         Http::fake([
@@ -134,7 +132,7 @@ class VerificationServiceTest extends TestCase
         $this->assertEquals('Name mismatch', $result['error']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_verify_aadhaar_handles_api_failure()
     {
         Http::fake(['*' => Http::response(null, 500)]);
@@ -144,8 +142,7 @@ class VerificationServiceTest extends TestCase
     }
 
     // --- BANK TESTS ---
-
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_verify_bank_account_validates_ifsc_code()
     {
         // Invalid IFSC format
@@ -155,7 +152,7 @@ class VerificationServiceTest extends TestCase
         $this->assertEquals('Invalid IFSC format', $result['error']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_verification_logs_all_attempts()
     {
         Log::shouldReceive('info')->atLeast()->once();
