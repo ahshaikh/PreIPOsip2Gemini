@@ -484,7 +484,11 @@ Route::prefix('v1')->group(function () {
             Route::post('/profit-sharing/{profitShare}/distribute', [AdminProfitShareController::class, 'distribute'])->middleware('permission:bonuses.manage_config');
             Route::post('/profit-sharing/{profitShare}/adjust', [AdminProfitShareController::class, 'adjust'])->middleware('permission:bonuses.manage_config');
             Route::post('/profit-sharing/{profitShare}/reverse', [AdminProfitShareController::class, 'reverse'])->middleware('permission:bonuses.manage_config');
-            
+
+            // Special Bonuses (Admin Awards)
+            Route::post('/bonuses/award-special', [App\Http\Controllers\Api\Admin\AdminBonusController::class, 'awardSpecialBonus'])->middleware('permission:bonuses.manage_config');
+            Route::post('/bonuses/award-bulk', [App\Http\Controllers\Api\Admin\AdminBonusController::class, 'awardBulkBonus'])->middleware('permission:bonuses.manage_config');
+
             // Support
             Route::apiResource('/support-tickets', AdminSupportTicketController::class)->names('admin.support-tickets')->middleware('permission:users.view');
             Route::post('/support-tickets/{supportTicket}/reply', [AdminSupportTicketController::class, 'reply'])->middleware('permission:users.edit');

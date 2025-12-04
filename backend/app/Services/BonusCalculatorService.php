@@ -97,6 +97,15 @@ class BonusCalculatorService
                 $totalBonus += $welcomeBonus;
                 $this->createBonusTransaction($payment, 'welcome_bonus', $welcomeBonus, 1.0, 'Welcome Bonus - First Investment');
             }
+
+            // Also award referral bonus to referrer if this user was referred
+            if (setting('referral_bonus_enabled', true)) {
+                $referralBonus = $this->awardReferralBonus($payment);
+                // Note: Referral bonus is awarded to referrer, not counted in this user's total
+                if ($referralBonus > 0) {
+                    Log::info("Referral bonus of ₹{$referralBonus} awarded for Payment {$payment->id}");
+                }
+            }
         }
 
         // 1. Progressive Monthly Bonus (mapped as loyalty_bonus for frontend)
@@ -226,6 +235,65 @@ class BonusCalculatorService
         $welcomeAmount = (float) ($config['amount'] ?? 500);
 
         return round($welcomeAmount, 2);
+    }
+
+    /**
+     * Award Referral Bonus to Referrer
+     * Called when a referred user makes their first successful payment
+     *
+     * @param Payment $payment The first payment made by the referred user
+     * @return float The bonus amount awarded to referrer
+     */
+    public function awardReferralBonus(Payment $payment): float
+    {
+        $referredUser = $payment->user;
+
+        // Find if this user was referred by someone
+        $referral = \App\Models\Referral::where('referred_id', $referredUser->id)
+            ->where('status', 'pending')
+            ->first();
+
+        if (!$referral) {
+            return 0; // No referral found or already completed
+        }
+
+        // Mark referral as completed
+        $referral->complete();
+
+        $referrer = $referral->referrer;
+
+        // Get referral bonus configuration from settings or default
+        $referralBonusAmount = (float) setting('referral_bonus_amount', 1000);
+
+        // Check if there's an active campaign with higher bonus
+        $activeCampaign = \App\Models\ReferralCampaign::where('is_active', true)
+            ->where('start_date', '<=', now())
+            ->where('end_date', '>=', now())
+            ->first();
+
+        if ($activeCampaign) {
+            $referralBonusAmount = max($referralBonusAmount, (float) $activeCampaign->bonus_amount);
+            $referralBonusAmount *= (float) $activeCampaign->multiplier;
+        }
+
+        // Create bonus transaction for referrer
+        \App\Models\BonusTransaction::create([
+            'user_id' => $referrer->id,
+            'subscription_id' => $payment->subscription_id,
+            'payment_id' => $payment->id,
+            'type' => 'referral_bonus',
+            'amount' => $referralBonusAmount,
+            'multiplier_applied' => 1.0,
+            'base_amount' => $payment->amount,
+            'description' => "Referral Bonus - {$referredUser->username} joined and made first payment"
+        ]);
+
+        // Send notification to referrer
+        $referrer->notify(new \App\Notifications\BonusCredited($referralBonusAmount, 'Referral'));
+
+        Log::info("Referral bonus awarded: ₹{$referralBonusAmount} to User {$referrer->id} for referring User {$referredUser->id}");
+
+        return $referralBonusAmount;
     }
 
     /**
