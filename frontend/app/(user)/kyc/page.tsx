@@ -52,17 +52,24 @@ export default function KycPage() {
     queryFn: async () => {
       const { data } = await api.get('/user/profile');
       const kycData = await api.get('/user/kyc');
-      
-      const isAadhaarVerified = kycData.data.documents.some((d:any) => d.doc_type === 'aadhaar_front' && d.processing_status === 'verified');
-      
+
+      // Safe check for aadhaar verification
+      const isAadhaarVerified = (kycData.data?.documents || []).some((d:any) => d.doc_type === 'aadhaar_front' && d.processing_status === 'verified');
+
       setFormData({
-        pan_number: kycData.data.pan_number || '',
+        pan_number: kycData.data?.pan_number || '',
         aadhaar_number: isAadhaarVerified ? 'Verified via DigiLocker' : '',
-        demat_account: kycData.data.demat_account || '',
-        bank_account: kycData.data.bank_account || '',
-        bank_ifsc: kycData.data.bank_ifsc || '',
+        demat_account: kycData.data?.demat_account || '',
+        bank_account: kycData.data?.bank_account || '',
+        bank_ifsc: kycData.data?.bank_ifsc || '',
       });
-      return { ...kycData.data, user_name: data.profile.first_name + ' ' + data.profile.last_name, isAadhaarVerified };
+      return {
+        ...kycData.data,
+        user_name: (data.profile?.first_name || '') + ' ' + (data.profile?.last_name || ''),
+        isAadhaarVerified,
+        // Ensure status has a default value if not present
+        status: kycData.data?.status || 'pending'
+      };
     }
   });
 
