@@ -8,6 +8,20 @@ import {
   AlertCircle, HelpCircle, FileX
 } from "lucide-react";
 
+// ✅ New client-only component for stable time rendering
+import { useEffect, useState } from "react";
+
+function TimeStamp() {
+  const [time, setTime] = useState("");
+
+  useEffect(() => {
+    // Generate time string only in the browser to avoid SSR mismatch
+    setTime(new Date().toLocaleTimeString());
+  }, []);
+
+  return <span>{time}</span>;
+}
+
 export default function NotFound() {
   return (
     <div className="min-h-screen pt-24 bg-gradient-to-b from-background to-muted/20 flex items-center justify-center p-4">
@@ -40,7 +54,7 @@ export default function NotFound() {
             This opportunity has delisted from our platform
           </p>
           <p className="text-muted-foreground mb-8">
-            The page you're looking for doesn't exist or may have been moved.
+            The page you're looking for doesn't exist or may have been moved.<br></br>
             Don't worry, there are plenty of other investment opportunities available!
           </p>
 
@@ -52,7 +66,9 @@ export default function NotFound() {
                 <div className="text-left">
                   <p className="font-semibold mb-1">Error Code: HTTP 404</p>
                   <p className="text-sm text-muted-foreground">
-                    Status: Page Not Found • Time: {new Date().toLocaleTimeString()}
+                    {/* ❌ Removed direct new Date() call */}
+                    {/* ✅ Use client-only TimeStamp component to avoid hydration mismatch */}
+                    Status: Page Not Found • Time: <TimeStamp />
                   </p>
                 </div>
               </div>
@@ -73,7 +89,12 @@ export default function NotFound() {
                 Explore Investments
               </Link>
             </Button>
-            <Button size="lg" variant="outline" onClick={() => window.history.back()} className="gap-2">
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={() => window.history.back()}
+              className="gap-2"
+            >
               <ArrowLeft className="h-4 w-4" />
               Go Back
             </Button>

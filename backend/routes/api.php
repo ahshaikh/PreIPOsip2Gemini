@@ -137,6 +137,9 @@ Route::prefix('v1')->group(function () {
     // --- Dashboard Widgets ---
     Route::get('/announcements/latest', [UserDashboardController::class, 'announcements']);
 
+    // --- Help Center Feedback ---
+    Route::post('/help-center/feedback', [App\Http\Controllers\Api\HelpCenterController::class, 'storeFeedback']);
+
     // --- Offers ---
     Route::get('/offers/active', [App\Http\Controllers\Api\User\OfferController::class, 'index']);
     Route::get('/offers/{id}', [App\Http\Controllers\Api\User\OfferController::class, 'show']);
