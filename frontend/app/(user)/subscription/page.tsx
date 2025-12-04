@@ -178,7 +178,8 @@ export default function SubscriptionPage() {
   }
 
   // --- STATE 2: ACTIVE SUBSCRIPTION ---
-  const pendingPayment = sub.payments.find((p: any) => p.status === 'pending');
+  // Safe guard with fallback
+  const pendingPayment = (sub?.payments ?? []).find((p: any) => p.status === 'pending');
 
   return (
     <div className="space-y-6">

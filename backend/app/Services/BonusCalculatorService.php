@@ -89,40 +89,59 @@ class BonusCalculatorService
             Log::warning("Bonus multiplier capped for Subscription {$subscription->id}: {$rawMultiplier} -> {$multiplier}");
         }
 
-        // 1. Progressive Monthly Bonus
+        // 0. Welcome Bonus (First Payment Only)
+        $paidCount = $subscription->payments()->where('status', 'paid')->count();
+        if ($paidCount === 1 && setting('welcome_bonus_enabled', true)) {
+            $welcomeBonus = $this->calculateWelcomeBonus($payment, $plan);
+            if ($welcomeBonus > 0) {
+                $totalBonus += $welcomeBonus;
+                $this->createBonusTransaction($payment, 'welcome_bonus', $welcomeBonus, 1.0, 'Welcome Bonus - First Investment');
+            }
+
+            // Also award referral bonus to referrer if this user was referred
+            if (setting('referral_bonus_enabled', true)) {
+                $referralBonus = $this->awardReferralBonus($payment);
+                // Note: Referral bonus is awarded to referrer, not counted in this user's total
+                if ($referralBonus > 0) {
+                    Log::info("Referral bonus of ₹{$referralBonus} awarded for Payment {$payment->id}");
+                }
+            }
+        }
+
+        // 1. Progressive Monthly Bonus (mapped as loyalty_bonus for frontend)
         if (setting('progressive_bonus_enabled', true)) {
             $progressiveBonus = $this->calculateProgressive($payment, $plan, $multiplier);
             if ($progressiveBonus > 0) {
                 $totalBonus += $progressiveBonus;
-                $this->createBonusTransaction($payment, 'progressive', $progressiveBonus, $multiplier, 'Progressive Monthly Bonus');
+                $this->createBonusTransaction($payment, 'loyalty_bonus', $progressiveBonus, $multiplier, 'Loyalty Bonus - Month ' . $paidCount);
             }
         }
-        
+
         // 2. Milestone Bonus
         if (setting('milestone_bonus_enabled', true)) {
             $milestoneBonus = $this->calculateMilestone($payment, $plan, $multiplier);
             if ($milestoneBonus > 0) {
                 $totalBonus += $milestoneBonus;
-                $this->createBonusTransaction($payment, 'milestone', $milestoneBonus, $multiplier, 'Milestone Bonus');
+                $this->createBonusTransaction($payment, 'milestone_bonus', $milestoneBonus, $multiplier, 'Milestone Bonus - Payment #' . $paidCount);
             }
         }
 
-        // 3. Consistency Bonus
+        // 3. Consistency Bonus (mapped as cashback for frontend)
         // testLatePaymentSkipsConsistencyBonus: This check is correct.
         if (setting('consistency_bonus_enabled', true) && $payment->is_on_time) {
             $consistencyBonus = $this->calculateConsistency($payment, $plan);
             if ($consistencyBonus > 0) {
                 $totalBonus += $consistencyBonus;
-                $this->createBonusTransaction($payment, 'consistency', $consistencyBonus, 1.0, 'On-Time Payment Bonus');
+                $this->createBonusTransaction($payment, 'cashback', $consistencyBonus, 1.0, 'Cashback - On-Time Payment');
             }
         }
-        
+
         // --- NEW: Send Notification (Gap 3 Fix) ---
         if ($totalBonus > 0) {
             $user->notify(new BonusCredited($totalBonus, 'SIP'));
         }
         // ------------------------------------------
-        
+
         Log::info("Total bonus calculated for Payment {$payment->id}: {$totalBonus}");
         return $totalBonus;
     }
@@ -202,6 +221,79 @@ class BonusCalculatorService
             }
         }
         return $bonus;
+    }
+
+    /**
+     * 0. Calculates Welcome Bonus (First Payment)
+     */
+    private function calculateWelcomeBonus(Payment $payment, $plan): float
+    {
+        // Get welcome bonus configuration
+        $config = $this->getPlanConfig($plan, 'welcome_bonus_config', ['amount' => 500]);
+
+        // Default to 500 if not configured
+        $welcomeAmount = (float) ($config['amount'] ?? 500);
+
+        return round($welcomeAmount, 2);
+    }
+
+    /**
+     * Award Referral Bonus to Referrer
+     * Called when a referred user makes their first successful payment
+     *
+     * @param Payment $payment The first payment made by the referred user
+     * @return float The bonus amount awarded to referrer
+     */
+    public function awardReferralBonus(Payment $payment): float
+    {
+        $referredUser = $payment->user;
+
+        // Find if this user was referred by someone
+        $referral = \App\Models\Referral::where('referred_id', $referredUser->id)
+            ->where('status', 'pending')
+            ->first();
+
+        if (!$referral) {
+            return 0; // No referral found or already completed
+        }
+
+        // Mark referral as completed
+        $referral->complete();
+
+        $referrer = $referral->referrer;
+
+        // Get referral bonus configuration from settings or default
+        $referralBonusAmount = (float) setting('referral_bonus_amount', 1000);
+
+        // Check if there's an active campaign with higher bonus
+        $activeCampaign = \App\Models\ReferralCampaign::where('is_active', true)
+            ->where('start_date', '<=', now())
+            ->where('end_date', '>=', now())
+            ->first();
+
+        if ($activeCampaign) {
+            $referralBonusAmount = max($referralBonusAmount, (float) $activeCampaign->bonus_amount);
+            $referralBonusAmount *= (float) $activeCampaign->multiplier;
+        }
+
+        // Create bonus transaction for referrer
+        \App\Models\BonusTransaction::create([
+            'user_id' => $referrer->id,
+            'subscription_id' => $payment->subscription_id,
+            'payment_id' => $payment->id,
+            'type' => 'referral_bonus',
+            'amount' => $referralBonusAmount,
+            'multiplier_applied' => 1.0,
+            'base_amount' => $payment->amount,
+            'description' => "Referral Bonus - {$referredUser->username} joined and made first payment"
+        ]);
+
+        // Send notification to referrer
+        $referrer->notify(new \App\Notifications\BonusCredited($referralBonusAmount, 'Referral'));
+
+        Log::info("Referral bonus awarded: ₹{$referralBonusAmount} to User {$referrer->id} for referring User {$referredUser->id}");
+
+        return $referralBonusAmount;
     }
 
     /**
