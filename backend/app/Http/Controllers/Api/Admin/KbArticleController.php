@@ -1,5 +1,4 @@
 <?php
-// V-FINAL-1730-554 (Created)
 
 namespace App\Http\Controllers\Api\Admin;
 
@@ -21,16 +20,19 @@ class KbArticleController extends Controller
     {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
+            'summary' => 'nullable|string|max:500', // <--- Added validation
             'content' => 'required|string',
             'kb_category_id' => 'required|exists:kb_categories,id',
             'status' => 'required|in:draft,published',
+            'last_updated' => 'nullable|date',       // <--- Added validation
             'seo_meta' => 'nullable|array',
         ]);
         
         $article = KbArticle::create($validated + [
             'author_id' => $request->user()->id,
             'slug' => Str::slug($validated['title']),
-            'published_at' => $validated['status'] === 'published' ? now() : null
+            'published_at' => $validated['status'] === 'published' ? now() : null, // <--- COMMA WAS MISSING HERE
+            'last_updated' => $validated['last_updated'] ?? now(), // Default to today
         ]);
 
         return response()->json($article, 201);
@@ -38,7 +40,6 @@ class KbArticleController extends Controller
 
     public function show(KbArticle $kbArticle)
     {
-        // 'kbArticle' is the route model binding, e.g., /kb-articles/5
         return $kbArticle;
     }
 
@@ -46,9 +47,11 @@ class KbArticleController extends Controller
     {
         $validated = $request->validate([
             'title' => 'sometimes|required|string|max:255',
+            'summary' => 'nullable|string|max:500',  // <--- Added
             'content' => 'sometimes|required|string',
             'kb_category_id' => 'sometimes|required|exists:kb_categories,id',
             'status' => 'sometimes|required|in:draft,published',
+            'last_updated' => 'nullable|date',       // <--- Added
             'seo_meta' => 'nullable|array',
         ]);
         
@@ -56,7 +59,7 @@ class KbArticleController extends Controller
             $validated['slug'] = Str::slug($validated['title']);
         }
         
-        if ($validated['status'] === 'published' && !$kbArticle->published_at) {
+        if (isset($validated['status']) && $validated['status'] === 'published' && !$kbArticle->published_at) {
             $validated['published_at'] = now();
         }
 

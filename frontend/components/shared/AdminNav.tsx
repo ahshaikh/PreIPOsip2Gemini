@@ -48,6 +48,7 @@ const navItems = [
   { href: '/admin/lucky-draws', label: 'Lucky Draw', icon: Ticket },
   { href: '/admin/profit-sharing', label: 'Profit Sharing', icon: PieChart },
   { href: '/admin/support', label: 'Support Tickets', icon: LifeBuoy },
+  { href: '/admin/help-center', label: 'Help Center', icon: BookOpen },
 ];
 
 const contentManagementNav = [

@@ -1,5 +1,4 @@
 <?php
-// V-FINAL-1730-551 (Created)
 
 namespace App\Models;
 
@@ -18,20 +17,20 @@ class KbArticle extends Model
         'author_id',
         'title',
         'slug',
+        'summary',        // <--- Added
         'content',
         'status',
         'views',
+        'last_updated',   // <--- Added
+        'published_at',
+        'seo_meta',
     ];
 
-    public function views(): \Illuminate\Database\Eloquent\Relations\HasMany
-    {
-        return $this->hasMany(KbArticleView::class);
-    }
-
-    public function feedback(): \Illuminate\Database\Eloquent\Relations\HasMany
-    {
-        return $this->hasMany(ArticleFeedback::class, 'article_id', 'id'); // Assuming article_id is the FK
-    }
+    protected $casts = [
+        'seo_meta' => 'array',
+        'published_at' => 'datetime',
+        'last_updated' => 'date', // <--- Casts to Carbon instance
+    ];
 
     public function category(): BelongsTo
     {
@@ -42,4 +41,6 @@ class KbArticle extends Model
     {
         return $this->belongsTo(User::class, 'author_id');
     }
+
+    // ... relations for views/feedback
 }
