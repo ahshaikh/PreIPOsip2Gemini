@@ -72,7 +72,9 @@ class WalletService
      * @return Transaction
      * @throws \Exception
      */
-    public function deposit(User $user, float $amount, string $type, string $description, ?Model $reference = null): Transaction
+    // public function deposit(User $user, float $amount, string $type, string $description, ?Model $reference = null): Transaction
+    public function deposit(User $user, float $amount, string $type, string $description = '', Model $reference = null)
+
     {
         if ($amount <= 0) {
             throw new \InvalidArgumentException("Deposit amount must be positive.");
