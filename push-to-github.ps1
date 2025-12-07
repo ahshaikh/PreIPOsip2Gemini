@@ -8,7 +8,7 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "Added pre-program docs to PreIPOsipDocs"
+$CommitMessage = "Updated Help Center"
 #----------------------
 
 function Get-GitCredential {

@@ -2,27 +2,36 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo; // Added
 
 class ArticleFeedback extends Model
 {
-    // FIX: Explicitly define the table name because 'feedback' is uncountable in Laravel
-    protected $table = 'article_feedbacks';
+    use HasFactory;
 
-    protected $fillable = ['article_id', 'is_helpful', 'comment', 'ip_address', 'user_id'];
+    // Explicitly define table
+    protected $table = 'article_feedback'; 
+
+    protected $fillable = [
+        'article_id', 
+        'is_helpful', 
+        'comment', 
+        'ip_address', 
+        'user_id'
+    ];
     
     protected $casts = [
         'is_helpful' => 'boolean',
     ];
-    
-    // Optional: Add relationship back to Article if needed for the Admin Dashboard
-    public function article()
+
+    // Add relationships for the dashboard "Recent Feedback" list
+    public function article(): BelongsTo
     {
         return $this->belongsTo(KbArticle::class, 'article_id');
     }
 
-    // Optional: Add relationship to User
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }

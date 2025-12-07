@@ -17,7 +17,7 @@ class KbSeeder extends Seeder
         Schema::disableForeignKeyConstraints();
 
         DB::table('kb_article_views')->truncate();
-        DB::table('article_feedbacks')->truncate();
+        DB::table('article_feedback')->truncate();
         KbArticle::truncate();
         KbCategory::truncate();
 
