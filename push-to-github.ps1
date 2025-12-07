@@ -8,7 +8,7 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "Added AIinit.md for AI Coding Agents"
+$CommitMessage = "Added pre-program docs to PreIPOsipDocs"
 #----------------------
 
 function Get-GitCredential {
