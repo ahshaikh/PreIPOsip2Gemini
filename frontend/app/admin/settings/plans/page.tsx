@@ -1,4 +1,4 @@
-// V-REMEDIATE-1730-131 (Created - Revised) | V-FINAL-1730-484 (Scheduling UI) | V-ENHANCED-PLANS
+// V-REMEDIATE-1730-131 (Created - Revised) | V-FINAL-1730-484 (Scheduling UI) | V-ENHANCED-PLANS | V-BONUS-CONFIG-1208
 'use client';
 
 import { Button } from "@/components/ui/button";
@@ -16,8 +16,9 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Plus, PlusCircle, Edit, Trash2, Copy, Users, IndianRupee, TrendingUp, Star, Calendar, Eye, MoreHorizontal } from "lucide-react";
+import { Plus, PlusCircle, Edit, Trash2, Copy, Users, IndianRupee, TrendingUp, Star, Calendar, Eye, MoreHorizontal, Gift } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { BonusConfigDialog } from "@/components/admin/BonusConfigDialog";
 
 // Helper to format date for input
 const formatDateForInput = (date: string | null) => {
@@ -31,6 +32,10 @@ export default function PlanManagerPage() {
   const [editingPlan, setEditingPlan] = useState<any>(null);
   const [deleteConfirmPlan, setDeleteConfirmPlan] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('all');
+
+  // Bonus Configuration State
+  const [bonusConfigOpen, setBonusConfigOpen] = useState(false);
+  const [bonusConfigPlan, setBonusConfigPlan] = useState<any>(null);
 
   // Form State
   const [name, setName] = useState('');
@@ -106,6 +111,19 @@ export default function PlanManagerPage() {
     onError: (e: any) => toast.error("Error duplicating plan", { description: e.response?.data?.message })
   });
 
+  // Bonus Configuration Mutation
+  const bonusConfigMutation = useMutation({
+    mutationFn: ({ planId, configs }: { planId: number; configs: any }) =>
+      api.put(`/admin/plans/${planId}`, { configs }),
+    onSuccess: () => {
+      toast.success("Bonus configuration saved successfully!");
+      queryClient.invalidateQueries({ queryKey: ['adminPlans'] });
+      setBonusConfigOpen(false);
+      setBonusConfigPlan(null);
+    },
+    onError: (e: any) => toast.error("Failed to save bonus configuration", { description: e.response?.data?.message })
+  });
+
   const resetForm = () => {
     setName(''); setMonthlyAmount(''); setDuration('36'); setDescription('');
     setIsActive(true); setIsFeatured(false); setEditingPlan(null);
@@ -157,6 +175,16 @@ export default function PlanManagerPage() {
         max_investment: maxInvestment ? parseFloat(maxInvestment) : null,
     };
     mutation.mutate(payload);
+  };
+
+  const handleBonusConfig = (plan: any) => {
+    setBonusConfigPlan(plan);
+    setBonusConfigOpen(true);
+  };
+
+  const handleSaveBonusConfig = (configs: any) => {
+    if (!bonusConfigPlan) return;
+    bonusConfigMutation.mutate({ planId: bonusConfigPlan.id, configs });
   };
 
   // Filter plans based on active tab
@@ -413,7 +441,10 @@ export default function PlanManagerPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => handleEdit(plan)}>
-                            <Edit className="h-4 w-4 mr-2" /> Edit
+                            <Edit className="h-4 w-4 mr-2" /> Edit Plan
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleBonusConfig(plan)}>
+                            <Gift className="h-4 w-4 mr-2" /> Configure Bonuses
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => duplicateMutation.mutate(plan)}>
                             <Copy className="h-4 w-4 mr-2" /> Duplicate
@@ -471,6 +502,20 @@ export default function PlanManagerPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bonus Configuration Dialog */}
+      {bonusConfigPlan && (
+        <BonusConfigDialog
+          open={bonusConfigOpen}
+          onOpenChange={setBonusConfigOpen}
+          planName={bonusConfigPlan.name}
+          monthlyAmount={bonusConfigPlan.monthly_amount}
+          durationMonths={bonusConfigPlan.duration_months}
+          configs={bonusConfigPlan.configs || {}}
+          onSave={handleSaveBonusConfig}
+          isSaving={bonusConfigMutation.isPending}
+        />
+      )}
     </div>
   );
 }
