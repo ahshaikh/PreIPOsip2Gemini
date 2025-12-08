@@ -16,9 +16,10 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Plus, PlusCircle, Edit, Trash2, Copy, Users, IndianRupee, TrendingUp, Star, Calendar, Eye, MoreHorizontal, Gift } from "lucide-react";
+import { Plus, PlusCircle, Edit, Trash2, Copy, Users, IndianRupee, TrendingUp, Star, Calendar, Eye, MoreHorizontal, Gift, ShieldCheck } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { BonusConfigDialog } from "@/components/admin/BonusConfigDialog";
+import { EligibilityConfigDialog } from "@/components/admin/EligibilityConfigDialog";
 
 // Helper to format date for input
 const formatDateForInput = (date: string | null) => {
@@ -52,6 +53,16 @@ export default function PlanManagerPage() {
   // Date States
   const [availableFrom, setAvailableFrom] = useState('');
   const [availableUntil, setAvailableUntil] = useState('');
+
+  // Pause/Cancel Rules & Eligibility State
+  const [allowPause, setAllowPause] = useState(true);
+  const [maxPauseCount, setMaxPauseCount] = useState('3');
+  const [maxPauseDuration, setMaxPauseDuration] = useState('3');
+  const [maxSubscriptionsPerUser, setMaxSubscriptionsPerUser] = useState('1');
+
+  // Eligibility Configuration State
+  const [eligibilityConfigOpen, setEligibilityConfigOpen] = useState(false);
+  const [eligibilityConfigPlan, setEligibilityConfigPlan] = useState<any>(null);
 
   const { data: plans, isLoading } = useQuery({
     queryKey: ['adminPlans'],
@@ -124,12 +135,26 @@ export default function PlanManagerPage() {
     onError: (e: any) => toast.error("Failed to save bonus configuration", { description: e.response?.data?.message })
   });
 
+  // Eligibility Configuration Mutation
+  const eligibilityConfigMutation = useMutation({
+    mutationFn: ({ planId, eligibilityConfig }: { planId: number; eligibilityConfig: any }) =>
+      api.put(`/admin/plans/${planId}`, { configs: { eligibility_config: eligibilityConfig } }),
+    onSuccess: () => {
+      toast.success("Eligibility rules saved successfully!");
+      queryClient.invalidateQueries({ queryKey: ['adminPlans'] });
+      setEligibilityConfigOpen(false);
+      setEligibilityConfigPlan(null);
+    },
+    onError: (e: any) => toast.error("Failed to save eligibility rules", { description: e.response?.data?.message })
+  });
+
   const resetForm = () => {
     setName(''); setMonthlyAmount(''); setDuration('36'); setDescription('');
     setIsActive(true); setIsFeatured(false); setEditingPlan(null);
     setAvailableFrom(''); setAvailableUntil('');
     setFeatures([]); setNewFeature('');
     setMinInvestment(''); setMaxInvestment('');
+    setAllowPause(true); setMaxPauseCount('3'); setMaxPauseDuration('3'); setMaxSubscriptionsPerUser('1');
   };
 
   const addFeature = () => {
@@ -156,6 +181,10 @@ export default function PlanManagerPage() {
     setFeatures(Array.isArray(plan.features) ? plan.features : []);
     setMinInvestment(plan.min_investment || '');
     setMaxInvestment(plan.max_investment || '');
+    setAllowPause(plan.allow_pause ?? true);
+    setMaxPauseCount(plan.max_pause_count?.toString() || '3');
+    setMaxPauseDuration(plan.max_pause_duration_months?.toString() || '3');
+    setMaxSubscriptionsPerUser(plan.max_subscriptions_per_user?.toString() || '1');
     setIsDialogOpen(true);
   };
 
@@ -173,6 +202,10 @@ export default function PlanManagerPage() {
         features,
         min_investment: minInvestment ? parseFloat(minInvestment) : null,
         max_investment: maxInvestment ? parseFloat(maxInvestment) : null,
+        allow_pause: allowPause,
+        max_pause_count: parseInt(maxPauseCount),
+        max_pause_duration_months: parseInt(maxPauseDuration),
+        max_subscriptions_per_user: parseInt(maxSubscriptionsPerUser),
     };
     mutation.mutate(payload);
   };
@@ -192,6 +225,20 @@ export default function PlanManagerPage() {
   const handleSaveBonusConfig = (configs: any) => {
     if (!bonusConfigPlan) return;
     bonusConfigMutation.mutate({ planId: bonusConfigPlan.id, configs });
+  };
+
+  const handleEligibilityConfig = (plan: any) => {
+    // Extract eligibility_config from configs array
+    const configsArray = plan.configs || [];
+    const eligibilityConfig = configsArray.find((c: any) => c.config_key === 'eligibility_config')?.value || {};
+
+    setEligibilityConfigPlan({ ...plan, eligibilityConfig });
+    setEligibilityConfigOpen(true);
+  };
+
+  const handleSaveEligibilityConfig = (eligibilityConfig: any) => {
+    if (!eligibilityConfigPlan) return;
+    eligibilityConfigMutation.mutate({ planId: eligibilityConfigPlan.id, eligibilityConfig });
   };
 
   // Filter plans based on active tab
@@ -306,6 +353,54 @@ export default function PlanManagerPage() {
               <div className="space-y-2">
                 <Label>Description</Label>
                 <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Describe what makes this plan special..." />
+              </div>
+
+              {/* Pause & Cancel Rules */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Pause & Cancel Rules</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Max Subscriptions Per User</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={maxSubscriptionsPerUser}
+                      onChange={(e) => setMaxSubscriptionsPerUser(e.target.value)}
+                      placeholder="1"
+                    />
+                    <p className="text-xs text-muted-foreground">How many times can a user subscribe to this plan?</p>
+                  </div>
+                  <div className="flex items-center space-x-2 pt-6">
+                    <Switch id="allow_pause" checked={allowPause} onCheckedChange={setAllowPause} />
+                    <Label htmlFor="allow_pause">Allow Pause</Label>
+                  </div>
+                </div>
+                {allowPause && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Max Pause Count</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={maxPauseCount}
+                        onChange={(e) => setMaxPauseCount(e.target.value)}
+                        placeholder="3"
+                      />
+                      <p className="text-xs text-muted-foreground">How many times can user pause?</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Max Pause Duration (Months)</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={maxPauseDuration}
+                        onChange={(e) => setMaxPauseDuration(e.target.value)}
+                        placeholder="3"
+                      />
+                      <p className="text-xs text-muted-foreground">Maximum months per pause</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Toggles */}
@@ -453,6 +548,9 @@ export default function PlanManagerPage() {
                           <DropdownMenuItem onClick={() => handleBonusConfig(plan)}>
                             <Gift className="h-4 w-4 mr-2" /> Configure Bonuses
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEligibilityConfig(plan)}>
+                            <ShieldCheck className="h-4 w-4 mr-2" /> Configure Eligibility
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => duplicateMutation.mutate(plan)}>
                             <Copy className="h-4 w-4 mr-2" /> Duplicate
                           </DropdownMenuItem>
@@ -521,6 +619,18 @@ export default function PlanManagerPage() {
           configs={bonusConfigPlan.configs || {}}
           onSave={handleSaveBonusConfig}
           isSaving={bonusConfigMutation.isPending}
+        />
+      )}
+
+      {/* Eligibility Configuration Dialog */}
+      {eligibilityConfigPlan && (
+        <EligibilityConfigDialog
+          open={eligibilityConfigOpen}
+          onOpenChange={setEligibilityConfigOpen}
+          planName={eligibilityConfigPlan.name}
+          eligibilityConfig={eligibilityConfigPlan.eligibilityConfig || {}}
+          onSave={handleSaveEligibilityConfig}
+          isSaving={eligibilityConfigMutation.isPending}
         />
       )}
     </div>

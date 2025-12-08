@@ -7,15 +7,19 @@ use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Services\SubscriptionService;
+use App\Services\PlanEligibilityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class SubscriptionController extends Controller
 {
     protected $service;
-    public function __construct(SubscriptionService $service)
+    protected $eligibilityService;
+
+    public function __construct(SubscriptionService $service, PlanEligibilityService $eligibilityService)
     {
         $this->service = $service;
+        $this->eligibilityService = $eligibilityService;
     }
 
     public function show(Request $request)
@@ -44,6 +48,15 @@ class SubscriptionController extends Controller
         $user = $request->user();
         $plan = Plan::findOrFail($validated['plan_id']);
         $customAmount = $validated['custom_amount'] ?? null;
+
+        // Check eligibility requirements
+        $eligibilityCheck = $this->eligibilityService->checkEligibility($user, $plan);
+        if (!$eligibilityCheck['eligible']) {
+            return response()->json([
+                'message' => 'You do not meet the eligibility requirements for this plan.',
+                'errors' => $eligibilityCheck['errors']
+            ], 403);
+        }
 
         try {
             $subscription = $this->service->createSubscription($user, $plan, $customAmount);
