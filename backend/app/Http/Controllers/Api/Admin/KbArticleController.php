@@ -1,5 +1,4 @@
 <?php
-// V-FINAL-1730-554 (Created)
 
 namespace App\Http\Controllers\Api\Admin;
 
@@ -7,11 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\KbArticle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB; // Import DB
 
 class KbArticleController extends Controller
 {
     public function index()
     {
+        // Ensure we fetch all necessary fields
         return KbArticle::with('category:id,name', 'author:id,username')
                         ->latest()
                         ->paginate(25);
@@ -21,16 +22,24 @@ class KbArticleController extends Controller
     {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
+            'summary' => 'nullable|string|max:500',
             'content' => 'required|string',
             'kb_category_id' => 'required|exists:kb_categories,id',
             'status' => 'required|in:draft,published',
+            'last_updated' => 'nullable|date',
             'seo_meta' => 'nullable|array',
         ]);
         
+        $slug = Str::slug($validated['title']);
+        if (KbArticle::where('slug', $slug)->exists()) {
+            $slug .= '-' . time();
+        }
+
         $article = KbArticle::create($validated + [
             'author_id' => $request->user()->id,
-            'slug' => Str::slug($validated['title']),
-            'published_at' => $validated['status'] === 'published' ? now() : null
+            'slug' => $slug,
+            'published_at' => $validated['status'] === 'published' ? now() : null,
+            'last_updated' => $validated['last_updated'] ?? now(),
         ]);
 
         return response()->json($article, 201);
@@ -38,7 +47,6 @@ class KbArticleController extends Controller
 
     public function show(KbArticle $kbArticle)
     {
-        // 'kbArticle' is the route model binding, e.g., /kb-articles/5
         return $kbArticle;
     }
 
@@ -46,20 +54,22 @@ class KbArticleController extends Controller
     {
         $validated = $request->validate([
             'title' => 'sometimes|required|string|max:255',
+            'summary' => 'nullable|string|max:500',
             'content' => 'sometimes|required|string',
             'kb_category_id' => 'sometimes|required|exists:kb_categories,id',
             'status' => 'sometimes|required|in:draft,published',
+            'last_updated' => 'nullable|date',
             'seo_meta' => 'nullable|array',
         ]);
         
-        if (isset($validated['title'])) {
-            $validated['slug'] = Str::slug($validated['title']);
+        if (isset($validated['title']) && $validated['title'] !== $kbArticle->title) {
+            $slug = Str::slug($validated['title']);
+            if (KbArticle::where('slug', $slug)->where('id', '!=', $kbArticle->id)->exists()) {
+                $slug .= '-' . time();
+            }
+            $validated['slug'] = $slug;
         }
         
-        if ($validated['status'] === 'published' && !$kbArticle->published_at) {
-            $validated['published_at'] = now();
-        }
-
         $kbArticle->update($validated);
         
         return response()->json($kbArticle);
@@ -67,7 +77,17 @@ class KbArticleController extends Controller
 
     public function destroy(KbArticle $kbArticle)
     {
-        $kbArticle->delete();
+        // Wrap in transaction: Either everything deletes, or nothing does.
+        // This prevents partial deletes and silent failures.
+        DB::transaction(function () use ($kbArticle) {
+            // Force delete related records
+            $kbArticle->views()->delete();
+            $kbArticle->feedback()->delete();
+            
+            // Delete the article
+            $kbArticle->delete();
+        });
+        
         return response()->noContent();
     }
 }

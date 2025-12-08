@@ -1,0 +1,3101 @@
+# Website Requirements Document (WRD)
+## PreIPO SIP Platform
+
+**Version:** 1.0  
+**Date:** November 4, 2024  
+**Project:** India's First Zero-Fee Pre-IPO SIP Investment Platform  
+**Document Owner:** Product & Design Team
+
+---
+
+## 1. EXECUTIVE SUMMARY
+
+### 1.1 Project Overview
+PreIPO SIP Platform is a web-based investment platform enabling retail investors to systematically invest in pre-IPO companies through monthly SIPs (Systematic Investment Plans) with:
+- **Zero platform fees**
+- **Zero exit fees**
+- **10% bonuses** across 7 different bonus types
+- **Referral multipliers** (up to 3×)
+- **Monthly lucky draws** (₹1,52,500 prize pool)
+- **Quarterly profit sharing** (5-20% of platform profits)
+
+### 1.2 Target Audience
+- **Primary**: Salaried professionals (25-45 years)
+- **Secondary**: Business owners, students, retirees
+- **Geography**: India (English & Hindi speakers)
+- **Tech Literacy**: Basic to intermediate
+- **Income**: ₹30,000+ monthly income
+
+### 1.3 Business Goals
+1. Acquire 30,000 users in 3 years
+2. Process ₹270 Crores in investments by Year 3
+3. Achieve 99% user satisfaction
+4. Maintain 9% net profit margin
+5. Become India's #1 Pre-IPO SIP platform
+
+---
+
+## 2. WEBSITE STRUCTURE
+
+### 2.1 Site Map
+
+```
+PreIPO SIP Platform
+│
+├── PUBLIC PAGES (No login required)
+│   ├── Home (/)
+│   ├── About Us (/about)
+│   ├── How It Works (/how-it-works)
+│   ├── Investment Plans (/plans)
+│   │   ├── Plan A - Family Starter
+│   │   ├── Plan B - Wealth Builder
+│   │   ├── Plan C - Growth Accelerator
+│   │   └── Plan D - Elite Platinum
+│   ├── Pre-IPO Products (/products)
+│   │   └── Product Detail (/products/{slug})
+│   ├── Returns Calculator (/calculator)
+│   ├── FAQs (/faq)
+│   ├── Blog (/blog)
+│   │   └── Blog Post (/blog/{slug})
+│   ├── Contact Us (/contact)
+│   ├── Privacy Policy (/privacy)
+│   ├── Terms & Conditions (/terms)
+│   ├── Login (/login)
+│   └── Sign Up (/signup)
+│
+├── USER DASHBOARD (Login required)
+│   ├── Dashboard (/dashboard)
+│   ├── My Profile (/profile)
+│   │   ├── Edit Profile
+│   │   ├── Change Password
+│   │   └── Security Settings
+│   ├── KYC Verification (/kyc)
+│   │   ├── Submit Documents
+│   │   └── Check Status
+│   ├── Investment Plans (/user/plans)
+│   │   └── Subscribe to Plan
+│   ├── My Subscription (/subscription)
+│   │   ├── Payment History
+│   │   ├── Make Payment
+│   │   ├── Pause/Resume
+│   │   └── Cancel Subscription
+│   ├── My Portfolio (/portfolio)
+│   │   ├── Holdings
+│   │   ├── Performance
+│   │   └── Product Details
+│   ├── My Bonuses (/bonuses)
+│   │   ├── Earned Bonuses
+│   │   ├── Pending Bonuses
+│   │   └── Bonus Breakdown
+│   ├── My Referrals (/referrals)
+│   │   ├── Referral Code
+│   │   ├── Share Links
+│   │   ├── Referral List
+│   │   └── Earnings
+│   ├── Lucky Draws (/lucky-draws)
+│   │   ├── Current Draw
+│   │   ├── My Entries
+│   │   └── Past Results
+│   ├── Wallet (/wallet)
+│   │   ├── Balance
+│   │   ├── Add Money
+│   │   ├── Withdraw
+│   │   └── Transaction History
+│   ├── Withdrawals (/withdrawals)
+│   │   ├── Request Withdrawal
+│   │   └── Withdrawal History
+│   ├── Reports (/reports)
+│   │   ├── Investment Summary
+│   │   ├── Tax Statement
+│   │   └── Download Reports
+│   ├── Notifications (/notifications)
+│   └── Support (/support)
+│       ├── Create Ticket
+│       ├── My Tickets
+│       └── Live Chat
+│
+└── ADMIN PANEL (/admin) (Admin login required)
+    ├── Admin Dashboard
+    ├── User Management
+    │   ├── All Users
+    │   ├── User Details
+    │   └── User Actions
+    ├── KYC Management
+    │   ├── Pending KYC
+    │   ├── Verify Documents
+    │   └── KYC History
+    ├── Plan Management
+    │   ├── All Plans
+    │   ├── Add/Edit Plan
+    │   └── Plan Settings
+    ├── Product Management
+    │   ├── All Products
+    │   ├── Add/Edit Product
+    │   └── Bulk Purchases
+    ├── Investment Management
+    │   ├── All Investments
+    │   ├── Allocations
+    │   └── Bulk Inventory
+    ├── Bonus Management
+    │   ├── All Bonuses
+    │   ├── Process Bonuses
+    │   └── Bonus Reports
+    ├── Withdrawal Management
+    │   ├── Pending Withdrawals
+    │   ├── Approve/Reject
+    │   └── Completed Withdrawals
+    ├── Lucky Draw Management
+    │   ├── Create Draw
+    │   ├── Execute Draw
+    │   └── Winners
+    ├── Profit Sharing
+    │   ├── Calculate Profit
+    │   └── Distribute
+    ├── Support Management
+    │   ├── All Tickets
+    │   ├── Ticket Details
+    │   └── Live Chat
+    ├── Reports & Analytics
+    │   ├── Financial Reports
+    │   ├── User Reports
+    │   ├── Investment Reports
+    │   └── Compliance Reports
+    └── Settings
+        ├── General Settings
+        ├── Payment Gateways
+        ├── Email/SMS Settings
+        └── System Settings
+```
+
+---
+
+## 3. PAGE-BY-PAGE REQUIREMENTS
+
+### 3.1 PUBLIC WEBSITE
+
+#### 3.1.1 Home Page (/)
+
+**Purpose:** Convert visitors to sign-ups
+
+**Layout Sections:**
+
+1. **Header Navigation Bar**
+   - Logo (left)
+   - Menu: Home, About, How It Works, Plans, Products, FAQ, Blog, Contact
+   - CTA Buttons: Login | Sign Up (right)
+   - Sticky header on scroll
+
+2. **Hero Section**
+   - Headline: "India's First 100% FREE Pre-IPO SIP Platform"
+   - Subheadline: "10% Bonuses · Zero Fees · Zero Hidden Charges"
+   - Primary CTA: "Start Investing Free" (large button)
+   - Secondary CTA: "Calculate Your Returns"
+   - Hero Image: Happy investors, charts going up
+   - Trust Badges: SEBI Registered, 5000+ Investors, ₹100Cr+ Invested
+
+3. **Value Proposition Section**
+   - Title: "Why Choose PreIPO SIP?"
+   - 3-column grid:
+     - **Zero Fees**: "Save ₹60,000 in fees over 3 years"
+     - **20% Bonuses**: "Earn ₹36,000+ in guaranteed bonuses"
+     - **Pre-IPO Access**: "Invest in unicorns before they list"
+   - Each with icon, title, description
+
+4. **Problem-Solution Section**
+   - Title: "Traditional Platforms Charge You. We Reward You."
+   - Comparison table:
+     - Traditional platforms vs PreIPO SIP
+     - Platform fees, exit fees, bonuses
+     - Total cost comparison
+   - CTA: "See How We're Different"
+
+5. **Plans Overview**
+   - Title: "Choose Your Investment Plan"
+   - 4 cards (horizontal scroll on mobile):
+     - Plan A, B, C, D
+     - Monthly amount, total value, bonus %
+     - "View Details" button each
+   - CTA: "Compare All Plans"
+
+6. **How It Works**
+   - Title: "Start Investing in 3 Simple Steps"
+   - 3-step visual flow:
+     1. Sign Up & Complete KYC (5 minutes)
+     2. Choose Plan & Start SIP (₹1,000-25,000/month)
+     3. Earn Bonuses & Track Growth
+   - CTA: "Get Started Now"
+
+7. **Bonus System Highlight**
+   - Title: "7 Ways to Earn Bonuses"
+   - Icon grid (7 items):
+     - Progressive Monthly, Milestone, Consistency
+     - Referral, Profit Share, Lucky Draw, Celebration
+   - Brief description each
+   - CTA: "Learn About Bonuses"
+
+8. **Featured Pre-IPO Products**
+   - Title: "Invest in Tomorrow's Giants"
+   - 3-card slider:
+     - Product logo, name, sector
+     - Expected IPO date, face value
+     - "Invest Now" button
+   - CTA: "View All Products"
+
+9. **Testimonials**
+   - Title: "What Our Investors Say"
+   - 3-card carousel:
+     - Photo, name, city
+     - Investment amount, returns earned
+     - Quote (2-3 sentences)
+   - Star ratings
+   - CTA: "Read More Stories"
+
+10. **Trust & Compliance**
+    - Title: "Safe, Secure & SEBI Compliant"
+    - 4-column grid:
+      - SEBI Registered
+      - Bank-grade Security
+      - 7-Year Track Record
+      - 99.9% Uptime
+    - Each with icon and description
+
+11. **Statistics**
+    - Live counter display:
+      - Total Users: 5,247+
+      - Total Investment: ₹22.4 Crores+
+      - Bonuses Paid: ₹4.2 Crores+
+      - Success Stories: 1,234+
+
+12. **Final CTA Section**
+    - Title: "Ready to Start Your Investment Journey?"
+    - Subtext: "Join 5,000+ investors already earning bonuses"
+    - Large "Sign Up Free" button
+    - "No credit card required · Takes 2 minutes"
+
+13. **Footer**
+    - 4 columns:
+      - **Company**: About, How It Works, Blog, Careers
+      - **Products**: Investment Plans, Pre-IPO Products, Calculator
+      - **Support**: FAQs, Contact, Help Center
+      - **Legal**: Privacy Policy, Terms, Refund Policy, SEBI Info
+    - Social media links
+    - Newsletter signup
+    - Copyright text
+
+**Design Requirements:**
+- Modern, clean, trustworthy design
+- Primary color: Blue (#1E40AF)
+- Accent color: Green (#10B981) for positive metrics
+- White background with subtle gradients
+- Large, readable fonts (min 16px body text)
+- High-quality images and illustrations
+- Mobile-first responsive design
+- Fast loading (< 2 seconds)
+- Accessibility: WCAG 2.1 AA compliant
+
+---
+
+#### 3.1.2 Investment Plans Page (/plans)
+
+**Purpose:** Detailed comparison of all 4 plans
+
+**Layout:**
+
+1. **Header Section**
+   - Title: "Choose Your Investment Plan"
+   - Subtext: "All plans include zero fees, bonuses, and full transparency"
+   - Filter: Monthly Budget (slider: ₹1K-25K)
+
+2. **Comparison Table**
+   - Sticky header row (scrolls with page)
+   - Rows:
+     - Monthly SIP Amount
+     - Total Investment (36 months)
+     - Progressive Bonuses
+     - Milestone Bonuses
+     - Consistency Bonuses
+     - Profit Sharing %
+     - Total Guaranteed Value
+     - Bonus Percentage
+     - Lucky Draw Entries
+     - Referral Multiplier
+     - VIP Benefits
+     - Best For
+   - Columns: Plan A, Plan B (highlighted), Plan C, Plan D
+   - "Subscribe Now" button at bottom of each column
+
+3. **Detailed Plan Sections**
+   - Each plan has its own section with:
+     - Plan name and tagline
+     - Key highlights (bullet points)
+     - Bonus breakdown chart
+     - Month-by-month value visualization
+     - ROI calculator (interactive)
+     - Real example (case study)
+     - FAQs specific to plan
+     - "Choose This Plan" CTA
+
+4. **Bonus Calculator**
+   - Interactive tool:
+     - Select plan
+     - Add referrals (slider 0-20)
+     - See projected returns
+     - Breakdown by bonus type
+     - "With vs Without Referrals" comparison
+
+5. **Plan Selection Wizard**
+   - "Not sure which plan? Take our quiz"
+   - 5 questions:
+     - Monthly investment capacity
+     - Investment goals
+     - Risk appetite
+     - Investment horizon
+     - Experience level
+   - Result: Recommended plan with reasons
+
+6. **FAQs**
+   - Accordion-style FAQs specific to plans
+   - 10-15 questions
+   - "Still have questions? Contact us"
+
+**Interactive Elements:**
+- Toggle between monthly/yearly view
+- Hover tooltips for technical terms
+- Expand/collapse detailed sections
+- Print/download comparison
+- Share plan details
+
+---
+
+#### 3.1.3 Pre-IPO Products Page (/products)
+
+**Purpose:** Showcase available pre-IPO investments
+
+**Layout:**
+
+1. **Header Section**
+   - Title: "Invest in Tomorrow's Giants Today"
+   - Subtext: "Carefully selected pre-IPO opportunities"
+   - Search bar
+   - Filters:
+     - Sector (dropdown)
+     - Expected IPO (date range)
+     - Face Value (range slider)
+     - Status (Active, Upcoming, Listed)
+
+2. **Products Grid**
+   - Card layout (3 columns desktop, 1 mobile)
+   - Each card shows:
+     - Company logo
+     - Company name and tagline
+     - Sector badge
+     - Face value
+     - Min investment
+     - Expected IPO date
+     - "Invest Now" button (if active)
+     - "Learn More" link
+   - Load more / Pagination
+
+3. **Product Detail Modal/Page**
+   - Header:
+     - Company logo and name
+     - Sector, Founded year
+     - Expected IPO date and price range
+   - Tabs:
+     - **Overview**: Company description, highlights
+     - **Financials**: Revenue, growth, funding rounds
+     - **Risks**: Risk factors disclosure
+     - **Documents**: Prospectus download
+     - **News**: Latest news articles
+   - Sidebar:
+     - Face value, min investment
+     - Your allocation (if invested)
+     - "Invest Now" CTA
+     - Share product
+
+4. **Featured Products**
+   - Highlighted section at top
+   - 3 premium products with badges
+   - Larger cards with more details
+
+5. **Investment Process**
+   - "How to Invest" section
+   - Step-by-step guide
+   - Video tutorial
+
+---
+
+#### 3.1.4 Returns Calculator (/calculator)
+
+**Purpose:** Interactive tool to calculate potential returns
+
+**Layout:**
+
+1. **Calculator Interface**
+   - Left panel: Inputs
+     - Select Plan (dropdown)
+     - Monthly Amount (if custom)
+     - Number of Referrals (slider 0-20)
+     - Expected Market Gain % (slider 0-100%)
+     - Investment Horizon (months)
+   - Right panel: Results
+     - Total Investment
+     - Base Share Value
+     - Progressive Bonuses
+     - Milestone Bonuses
+     - Consistency Bonuses
+     - Profit Sharing
+     - Referral Bonuses
+     - Total Value Without Market Gain
+     - Total Value With Market Gain
+     - Total Return %
+     - **Large display of final amount**
+
+2. **Visualization**
+   - Chart showing growth over time
+   - Stacked area chart:
+     - Base investment
+     - Bonuses
+     - Market appreciation
+   - Toggle views: Monthly, Yearly, Cumulative
+
+3. **Scenario Comparison**
+   - Side-by-side comparison:
+     - Without PreIPO SIP (traditional platform)
+     - With PreIPO SIP
+   - Show savings in fees
+   - Show bonus earnings
+   - Show net advantage
+
+4. **Assumptions**
+   - Collapsible section showing all assumptions
+   - Conservative, moderate, aggressive scenarios
+   - Disclaimer about market risks
+
+5. **CTA**
+   - "Start Investing with These Returns"
+   - "Talk to Our Advisor"
+
+---
+
+#### 3.1.5 How It Works Page (/how-it-works)
+
+**Purpose:** Educate users on the process
+
+**Layout:**
+
+1. **Hero Section**
+   - Title: "Your Path to Pre-IPO Wealth"
+   - Subtext: "Simple, transparent, rewarding"
+   - Animated flowchart
+
+2. **Detailed Process (6 Steps)**
+   
+   **Step 1: Sign Up**
+   - What: Register account
+   - How: Email, mobile, password
+   - Time: 2 minutes
+   - Requirements: Valid email & mobile
+   - Visual: Screenshot of signup form
+
+   **Step 2: Complete KYC**
+   - What: Verify identity
+   - How: Upload Aadhaar, PAN, Demat, Bank
+   - Time: 10 minutes
+   - Requirements: Valid documents
+   - Visual: Document checklist
+   - "Why KYC?" explanation
+
+   **Step 3: Choose Plan**
+   - What: Select investment plan
+   - How: Compare plans, choose one
+   - Time: 5 minutes
+   - Visual: Plan comparison
+   - "Need help choosing?" link
+
+   **Step 4: Make First Payment**
+   - What: Start your SIP
+   - How: UPI, card, net banking
+   - Time: Instant
+   - Visual: Payment methods
+
+   **Step 5: Choose your pre-ipo from available bouquet**
+   - What: Choose pre-IPO shares
+   - How: Automatic Transfer to your demat account within 24 hours
+   - What you get: Shares + bonuses
+   - Visual: Portfolio dashboard
+
+   **Step 6: Earn & Grow**
+   - What: Monthly bonuses, profit sharing
+   - How: Automatic calculations
+   - Track: Real-time dashboard
+   - Visual: Bonus breakdown
+
+3. **Video Tutorial**
+   - Embedded video (2-3 minutes)
+   - "Watch How It Works"
+   - Transcript available
+
+4. **Bonus System Explained**
+   - Dedicated section for each bonus type
+   - With examples and calculations
+   - Interactive examples
+
+5. **FAQs**
+   - Process-related FAQs
+   - "What happens if..." scenarios
+
+6. **Success Stories**
+   - 3 real user journeys
+   - From registration to profits
+   - With timeline visualization
+
+---
+
+### 3.2 USER DASHBOARD
+
+#### 3.2.1 Dashboard Home (/dashboard)
+
+**Purpose:** Central hub for user's investment activity
+
+**Layout:**
+
+1. **Header**
+   - Welcome message: "Welcome back, [Name]!"
+   - Quick stats bar (horizontal):
+     - Total Invested
+     - Current Value
+     - Total Returns
+     - Next Payment Due
+   - Alert bar (if any): KYC pending, payment due, etc.
+
+2. **Main Content (3-column grid)**
+
+   **Left Column (30%):**
+   
+   **Portfolio Summary Card**
+   - Total Portfolio Value (large number)
+   - Change (+/-₹ and %)
+   - Pie chart: Product distribution
+   - "View Details" link
+
+   **Subscription Status Card**
+   - Plan name and badge
+   - Current month: X of 36
+   - Progress bar
+   - Next payment: Date, Amount
+   - "Make Payment" button
+   - "View History" link
+
+   **Wallet Card**
+   - Available Balance (large)
+   - Locked Balance
+   - "Add Money" button
+   - "Withdraw" button
+   - Recent transactions (last 3)
+
+   **Middle Column (45%):**
+   
+   **Investment Timeline**
+   - Month-by-month cards
+   - Each month shows:
+     - Month number
+     - Payment status (paid/pending)
+     - Amount invested
+     - Bonuses earned
+     - Share value received
+     - Products allocated
+   - Scroll to see all months
+   - Expandable for details
+
+   **Recent Activity Feed**
+   - Last 10 activities:
+     - Payment made
+     - Bonus credited
+     - Referral joined
+     - Lucky draw entry
+     - Product allocated
+   - Timestamp for each
+   - Icon for type
+   - "View All" link
+
+   **Right Column (25%):**
+   
+   **Bonuses Card**
+   - Total Bonuses Earned (large)
+   - Breakdown:
+     - Progressive: ₹X
+     - Milestone: ₹X
+     - Consistency: ₹X
+     - Referral: ₹X
+     - Others: ₹X
+   - Progress to next milestone
+   - "View Details" link
+
+   **Referrals Card**
+   - Current Multiplier (large, e.g., 2.0×)
+   - Total Referrals: X
+   - Active Referrals: X
+   - Your Referral Code
+   - "Share Now" button
+   - Progress to next tier
+
+   **Lucky Draw Card**
+   - Current month's draw
+   - Your entries: X
+   - Draw date
+   - Prize pool: ₹1,52,500
+   - "View Details" link
+
+3. **Charts Section**
+   - Toggle tabs: Growth Chart, Bonus Chart
+   - **Growth Chart**: Portfolio value over time
+   - **Bonus Chart**: Bonuses earned over time
+   - Toggle view: Monthly, Quarterly, All-time
+
+4. **Quick Actions Bar**
+   - Floating action buttons:
+     - Make Payment
+     - View Portfolio
+     - Refer Friends
+     - Get Support
+     - Download Reports
+
+**Design Notes:**
+- Cards with shadows, rounded corners
+- Color-coded cards (green for positive, red for alerts)
+- Skeleton loaders while data fetches
+- Responsive: Single column on mobile
+- Pull-to-refresh on mobile
+
+---
+
+#### 3.2.2 My Subscription Page (/subscription)
+
+**Purpose:** Manage SIP subscription
+
+**Layout:**
+
+1. **Subscription Overview Card**
+   - Plan name with badge
+   - Subscription code
+   - Status (Active, Paused, Cancelled)
+   - Start date, End date
+   - Current month / Total months
+   - Large progress circle
+
+2. **Key Metrics (4 cards)**
+   - Total Invested
+   - Total Payments Made
+   - Consecutive Payments
+   - Next Payment Date
+
+3. **Payment Schedule**
+   - Calendar view or list view toggle
+   - Each month shows:
+     - Month number
+     - Due date
+     - Status (Paid, Pending, Overdue, Upcoming)
+     - Amount
+     - Bonus earned
+     - "Pay Now" button (if pending)
+     - "View Receipt" (if paid)
+   - Color-coded statuses
+
+4. **Payment History Table**
+   - Columns:
+     - Month, Date, Amount, Bonuses, Total Value, Status, Actions
+   - Sortable columns
+   - Filter by status
+   - Export to Excel
+   - Pagination
+
+5. **Manage Subscription**
+   - Actions:
+     - **Change Plan**: "Upgrade/Downgrade"
+     - **Pause Subscription**: Button with modal
+     - **Cancel Subscription**: Button with confirmation
+     - **Update Auto-Debit**: Manage payment method
+   - Each action opens a modal with:
+     - Explanation of what happens
+     - Confirmation step
+     - Warning if applicable
+
+6. **Subscription Settings**
+   - Auto-debit: ON/OFF toggle
+   - Payment reminders: Enabled/Disabled
+   - Preferred payment method
+   - Grace period notification
+
+---
+
+#### 3.2.3 My Portfolio Page (/portfolio)
+
+**Purpose:** View and manage investments
+
+**Layout:**
+
+1. **Portfolio Summary (Top Cards)**
+   - Total Invested
+   - Current Portfolio Value
+   - Unrealized Gain/Loss (₹ and %)
+   - Number of Products
+
+2. **Holdings Table**
+   - Columns:
+     - Product (logo + name)
+     - Sector
+     - Units Held
+     - Face Value Allocated
+     - Current Market Value
+     - Gain/Loss (₹ and %)
+     - Actions (View Details)
+   - Sortable by each column
+   - Color-coded gains (green) and losses (red)
+   - Export to PDF/Excel
+
+3. **Allocation Breakdown**
+   - Pie chart: By product
+   - Bar chart: By sector
+   - Toggle views
+
+4. **Performance Chart**
+   - Line chart: Portfolio value over time
+   - Compare with Nifty 50 (optional)
+   - Toggle: 1M, 3M, 6M, 1Y, All
+
+5. **Product Details (Expandable)**
+   - Click on product row to expand
+   - Shows:
+     - All allocations (month-wise)
+     - Average cost
+     - Current price
+     - Total gain/loss
+     - Exit option (if listed)
+
+6. **Exit Shares (If product listed)**
+   - "Sell Shares" button
+   - Modal with:
+     - Units to sell (slider)
+     - Current market price
+     - Exit fee (0%)
+     - Net amount receivable
+     - Tax implications
+     - Confirm button
+
+---
+
+#### 3.2.4 My Bonuses Page (/bonuses)
+
+**Purpose:** Track all bonuses earned
+
+**Layout:**
+
+1. **Bonus Summary (Top Cards)**
+   - Total Bonuses Earned (lifetime)
+   - This Month's Bonuses
+   - Pending Bonuses
+   - Next Milestone Bonus (amount & when)
+
+2. **Bonus Breakdown**
+   - 7 cards (one per bonus type):
+     - Progressive Monthly
+     - Milestone (12m, 24m, 36m)
+     - Consistency
+     - Referral
+     - Profit Share
+     - Lucky Draw
+     - Celebration
+   - Each card shows:
+     - Icon and name
+     - Total earned
+     - Last credited date
+     - "Learn More" link
+
+3. **Bonus Transactions Table**
+   - Columns:
+     - Date, Type, Description, Amount, Status, Actions
+   - Filter by:
+     - Type (dropdown)
+     - Status (dropdown)
+     - Date range (calendar picker)
+   - Search by description
+   - Export to Excel
+   - Pagination
+
+4. **Bonus Timeline**
+   - Visual timeline showing when bonuses were earned
+   - Month-by-month view
+   - Hover to see details
+   - Color-coded by type
+
+5. **Multiplier Status**
+   - Current multiplier badge (e.g., 2.0×)
+   - Progress bar to next tier
+   - "X more referrals needed for Y× multiplier"
+   - CTA: "Refer Friends Now"
+
+6. **Projected Bonuses**
+   - "What you'll earn going forward"
+   - Month-by-month projection table
+   - Assumptions listed
+   - "This assumes X referrals and on-time payments"
+
+---
+
+#### 3.2.5 My Referrals Page (/referrals)
+
+**Purpose:** Manage referrals and earn multipliers
+
+**Layout:**
+
+1. **Referral Overview (Top Section)**
+   - Large display of referral code
+   - "Copy Code" button
+   - Current multiplier badge (big and prominent)
+   - Progress to next tier with visual indicator
+
+2. **Share Section**
+   - "Share Your Referral Link"
+   - Generated link with copy button
+   - Social sharing buttons:
+     - WhatsApp (pre-filled message)
+     - Facebook
+     - Twitter
+     - LinkedIn
+     - Email (opens email client)
+   - QR code (downloadable)
+
+3. **Referral Stats (4 Cards)**
+   - Total Referrals
+   - Active Referrals (completed first investment)
+   - Pending Referrals (registered but not invested)
+   - Total Earnings from Referrals
+
+4. **Referral List Table**
+   - Columns:
+     - Name (partial), Status, Referred Date, Completion Date, Bonus Earned, Actions
+   - Status badges: Pending, Completed, Inactive
+   - Filter by status
+   - Search by name
+   - Export list
+
+5. **Multiplier Tiers Explanation**
+   - Visual tier ladder:
+     - 0-2: 1.0×
+     - 3-4: 1.5×
+     - 5-9: 2.0×
+     - 10-19: 2.5×
+     - 20+: 3.0×
+   - Your current tier highlighted
+   - "What this means for your bonuses" explanation
+
+6. **Referral Resources**
+   - Downloadable assets:
+     - WhatsApp status image
+     - Instagram story template
+     - Facebook post image
+     - Email template
+   - Tips for successful referrals
+   - FAQs about referral program
+
+---
+
+#### 3.2.6 Wallet Page (/wallet)
+
+**Purpose:** Manage funds
+
+**Layout:**
+
+1. **Wallet Balance (Large Card)**
+   - Available Balance (very large font)
+   - Locked Balance (smaller, with info icon)
+   - Total Deposited (lifetime)
+   - Total Withdrawn (lifetime)
+   - Two big buttons:
+     - "Add Money" (primary)
+     - "Withdraw" (secondary)
+
+2. **Quick Actions**
+   - Deposit funds
+   - Request withdrawal
+   - View transaction history
+   - Download statements
+
+3. **Transaction History**
+   - Filter tabs: All, Deposits, Withdrawals, Bonuses, Investments, Other
+   - Table columns:
+     - Date, Type (with icon), Description, Amount, Balance After, Status
+   - Color-coded: Green (credit), Red (debit)
+   - Search transactions
+   - Date range filter
+   - Export to PDF/Excel
+   - Pagination
+
+4. **Add Money Modal**
+   - Enter amount (with min/max limits)
+   - Select payment method:
+     - UPI
+     - Net Banking
+     - Debit/Credit Card
+   - Processing fee: ₹0
+   - "Proceed to Payment" button
+   - Redirects to payment gateway
+
+5. **Withdraw Money Modal**
+   - Available balance shown
+   - Enter amount (with min ₹1,000)
+   - Select saved bank account or add new
+   - Withdrawal fee: ₹0
+   - Expected time: 24-48 hours
+   - "Submit Request" button
+   - Confirmation screen
+
+6. **Bank Accounts**
+   - List of saved bank accounts
+   - Add new account:
+     - Account number
+     - IFSC code
+     - Account holder name
+     - Bank name
+   - Verify account (penny drop)
+   - Set primary account
+
+---
+
+#### 3.2.7 Lucky Draws Page (/lucky-draws)
+
+**Purpose:** View draw information and results
+
+**Layout:**
+
+1. **Current Draw (Hero Card)**
+   - Draw month and date
+   - Countdown timer (days, hours, minutes)
+   - Total prize pool: ₹1,52,500
+   - Total winners: 100
+   - Your entries: X (large, prominent)
+   - Your entry codes (expandable list)
+   - "How to get more entries" link
+
+2. **Prize Structure**
+   - Visual breakdown:
+     - 🥇 1 × ₹50,000
+     - 🥈 4 × ₹10,000
+     - 🥉 10 × ₹2,000
+     - 🎁 85 × ₹500
+   - Your odds calculation
+
+3. **How to Participate**
+   - "Earn entries by making on-time SIP payments"
+   - Entry multipliers by plan
+   - FAQs about lucky draws
+
+4. **Past Draws**
+   - Accordion list of past draws
+   - Each shows:
+     - Draw date
+     - Total entries and participants
+     - Winners list (partial names)
+     - Your participation (entries, result)
+     - "View Details" button
+   - Pagination for older draws
+
+5. **Winners Section**
+   - "Latest Winners" spotlight
+   - Cards showing:
+     - Partial name (Raj K.)
+     - City
+     - Prize amount
+     - Win date
+   - Congratulatory message
+
+6. **Draw Transparency**
+   - "How We Ensure Fairness"
+   - Video recording of draw
+   - Random number generator details
+   - Third-party audit information
+   - Download results PDF
+
+---
+
+#### 3.2.8 Support Page (/support)
+
+**Purpose:** Get help and create tickets
+
+**Layout:**
+
+1. **Help Center Header**
+   - Search bar: "How can we help you?"
+   - Popular topics (quick links)
+   - Live chat status indicator
+
+2. **Create New Ticket**
+   - Form:
+     - Subject (text input)
+     - Category (dropdown): Technical, Investment, Payment, KYC, Withdrawal, Bonus, Account, Other
+     - Priority (dropdown): Low, Medium, High, Urgent
+     - Message (textarea)
+     - Attachments (file upload, max 5MB each)
+   - "Submit Ticket" button
+   - "or start Live Chat" link
+
+3. **My Tickets**
+   - Tabs: Open, Waiting, Resolved, All
+   - List view:
+     - Ticket number
+     - Subject
+     - Category badge
+     - Priority badge
+     - Status badge
+     - Last updated
+     - Unread messages indicator
+     - "View" button
+   - Filter by category, priority, date range
+   - Search tickets
+
+4. **Ticket Detail View**
+   - Ticket header:
+     - Ticket number, Subject
+     - Status, Priority, Category
+     - Created date
+     - Last reply
+   - Message thread:
+     - User messages (right-aligned, blue)
+     - Support messages (left-aligned, gray)
+     - Timestamps
+     - Attachments
+   - Reply form at bottom:
+     - Message textarea
+     - Attach files
+     - "Send Reply" button
+   - Actions:
+     - Close ticket
+     - Reopen ticket (if closed)
+
+5. **FAQs Section**
+   - Categorized FAQs:
+     - Getting Started
+     - Investment Plans
+     - Payments
+     - KYC
+     - Bonuses
+     - Withdrawals
+     - Technical Issues
+   - Accordion-style questions
+   - Search FAQs
+   - "Was this helpful?" feedback
+   - "Still need help? Create ticket"
+
+6. **Contact Information**
+   - Email: support@preiposip.com
+   - Phone: +91-XXXXX-XXXXX (10 AM - 8 PM)
+   - WhatsApp support
+   - Average response time: 2 hours
+
+7. **Live Chat Widget** (Floating)
+   - Bottom-right corner
+   - Collapsible chat window
+   - Online/offline status
+   - Quick responses for common queries
+   - Transfer to human agent option
+
+---
+
+### 3.3 ADMIN PANEL
+
+#### 3.3.1 Admin Dashboard (/admin/dashboard)
+
+**Purpose:** Overview of platform metrics and operations
+
+**Layout:**
+
+1. **Header**
+   - Logo and "Admin Panel"
+   - Search global (users, transactions, tickets)
+   - Notifications bell (with count)
+   - Admin profile dropdown
+
+2. **Sidebar Navigation** (Collapsible)
+   - Dashboard (home icon)
+   - User Management (users icon)
+   - KYC Management (document icon)
+   - Plan Management (package icon)
+   - Product Management (shopping icon)
+   - Investment Management (portfolio icon)
+   - Bonus Management (gift icon)
+   - Withdrawal Management (money icon)
+   - Lucky Draw Management (ticket icon)
+   - Profit Sharing (chart icon)
+   - Support Management (help icon)
+   - Reports & Analytics (graph icon)
+   - Settings (gear icon)
+   - Logout
+
+3. **Dashboard Metrics (Top Cards)**
+   - Total Users (with growth %)
+   - Active Subscriptions
+   - Total Investment (₹)
+   - KYC Pending (with alert)
+   - Pending Withdrawals (with alert)
+   - Revenue This Month
+   - Net Profit
+   - User Growth Rate
+
+4. **Quick Actions Panel**
+   - Process Pending KYC (234)
+   - Approve Withdrawals (45)
+   - Review Support Tickets (23)
+   - Generate Monthly Report
+   - Run Cron Jobs Manually
+
+5. **Charts Section (2-column)**
+   - **Left Column:**
+     - User Growth Chart (line chart, 12 months)
+     - Investment by Plan (pie chart)
+   - **Right Column:**
+     - Revenue vs Bonuses (bar chart)
+     - Monthly SIP Collections (area chart)
+
+6. **Recent Activity Feed**
+   - Last 20 activities:
+     - New user registrations
+     - KYC submissions
+     - Payments made
+     - Withdrawals requested
+     - Support tickets created
+   - Real-time updates
+   - Filter by type
+   - "View All" link
+
+7. **Alerts & Notifications**
+   - System alerts:
+     - Low inventory on products
+     - Failed cron jobs
+     - High withdrawal requests
+     - Unusual activity detected
+   - Dismissible alerts
+   - "View All Alerts" link
+
+---
+
+#### 3.3.2 User Management (/admin/users)
+
+**Purpose:** Manage user accounts
+
+**Layout:**
+
+1. **User List View**
+   - Filters (top bar):
+     - Status: All, Active, Pending, Suspended, Blocked
+     - KYC Status: All, Pending, Submitted, Verified, Rejected
+     - Plan: All, Plan A, B, C, D
+     - Registration Date Range
+     - Search: Email, Username, Mobile, User ID
+   - "Apply Filters" and "Reset" buttons
+   - "Export to Excel" button
+
+2. **User Table**
+   - Columns:
+     - User ID
+     - Name (with avatar)
+     - Email
+     - Mobile
+     - Plan
+     - KYC Status (badge)
+     - Status (badge)
+     - Total Invested
+     - Registered Date
+     - Actions (View, Edit, Suspend, Delete)
+   - Sortable columns
+   - Bulk actions checkbox
+   - Pagination (50 per page)
+
+3. **User Detail View**
+   - Header:
+     - User photo, name, username
+     - User ID, status badges
+     - Quick actions: Edit, Suspend, Block, Reset Password, Send Email
+   - Tabs:
+     - **Overview**: Profile details, KYC status, subscription summary, wallet balance
+     - **Subscriptions**: Active/past subscriptions, payment history
+     - **Investments**: Portfolio, allocations, current value
+     - **Bonuses**: All bonuses earned, breakdown
+     - **Referrals**: Direct referrals, multiplier status, earnings
+     - **Transactions**: All financial transactions, filters
+     - **Activity Log**: Login history, actions performed
+     - **Documents**: KYC documents viewer
+     - **Notes**: Admin notes (internal)
+
+4. **Edit User Modal**
+   - Form fields:
+     - Full name
+     - Email (with verify button)
+     - Mobile (with verify button)
+     - Status (dropdown)
+     - Subscription plan
+   - "Save Changes" button
+
+5. **Suspend/Block User Modal**
+   - Reason (dropdown + textarea)
+   - Duration (for suspension)
+   - Notify user (checkbox)
+   - "Confirm" button
+   - Warning about implications
+
+6. **Adjust Balance Modal**
+   - Current balance display
+   - Adjustment amount (+ or -)
+   - Reason (required)
+   - Transaction description
+   - "Apply Adjustment" button
+   - Creates audit log entry
+
+---
+
+#### 3.3.3 KYC Management (/admin/kyc)
+
+**Purpose:** Verify user KYC documents
+
+**Layout:**
+
+1. **KYC Queue View**
+   - Status filter tabs: All, Pending, Under Review, Verified, Rejected
+   - Sort by: Submission date, User name, Priority
+   - Priority flags (high-value users)
+   - "Bulk Approve" button (for verified users)
+
+2. **KYC Queue Table**
+   - Columns:
+     - User (name + ID)
+     - Submitted Date
+     - Documents (checkmarks for each)
+     - Auto-Verify Status
+     - Assigned To
+     - Status
+     - Actions (Verify, Reject, Assign)
+   - Click row to open verification screen
+   - Pagination
+
+3. **KYC Verification Screen**
+   - Left panel: User info
+     - Name, email, mobile
+     - DOB, address
+     - Investment plan
+   - Right panel: Documents
+     - Tabs for each document:
+       - Aadhaar Front
+       - Aadhaar Back
+       - PAN Card
+       - Demat Certificate
+       - Bank Proof
+     - Each tab has:
+       - Document viewer (zoom, rotate, download)
+       - OCR extracted data (if available)
+       - Auto-verification result
+       - Manual verification checklist:
+         - ☐ Image clear and readable
+         - ☐ Name matches across documents
+         - ☐ DOB matches across documents
+         - ☐ Document valid and not expired
+         - ☐ No signs of tampering
+       - Notes field
+
+4. **Verification Actions**
+   - "Approve All" button (green, prominent)
+   - "Reject" button (red)
+   - "Request Resubmission" button (yellow)
+   - Rejection/Request modal:
+     - Reason (dropdown + custom text)
+     - Specific documents to resubmit (checkboxes)
+     - Notify user (auto-checked)
+     - "Submit" button
+
+5. **Verification History**
+   - Timeline of KYC events:
+     - Submitted
+     - Documents viewed
+     - Approved/Rejected
+     - Resubmitted
+   - By admin, with timestamp
+
+6. **Bulk Actions**
+   - Select multiple submissions
+   - Bulk approve (if criteria met)
+   - Bulk assign to admin
+   - Export selected
+
+---
+
+#### 3.3.4 Withdrawal Management (/admin/withdrawals)
+
+**Purpose:** Process withdrawal requests
+
+**Layout:**
+
+1. **Withdrawal Queue**
+   - Status tabs: Pending, Approved, Processing, Completed, Rejected
+   - Filters:
+     - Date range
+     - Amount range
+     - User search
+   - Sort by: Request date, Amount, Priority
+   - "Export to Excel" button
+
+2. **Withdrawal Table**
+   - Columns:
+     - Withdrawal Code
+     - User (name + ID)
+     - Amount
+     - Fee
+     - Net Amount
+     - Bank Details (preview)
+     - Requested Date
+     - Status
+     - Actions
+   - Color-coded by urgency (red for >48 hours pending)
+   - Bulk actions checkbox
+
+3. **Withdrawal Detail View**
+   - User Information:
+     - Name, email, mobile
+     - KYC status
+     - Account age
+     - Total invested
+     - Available balance
+   - Withdrawal Details:
+     - Withdrawal code
+     - Amount requested
+     - Withdrawal fee
+     - Net amount payable
+     - Requested date
+   - Bank Account Details:
+     - Account number
+     - IFSC code
+     - Account holder name
+     - Bank name, branch
+     - "Verify Match with KYC" button
+   - Fraud Check Indicators:
+     - First-time withdrawal (flag)
+     - Large amount (flag)
+     - Multiple requests (flag)
+     - Recent account changes (flag)
+   - Transaction History:
+     - Recent transactions
+     - Deposit/withdrawal pattern
+
+4. **Approve Withdrawal**
+   - "Approve" button
+   - Modal:
+     - Confirm amount and bank details
+     - Add admin notes
+     - "Confirm Approval" button
+   - Status changes to "Approved"
+   - System sends notification
+
+5. **Process Withdrawal**
+   - After bank transfer completed:
+   - "Mark as Processing" button
+   - Enter UTR number (required)
+   - Upload bank receipt (optional)
+   - "Complete Withdrawal" button
+   - Updates status and wallet balance
+
+6. **Reject Withdrawal**
+   - "Reject" button
+   - Modal:
+     - Reason (dropdown + custom)
+     - Notify user (checkbox)
+     - "Confirm Rejection"
+   - Unlocks user balance
+
+7. **Bulk Processing**
+   - Select multiple withdrawals
+   - Bulk approve (if < ₹5,000 each)
+   - Export batch for bank transfer
+   - Upload completed UTRs (CSV)
+
+---
+
+#### 3.3.5 Bulk Purchase Management (/admin/bulk-purchases)
+
+**Purpose:** Manage pre-IPO inventory
+
+**Layout:**
+
+1. **Bulk Purchase List**
+   - Table columns:
+     - Purchase Code
+     - Product
+     - Purchase Date
+     - Seller
+     - Face Value Purchased
+     - Actual Cost
+     - Discount %
+     - Extra Allocation %
+     - Total Received
+     - Allocated
+     - Remaining
+     - Actions
+   - Filters: Product, Date range, Status
+   - "Add New Purchase" button
+
+2. **Add Bulk Purchase Form**
+   - Select Product (dropdown)
+   - Purchase Date (date picker)
+   - Seller Name (text input)
+   - Face Value Purchased (₹)
+   - Actual Cost Paid (₹)
+   - Discount % (auto-calculated)
+   - Extra Allocation % (input)
+   - Total Value Received (auto-calculated)
+   - Upload Purchase Document (PDF/image)
+   - Notes (textarea)
+   - "Save Purchase" button
+   - Real-time margin calculation shown
+
+3. **Purchase Detail View**
+   - Header:
+     - Purchase code
+     - Product name and logo
+     - Purchase date
+   - Financial Summary:
+     - Face value purchased
+     - Cost paid (discount %)
+     - Extra received (%)
+     - Total value received
+     - Gross margin
+   - Allocation Status:
+     - Allocated to customers (₹ and %)
+     - Allocated as bonuses (₹ and %)
+     - Remaining in pool (₹ and %)
+     - Progress bars for visual
+   - Allocation History:
+     - Table of allocations made
+     - User, date, amount, type
+   - Document viewer
+   - "Edit" and "Delete" buttons
+
+4. **Inventory Dashboard**
+   - Card for each product:
+     - Product name
+     - Total inventory (all purchases)
+     - Total allocated
+     - Remaining available
+     - Status (In Stock, Low Stock, Out of Stock)
+     - Alert if < 10% remaining
+   - "Reorder" suggestions
+
+5. **Allocation Report**
+   - Filter by product, date range
+   - Breakdown:
+     - Customer allocations
+     - Bonus allocations
+     - Admin adjustments
+   - Export to Excel
+
+---
+
+#### 3.3.6 Lucky Draw Management (/admin/lucky-draws)
+
+**Purpose:** Create and execute monthly draws
+
+**Layout:**
+
+1. **Draw Calendar**
+   - Monthly view
+   - Each month shows:
+     - Draw status (Upcoming, Open, Drawn, Completed)
+     - Entry count
+     - Participant count
+     - "Manage" button
+   - "Create New Draw" button
+
+2. **Create Draw Form**
+   - Draw Month (YYYY-MM)
+   - Draw Name (auto-generated)
+   - Draw Date (last day of month)
+   - Prize Structure:
+     - Rank 1: Count, Amount
+     - Rank 2: Count, Amount
+     - Rank 3: Count, Amount
+     - Rank 4: Count, Amount
+   - Total Prize Pool (calculated)
+   - Total Winners (calculated)
+   - "Create Draw" button
+
+3. **Manage Draw View**
+   - Draw Information:
+     - Draw code, month, date
+     - Status badge
+     - Total entries, participants
+     - Prize pool
+   - Entry Statistics:
+     - By plan (bar chart)
+     - By user (top 10)
+     - Entry codes list (exportable)
+   - "Execute Draw" button (if ready)
+
+4. **Execute Draw Screen**
+   - Pre-draw checklist:
+     - ☐ All eligible entries recorded
+     - ☐ Prize structure confirmed
+     - ☐ Video recording ready
+     - ☐ Witness present
+   - "Start Draw" button (prominent)
+   - Live draw interface:
+     - Random number generator
+     - Animation for each winner selection
+     - Winner list populating in real-time
+     - Video recording indicator
+   - Post-draw actions:
+     - "Publish Results" button
+     - "Credit Prizes" button (automatic)
+     - "Send Notifications" button
+     - "Generate Certificate" for each winner
+
+5. **Draw Results**
+   - Winners table:
+     - Rank, Entry Code, User (full name), Prize Amount, Notified, Credited
+   - "Download Results PDF" button
+   - "Download Certificate" for each winner
+   - Publish status toggle
+   - "Announce on Website" button
+
+6. **Draw History**
+   - List of all past draws
+   - Each shows summary
+   - "View Details" for full information
+   - Archive/delete old draws
+
+---
+
+#### 3.3.7 Profit Sharing Management (/admin/profit-sharing)
+
+**Purpose:** Calculate and distribute quarterly profits
+
+**Layout:**
+
+1. **Profit Sharing List**
+   - Table:
+     - Quarter (YYYY-QX)
+     - Start Date, End Date
+     - Platform Revenue
+     - Platform Costs
+     - Net Profit
+     - Distribution Pool
+     - Users Eligible
+     - Status
+     - Actions
+   - "Calculate New Quarter" button
+
+2. **Calculate Profit Form**
+   - Select Quarter (dropdown)
+   - Start Date, End Date (auto-filled)
+   - Enter Financial Data:
+     - Platform Revenue (₹)
+     - Platform Costs (₹)
+     - Net Profit (auto-calculated)
+   - Distribution Calculation:
+     - For each plan (A, B, C, D):
+       - Share % (5%, 10%, 15%, 20%)
+       - Users count
+       - Total invested by plan users
+       - Distribution amount
+   - Total Distribution Pool (calculated)
+   - Total Users Eligible (calculated)
+   - "Calculate Distribution" button
+
+3. **Distribution Preview**
+   - Summary:
+     - Quarter
+     - Net profit
+     - Total distribution
+     - Per-user breakdown preview (top 10)
+   - Table of all distributions:
+     - User, Plan, Investment, Share %, Amount
+   - Export to Excel
+   - "Approve Distribution" button
+
+4. **Approve & Distribute**
+   - Review screen with all details
+   - Confirmation checkboxes:
+     - ☐ Financial figures verified
+     - ☐ Distribution calculated correctly
+     - ☐ Users verified as eligible
+   - Admin approval signature (password confirm)
+   - "Confirm & Distribute" button
+   - Status changes to "Distributed"
+   - Creates bonus transactions for all users
+   - Sends notification emails
+
+5. **Distribution History**
+   - Past quarters
+   - Drill down into each
+   - View user-wise distributions
+   - Download reports
+
+---
+
+#### 3.3.8 Reports & Analytics (/admin/reports)
+
+**Purpose:** Generate business intelligence reports
+
+**Layout:**
+
+1. **Report Categories**
+   - Tabs:
+     - Financial Reports
+     - User Reports
+     - Investment Reports
+     - Bonus Reports
+     - Compliance Reports
+     - Custom Reports
+
+2. **Report Generator**
+   - Select Report Type (dropdown)
+   - Select Date Range (calendar)
+   - Additional Filters (based on report type)
+   - Format: PDF, Excel, CSV
+   - "Generate Report" button
+   - "Schedule Report" option:
+     - Frequency: Daily, Weekly, Monthly
+     - Email recipients
+     - "Save Schedule" button
+
+3. **Available Reports**
+
+   **Financial Reports:**
+   - Daily Revenue Report
+   - Monthly P&L Statement
+   - Bonus Distribution Summary
+   - Investment Analysis
+   - Fee Collection (if any)
+   - Cash Flow Statement
+
+   **User Reports:**
+   - User Growth Report
+   - Active vs Inactive Users
+   - KYC Completion Rate
+   - User Retention Analysis
+   - Churn Analysis
+   - User Acquisition by Source
+
+   **Investment Reports:**
+   - Investment by Plan
+   - Product-wise Allocation
+   - Portfolio Performance
+   - Subscription Status Report
+   - Payment Collection Report
+   - Exit Analysis
+
+   **Bonus Reports:**
+   - Bonus by Type
+   - Monthly Bonus Trend
+   - Referral Performance
+   - Milestone Achievement Report
+   - Profit Share Distribution
+   - Lucky Draw Winners
+
+   **Compliance Reports:**
+   - SEBI Transaction Report
+   - Audit Trail Report
+   - KYC Documentation Report
+   - TDS Report
+   - AML Suspicious Activity Report
+
+4. **Report Preview**
+   - Embedded preview of generated report
+   - Charts and graphs
+   - Summary statistics
+   - "Download" button
+   - "Email" button
+   - "Print" button
+
+5. **Scheduled Reports**
+   - List of all scheduled reports
+   - Edit/delete schedules
+   - View last run status
+   - Manual trigger option
+
+6. **Custom Report Builder**
+   - Drag-and-drop interface
+   - Select data sources (tables)
+   - Choose metrics
+   - Add filters
+   - Create visualizations
+   - Save custom report template
+   - "Generate" button
+
+---
+
+#### 3.3.9 System Settings (/admin/settings)
+
+**Purpose:** Configure platform settings
+
+**Layout:**
+
+1. **Settings Categories (Tabs)**
+   - General Settings
+   - Security Settings
+   - Financial Settings
+   - Notification Settings
+   - Payment Gateways
+   - Email/SMS Configuration
+   - System Configuration
+
+2. **General Settings**
+   - Site Name (text)
+   - Site Tagline (text)
+   - Logo Upload
+   - Favicon Upload
+   - Timezone (dropdown)
+   - Currency (dropdown)
+   - Date Format (dropdown)
+   - Records Per Page (number)
+   - "Save Settings" button
+
+3. **Security Settings**
+   - User Registration: Enabled/Disabled toggle
+   - Email Verification Required: toggle
+   - Mobile Verification Required: toggle
+   - KYC Required for Investment: toggle
+   - 2FA Enabled: toggle
+   - Session Timeout (minutes)
+   - Password Policy:
+     - Minimum length
+     - Require uppercase
+     - Require numbers
+     - Require special characters
+     - Password expiry (days)
+   - Login Attempts Limit
+   - IP Whitelist for Admin (textarea)
+   - "Save Settings" button
+
+4. **Financial Settings**
+   - Minimum Deposit Amount (₹)
+   - Maximum Deposit Amount (₹)
+   - Minimum Withdrawal Amount (₹)
+   - Maximum Withdrawal Amount (₹)
+   - Withdrawal Fee (₹ or %)
+   - Balance Transfer Enabled: toggle
+   - Balance Transfer Charge (%)
+   - Exit Fee (%)
+   - "Save Settings" button
+
+5. **Notification Settings**
+   - Email Notifications Enabled: toggle
+   - SMS Notifications Enabled: toggle
+   - Push Notifications Enabled: toggle
+   - Notification Templates:
+     - List of all templates
+     - Edit template (subject, body, variables)
+     - Preview template
+     - Test send
+   - "Save Settings" button
+
+6. **Payment Gateway Configuration**
+   - Razorpay:
+     - Enabled: toggle
+     - Mode: Test/Live
+     - Key ID
+     - Key Secret
+     - Webhook Secret
+     - "Test Connection" button
+   - PayU:
+     - Enabled: toggle
+     - Mode: Test/Live
+     - Merchant Key
+     - Merchant Salt
+     - "Test Connection" button
+   - Gateway Display Order
+   - "Save Configuration" button
+
+7. **Email/SMS Configuration**
+   - SMTP Settings:
+     - Host, Port, Encryption
+     - Username, Password
+     - From Email, From Name
+     - "Test Email" button
+   - SMS Settings (MSG91):
+     - Auth Key
+     - Sender ID
+     - Route
+     - "Test SMS" button
+   - "Save Configuration" button
+
+8. **System Configuration**
+   - Maintenance Mode: toggle
+   - Maintenance Message (textarea)
+   - Debug Mode: toggle (production = OFF)
+   - Cache Enabled: toggle
+   - Queue Enabled: toggle
+   - Log Level (dropdown)
+   - "Clear Cache" button
+   - "Run Queue" button manually
+   - "Optimize System" button
+   - "Save Configuration" button
+
+9. **Cron Jobs**
+   - List of scheduled tasks:
+     - Name, Command, Schedule, Last Run, Next Run, Status
+   - "Run Now" button for each
+   - Enable/Disable toggle
+   - View logs for each job
+   - Add custom cron job
+
+---
+
+## 4. FUNCTIONAL SPECIFICATIONS
+
+### 4.1 User Registration & Onboarding
+
+**Registration Flow:**
+1. User visits /signup
+2. Fills registration form (username, email, mobile, password)
+3. Optional: Enters referral code
+4. Submits form → Backend validates
+5. If valid: Creates user account (status='pending')
+6. Sends email OTP (6 digits, 10-min expiry)
+7. Sends SMS OTP (6 digits, 10-min expiry)
+8. User enters email OTP → Verifies
+9. User enters mobile OTP → Verifies
+10. Account activated (status='active')
+11. Redirects to dashboard
+12. Shows onboarding wizard:
+    - Welcome message
+    - Complete profile (5 mins)
+    - Submit KYC (10 mins)
+    - Choose plan (5 mins)
+
+**Validation Rules:**
+- Username: 3-50 chars, alphanumeric + underscore, unique
+- Email: Valid RFC 5322 format, unique
+- Mobile: Exactly 10 digits, unique
+- Password: Min 8 chars, 1 uppercase, 1 lowercase, 1 number
+- Referral code: Must exist in system (if provided)
+
+**Error Handling:**
+- Duplicate username/email/mobile: "Already registered. Try logging in."
+- Invalid OTP: "Invalid or expired OTP. Try again."
+- Max attempts exceeded: "Too many attempts. Try after 1 hour."
+
+---
+
+### 4.2 KYC Verification Process
+
+**KYC Submission Flow:**
+1. User completes basic profile
+2. Navigates to /kyc
+3. Fills KYC form:
+   - Aadhaar number
+   - Uploads Aadhaar front (JPG/PNG/PDF, max 5MB)
+   - Uploads Aadhaar back
+   - PAN number
+   - Uploads PAN card
+   - Demat account number, DP ID
+   - Uploads Demat certificate/statement
+   - Bank account, IFSC, holder name
+   - Uploads bank proof (cancelled cheque/statement)
+4. Submits form → Backend validates files
+5. If valid: Stores documents securely (encrypted)
+6. Sets KYC status = 'submitted'
+7. Notifies admin team
+8. Shows success message: "KYC submitted. We'll verify within 24 hours."
+
+**Auto-Verification (Background):**
+- Calls DigiLocker API for Aadhaar
+- Calls Income Tax API for PAN
+- Performs penny drop for bank account
+- Sets auto-verify flags
+
+**Admin Verification Flow:**
+1. Admin opens KYC queue
+2. Selects pending submission
+3. Views all documents (with zoom, rotate)
+4. Reviews auto-verification results
+5. Checks manual verification checklist
+6. Decision:
+   - **Approve**: Sets status='verified', sends confirmation
+   - **Reject**: Enters reason, sends rejection notice
+   - **Request Resubmission**: Specifies documents needed
+7. User notified by email/SMS
+
+**Resubmission Flow:**
+1. User receives rejection/resubmission notice
+2. Navigates to /kyc
+3. Sees rejected documents highlighted
+4. Uploads corrected documents
+5. Resubmits → Back to admin queue
+
+---
+
+### 4.3 Investment Plan Selection & Subscription
+
+**Plan Selection Flow:**
+1. User views plans at /plans (before or after login)
+2. Compares all 4 plans
+3. Uses returns calculator to project earnings
+4. Takes plan selection quiz (optional)
+5. Clicks "Subscribe to Plan B" (example)
+6. Redirected to /user/plans
+7. Pre-check: KYC verified? If no: Redirected to KYC
+8. Reviews plan details again
+9. Confirms subscription
+10. Backend creates subscription record:
+    - Generates subscription_code
+    - Sets start_date = today
+    - Sets end_date = today + 36 months
+    - Sets next_payment_date = today + 5 days
+    - Creates first payment record (status='pending')
+11. Shows success message: "Subscribed to Plan B! First payment due in 5 days."
+12. Sends confirmation email with payment link
+
+**Business Rules:**
+- One active subscription per user
+- Can upgrade/downgrade after first payment
+- Can pause (max 3 months, once per year)
+- Can cancel anytime (forfeits future milestones)
+
+---
+
+### 4.4 Payment Processing
+
+**Payment Initiation Flow:**
+1. User navigates to /subscription
+2. Sees "Next Payment Due: Nov 10, 2024 - ₹5,000"
+3. Clicks "Pay Now"
+4. Redirected to payment page
+5. Selects payment method:
+   - UPI
+   - Net Banking
+   - Debit/Credit Card
+6. Backend creates Razorpay order
+7. Frontend opens Razorpay checkout
+8. User completes payment on gateway
+9. Gateway sends callback to webhook
+10. Webhook verifies signature
+11. If valid:
+    - Updates payment status='paid'
+    - Records transaction
+    - Triggers bonus calculation
+    - Allocates pre-IPO shares
+    - Updates subscription progress
+    - Sends confirmation email/SMS
+12. User redirected to success page
+13. Dashboard updated with new investment
+
+**Auto-Debit Flow:**
+1. User opts for auto-debit during subscription
+2. Authorizes mandate with payment gateway
+3. On due date: System automatically charges
+4. If success: Same as manual payment flow
+5. If failure: Retries after 24 hours (max 2 retries)
+6. If all retries fail: Notifies user, marks overdue
+
+**Failure Handling:**
+- Payment failed: Retry option, contact support
+- Gateway timeout: Check payment status, refund if duplicate
+- Invalid amount: Error message, correct amount shown
+
+---
+
+### 4.5 Bonus Calculation & Distribution
+
+**Calculation Trigger:**
+- After successful SIP payment
+- Automatic via cron job
+
+**Calculation Process:**
+1. Get subscription and plan details
+2. Get payment month number
+3. Calculate progressive bonus:
+   ```
+   IF month >= 4:
+     bonus_percentage = (month - 3) × plan.progressive_rate × multiplier
+     bonus_amount = base_amount × bonus_percentage / 100
+   ELSE:
+     bonus = 0
+   ```
+4. Check for milestone (month 12, 24, or 36):
+   ```
+   IF month = 12 AND consecutive_payments >= 12:
+     milestone_bonus = plan.milestone_bonus_12m × multiplier
+   ```
+5. Calculate consistency bonus:
+   ```
+   IF payment_on_time:
+     consistency_bonus = plan_consistency_amount
+     IF streak_months = 6: consistency_bonus × 3
+     IF streak_months = 12: consistency_bonus × 5
+   ```
+6. Create BonusTransaction records for each bonus
+7. Update subscription.total_bonus_received
+8. Allocate bonus as additional share value
+9. Send bonus credit notification
+
+**Referral Multiplier Update:**
+- Triggered when referred user completes first investment
+- Count active referrals
+- Determine tier and multiplier:
+  - 0-2: 1.0×
+  - 3-4: 1.5×
+  - 5-9: 2.0×
+  - 10-19: 2.5×
+  - 20+: 3.0×
+- Update subscription.bonus_multiplier
+- Applies to ALL future bonuses
+- Send tier achievement notification
+
+---
+
+### 4.6 Portfolio & Pre-IPO Allocation
+
+**Allocation Process:**
+1. After payment processed
+2. Get total share value (base + bonuses)
+3. Check user chosen shares
+4. Select products: Allocate all chosen shares
+5. Calculate units for each product:
+   ```
+   units = allocated_amount / product.face_value_per_unit
+   ```
+6. Create UserInvestment records
+7. Update bulk_purchase.allocated_value
+8. Mark payment.products_allocated = true
+9. Send allocation notification with details
+
+**Portfolio Display:**
+- Real-time calculation of current value
+- If product listed: Use current market price
+- If not listed: Use face value
+- Calculate unrealized gains/losses
+- Group by product, show sector distribution
+- Performance charts and metrics
+
+---
+
+### 4.7 Wallet & Transactions
+
+**Wallet Operations:**
+
+**Add Money:**
+1. User clicks "Add Money" in wallet
+2. Enters amount (min ₹500, max ₹1,00,000)
+3. Selects payment method
+4. Creates Deposit record (status='pending')
+5. Redirects to payment gateway
+6. On success:
+   - Updates Deposit status='completed'
+   - Creates Transaction type='deposit'
+   - Credits wallet.balance
+   - Sends confirmation
+
+**Withdraw Money:**
+1. User clicks "Withdraw" in wallet
+2. Enters amount (min ₹1,000)
+3. Checks available balance >= amount
+4. Selects bank account (or adds new)
+5. Creates Withdrawal request (status='pending')
+6. Locks amount in wallet (balance → locked_balance)
+7. Sends request to admin
+8. Admin approves/rejects
+9. If approved:
+   - Admin initiates bank transfer
+   - Enters UTR number
+   - Status='completed'
+   - Deducts from locked_balance
+   - Creates Transaction type='withdrawal'
+   - Updates wallet.total_withdrawn
+10. If rejected:
+    - Unlocks balance
+    - Notifies user with reason
+
+**Transaction Recording:**
+- Every financial event creates Transaction record
+- Types: deposit, withdrawal, investment, bonus_credit, profit_share, refund, fee, adjustment
+- Immutable records (no updates, only new entries)
+- Double-entry ledger for accuracy
+- Balance calculations always from transactions
+
+---
+
+### 4.8 Referral System
+
+**Referral Code Generation:**
+- Auto-generated at registration
+- Format: USERNAME + 4 random digits
+- Stored in users.referral_code
+- Unique across system
+
+**Referral Tracking:**
+1. New user enters referral code at signup
+2. System finds referrer by code
+3. Creates Referral record:
+   - referrer_id, referred_id
+   - status='pending'
+4. Stores in users.referred_by
+
+**Referral Completion:**
+1. Referred user completes first SIP payment
+2. System checks if referred_by exists
+3. Updates Referral.status='completed'
+4. Awards ₹500 bonus to referrer
+5. Recalculates referrer's multiplier
+6. Sends notification to both users
+
+**Multiplier Calculation:**
+- Count active referrals (status='completed')
+- Determine tier and set multiplier
+- Multiplier applies to ALL bonuses (progressive, milestone, consistency)
+- Updates retroactively for current month
+
+**Sharing Features:**
+- Generated referral link: https://preiposip.com/signup?ref=RAJESH5678
+- WhatsApp share with pre-filled message
+- Social media share buttons
+- QR code download
+- Email invitations
+
+---
+
+### 4.9 Lucky Draw System
+
+**Draw Creation (Monthly):**
+1. Admin creates draw on 1st of month
+2. Sets draw_date (last day of month)
+3. Defines prize structure:
+   - Rank 1: 1 × ₹50,000
+   - Rank 2: 4 × ₹10,000
+   - Rank 3: 10 × ₹2,000
+   - Rank 4: 85 × ₹500
+4. Total: 100 winners, ₹1,52,500 pool
+5. Status='open'
+
+**Entry Generation:**
+1. User makes on-time SIP payment
+2. System checks payment_date <= due_date
+3. If on-time: Generate entries based on plan
+   - Plan A: 1 entry
+   - Plan B: 3 entries
+   - Plan C: 5 entries
+   - Plan D: 10 entries
+4. For each entry:
+   - Generate unique 5-digit code (10000-99999)
+   - Create LuckyDrawEntry record
+5. Send entry confirmation to user
+
+**Draw Execution:**
+1. On draw_date, admin opens draw interface
+2. Completes pre-draw checklist
+3. Clicks "Start Draw"
+4. System uses cryptographically secure random selection
+5. For each rank:
+   - Randomly selects winner(s)
+   - Ensures no duplicates
+   - Marks entries as winners
+   - Records prize amounts
+6. Video recorded for transparency
+7. Status='drawn'
+
+**Prize Distribution:**
+1. Creates BonusTransaction for each winner
+2. Credits prizes to wallets
+3. Sends winner notifications
+4. Publishes results on website
+5. Status='completed'
+
+---
+
+### 4.10 Profit Sharing (Quarterly)
+
+**Profit Calculation:**
+1. On last day of quarter (Mar 31, Jun 30, Sep 30, Dec 31)
+2. Admin enters financial data:
+   - Total platform revenue for quarter
+   - Total platform costs for quarter
+   - Net profit = revenue - costs
+3. For each plan:
+   - Get share percentage (5%, 10%, 15%, 20%)
+   - Get all active subscriptions for plan
+   - Calculate total investment by plan users
+4. For each user:
+   - user_share = (user_investment / total_plan_investment) × plan_pool
+5. Creates UserProfitShare records
+
+**Distribution:**
+1. Admin reviews calculated distribution
+2. Approves with password confirmation
+3. System creates BonusTransaction for each user
+4. Credits profit share to each user
+5. Sends notification emails
+6. Status='distributed'
+
+**Transparency:**
+- Quarterly financial report published
+- Audited statements available
+- User dashboard shows calculation breakdown
+
+---
+
+### 4.11 Support System
+
+**Ticket Creation:**
+1. User clicks "Create Ticket" in support
+2. Fills form:
+   - Subject (required)
+   - Category: Technical, Investment, Payment, KYC, etc.
+   - Priority: Low, Medium, High, Urgent
+   - Message (detailed description)
+   - Attachments (optional, max 5MB each)
+3. Submits form
+4. System generates unique ticket_number
+5. Creates SupportTicket record (status='open')
+6. Auto-assigns to support team
+7. Sends confirmation email with ticket number
+
+**Ticket Communication:**
+1. User/Admin posts reply
+2. Creates SupportMessage record
+3. Updates ticket.updated_at
+4. Changes status:
+   - If admin replies: status='replied'
+   - If user replies: status='waiting'
+5. Notifies other party via email
+6. Email includes reply and link to ticket
+
+**Ticket Resolution:**
+1. Support agent resolves issue
+2. Posts resolution message
+3. Changes status='resolved'
+4. Records resolved_at timestamp
+5. Sends closure notification
+6. Requests user rating (1-5 stars)
+7. User can reopen within 7 days if needed
+
+**Live Chat (Future):**
+- Real-time messaging
+- Online/offline status
+- Typing indicators
+- File sharing
+- Auto-creates ticket from chat transcript
+
+---
+
+## 5. NON-FUNCTIONAL REQUIREMENTS
+
+### 5.1 Performance Requirements
+
+**Response Times:**
+- Page load: < 2 seconds (95th percentile)
+- API response: < 500ms (95th percentile)
+- Database queries: < 100ms average
+- Payment processing: < 5 seconds end-to-end
+
+**Throughput:**
+- Support 10,000 concurrent users
+- Handle 100 requests/second sustained
+- Handle 500 requests/second peak (payment due dates)
+- Process 1,000 bonus calculations/minute
+
+**Optimization Techniques:**
+- Database query optimization (indexes, caching)
+- Redis caching for session and frequently accessed data
+- CDN for static assets (images, CSS, JS)
+- Lazy loading for images
+- Code splitting for JavaScript
+- Gzip compression
+- Browser caching headers
+
+---
+
+### 5.2 Security Requirements
+
+**Authentication & Authorization:**
+- JWT token-based authentication
+- Token expiry: 30 days (configurable)
+- Refresh token mechanism
+- Role-based access control (User, Admin, Support, Finance)
+- Session management with Redis
+
+**Data Security:**
+- HTTPS/TLS 1.3 for all connections
+- Database encryption at rest (AES-256)
+- Encrypt sensitive fields (Aadhaar, PAN) in database
+- Encrypt files on storage (S3 encryption)
+- Secure random token generation
+- CSRF protection enabled
+- XSS prevention (output escaping)
+- SQL injection prevention (prepared statements)
+
+**Password Security:**
+- Bcrypt hashing (cost factor 10)
+- Minimum 8 characters
+- Require uppercase, lowercase, number
+- Password history (last 3)
+- Password reset via email token (1-hour expiry)
+
+**File Upload Security:**
+- Whitelist allowed file types (JPG, PNG, PDF)
+- Maximum file size limits (5MB)
+- Virus scanning (ClamAV integration)
+- Store outside web root
+- Random filename generation
+- Content-type validation
+
+**API Security:**
+- Rate limiting (100 requests/15 minutes per IP)
+- IP whitelisting for admin panel
+- API key authentication for external integrations
+- Webhook signature verification
+- Request validation and sanitization
+
+**Audit Trail:**
+- Log all admin actions
+- Log all financial transactions
+- Log all KYC decisions
+- Immutable audit logs
+- Retention: 7 years (compliance)
+
+---
+
+### 5.3 Reliability Requirements
+
+**Availability:**
+- 99.9% uptime target (8.76 hours downtime/year)
+- Scheduled maintenance windows (announce 48 hours prior)
+- Automatic failover for critical services
+- Health check monitoring (every 1 minute)
+
+**Data Integrity:**
+- ACID compliance for all transactions
+- Database backups every 6 hours
+- Transaction logs for point-in-time recovery
+- Checksum verification for critical data
+- Data validation at multiple layers
+
+**Error Handling:**
+- Graceful error handling (no white screens)
+- User-friendly error messages
+- Detailed error logging (stack traces)
+- Automatic error reporting (Sentry integration)
+- Rollback mechanisms for failed operations
+
+**Disaster Recovery:**
+- Daily full backups
+- Offsite backup storage (AWS S3)
+- Backup retention: 30 days
+- Recovery Time Objective (RTO): 4 hours
+- Recovery Point Objective (RPO): 6 hours
+- Monthly backup restoration testing
+
+---
+
+### 5.4 Usability Requirements
+
+**User Interface:**
+- Responsive design (mobile, tablet, desktop)
+- Mobile-first approach
+- Consistent design language (colors, fonts, spacing)
+- Accessible (WCAG 2.1 Level AA)
+- Support major browsers:
+  - Chrome 90+
+  - Firefox 88+
+  - Safari 14+
+  - Edge 90+
+  - Mobile browsers (iOS Safari, Chrome Mobile)
+
+**User Experience:**
+- Maximum 3 clicks to any action
+- Clear call-to-action buttons
+- Progress indicators for multi-step forms
+- Contextual help text and tooltips
+- Empty states with guidance
+- Confirmation dialogs for destructive actions
+- Undo functionality where applicable
+
+**Loading States:**
+- Skeleton loaders for content
+- Progress bars for file uploads
+- Spinners for API calls
+- "Processing..." overlays for long operations
+- Disable buttons during processing
+
+**Feedback:**
+- Success messages (green toast notifications)
+- Error messages (red toast notifications)
+- Warning messages (yellow)
+- Info messages (blue)
+- Auto-dismiss after 5 seconds
+- Close button for manual dismiss
+
+**Localization:**
+- Support English (primary)
+- Support Hindi (secondary)
+- Currency formatting: ₹ symbol, Indian numbering (lakhs, crores)
+- Date formatting: DD/MM/YYYY
+- Time formatting: 12-hour with AM/PM
+- Right-to-left (RTL) support not required (Phase 1)
+
+---
+
+### 5.5 Compatibility Requirements
+
+**Browser Compatibility:**
+- Desktop:
+  - Google Chrome 90+
+  - Mozilla Firefox 88+
+  - Apple Safari 14+
+  - Microsoft Edge 90+
+  - Opera 76+
+- Mobile:
+  - iOS Safari 14+
+  - Chrome Mobile 90+
+  - Samsung Internet 14+
+  - UC Browser (basic support)
+
+**Device Compatibility:**
+- Desktop: Windows, macOS, Linux
+- Tablets: iPad, Android tablets (10"+)
+- Smartphones: iPhone 8+, Android 8+
+- Screen sizes: 320px to 2560px width
+
+**Network Compatibility:**
+- Works on 2G, 3G, 4G, 5G, WiFi
+- Progressive enhancement (faster on better networks)
+- Offline capability (view cached data) - Future
+- Adaptive image quality based on connection
+
+---
+
+### 5.6 Scalability Requirements
+
+**Horizontal Scaling:**
+- Stateless application servers (can add more servers)
+- Load balancer (Nginx/AWS ALB) distributes traffic
+- Session storage in Redis (shared across servers)
+- File storage on S3 (not on local disk)
+
+**Database Scaling:**
+- Master-slave replication (read replicas)
+- Write operations on master
+- Read operations on slaves
+- Connection pooling
+- Query optimization
+
+**Caching Strategy:**
+- Redis for session storage
+- Redis for frequently accessed data (plans, products)
+- Browser caching for static assets
+- CDN for images and files
+- Cache invalidation on data updates
+
+**Queue System:**
+- Laravel Queue with Redis driver
+- Async processing for:
+  - Email sending
+  - SMS sending
+  - Bonus calculations
+  - Report generation
+  - File processing
+- Retry mechanism for failed jobs
+- Dead letter queue for permanent failures
+
+---
+
+### 5.7 Maintainability Requirements
+
+**Code Quality:**
+- Follow PSR-12 coding standards
+- Meaningful variable and function names
+- Comments for complex logic
+- DRY principle (Don't Repeat Yourself)
+- SOLID principles
+- Design patterns where applicable
+
+**Testing:**
+- Unit tests (PHPUnit) - 80% coverage target
+- Integration tests for APIs
+- Feature tests for critical flows
+- Automated testing in CI/CD pipeline
+- Manual UAT before releases
+
+**Documentation:**
+- Code comments for complex functions
+- API documentation (OpenAPI/Swagger)
+- Database schema documentation
+- Deployment guide
+- Admin user guide
+- Developer onboarding guide
+
+**Version Control:**
+- Git repository (GitHub/GitLab)
+- Branching strategy:
+  - main: Production code
+  - staging: QA environment
+  - develop: Integration branch
+  - feature/*: Feature branches
+- Pull request reviews required
+- Semantic versioning (v1.2.3)
+
+**Logging:**
+- Structured logging (JSON format)
+- Log levels: DEBUG, INFO, WARNING, ERROR, CRITICAL
+- Separate logs for:
+  - Application (laravel.log)
+  - Web server (access.log, error.log)
+  - Database (mysql-slow.log)
+  - Queue workers (queue.log)
+- Log rotation (keep 30 days)
+- Centralized logging (ELK stack) - Future
+
+**Monitoring:**
+- Application performance monitoring (Laravel Telescope/New Relic)
+- Server resource monitoring (CPU, RAM, disk, network)
+- Database query monitoring
+- Error rate monitoring
+- Uptime monitoring (Pingdom/UptimeRobot)
+- Alert thresholds configured
+- On-call rotation for critical alerts
+
+---
+
+### 5.8 Deployment Requirements
+
+**Server Requirements:**
+- OS: Ubuntu 20.04 LTS or higher
+- CPU: 4 cores minimum (8 cores recommended)
+- RAM: 8GB minimum (16GB recommended)
+- Storage: 100GB SSD minimum (500GB recommended)
+- Network: 1 Gbps connection
+
+**Software Stack:**
+- Web Server: Nginx 1.18+ or Apache 2.4+
+- PHP: 8.3+
+- PHP Extensions: mbstring, xml, pdo, mysql, redis, gd, curl, zip, bcmath
+- MySQL: 8.0+
+- Redis: 6.0+
+- Composer: 2.x
+- Node.js: 18+ (for asset compilation)
+- Supervisor: For queue workers
+
+**Domain & SSL:**
+- Domain: preiposip.com
+- SSL Certificate: Let's Encrypt (auto-renewal via Certbot)
+- HTTPS redirect enabled
+- HSTS header enabled
+- Cloudflare CDN (optional)
+
+**Deployment Process:**
+- Zero-downtime deployments
+- Automated deployment pipeline (GitHub Actions/GitLab CI)
+- Deployment steps:
+  1. Git pull latest code
+  2. Composer install (production mode)
+  3. npm install && npm run build
+  4. PHP artisan migrate (database migrations)
+  5. PHP artisan config:cache
+  6. PHP artisan route:cache
+  7. PHP artisan view:cache
+  8. Reload PHP-FPM
+  9. Reload queue workers
+- Rollback capability (previous version tagged)
+- Database backup before each deployment
+
+**Environment Management:**
+- Development: Local (XAMPP/Laragon/Docker)
+- Staging: Testing server (mirror of production)
+- Production: Live server
+- Environment variables (.env file)
+- Separate databases for each environment
+
+---
+
+## 6. DESIGN SPECIFICATIONS
+
+### 6.1 Visual Design Guidelines
+
+**Color Palette:**
+- Primary: #1E40AF (Blue) - Trust, security
+- Secondary: #10B981 (Green) - Growth, positive
+- Accent: #F59E0B (Amber) - Attention, highlights
+- Success: #10B981 (Green)
+- Warning: #F59E0B (Amber)
+- Error: #EF4444 (Red)
+- Info: #3B82F6 (Blue)
+- Background: #FFFFFF (White)
+- Surface: #F9FAFB (Light Gray)
+- Text Primary: #111827 (Near Black)
+- Text Secondary: #6B7280 (Gray)
+
+**Typography:**
+- Font Family: Inter, system-ui, sans-serif
+- Headings: Bold, 600-700 weight
+- Body: Regular, 400 weight
+- Font Sizes:
+  - H1: 2.5rem (40px)
+  - H2: 2rem (32px)
+  - H3: 1.5rem (24px)
+  - H4: 1.25rem (20px)
+  - Body: 1rem (16px)
+  - Small: 0.875rem (14px)
+  - Tiny: 0.75rem (12px)
+- Line Height: 1.5 for body, 1.2 for headings
+
+**Spacing:**
+- Base unit: 4px
+- Common spacing: 4px, 8px, 12px, 16px, 20px, 24px, 32px, 48px, 64px
+- Component padding: 16px (mobile), 24px (desktop)
+- Section padding: 48px (mobile), 96px (desktop)
+
+**Components:**
+- Buttons:
+  - Height: 40px (small), 48px (medium), 56px (large)
+  - Border radius: 8px
+  - Primary: Blue background, white text
+  - Secondary: White background, blue border, blue text
+  - Disabled: Gray background, gray text
+- Input fields:
+  - Height: 40px (small), 48px (medium)
+  - Border: 1px solid gray
+  - Focus: 2px blue border
+  - Border radius: 6px
+- Cards:
+  - Background: White
+  - Border: 1px solid light gray
+  - Border radius: 12px
+  - Shadow: 0 1px 3px rgba(0,0,0,0.1)
+  - Hover: Shadow increases
+- Tables:
+  - Header: Gray background, bold text
+  - Rows: Alternating white/light gray
+  - Hover: Light blue background
+  - Border: 1px solid light gray
+
+**Icons:**
+- Icon library: Heroicons or Lucide React
+- Size: 16px (small), 20px (medium), 24px (large)
+- Color: Match text color or brand colors
+
+**Images:**
+- Hero images: High quality, professional
+- User avatars: Circle, 40px-64px
+- Product logos: Square/rectangle, 100px-200px
+- Illustrations: Flat design, consistent style
+- Optimize for web (WebP format preferred)
+
+---
+
+### 6.2 Responsive Design
+
+**Breakpoints:**
+- Mobile: < 640px
+- Tablet: 640px - 1024px
+- Desktop: > 1024px
+- Large Desktop: > 1440px
+
+**Layout Adjustments:**
+- Mobile:
+  - Single column layout
+  - Stack cards vertically
+  - Hamburger menu for navigation
+  - Full-width buttons
+  - Bottom navigation bar
+- Tablet:
+  - 2-column layout for cards
+  - Expanded sidebar (optional)
+  - Larger touch targets
+- Desktop:
+  - Multi-column layouts
+  - Sidebar navigation
+  - Hover states enabled
+  - Larger data tables
+
+**Touch Optimization:**
+- Minimum touch target: 44px × 44px
+- Adequate spacing between clickable elements
+- Swipe gestures for carousels
+- Pull-to-refresh (mobile)
+
+---
+
+### 6.3 Accessibility
+
+**WCAG 2.1 Level AA Compliance:**
+- Color contrast ratio: 4.5:1 for normal text, 3:1 for large text
+- Keyboard navigation support
+- Focus indicators visible
+- Alt text for all images
+- Semantic HTML (headings, lists, landmarks)
+- ARIA labels where needed
+- Form labels associated with inputs
+- Error messages clearly visible
+- Skip to main content link
+
+**Screen Reader Support:**
+- Meaningful page titles
+- Descriptive link text (no "click here")
+- Image alt attributes
+- Table headers and captions
+- Form field labels and hints
+
+**Keyboard Navigation:**
+- Tab order logical
+- All interactive elements reachable
+- Keyboard shortcuts (optional)
+- Escape key closes modals
+- Enter key submits forms
+
+---
+
+## 7. INTEGRATION REQUIREMENTS
+
+### 7.1 Payment Gateway Integration
+
+**Razorpay:**
+- API version: v1
+- Authentication: Key ID + Key Secret
+- Endpoints used:
+  - POST /v1/orders - Create order
+  - POST /v1/payments/{payment_id}/capture - Capture payment
+  - POST /v1/refunds - Initiate refund
+- Webhooks:
+  - payment.captured
+  - payment.failed
+  - refund.created
+- Webhook authentication: Verify signature
+- Test mode and live mode supported
+
+**PayU (Backup):**
+- Similar integration as Razorpay
+- Merchant Key and Salt
+- Hash validation for security
+
+---
+
+### 7.2 Communication Services
+
+**SendGrid (Email):**
+- API version: v3
+- Authentication: API Key
+- Features:
+  - Transactional emails
+  - Email templates
+  - Personalization
+  - Analytics (open, click rates)
+- Rate limit: 100,000 emails/day (starter plan)
+
+**MSG91 (SMS):**
+- API version: v5
+- Authentication: Auth Key
+- Features:
+  - Send SMS
+  - Send OTP
+  - Verify OTP
+  - DLR (Delivery reports)
+- Route: Transactional
+- Sender ID: PREIPO
+
+---
+
+### 7.3 KYC Verification APIs
+
+**DigiLocker:**
+- OAuth 2.0 authentication
+- Fetch Aadhaar eDocument
+- Extract: Name, DOB, Address, Gender, Photo
+- Requires user consent
+
+**Income Tax Department:**
+- PAN verification API
+- Validate PAN number
+- Check PAN status (active/inactive)
+- Name matching
+
+**Penny Drop (Bank Verification):**
+- Transfer ₹1 to account
+- Verify account active and name matches
+- Instant verification
+
+---
+
+### 7.4 File Storage
+
+**AWS S3:**
+- Store KYC documents
+- Store generated reports
+- Store user avatars
+- Encryption at rest enabled
+- Versioning enabled (optional)
+- Lifecycle policies for old files
+- CDN via CloudFront (optional)
+
+**Local Storage (Alternative):**
+- Store files in storage/app directory
+- Outside public web root
+- Encryption via Laravel filesystem
+- Regular backups included
+
+---
+
+## 8. TESTING REQUIREMENTS
+
+### 8.1 Testing Strategy
+
+**Unit Testing:**
+- Framework: PHPUnit
+- Target coverage: 80%
+- Test all models, services, utilities
+- Mock external dependencies
+- Run before each commit
+
+**Integration Testing:**
+- Test API endpoints
+- Test database transactions
+- Test payment gateway integration (test mode)
+- Test email/SMS delivery (test accounts)
+
+**Functional Testing:**
+- Test complete user flows
+- Test admin workflows
+- Test edge cases and error conditions
+- Cross-browser testing
+
+**User Acceptance Testing (UAT):**
+- Beta testing with 100 real users
+- Gather feedback via surveys
+- Fix critical issues before launch
+- Iterative improvements
+
+**Performance Testing:**
+- Load testing: Apache JMeter
+- Simulate 10,000 concurrent users
+- Stress testing to find breaking point
+- Database performance testing
+- Identify and fix bottlenecks
+
+**Security Testing:**
+- Penetration testing (external agency)
+- Vulnerability scanning (OWASP ZAP)
+- SQL injection testing
+- XSS testing
+- Authentication and authorization testing
+- Data encryption verification
+
+---
+
+## 9. LAUNCH CHECKLIST
+
+### 9.1 Pre-Launch Checklist
+
+**Technical:**
+- [ ] Production server setup and configured
+- [ ] Domain and SSL certificate configured
+- [ ] Database backup strategy in place
+- [ ] All environment variables set correctly
+- [ ] Payment gateways in live mode
+- [ ] Email/SMS services configured and tested
+- [ ] Error reporting (Sentry) configured
+- [ ] Monitoring tools (uptime, performance) configured
+- [ ] Security audit completed
+- [ ] Performance testing completed
+- [ ] All critical bugs fixed
+- [ ] Backup and disaster recovery tested
+
+**Content:**
+- [ ] All pages reviewed and proofread
+- [ ] All images optimized
+- [ ] FAQs completed
+- [ ] Terms & Conditions finalized
+- [ ] Privacy Policy finalized
+- [ ] Refund/Cancellation Policy finalized
+- [ ] Email templates reviewed
+- [ ] SMS templates reviewed
+
+**Legal & Compliance:**
+- [ ] SEBI registration completed
+- [ ] Business entity registered
+- [ ] Tax registrations (GST, etc.) completed
+- [ ] Legal agreements reviewed by lawyer
+- [ ] Insurance policies in place
+- [ ] Compliance checklist reviewed
+
+**Marketing:**
+- [ ] Social media accounts created
+- [ ] Google Analytics configured
+- [ ] Facebook Pixel configured
+- [ ] Launch announcement prepared
+- [ ] Press release prepared
+- [ ] Influencer partnerships confirmed
+- [ ] First 100 users campaign ready
+
+**Operations:**
+- [ ] Customer support team trained
+- [ ] Admin panel user guide completed
+- [ ] Support ticket system ready
+- [ ] Payment processing workflow documented
+- [ ] KYC verification workflow documented
+- [ ] Escalation process defined
+- [ ] SLAs defined and communicated
+
+---
+
+### 9.2 Launch Day Checklist
+
+- [ ] Final code deployment
+- [ ] Database migrations run
+- [ ] Cache cleared
+- [ ] Queue workers started
+- [ ] All services running (web, database, redis, queue)
+- [ ] Smoke testing (test all critical paths)
+- [ ] Monitor error logs continuously
+- [ ] Monitor server resources
+- [ ] Team on standby for issues
+- [ ] Announcement posted on social media
+- [ ] Email sent to waitlist
+- [ ] Track registrations and issues
+- [ ] Daily wrap-up meeting
+
+---
+
+### 9.3 Post-Launch Checklist
+
+**First Week:**
+- [ ] Monitor user registrations daily
+- [ ] Monitor KYC submissions and processing time
+- [ ] Monitor payment success rate
+- [ ] Monitor support tickets and response time
+- [ ] Monitor server performance and errors
+- [ ] Gather user feedback
+- [ ] Fix critical bugs immediately
+- [ ] Daily team meetings
+
+**First Month:**
+- [ ] Review user acquisition metrics
+- [ ] Review conversion funnel
+- [ ] Review retention metrics
+- [ ] Analyze user behavior (Google Analytics)
+- [ ] Collect and prioritize feature requests
+- [ ] Plan first set of improvements
+- [ ] Scale infrastructure if needed
+
+---
+
+## 10. FUTURE ENHANCEMENTS (Phase 2)
+
+### 10.1 Mobile Apps
+- iOS app (Swift/React Native)
+- Android app (Kotlin/React Native)
+- Push notifications
+- Biometric authentication
+- Offline viewing
+
+### 10.2 Advanced Features
+- Goal-based investing (SIP for specific goals)
+- Auto-invest (recurring deposits)
+- Tax optimization suggestions
+- Portfolio rebalancing
+- Secondary market for pre-IPO shares
+- International pre-IPO products
+- Fractional investing (invest in expensive products with small amounts)
+
+### 10.3 Gamification
+- Investment badges and achievements
+- Leaderboards (top investors, referrers)
+- Streak bonuses for consecutive investments
+- Community challenges
+- Investment milestones celebrations
+
+### 10.4 Social Features
+- User community/forum
+- Investment groups
+- Share achievements on social media
+- Success stories
+- Educational content (blogs, videos, webinars)
+
+### 10.5 AI/ML Features
+- Personalized investment recommendations
+- Risk profiling
+- Chatbot support (24/7)
+- Fraud detection
+- Predictive analytics for product performance
+
+---
+
+## 11. GLOSSARY
+
+**Terms and Definitions:**
+
+- **Pre-IPO**: Shares of a company purchased before its Initial Public Offering
+- **SIP**: Systematic Investment Plan - recurring monthly investment
+- **BV**: Business Volume - face value of shares allocated
+- **Face Value**: Original value of shares at time of allocation
+- **Market Value**: Current trading value of shares (after IPO)
+- **Progressive Bonus**: Monthly bonus that increases over time
+- **Milestone Bonus**: One-time bonus at 12, 24, 36 months
+- **Referral Multiplier**: Factor that multiplies all bonuses
+- **Lucky Draw**: Monthly prize distribution system
+- **Profit Sharing**: Quarterly distribution of platform profits
+- **Consistency Bonus**: Bonus for making on-time payments
+- **Celebration Bonus**: Birthday/anniversary bonuses
+- **Exit Fee**: Fee charged when selling shares (currently 0%)
+- **KYC**: Know Your Customer - identity verification
+- **Demat**: Dematerialized account for holding shares electronically
+- **UTR**: Unique Transaction Reference number for bank transfers
+- **DP**: Depository Participant - entity holding demat accounts
+
+---
+
+## 12. APPENDICES
+
+### 12.1 Wireframes
+- (To be created in design phase)
+- All major pages wireframed
+- User flows documented visually
+
+### 12.2 Mockups
+- (To be created in design phase)
+- High-fidelity designs for all pages
+- Mobile and desktop versions
+
+### 12.3 User Journey Maps
+- (To be created in design phase)
+- Complete user journey from discovery to exit
+- Admin journey maps
+
+### 12.4 API Documentation
+- (Refer to separate API documentation)
+- All endpoints documented
+- Request/response examples
+- Authentication methods
+
+### 12.5 Database Schema
+- (Refer to database_schema.sql)
+- All tables and relationships
+- Indexes and constraints
+
+---
+
+## 13. DOCUMENT CONTROL
+
+**Version History:**
+- v1.0 - November 4, 2024 - Initial WRD creation
+
+**Document Owner:**
+- Product Manager: _______________
+- Lead Designer: _______________
+
+**Approval Signatures:**
+- Product Owner: _______________
+- Technical Lead: _______________
+- Design Lead: _______________
+- Project Manager: _______________
+
+**Review Schedule:**
+- Review every 2 weeks during development
+- Update based on feedback and changes
+- Final review before launch
+
+---
+
+**END OF WEBSITE REQUIREMENTS DOCUMENT**

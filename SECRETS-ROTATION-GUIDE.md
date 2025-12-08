@@ -9,12 +9,12 @@
 
 ## 📋 Table of Contents
 
-1. [Overview](#overview)
-2. [Secrets Inventory](#secrets-inventory)
-3. [Rotation Schedule](#rotation-schedule)
-4. [Rotation Procedures](#rotation-procedures)
-5. [Emergency Rotation](#emergency-rotation)
-6. [Audit & Compliance](#audit--compliance)
+1. [Overview]			(#overview)
+2. [Secrets Inventory]		(#secrets-inventory)
+3. [Rotation Schedule]		(#rotation-schedule)
+4. [Rotation Procedures]	(#rotation-procedures)
+5. [Emergency Rotation]		(#emergency-rotation)
+6. [Audit & Compliance]		(#audit--compliance)
 
 ---
 
@@ -35,40 +35,38 @@ This guide outlines procedures for rotating cryptographic keys, API tokens, pass
 
 ### 1. Application Secrets (Laravel Backend)
 
-| Secret | Location | Rotation Frequency | Priority |
-|--------|----------|-------------------|----------|
-| `APP_KEY` | `.env` | Annually | HIGH |
-| `DB_PASSWORD` | `.env` | Quarterly | CRITICAL |
-| `JWT_SECRET` | `.env` | Quarterly | HIGH |
-| `SESSION_SECRET` | `.env` | Quarterly | HIGH |
+| Secret 		| Location 	| Rotation Frequency 	| Priority |
+|-----------------------|---------------|-----------------------|----------|
+| `APP_KEY` 		| `.env` 	| Annually 		| HIGH 	   |
+| `DB_PASSWORD` 	| `.env` 	| Quarterly 		| CRITICAL |
+| `JWT_SECRET` 		| `.env` 	| Quarterly 		| HIGH     |
+| `SESSION_SECRET` 	| `.env` 	| Quarterly 		| HIGH     |
 
 ### 2. Third-Party API Keys
 
-| Service | Secret Keys | Rotation Frequency | Priority |
-|---------|-------------|-------------------|----------|
-| **Razorpay** | `RAZORPAY_KEY`, `RAZORPAY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` | Annually | CRITICAL |
-| **SMS Gateway** | `SMS_API_KEY`, `SMS_API_SECRET` | Annually | HIGH |
-| **Email Provider** | `MAIL_PASSWORD`, `SENDGRID_API_KEY` | Annually | MEDIUM |
-| **DigiLocker** | `DIGILOCKER_CLIENT_ID`, `DIGILOCKER_CLIENT_SECRET` | Annually | HIGH |
-| **Sentry** | `SENTRY_DSN`, `SENTRY_AUTH_TOKEN` | Annually | LOW |
+| Service 		| Secret Keys 							| Rotation Frequency 	| Priority 	|
+|-----------------------|---------------------------------------------------------------|-----------------------|---------------|
+| **Razorpay** 		| `RAZORPAY_KEY`, `RAZORPAY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` 	| Annually 		| CRITICAL 	|
+| **SMS Gateway** 	| `SMS_API_KEY`, `SMS_API_SECRET` 				| Annually 		| HIGH 		|
+| **Email Provider** 	| `MAIL_PASSWORD`, `SENDGRID_API_KEY` 				| Annually 		| MEDIUM 	|
+| **DigiLocker** 	| `DIGILOCKER_CLIENT_ID`, `DIGILOCKER_CLIENT_SECRET` 		| Annually 		| HIGH 		|
+| **Sentry** 		| `SENTRY_DSN`, `SENTRY_AUTH_TOKEN` 				| Annually 		| LOW 		|
 
 ### 3. Storage & Infrastructure
 
-| Secret | Location | Rotation Frequency | Priority |
-|--------|----------|-------------------|----------|
-| SSH Keys | Server | Annually | HIGH |
-| SSL/TLS Certificates | Web Server | 90 days (auto) | CRITICAL |
-| Database Admin Password | Database Server | Quarterly | CRITICAL |
-| Redis Password | Redis Server | Quarterly | MEDIUM |
+| Secret 			| Location 		| Rotation Frequency 	| Priority 	|
+|-------------------------------|-----------------------|-----------------------|---------------|
+| SSH Keys 			| Server 		| Annually 		| HIGH 		|
+| SSL/TLS Certificates 		| Web Server 		| 90 days (auto) 	| CRITICAL 	|
+| Database Admin Password 	| Database Server 	| Quarterly 		| CRITICAL 	|
+| Redis Password 		| Redis Server 		| Quarterly 		| MEDIUM 	|
 
 ### 4. Frontend Secrets
 
-| Secret | Location | Rotation Frequency | Priority |
-|--------|----------|-------------------|----------|
-| `NEXT_PUBLIC_ENCRYPTION_KEY` | Frontend `.env` | Annually | MEDIUM |
-| Sentry DSN | Frontend `.env` | As needed | LOW |
-
----
+| Secret 			| Location 		| Rotation Frequency 	| Priority |
+|-------------------------------|-----------------------|-----------------------|----------|
+| `NEXT_PUBLIC_ENCRYPTION_KEY` 	| Frontend `.env` 	| Annually 		| MEDIUM   |
+| Sentry DSN 			| Frontend `.env` 	| As needed 		| LOW 	   |
 
 ## Rotation Schedule
 
@@ -96,8 +94,6 @@ This guide outlines procedures for rotating cryptographic keys, API tokens, pass
 - [ ] When employee with access leaves
 - [ ] When credential appears in public repository
 - [ ] When service provider recommends rotation
-
----
 
 ## Rotation Procedures
 
@@ -147,8 +143,6 @@ php artisan config:clear
 sudo systemctl restart php-fpm
 ```
 
----
-
 ### 2. Database Password Rotation
 
 **When to Rotate:** Quarterly
@@ -189,8 +183,6 @@ curl https://yourdomain.com/health
 
 **Rollback Plan:**
 Keep old password active for 24 hours, update back if needed.
-
----
 
 ### 3. Razorpay API Keys Rotation
 
@@ -244,8 +236,6 @@ php artisan tinker
 >>> $order->id; // Should return order ID
 ```
 
----
-
 ### 4. JWT Secret Rotation
 
 **When to Rotate:** Quarterly
@@ -277,8 +267,6 @@ sudo systemctl restart php-fpm
 # In-app notification: "Please log in again for security reasons"
 ```
 
----
-
 ### 5. Frontend Encryption Key Rotation
 
 **When to Rotate:** Annually
@@ -306,8 +294,6 @@ npm run build
 # Step 5: Users will be prompted to log in again
 # The secureStorage utility handles migration gracefully
 ```
-
----
 
 ## Emergency Rotation
 
@@ -341,15 +327,11 @@ npm run build
    - Check for data exfiltration
    - Verify rotation success
 
----
-
 ## Audit & Compliance
 
 ### Rotation Tracking
 
 Maintain a log of all rotations:
-
-```
 Date: 2025-11-26
 Secret: DB_PASSWORD
 Rotated By: admin@company.com
@@ -386,14 +368,12 @@ Issues: None
 
 ### Compliance Requirements
 
-| Standard | Requirement | Our Practice |
-|----------|-------------|--------------|
-| **PCI DSS** | Rotate keys annually | ✅ Annually |
-| **SOC 2** | Document rotation policy | ✅ This document |
-| **ISO 27001** | Regular key management review | ✅ Quarterly review |
-| **GDPR** | Encrypt sensitive data | ✅ Multiple layers |
-
----
+| Standard 	| Requirement 			| Our Practice 		|
+|---------------|-------------------------------|-----------------------|
+| **PCI DSS** 	| Rotate keys annually 		| ✅ Annually 		|
+| **SOC 2** 	| Document rotation policy 	| ✅ This document 	|
+| **ISO 27001** | Regular key management review | ✅ Quarterly review 	|
+| **GDPR**	| Encrypt sensitive data 	| ✅ Multiple layers 	|
 
 ## Tools & Automation
 
@@ -440,8 +420,6 @@ echo "Backup created. Proceed with manual updates."
 echo "Follow the procedures in SECRETS-ROTATION-GUIDE.md"
 ```
 
----
-
 ## Contact & Support
 
 **Security Team:**
@@ -453,8 +431,6 @@ echo "Follow the procedures in SECRETS-ROTATION-GUIDE.md"
 - Level 1: Team Lead
 - Level 2: CTO
 - Level 3: CEO
-
----
 
 ## Appendix
 
@@ -509,7 +485,6 @@ echo "Follow the procedures in SECRETS-ROTATION-GUIDE.md"
 - [ ] Train team on lessons learned
 ```
 
----
 
 **Document Maintainer:** Security Team
 **Next Review Date:** February 26, 2026

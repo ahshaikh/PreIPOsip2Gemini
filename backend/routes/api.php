@@ -590,6 +590,12 @@ Route::prefix('v1')->group(function () {
                     Route::get('/{id}/download', [FinancialReportController::class, 'download']);
                 });
 
+                // Help-Center Articles Management
+                Route::get('/articles', [ArticleController::class, 'index']);
+                Route::put('/articles/{id}', [ArticleController::class, 'update']);
+                Route::delete('/articles/{id}', [ArticleController::class, 'destroy']);
+                Route::post('/categories', [CategoryController::class, 'store']);
+
                 // Documents Management
                 Route::prefix('documents')->group(function () {
                     Route::get('/', [CompanyDocumentController::class, 'index']);

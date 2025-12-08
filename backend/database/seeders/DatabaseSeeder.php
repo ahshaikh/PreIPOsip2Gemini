@@ -19,7 +19,7 @@ class DatabaseSeeder extends Seeder
         $this->call(SettingsSeeder::class);   // <-- Includes all settings
 
         // 2. Core Content Seeders (Plans, Products, CMS)
-        $this->call(PlanSeed::class);
+        $this->call(PlanSeeder::class);
         $this->call(ProductSeeder::class);
         $this->call(HomePageSeeder::class);
 
@@ -48,7 +48,7 @@ class DatabaseSeeder extends Seeder
         // 9. --- "Chaos Seeder" ---
         // Only run this in 'local' or 'staging' environments
         if (App::environment(['local', 'staging'])) {
-            $this->call(FullSetupSeeder::class);
+            $this->call(TestDataSetSeeder::class);
         }
     }
 }

@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up()
 {
-    Schema::create('article_feedbacks', function (Blueprint $table) {
+    Schema::create('article_feedback', function (Blueprint $table) {
         $table->id();
         $table->string('article_id')->index(); // e.g., 'tx-1'
         $table->boolean('is_helpful'); // 1 = Yes, 0 = No
@@ -27,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('article_feedbacks');
+        Schema::dropIfExists('article_feedback');
     }
 };

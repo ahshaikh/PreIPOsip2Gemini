@@ -8,7 +8,7 @@ use App\Models\Plan;
 use Illuminate\Support\Str;
 use Illuminate\Support\Arr;
 
-class PlanSeed extends Seeder
+class PlanSeeder extends Seeder
 {
     public function run(): void
     {
