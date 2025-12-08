@@ -41,6 +41,9 @@ class PlanController extends Controller
             'min_investment' => 'nullable|numeric|min:0',
             'max_investment' => 'nullable|numeric|min:0',
             'display_order' => 'nullable|integer',
+            'billing_cycle' => 'nullable|in:weekly,bi-weekly,monthly,quarterly,yearly',
+            'trial_period_days' => 'nullable|integer|min:0',
+            'metadata' => 'nullable|json',
             'features' => 'nullable|array',
             'features.*.feature_text' => 'required|string',
             'configs' => 'nullable|array',
@@ -88,6 +91,9 @@ class PlanController extends Controller
             'min_investment' => 'nullable|numeric|min:0',
             'max_investment' => 'nullable|numeric|min:0',
             'display_order' => 'nullable|integer',
+            'billing_cycle' => 'nullable|in:weekly,bi-weekly,monthly,quarterly,yearly',
+            'trial_period_days' => 'nullable|integer|min:0',
+            'metadata' => 'nullable|json',
             'configs' => 'nullable|array',
         ]);
 

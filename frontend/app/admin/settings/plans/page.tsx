@@ -17,13 +17,17 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Plus, PlusCircle, Edit, Trash2, Copy, Users, IndianRupee, TrendingUp, Star, Calendar, Eye, MoreHorizontal, Gift, ShieldCheck, Sparkles, PartyPopper } from "lucide-react";
+import { Plus, PlusCircle, Edit, Trash2, Copy, Users, IndianRupee, TrendingUp, Star, Calendar, Eye, MoreHorizontal, Gift, ShieldCheck, Sparkles, PartyPopper, Tag, Clock } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BonusConfigDialog } from "@/components/admin/BonusConfigDialog";
 import { EligibilityConfigDialog } from "@/components/admin/EligibilityConfigDialog";
 import { AdvancedFeaturesDialog } from "@/components/admin/AdvancedFeaturesDialog";
 import { ProfitSharingConfigDialog } from "@/components/admin/ProfitSharingConfigDialog";
 import { CelebrationBonusConfigDialog } from "@/components/admin/CelebrationBonusConfigDialog";
+import { AutoDebitConfigDialog } from "@/components/admin/AutoDebitConfigDialog";
+import { DiscountConfigDialog } from "@/components/admin/DiscountConfigDialog";
+import { PlanAnalyticsDashboard } from "@/components/admin/PlanAnalyticsDashboard";
 
 // Helper to format date for input
 const formatDateForInput = (date: string | null) => {
@@ -80,6 +84,19 @@ export default function PlanManagerPage() {
   // Celebration Bonus Configuration State
   const [celebrationBonusConfigOpen, setCelebrationBonusConfigOpen] = useState(false);
   const [celebrationBonusConfigPlan, setCelebrationBonusConfigPlan] = useState<any>(null);
+
+  // Auto-Debit Configuration State
+  const [autoDebitConfigOpen, setAutoDebitConfigOpen] = useState(false);
+  const [autoDebitConfigPlan, setAutoDebitConfigPlan] = useState<any>(null);
+
+  // Discount Configuration State
+  const [discountConfigOpen, setDiscountConfigOpen] = useState(false);
+  const [discountConfigPlan, setDiscountConfigPlan] = useState<any>(null);
+
+  // Features 4, 5, 14 Form State
+  const [billingCycle, setBillingCycle] = useState<'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'yearly'>('monthly');
+  const [trialPeriodDays, setTrialPeriodDays] = useState('0');
+  const [metadata, setMetadata] = useState<Array<{key: string; value: string}>>([]);
 
   // Bulk Actions State
   const [selectedPlans, setSelectedPlans] = useState<number[]>([]);
@@ -208,6 +225,32 @@ export default function PlanManagerPage() {
     onError: (e: any) => toast.error("Failed to save celebration bonus configuration", { description: e.response?.data?.message })
   });
 
+  // Auto-Debit Configuration Mutation
+  const autoDebitConfigMutation = useMutation({
+    mutationFn: ({ planId, autoDebitConfig }: { planId: number; autoDebitConfig: any }) =>
+      api.put(`/admin/plans/${planId}`, { configs: { auto_debit_config: autoDebitConfig } }),
+    onSuccess: () => {
+      toast.success("Auto-debit configuration saved successfully!");
+      queryClient.invalidateQueries({ queryKey: ['adminPlans'] });
+      setAutoDebitConfigOpen(false);
+      setAutoDebitConfigPlan(null);
+    },
+    onError: (e: any) => toast.error("Failed to save auto-debit configuration", { description: e.response?.data?.message })
+  });
+
+  // Discount Configuration Mutation
+  const discountConfigMutation = useMutation({
+    mutationFn: ({ planId, discountConfig }: { planId: number; discountConfig: any }) =>
+      api.put(`/admin/plans/${planId}`, { configs: { discount_config: discountConfig } }),
+    onSuccess: () => {
+      toast.success("Discount configuration saved successfully!");
+      queryClient.invalidateQueries({ queryKey: ['adminPlans'] });
+      setDiscountConfigOpen(false);
+      setDiscountConfigPlan(null);
+    },
+    onError: (e: any) => toast.error("Failed to save discount configuration", { description: e.response?.data?.message })
+  });
+
   // Bulk Actions Mutations
   const bulkActivateMutation = useMutation({
     mutationFn: async (planIds: number[]) => {
@@ -241,6 +284,7 @@ export default function PlanManagerPage() {
     setMinInvestment(''); setMaxInvestment('');
     setDisplayOrder('0');
     setAllowPause(true); setMaxPauseCount('3'); setMaxPauseDuration('3'); setMaxSubscriptionsPerUser('1');
+    setBillingCycle('monthly'); setTrialPeriodDays('0'); setMetadata([]);
   };
 
   const addFeature = () => {
@@ -272,11 +316,20 @@ export default function PlanManagerPage() {
     setMaxPauseCount(plan.max_pause_count?.toString() || '3');
     setMaxPauseDuration(plan.max_pause_duration_months?.toString() || '3');
     setMaxSubscriptionsPerUser(plan.max_subscriptions_per_user?.toString() || '1');
+    setBillingCycle(plan.billing_cycle || 'monthly');
+    setTrialPeriodDays(plan.trial_period_days?.toString() || '0');
+    setMetadata(plan.metadata ? Object.entries(plan.metadata).map(([key, value]) => ({ key, value: String(value) })) : []);
     setIsDialogOpen(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Convert metadata array to object
+    const metadataObject = metadata.reduce((acc, { key, value }) => {
+      if (key.trim()) acc[key.trim()] = value;
+      return acc;
+    }, {} as Record<string, string>);
+
     const payload = {
         name,
         monthly_amount: parseFloat(monthlyAmount),
@@ -294,6 +347,9 @@ export default function PlanManagerPage() {
         max_pause_count: parseInt(maxPauseCount),
         max_pause_duration_months: parseInt(maxPauseDuration),
         max_subscriptions_per_user: parseInt(maxSubscriptionsPerUser),
+        billing_cycle: billingCycle,
+        trial_period_days: parseInt(trialPeriodDays),
+        metadata: Object.keys(metadataObject).length > 0 ? metadataObject : null,
     };
     mutation.mutate(payload);
   };
@@ -378,6 +434,34 @@ export default function PlanManagerPage() {
   const handleSaveCelebrationBonusConfig = (celebrationBonusConfig: any) => {
     if (!celebrationBonusConfigPlan) return;
     celebrationBonusConfigMutation.mutate({ planId: celebrationBonusConfigPlan.id, celebrationBonusConfig });
+  };
+
+  const handleAutoDebitConfig = (plan: any) => {
+    // Extract auto_debit_config from configs array
+    const configsArray = plan.configs || [];
+    const autoDebitConfig = configsArray.find((c: any) => c.config_key === 'auto_debit_config')?.value || {};
+
+    setAutoDebitConfigPlan({ ...plan, autoDebitConfig });
+    setAutoDebitConfigOpen(true);
+  };
+
+  const handleSaveAutoDebitConfig = (autoDebitConfig: any) => {
+    if (!autoDebitConfigPlan) return;
+    autoDebitConfigMutation.mutate({ planId: autoDebitConfigPlan.id, autoDebitConfig });
+  };
+
+  const handleDiscountConfig = (plan: any) => {
+    // Extract discount_config from configs array
+    const configsArray = plan.configs || [];
+    const discountConfig = configsArray.find((c: any) => c.config_key === 'discount_config')?.value || {};
+
+    setDiscountConfigPlan({ ...plan, discountConfig });
+    setDiscountConfigOpen(true);
+  };
+
+  const handleSaveDiscountConfig = (discountConfig: any) => {
+    if (!discountConfigPlan) return;
+    discountConfigMutation.mutate({ planId: discountConfigPlan.id, discountConfig });
   };
 
   // Bulk Actions Handlers
@@ -572,6 +656,88 @@ export default function PlanManagerPage() {
                 )}
               </div>
 
+              {/* Billing & Trial (Features 4 & 5) */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Billing & Trial</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Billing Cycle</Label>
+                    <Select value={billingCycle} onValueChange={(value: any) => setBillingCycle(value)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="bi-weekly">Bi-Weekly</SelectItem>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="quarterly">Quarterly</SelectItem>
+                        <SelectItem value="yearly">Yearly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">How often subscribers are billed</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Trial Period (Days)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={trialPeriodDays}
+                      onChange={(e) => setTrialPeriodDays(e.target.value)}
+                      placeholder="0"
+                    />
+                    <p className="text-xs text-muted-foreground">Days of free trial before first charge (0 = no trial)</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Custom Metadata (Feature 14) */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Custom Metadata</h4>
+                <div className="space-y-2">
+                  {metadata.map((meta, index) => (
+                    <div key={index} className="flex gap-2">
+                      <Input
+                        placeholder="Key"
+                        value={meta.key}
+                        onChange={(e) => {
+                          const newMetadata = [...metadata];
+                          newMetadata[index].key = e.target.value;
+                          setMetadata(newMetadata);
+                        }}
+                        className="flex-1"
+                      />
+                      <Input
+                        placeholder="Value"
+                        value={meta.value}
+                        onChange={(e) => {
+                          const newMetadata = [...metadata];
+                          newMetadata[index].value = e.target.value;
+                          setMetadata(newMetadata);
+                        }}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setMetadata(metadata.filter((_, i) => i !== index))}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setMetadata([...metadata, { key: '', value: '' }])}
+                  >
+                    <Plus className="h-4 w-4 mr-1" /> Add Metadata
+                  </Button>
+                  <p className="text-xs text-muted-foreground">Add custom key-value pairs for this plan</p>
+                </div>
+              </div>
+
               {/* Toggles */}
               <div className="flex items-center gap-6 p-4 bg-muted/50 rounded-lg">
                 <div className="flex items-center space-x-2">
@@ -649,29 +815,34 @@ export default function PlanManagerPage() {
                 <TabsTrigger value="active">Active</TabsTrigger>
                 <TabsTrigger value="inactive">Inactive</TabsTrigger>
                 <TabsTrigger value="featured">Featured</TabsTrigger>
+                <TabsTrigger value="analytics">📊 Analytics</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Bulk Actions */}
-          {selectedPlans.length > 0 && (
-            <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-              <span className="text-sm font-medium">{selectedPlans.length} plan(s) selected</span>
-              <Button size="sm" variant="outline" onClick={handleBulkActivate} disabled={bulkActivateMutation.isPending}>
-                Activate Selected
-              </Button>
-              <Button size="sm" variant="outline" onClick={handleBulkDeactivate} disabled={bulkDeactivateMutation.isPending}>
-                Deactivate Selected
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => setSelectedPlans([])}>
-                Clear Selection
-              </Button>
-            </div>
-          )}
+          {activeTab === 'analytics' ? (
+            <PlanAnalyticsDashboard plans={plans || []} />
+          ) : (
+            <>
+              {/* Bulk Actions */}
+              {selectedPlans.length > 0 && (
+                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                  <span className="text-sm font-medium">{selectedPlans.length} plan(s) selected</span>
+                  <Button size="sm" variant="outline" onClick={handleBulkActivate} disabled={bulkActivateMutation.isPending}>
+                    Activate Selected
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={handleBulkDeactivate} disabled={bulkDeactivateMutation.isPending}>
+                    Deactivate Selected
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setSelectedPlans([])}>
+                    Clear Selection
+                  </Button>
+                </div>
+              )}
 
-          {isLoading ? <p>Loading...</p> : (
-            <Table>
+              {isLoading ? <p>Loading...</p> : (
+                <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[50px]">
@@ -757,6 +928,12 @@ export default function PlanManagerPage() {
                           <DropdownMenuItem onClick={() => handleCelebrationBonusConfig(plan)}>
                             <PartyPopper className="h-4 w-4 mr-2" /> Celebration Bonuses
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleAutoDebitConfig(plan)}>
+                            <Calendar className="h-4 w-4 mr-2" /> Auto-Debit Scheduling
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDiscountConfig(plan)}>
+                            <Tag className="h-4 w-4 mr-2" /> Discounts & Offers
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => duplicateMutation.mutate(plan)}>
                             <Copy className="h-4 w-4 mr-2" /> Duplicate
                           </DropdownMenuItem>
@@ -784,6 +961,8 @@ export default function PlanManagerPage() {
                 )}
               </TableBody>
             </Table>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
@@ -873,6 +1052,31 @@ export default function PlanManagerPage() {
           celebrationBonusConfig={celebrationBonusConfigPlan.celebrationBonusConfig || {}}
           onSave={handleSaveCelebrationBonusConfig}
           isSaving={celebrationBonusConfigMutation.isPending}
+        />
+      )}
+
+      {/* Auto-Debit Configuration Dialog */}
+      {autoDebitConfigPlan && (
+        <AutoDebitConfigDialog
+          open={autoDebitConfigOpen}
+          onOpenChange={setAutoDebitConfigOpen}
+          planName={autoDebitConfigPlan.name}
+          autoDebitConfig={autoDebitConfigPlan.autoDebitConfig || {}}
+          onSave={handleSaveAutoDebitConfig}
+          isSaving={autoDebitConfigMutation.isPending}
+        />
+      )}
+
+      {/* Discount Configuration Dialog */}
+      {discountConfigPlan && (
+        <DiscountConfigDialog
+          open={discountConfigOpen}
+          onOpenChange={setDiscountConfigOpen}
+          planName={discountConfigPlan.name}
+          discountConfig={discountConfigPlan.discountConfig || {}}
+          monthlyAmount={discountConfigPlan.monthly_amount || 0}
+          onSave={handleSaveDiscountConfig}
+          isSaving={discountConfigMutation.isPending}
         />
       )}
     </div>
