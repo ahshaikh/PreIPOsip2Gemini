@@ -10,6 +10,7 @@ use App\Models\Transaction;
 use App\Jobs\ProcessSuccessfulPaymentJob;
 use App\Services\WalletService; // <-- IMPORT
 use App\Services\AllocationService; // <-- IMPORT
+use App\Services\RazorpayService; // <-- IMPORT
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -17,11 +18,13 @@ class PaymentController extends Controller
 {
     protected $walletService;
     protected $allocationService;
-    
-    public function __construct(WalletService $walletService, AllocationService $allocationService)
+    protected $razorpayService;
+
+    public function __construct(WalletService $walletService, AllocationService $allocationService, RazorpayService $razorpayService)
     {
         $this->walletService = $walletService;
         $this->allocationService = $allocationService;
+        $this->razorpayService = $razorpayService;
     }
 
     /**
@@ -150,6 +153,17 @@ class PaymentController extends Controller
                 $user = $payment->user;
                 $reason = $validated['reason'];
 
+                // 0. Process Gateway Refund (if applicable)
+                if (in_array($payment->gateway, ['razorpay', 'razorpay_auto']) && $payment->gateway_payment_id) {
+                    try {
+                        $this->razorpayService->refundPayment($payment->gateway_payment_id, $payment->amount);
+                    } catch (\Exception $e) {
+                        // Log but don't block internal refund
+                        \Log::error("Razorpay refund failed for Payment #{$payment->id}: " . $e->getMessage());
+                        // Optionally: throw $e; to require gateway refund success
+                    }
+                }
+
                 // 1. Reverse Bonuses (if checked)
                 if ($validated['reverse_bonuses']) {
                     $bonuses = $payment->bonuses()->get();
@@ -174,7 +188,7 @@ class PaymentController extends Controller
                     "Refund for Payment #{$payment->id}: {$reason}",
                     $payment
                 );
-                
+
                 // 4. Mark payment as refunded
                 $payment->update(['status' => 'refunded']);
             });
