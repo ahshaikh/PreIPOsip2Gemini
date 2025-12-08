@@ -6,6 +6,24 @@ The payment module supports **two payment methods**:
 1. **Razorpay** - Online payment gateway (one-time and auto-debit/mandate)
 2. **Manual Transfer** - Bank transfer/UPI with proof submission
 
+## ⚡ Recent Updates
+
+### V-FIX-1208: Complete Wallet Accounting (2025-12-08)
+**Fixed critical gap in payment flow**: Payment amounts now properly flow through wallet for full transaction transparency.
+
+**Changes:**
+- ✅ Payment amount credited to wallet (transaction type: `payment_received`)
+- ✅ Bonus amount credited to wallet (transaction type: `bonus_credit`)
+- ✅ Total amount debited from wallet for share purchase (transaction type: `share_purchase`)
+- ✅ Shares allocated from inventory
+- ✅ Complete transaction trail for users and audit compliance
+
+**Impact:**
+- Users now see complete payment flow: Payment In → Bonus Added → Shares Purchased
+- Wallet balances are accurate (net zero after share purchase)
+- Full transaction history available
+- Proper double-entry bookkeeping maintained
+
 ## ✅ Completed Components
 
 ### Backend Implementation
@@ -155,7 +173,12 @@ Admin Reviews Proof
      ↓
 Admin Approves → Status: paid
      ↓
-ProcessSuccessfulPaymentJob → Bonuses + Allocations
+ProcessSuccessfulPaymentJob:
+  1. Credit payment amount to wallet (payment_received)
+  2. Calculate and credit bonuses (bonus_credit)
+  3. Debit wallet for share purchase (share_purchase)
+  4. Allocate shares from inventory
+  5. Process referrals & lucky draws
 ```
 
 ### 4. Refund Flow
@@ -339,17 +362,24 @@ ngrok http 8000
 ### Modified Files
 1. ✅ `backend/app/Services/RazorpayService.php` - Completed missing methods
 2. ✅ `backend/app/Http/Controllers/Api/Admin/PaymentController.php` - Added Razorpay refund
-3. ✅ `frontend/app/(user)/subscription/page.tsx` - Added payment verification
-4. ✅ `frontend/app/layout.tsx` - Added Razorpay script
+3. ✅ `backend/app/Jobs/ProcessSuccessfulPaymentJob.php` - Added complete wallet accounting
+4. ✅ `frontend/app/(user)/subscription/page.tsx` - Added payment verification
+5. ✅ `frontend/app/layout.tsx` - Added Razorpay script
 
 ### Existing Complete Files
 - `backend/app/Models/Payment.php`
 - `backend/app/Http/Controllers/Api/User/PaymentController.php`
 - `backend/app/Services/PaymentWebhookService.php`
+- `backend/app/Services/WalletService.php`
+- `backend/app/Services/AllocationService.php`
 - `backend/app/Http/Controllers/Api/WebhookController.php`
 - `frontend/components/features/ManualPaymentModal.tsx`
 - `frontend/app/admin/payments/page.tsx`
 - `frontend/app/admin/settings/payment-gateways/page.tsx`
+
+### Documentation Files
+- `PAYMENT_MODULE_DOCUMENTATION.md` - Complete payment module documentation
+- `MANUAL_PAYMENT_FLOW_ANALYSIS.md` - Detailed flow analysis and issue identification
 
 ## Support
 
@@ -357,7 +387,35 @@ For Razorpay API documentation: https://razorpay.com/docs/api/
 
 For issues or questions, refer to the main README.md or contact the development team.
 
+## Transaction Types
+
+After the wallet accounting fix, the following transaction types are used:
+
+### Payment Flow Transactions
+- `payment_received` - Payment amount credited to wallet
+- `bonus_credit` - Bonus amount credited to wallet
+- `share_purchase` - Total amount debited from wallet for shares
+
+### Other Transaction Types
+- `refund` - Refund credited to wallet
+- `withdrawal_request` - Withdrawal amount locked
+- `reversal` - Reversed withdrawal/bonus
+- `admin_adjustment` - Manual admin correction
+
+### Example Transaction Timeline
+```
+Payment: ₹10,000 | Bonus: ₹1,000
+
+Wallet Transactions:
+1. +₹10,000 | payment_received | "Payment received for SIP installment #123"
+2. +₹1,000  | bonus_credit     | "SIP Bonus"
+3. -₹11,000 | share_purchase   | "Share purchase from Payment #123"
+
+Balance: ₹0 (all funds used for share purchase)
+Shares: ₹11,000 worth allocated
+```
+
 ---
 
 **Last Updated**: 2025-12-08
-**Module Status**: ✅ **COMPLETE**
+**Module Status**: ✅ **COMPLETE WITH WALLET ACCOUNTING**
