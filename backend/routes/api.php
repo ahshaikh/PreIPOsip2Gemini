@@ -503,9 +503,15 @@ Route::prefix('v1')->group(function () {
             Route::post('/profit-sharing/{profitShare}/adjust', [AdminProfitShareController::class, 'adjust'])->middleware('permission:bonuses.manage_config');
             Route::post('/profit-sharing/{profitShare}/reverse', [AdminProfitShareController::class, 'reverse'])->middleware('permission:bonuses.manage_config');
 
-            // Special Bonuses (Admin Awards)
+            // Bonus Management
+            Route::get('/bonuses', [App\Http\Controllers\Api\Admin\AdminBonusController::class, 'index'])->middleware('permission:bonuses.manage_config');
+            Route::get('/bonuses/settings', [App\Http\Controllers\Api\Admin\AdminBonusController::class, 'getSettings'])->middleware('permission:bonuses.manage_config');
+            Route::put('/bonuses/settings', [App\Http\Controllers\Api\Admin\AdminBonusController::class, 'updateSettings'])->middleware('permission:bonuses.manage_config');
+            Route::post('/bonuses/{id}/reverse', [App\Http\Controllers\Api\Admin\AdminBonusController::class, 'reverseBonus'])->middleware('permission:bonuses.manage_config');
+            Route::post('/bonuses/calculate-test', [App\Http\Controllers\Api\Admin\AdminBonusController::class, 'calculateTest'])->middleware('permission:bonuses.manage_config');
             Route::post('/bonuses/award-special', [App\Http\Controllers\Api\Admin\AdminBonusController::class, 'awardSpecialBonus'])->middleware('permission:bonuses.manage_config');
             Route::post('/bonuses/award-bulk', [App\Http\Controllers\Api\Admin\AdminBonusController::class, 'awardBulkBonus'])->middleware('permission:bonuses.manage_config');
+            Route::post('/bonuses/upload-csv', [App\Http\Controllers\Api\Admin\AdminBonusController::class, 'uploadCsv'])->middleware('permission:bonuses.manage_config');
 
             // Support
             Route::apiResource('/support-tickets', AdminSupportTicketController::class)->names('admin.support-tickets')->middleware('permission:users.view');

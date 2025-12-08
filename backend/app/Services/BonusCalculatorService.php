@@ -153,6 +153,21 @@ class BonusCalculatorService
     }
 
     /**
+     * Apply rounding based on settings
+     */
+    private function applyRounding(float $amount): float
+    {
+        $decimals = (int) setting('bonus_rounding_decimals', 2);
+        $mode = setting('bonus_rounding_mode', 'round');
+
+        return match ($mode) {
+            'floor' => floor($amount * pow(10, $decimals)) / pow(10, $decimals),
+            'ceil' => ceil($amount * pow(10, $decimals)) / pow(10, $decimals),
+            default => round($amount, $decimals),
+        };
+    }
+
+    /**
      * 1. Calculates Progressive Bonus with Advanced Rules
      */
     private function calculateProgressive(Payment $payment, $plan, $multiplier): float
@@ -160,12 +175,12 @@ class BonusCalculatorService
         $config = $this->getPlanConfig($plan, 'progressive_config', [
             'rate' => 0.5, 'start_month' => 4, 'max_percentage' => 20, 'overrides' => []
         ]);
-        
+
         $month = $payment->subscription->payments()->where('status', 'paid')->count();
         $startMonth = (int) $config['start_month'];
-        
+
         if ($month < $startMonth) return 0;
-        
+
         $overrides = $config['overrides'] ?? [];
         $baseRate = 0;
 
@@ -181,8 +196,8 @@ class BonusCalculatorService
 
         $base = (float) $payment->amount;
         $bonus = ($baseRate / 100) * $base * $multiplier;
-        
-        return round($bonus, 2);
+
+        return $this->applyRounding($bonus);
     }
     
     /**
@@ -192,11 +207,12 @@ class BonusCalculatorService
     {
         $config = $this->getPlanConfig($plan, 'milestone_config', []);
         $month = $payment->subscription->payments()->where('status', 'paid')->count();
-        
+
         foreach ($config as $milestone) {
             if ($month === (int)$milestone['month']) {
                 if ($payment->subscription->consecutive_payments_count >= $month) {
-                    return ((float)$milestone['amount']) * $multiplier;
+                    $bonus = ((float)$milestone['amount']) * $multiplier;
+                    return $this->applyRounding($bonus);
                 }
             }
         }
@@ -220,7 +236,7 @@ class BonusCalculatorService
                 }
             }
         }
-        return $bonus;
+        return $this->applyRounding($bonus);
     }
 
     /**
@@ -234,19 +250,21 @@ class BonusCalculatorService
         // Default to 500 if not configured
         $welcomeAmount = (float) ($config['amount'] ?? 500);
 
-        return round($welcomeAmount, 2);
+        return $this->applyRounding($welcomeAmount);
     }
 
     /**
      * Award Referral Bonus to Referrer
-     * Called when a referred user makes their first successful payment
+     * Called when a referred user makes a successful payment
+     * Supports configurable completion criteria
      *
-     * @param Payment $payment The first payment made by the referred user
+     * @param Payment $payment The payment made by the referred user
      * @return float The bonus amount awarded to referrer
      */
     public function awardReferralBonus(Payment $payment): float
     {
         $referredUser = $payment->user;
+        $subscription = $payment->subscription;
 
         // Find if this user was referred by someone
         $referral = \App\Models\Referral::where('referred_id', $referredUser->id)
@@ -255,6 +273,20 @@ class BonusCalculatorService
 
         if (!$referral) {
             return 0; // No referral found or already completed
+        }
+
+        // Check if completion criteria is met
+        $criteria = setting('referral_completion_criteria', 'first_payment');
+        $threshold = (int) setting('referral_completion_threshold', 1);
+
+        $criteriaMetCondition = match ($criteria) {
+            'nth_payment' => $subscription->payments()->where('status', 'paid')->count() >= $threshold,
+            'total_amount' => $subscription->payments()->where('status', 'paid')->sum('amount') >= $threshold,
+            default => $subscription->payments()->where('status', 'paid')->count() === 1, // first_payment
+        };
+
+        if (!$criteriaMetCondition) {
+            return 0; // Criteria not met yet
         }
 
         // Mark referral as completed
@@ -302,6 +334,9 @@ class BonusCalculatorService
             }
         }
 
+        // Apply rounding to referral bonus before creating transaction
+        $referralBonusAmount = $this->applyRounding($referralBonusAmount);
+
         // Create bonus transaction for referrer
         \App\Models\BonusTransaction::create([
             'user_id' => $referrer->id,
@@ -311,13 +346,13 @@ class BonusCalculatorService
             'amount' => $referralBonusAmount,
             'multiplier_applied' => 1.0,
             'base_amount' => $payment->amount,
-            'description' => "Referral Bonus - {$referredUser->username} joined and made first payment"
+            'description' => "Referral Bonus - {$referredUser->username} met completion criteria: {$criteria}"
         ]);
 
         // Send notification to referrer
         $referrer->notify(new \App\Notifications\BonusCredited($referralBonusAmount, 'Referral'));
 
-        Log::info("Referral bonus awarded: ₹{$referralBonusAmount} to User {$referrer->id} for referring User {$referredUser->id}");
+        Log::info("Referral bonus awarded: ₹{$referralBonusAmount} to User {$referrer->id} for referring User {$referredUser->id}. Criteria: {$criteria}");
 
         return $referralBonusAmount;
     }
