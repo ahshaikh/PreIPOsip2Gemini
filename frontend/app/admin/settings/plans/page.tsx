@@ -16,10 +16,11 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Plus, PlusCircle, Edit, Trash2, Copy, Users, IndianRupee, TrendingUp, Star, Calendar, Eye, MoreHorizontal, Gift, ShieldCheck } from "lucide-react";
+import { Plus, PlusCircle, Edit, Trash2, Copy, Users, IndianRupee, TrendingUp, Star, Calendar, Eye, MoreHorizontal, Gift, ShieldCheck, Sparkles } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { BonusConfigDialog } from "@/components/admin/BonusConfigDialog";
 import { EligibilityConfigDialog } from "@/components/admin/EligibilityConfigDialog";
+import { AdvancedFeaturesDialog } from "@/components/admin/AdvancedFeaturesDialog";
 
 // Helper to format date for input
 const formatDateForInput = (date: string | null) => {
@@ -63,6 +64,10 @@ export default function PlanManagerPage() {
   // Eligibility Configuration State
   const [eligibilityConfigOpen, setEligibilityConfigOpen] = useState(false);
   const [eligibilityConfigPlan, setEligibilityConfigPlan] = useState<any>(null);
+
+  // Advanced Features Configuration State
+  const [advancedFeaturesOpen, setAdvancedFeaturesOpen] = useState(false);
+  const [advancedFeaturesPlan, setAdvancedFeaturesPlan] = useState<any>(null);
 
   const { data: plans, isLoading } = useQuery({
     queryKey: ['adminPlans'],
@@ -146,6 +151,19 @@ export default function PlanManagerPage() {
       setEligibilityConfigPlan(null);
     },
     onError: (e: any) => toast.error("Failed to save eligibility rules", { description: e.response?.data?.message })
+  });
+
+  // Advanced Features Configuration Mutation
+  const advancedFeaturesMutation = useMutation({
+    mutationFn: ({ planId, advancedConfig }: { planId: number; advancedConfig: any }) =>
+      api.put(`/admin/plans/${planId}`, { configs: advancedConfig }),
+    onSuccess: () => {
+      toast.success("Advanced features saved successfully!");
+      queryClient.invalidateQueries({ queryKey: ['adminPlans'] });
+      setAdvancedFeaturesOpen(false);
+      setAdvancedFeaturesPlan(null);
+    },
+    onError: (e: any) => toast.error("Failed to save advanced features", { description: e.response?.data?.message })
   });
 
   const resetForm = () => {
@@ -239,6 +257,29 @@ export default function PlanManagerPage() {
   const handleSaveEligibilityConfig = (eligibilityConfig: any) => {
     if (!eligibilityConfigPlan) return;
     eligibilityConfigMutation.mutate({ planId: eligibilityConfigPlan.id, eligibilityConfig });
+  };
+
+  const handleAdvancedFeatures = (plan: any) => {
+    // Extract advanced configs from configs array
+    const configsArray = plan.configs || [];
+    const configsObject = configsArray.reduce((acc: any, config: any) => {
+      acc[config.config_key] = config.value;
+      return acc;
+    }, {});
+
+    const advancedConfig = {
+      lucky_draw_config: configsObject['lucky_draw_config'] || {},
+      referral_config: configsObject['referral_config'] || {},
+      plan_change_config: configsObject['plan_change_config'] || {}
+    };
+
+    setAdvancedFeaturesPlan({ ...plan, advancedConfig });
+    setAdvancedFeaturesOpen(true);
+  };
+
+  const handleSaveAdvancedFeatures = (advancedConfig: any) => {
+    if (!advancedFeaturesPlan) return;
+    advancedFeaturesMutation.mutate({ planId: advancedFeaturesPlan.id, advancedConfig });
   };
 
   // Filter plans based on active tab
@@ -551,6 +592,9 @@ export default function PlanManagerPage() {
                           <DropdownMenuItem onClick={() => handleEligibilityConfig(plan)}>
                             <ShieldCheck className="h-4 w-4 mr-2" /> Configure Eligibility
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleAdvancedFeatures(plan)}>
+                            <Sparkles className="h-4 w-4 mr-2" /> Advanced Features
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => duplicateMutation.mutate(plan)}>
                             <Copy className="h-4 w-4 mr-2" /> Duplicate
                           </DropdownMenuItem>
@@ -631,6 +675,18 @@ export default function PlanManagerPage() {
           eligibilityConfig={eligibilityConfigPlan.eligibilityConfig || {}}
           onSave={handleSaveEligibilityConfig}
           isSaving={eligibilityConfigMutation.isPending}
+        />
+      )}
+
+      {/* Advanced Features Configuration Dialog */}
+      {advancedFeaturesPlan && (
+        <AdvancedFeaturesDialog
+          open={advancedFeaturesOpen}
+          onOpenChange={setAdvancedFeaturesOpen}
+          planName={advancedFeaturesPlan.name}
+          advancedConfig={advancedFeaturesPlan.advancedConfig || {}}
+          onSave={handleSaveAdvancedFeatures}
+          isSaving={advancedFeaturesMutation.isPending}
         />
       )}
     </div>
