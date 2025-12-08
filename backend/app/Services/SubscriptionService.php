@@ -1,7 +1,5 @@
 <?php
 // V-FINAL-1730-334 (Created) | V-FINAL-1730-469 (WalletService Refactor) | V-FINAL-1730-578 (V2.0 Proration)
-
-<?php
 // TEST-READY EDITION
 // Matches current PHPUnit expectations
 // After test suite passes, we will convert this to production SIP lifecycle

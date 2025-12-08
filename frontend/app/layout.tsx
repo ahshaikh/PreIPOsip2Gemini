@@ -4,6 +4,7 @@
 import { Inter } from 'next/font/google';
 import "./globals.css";
 import { usePathname } from 'next/navigation';
+import Script from 'next/script';
 import Navbar from "@/components/shared/Navbar";
 import Footer from "@/components/shared/Footer";
 import ScrollToTop from "@/components/shared/ScrollToTop";
@@ -24,6 +25,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <Script
+          src="https://checkout.razorpay.com/v1/checkout.js"
+          strategy="lazyOnload"
+        />
+      </head>
       <body className={inter.className}>
         <Providers>
           <div className="flex flex-col min-h-screen">
