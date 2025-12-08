@@ -17,11 +17,13 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Plus, PlusCircle, Edit, Trash2, Copy, Users, IndianRupee, TrendingUp, Star, Calendar, Eye, MoreHorizontal, Gift, ShieldCheck, Sparkles } from "lucide-react";
+import { Plus, PlusCircle, Edit, Trash2, Copy, Users, IndianRupee, TrendingUp, Star, Calendar, Eye, MoreHorizontal, Gift, ShieldCheck, Sparkles, PartyPopper } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { BonusConfigDialog } from "@/components/admin/BonusConfigDialog";
 import { EligibilityConfigDialog } from "@/components/admin/EligibilityConfigDialog";
 import { AdvancedFeaturesDialog } from "@/components/admin/AdvancedFeaturesDialog";
+import { ProfitSharingConfigDialog } from "@/components/admin/ProfitSharingConfigDialog";
+import { CelebrationBonusConfigDialog } from "@/components/admin/CelebrationBonusConfigDialog";
 
 // Helper to format date for input
 const formatDateForInput = (date: string | null) => {
@@ -70,6 +72,14 @@ export default function PlanManagerPage() {
   // Advanced Features Configuration State
   const [advancedFeaturesOpen, setAdvancedFeaturesOpen] = useState(false);
   const [advancedFeaturesPlan, setAdvancedFeaturesPlan] = useState<any>(null);
+
+  // Profit Sharing Configuration State
+  const [profitSharingConfigOpen, setProfitSharingConfigOpen] = useState(false);
+  const [profitSharingConfigPlan, setProfitSharingConfigPlan] = useState<any>(null);
+
+  // Celebration Bonus Configuration State
+  const [celebrationBonusConfigOpen, setCelebrationBonusConfigOpen] = useState(false);
+  const [celebrationBonusConfigPlan, setCelebrationBonusConfigPlan] = useState<any>(null);
 
   // Bulk Actions State
   const [selectedPlans, setSelectedPlans] = useState<number[]>([]);
@@ -170,6 +180,32 @@ export default function PlanManagerPage() {
       setAdvancedFeaturesPlan(null);
     },
     onError: (e: any) => toast.error("Failed to save advanced features", { description: e.response?.data?.message })
+  });
+
+  // Profit Sharing Configuration Mutation
+  const profitSharingConfigMutation = useMutation({
+    mutationFn: ({ planId, profitSharingConfig }: { planId: number; profitSharingConfig: any }) =>
+      api.put(`/admin/plans/${planId}`, { configs: { profit_sharing_config: profitSharingConfig } }),
+    onSuccess: () => {
+      toast.success("Profit sharing configuration saved successfully!");
+      queryClient.invalidateQueries({ queryKey: ['adminPlans'] });
+      setProfitSharingConfigOpen(false);
+      setProfitSharingConfigPlan(null);
+    },
+    onError: (e: any) => toast.error("Failed to save profit sharing configuration", { description: e.response?.data?.message })
+  });
+
+  // Celebration Bonus Configuration Mutation
+  const celebrationBonusConfigMutation = useMutation({
+    mutationFn: ({ planId, celebrationBonusConfig }: { planId: number; celebrationBonusConfig: any }) =>
+      api.put(`/admin/plans/${planId}`, { configs: { celebration_bonus_config: celebrationBonusConfig } }),
+    onSuccess: () => {
+      toast.success("Celebration bonus configuration saved successfully!");
+      queryClient.invalidateQueries({ queryKey: ['adminPlans'] });
+      setCelebrationBonusConfigOpen(false);
+      setCelebrationBonusConfigPlan(null);
+    },
+    onError: (e: any) => toast.error("Failed to save celebration bonus configuration", { description: e.response?.data?.message })
   });
 
   // Bulk Actions Mutations
@@ -314,6 +350,34 @@ export default function PlanManagerPage() {
   const handleSaveAdvancedFeatures = (advancedConfig: any) => {
     if (!advancedFeaturesPlan) return;
     advancedFeaturesMutation.mutate({ planId: advancedFeaturesPlan.id, advancedConfig });
+  };
+
+  const handleProfitSharingConfig = (plan: any) => {
+    // Extract profit_sharing_config from configs array
+    const configsArray = plan.configs || [];
+    const profitSharingConfig = configsArray.find((c: any) => c.config_key === 'profit_sharing_config')?.value || {};
+
+    setProfitSharingConfigPlan({ ...plan, profitSharingConfig });
+    setProfitSharingConfigOpen(true);
+  };
+
+  const handleSaveProfitSharingConfig = (profitSharingConfig: any) => {
+    if (!profitSharingConfigPlan) return;
+    profitSharingConfigMutation.mutate({ planId: profitSharingConfigPlan.id, profitSharingConfig });
+  };
+
+  const handleCelebrationBonusConfig = (plan: any) => {
+    // Extract celebration_bonus_config from configs array
+    const configsArray = plan.configs || [];
+    const celebrationBonusConfig = configsArray.find((c: any) => c.config_key === 'celebration_bonus_config')?.value || {};
+
+    setCelebrationBonusConfigPlan({ ...plan, celebrationBonusConfig });
+    setCelebrationBonusConfigOpen(true);
+  };
+
+  const handleSaveCelebrationBonusConfig = (celebrationBonusConfig: any) => {
+    if (!celebrationBonusConfigPlan) return;
+    celebrationBonusConfigMutation.mutate({ planId: celebrationBonusConfigPlan.id, celebrationBonusConfig });
   };
 
   // Bulk Actions Handlers
@@ -687,6 +751,12 @@ export default function PlanManagerPage() {
                           <DropdownMenuItem onClick={() => handleAdvancedFeatures(plan)}>
                             <Sparkles className="h-4 w-4 mr-2" /> Advanced Features
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleProfitSharingConfig(plan)}>
+                            <TrendingUp className="h-4 w-4 mr-2" /> Profit Sharing
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleCelebrationBonusConfig(plan)}>
+                            <PartyPopper className="h-4 w-4 mr-2" /> Celebration Bonuses
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => duplicateMutation.mutate(plan)}>
                             <Copy className="h-4 w-4 mr-2" /> Duplicate
                           </DropdownMenuItem>
@@ -779,6 +849,30 @@ export default function PlanManagerPage() {
           advancedConfig={advancedFeaturesPlan.advancedConfig || {}}
           onSave={handleSaveAdvancedFeatures}
           isSaving={advancedFeaturesMutation.isPending}
+        />
+      )}
+
+      {/* Profit Sharing Configuration Dialog */}
+      {profitSharingConfigPlan && (
+        <ProfitSharingConfigDialog
+          open={profitSharingConfigOpen}
+          onOpenChange={setProfitSharingConfigOpen}
+          planName={profitSharingConfigPlan.name}
+          profitSharingConfig={profitSharingConfigPlan.profitSharingConfig || {}}
+          onSave={handleSaveProfitSharingConfig}
+          isSaving={profitSharingConfigMutation.isPending}
+        />
+      )}
+
+      {/* Celebration Bonus Configuration Dialog */}
+      {celebrationBonusConfigPlan && (
+        <CelebrationBonusConfigDialog
+          open={celebrationBonusConfigOpen}
+          onOpenChange={setCelebrationBonusConfigOpen}
+          planName={celebrationBonusConfigPlan.name}
+          celebrationBonusConfig={celebrationBonusConfigPlan.celebrationBonusConfig || {}}
+          onSave={handleSaveCelebrationBonusConfig}
+          isSaving={celebrationBonusConfigMutation.isPending}
         />
       )}
     </div>
