@@ -40,6 +40,7 @@ class PlanController extends Controller
             'max_subscriptions_per_user' => 'nullable|integer|min:1',
             'min_investment' => 'nullable|numeric|min:0',
             'max_investment' => 'nullable|numeric|min:0',
+            'display_order' => 'nullable|integer',
             'features' => 'nullable|array',
             'features.*.feature_text' => 'required|string',
             'configs' => 'nullable|array',
@@ -86,9 +87,10 @@ class PlanController extends Controller
             'max_subscriptions_per_user' => 'nullable|integer|min:1',
             'min_investment' => 'nullable|numeric|min:0',
             'max_investment' => 'nullable|numeric|min:0',
+            'display_order' => 'nullable|integer',
             'configs' => 'nullable|array',
         ]);
-        
+
         $plan->update($validated);
 
         // If amount changed, we might need a new Razorpay plan ID, 

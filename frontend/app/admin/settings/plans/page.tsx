@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -50,6 +51,7 @@ export default function PlanManagerPage() {
   const [newFeature, setNewFeature] = useState('');
   const [minInvestment, setMinInvestment] = useState('');
   const [maxInvestment, setMaxInvestment] = useState('');
+  const [displayOrder, setDisplayOrder] = useState('0');
 
   // Date States
   const [availableFrom, setAvailableFrom] = useState('');
@@ -68,6 +70,10 @@ export default function PlanManagerPage() {
   // Advanced Features Configuration State
   const [advancedFeaturesOpen, setAdvancedFeaturesOpen] = useState(false);
   const [advancedFeaturesPlan, setAdvancedFeaturesPlan] = useState<any>(null);
+
+  // Bulk Actions State
+  const [selectedPlans, setSelectedPlans] = useState<number[]>([]);
+  const [showComparisonPreview, setShowComparisonPreview] = useState(false);
 
   const { data: plans, isLoading } = useQuery({
     queryKey: ['adminPlans'],
@@ -166,12 +172,38 @@ export default function PlanManagerPage() {
     onError: (e: any) => toast.error("Failed to save advanced features", { description: e.response?.data?.message })
   });
 
+  // Bulk Actions Mutations
+  const bulkActivateMutation = useMutation({
+    mutationFn: async (planIds: number[]) => {
+      await Promise.all(planIds.map(id => api.put(`/admin/plans/${id}`, { is_active: true })));
+    },
+    onSuccess: () => {
+      toast.success(`${selectedPlans.length} plan(s) activated successfully!`);
+      queryClient.invalidateQueries({ queryKey: ['adminPlans'] });
+      setSelectedPlans([]);
+    },
+    onError: (e: any) => toast.error("Failed to activate plans", { description: e.response?.data?.message })
+  });
+
+  const bulkDeactivateMutation = useMutation({
+    mutationFn: async (planIds: number[]) => {
+      await Promise.all(planIds.map(id => api.put(`/admin/plans/${id}`, { is_active: false })));
+    },
+    onSuccess: () => {
+      toast.success(`${selectedPlans.length} plan(s) deactivated successfully!`);
+      queryClient.invalidateQueries({ queryKey: ['adminPlans'] });
+      setSelectedPlans([]);
+    },
+    onError: (e: any) => toast.error("Failed to deactivate plans", { description: e.response?.data?.message })
+  });
+
   const resetForm = () => {
     setName(''); setMonthlyAmount(''); setDuration('36'); setDescription('');
     setIsActive(true); setIsFeatured(false); setEditingPlan(null);
     setAvailableFrom(''); setAvailableUntil('');
     setFeatures([]); setNewFeature('');
     setMinInvestment(''); setMaxInvestment('');
+    setDisplayOrder('0');
     setAllowPause(true); setMaxPauseCount('3'); setMaxPauseDuration('3'); setMaxSubscriptionsPerUser('1');
   };
 
@@ -199,6 +231,7 @@ export default function PlanManagerPage() {
     setFeatures(Array.isArray(plan.features) ? plan.features : []);
     setMinInvestment(plan.min_investment || '');
     setMaxInvestment(plan.max_investment || '');
+    setDisplayOrder(plan.display_order?.toString() || '0');
     setAllowPause(plan.allow_pause ?? true);
     setMaxPauseCount(plan.max_pause_count?.toString() || '3');
     setMaxPauseDuration(plan.max_pause_duration_months?.toString() || '3');
@@ -220,6 +253,7 @@ export default function PlanManagerPage() {
         features,
         min_investment: minInvestment ? parseFloat(minInvestment) : null,
         max_investment: maxInvestment ? parseFloat(maxInvestment) : null,
+        display_order: parseInt(displayOrder),
         allow_pause: allowPause,
         max_pause_count: parseInt(maxPauseCount),
         max_pause_duration_months: parseInt(maxPauseDuration),
@@ -282,6 +316,31 @@ export default function PlanManagerPage() {
     advancedFeaturesMutation.mutate({ planId: advancedFeaturesPlan.id, advancedConfig });
   };
 
+  // Bulk Actions Handlers
+  const handleSelectPlan = (planId: number) => {
+    setSelectedPlans(prev =>
+      prev.includes(planId) ? prev.filter(id => id !== planId) : [...prev, planId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedPlans.length === filteredPlans?.length) {
+      setSelectedPlans([]);
+    } else {
+      setSelectedPlans(filteredPlans?.map((p: any) => p.id) || []);
+    }
+  };
+
+  const handleBulkActivate = () => {
+    if (selectedPlans.length === 0) return;
+    bulkActivateMutation.mutate(selectedPlans);
+  };
+
+  const handleBulkDeactivate = () => {
+    if (selectedPlans.length === 0) return;
+    bulkDeactivateMutation.mutate(selectedPlans);
+  };
+
   // Filter plans based on active tab
   const filteredPlans = plans?.filter((plan: any) => {
     if (activeTab === 'all') return true;
@@ -334,10 +393,10 @@ export default function PlanManagerPage() {
                 </div>
               </div>
 
-              {/* Investment Limits */}
+              {/* Investment Limits & Display */}
               <div className="space-y-4">
-                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Investment Limits (Optional)</h4>
-                <div className="grid grid-cols-2 gap-4">
+                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Investment Limits & Display</h4>
+                <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label>Minimum Investment (₹)</Label>
                     <Input type="number" value={minInvestment} onChange={(e) => setMinInvestment(e.target.value)} placeholder="No minimum" />
@@ -345,6 +404,11 @@ export default function PlanManagerPage() {
                   <div className="space-y-2">
                     <Label>Maximum Investment (₹)</Label>
                     <Input type="number" value={maxInvestment} onChange={(e) => setMaxInvestment(e.target.value)} placeholder="No maximum" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Display Order</Label>
+                    <Input type="number" value={displayOrder} onChange={(e) => setDisplayOrder(e.target.value)} placeholder="0" />
+                    <p className="text-xs text-muted-foreground">Lower numbers appear first</p>
                   </div>
                 </div>
               </div>
@@ -525,11 +589,33 @@ export default function PlanManagerPage() {
             </Tabs>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {/* Bulk Actions */}
+          {selectedPlans.length > 0 && (
+            <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+              <span className="text-sm font-medium">{selectedPlans.length} plan(s) selected</span>
+              <Button size="sm" variant="outline" onClick={handleBulkActivate} disabled={bulkActivateMutation.isPending}>
+                Activate Selected
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleBulkDeactivate} disabled={bulkDeactivateMutation.isPending}>
+                Deactivate Selected
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setSelectedPlans([])}>
+                Clear Selection
+              </Button>
+            </div>
+          )}
+
           {isLoading ? <p>Loading...</p> : (
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[50px]">
+                    <Checkbox
+                      checked={selectedPlans.length === filteredPlans?.length && filteredPlans?.length > 0}
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </TableHead>
                   <TableHead>Plan</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Duration</TableHead>
@@ -542,6 +628,12 @@ export default function PlanManagerPage() {
               <TableBody>
                 {filteredPlans?.map((plan: any) => (
                   <TableRow key={plan.id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedPlans.includes(plan.id)}
+                        onCheckedChange={() => handleSelectPlan(plan.id)}
+                      />
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         {plan.is_featured && <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />}
