@@ -12,23 +12,30 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Plus, Edit, Trash2, FileText, ChevronLeft, ChevronRight, Loader2, AlertTriangle } from "lucide-react";
+import { Plus, Edit, Trash2, FileText, ChevronLeft, ChevronRight, Loader2, Search, Filter, X } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export default function KnowledgeBaseArticlePage() {
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingArticle, setEditingArticle] = useState<any>(null);
-  
+  const [deleteConfirmArticle, setDeleteConfirmArticle] = useState<any>(null);
+
   // Debug toggle
   const [showDebug, setShowDebug] = useState(false);
 
   // Pagination State
   const [page, setPage] = useState(1);
 
+  // Search & Filter State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+
   // Form State
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
-  const [summary, setSummary] = useState(''); 
+  const [summary, setSummary] = useState('');
   const [content, setContent] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [status, setStatus] = useState('draft');
@@ -36,11 +43,21 @@ export default function KnowledgeBaseArticlePage() {
   const [seoTitle, setSeoTitle] = useState('');
   const [seoDescription, setSeoDescription] = useState('');
 
-  // Fetch Data
+  // Build query params
+  const buildQueryParams = () => {
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    if (searchQuery) params.append('search', searchQuery);
+    if (filterCategory) params.append('category_id', filterCategory);
+    if (filterStatus) params.append('status', filterStatus);
+    return params.toString();
+  };
+
+  // Fetch Data with pagination and filters
   const { data: kbResponse, isLoading: isLoadingArticles, isRefetching } = useQuery({
-    queryKey: ['adminKbArticles', page],
+    queryKey: ['adminKbArticles', page, searchQuery, filterCategory, filterStatus],
     queryFn: async () => {
-        const response = await api.get(`/admin/kb-articles?page=${page}`);
+        const response = await api.get(`/admin/kb-articles?${buildQueryParams()}`);
         return response.data;
     },
   });
@@ -48,7 +65,7 @@ export default function KnowledgeBaseArticlePage() {
   const articles = kbResponse?.data || [];
   const lastPage = kbResponse?.last_page || 1;
   const total = kbResponse?.total || 0;
-  
+
   const { data: categories } = useQuery({
     queryKey: ['adminKbCategories'],
     queryFn: async () => (await api.get('/admin/kb-categories')).data,
@@ -57,7 +74,7 @@ export default function KnowledgeBaseArticlePage() {
   const parseMeta = (meta: any) => {
     if (!meta) return { title: '', description: '' };
     if (typeof meta === 'string') {
-        try { return JSON.parse(meta); } 
+        try { return JSON.parse(meta); }
         catch (e) { return { title: '', description: '' }; }
     }
     return meta;
@@ -86,14 +103,15 @@ export default function KnowledgeBaseArticlePage() {
     onSuccess: async () => {
       toast.success("Article Deleted");
       await queryClient.invalidateQueries({ queryKey: ['adminKbArticles'] });
+      setDeleteConfirmArticle(null);
       // Force page 1 if we deleted the last item
       if(articles.length === 1 && page > 1) setPage(p => p - 1);
     },
     onError: (e: any) => toast.error("Delete Failed", { description: e.response?.data?.message || "Server error during delete" })
   });
-  
+
   const resetForm = () => {
-    setTitle(''); setSlug(''); setSummary(''); setContent(''); setCategoryId(''); 
+    setTitle(''); setSlug(''); setSummary(''); setContent(''); setCategoryId('');
     setStatus('draft'); setLastUpdated('');
     setSeoTitle(''); setSeoDescription('');
     setEditingArticle(null);
@@ -102,14 +120,14 @@ export default function KnowledgeBaseArticlePage() {
   const handleEdit = (article: any) => {
     console.log("Editing Article Data:", article); // Check Console F12
     setEditingArticle(article);
-    
+
     setTitle(article.title || '');
     setSlug(article.slug || '');
-    setSummary(article.summary || ''); 
+    setSummary(article.summary || '');
     setContent(article.content || '');
     setCategoryId(article.kb_category_id ? String(article.kb_category_id) : '');
     setStatus(article.status || 'draft');
-    
+
     const dateVal = article.last_updated ? new Date(article.last_updated).toISOString().split('T')[0] : '';
     setLastUpdated(dateVal);
 
@@ -188,14 +206,88 @@ export default function KnowledgeBaseArticlePage() {
         </div>
       )}
 
+      {/* Search and Filter Bar */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Search & Filter</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search articles by title or content..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1); // Reset to first page on search
+                }}
+                className="pl-9"
+              />
+            </div>
+            <Select value={filterCategory} onValueChange={(value) => {
+              setFilterCategory(value);
+              setPage(1);
+            }}>
+              <SelectTrigger className="w-full md:w-[200px]">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Categories</SelectItem>
+                {categories?.map((cat: any) => (
+                  <SelectItem key={cat.id} value={String(cat.id)}>{cat.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterStatus} onValueChange={(value) => {
+              setFilterStatus(value);
+              setPage(1);
+            }}>
+              <SelectTrigger className="w-full md:w-[180px]">
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Status</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="published">Published</SelectItem>
+              </SelectContent>
+            </Select>
+            {(searchQuery || filterCategory || filterStatus) && (
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  setSearchQuery('');
+                  setFilterCategory('');
+                  setFilterStatus('');
+                  setPage(1);
+                }}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardContent className="pt-6">
-          {isLoadingArticles ? <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div> : (
+          {isLoadingArticles ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : articles.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No articles found matching your criteria</p>
+            </div>
+          ) : (
             <>
                 <Table>
                 <TableHeader><TableRow><TableHead>Title</TableHead><TableHead>Category</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                 <TableBody>
-                    {articles.length === 0 ? <TableRow><TableCell colSpan={4} className="text-center py-8">No articles found.</TableCell></TableRow> : articles.map((article: any) => (
+                    {articles.map((article: any) => (
                         <TableRow key={article.id}>
                             <TableCell className="font-medium">
                                 <div className="flex items-center"><FileText className="mr-2 h-4 w-4 text-muted-foreground" />
@@ -207,26 +299,49 @@ export default function KnowledgeBaseArticlePage() {
                             <TableCell className="text-right">
                             <div className="flex justify-end items-center gap-2">
                                 <Button variant="ghost" size="sm" onClick={() => handleEdit(article)}><Edit className="h-4 w-4" /></Button>
-                                <Button variant="ghost" size="sm" className="text-red-500 hover:bg-red-50" onClick={() => { if(confirm("Delete article?")) deleteMutation.mutate(article.id); }}><Trash2 className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="sm" className="text-red-500 hover:bg-red-50" onClick={() => setDeleteConfirmArticle(article)}><Trash2 className="h-4 w-4" /></Button>
                             </div>
                             </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
                 </Table>
-                
+
                 {/* --- PAGINATION CONTROLS --- */}
-                <div className="flex items-center justify-between space-x-2 py-4 border-t mt-4 bg-slate-50 p-2 rounded-b-lg">
-                    <div className="text-sm text-muted-foreground">Showing {articles.length} of {total} results (Page {page} of {lastPage})</div>
-                    <div className="flex items-center space-x-2">
-                        <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1 || isRefetching}><ChevronLeft className="h-4 w-4 mr-2" /> Previous</Button>
-                        <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(lastPage, p + 1))} disabled={page === lastPage || isRefetching}>Next <ChevronRight className="h-4 w-4 ml-2" /></Button>
-                    </div>
-                </div>
+                {lastPage > 1 && (
+                  <div className="flex items-center justify-between space-x-2 py-4 border-t mt-4 bg-slate-50 p-2 rounded-b-lg">
+                      <div className="text-sm text-muted-foreground">Showing {articles.length} of {total} results (Page {page} of {lastPage})</div>
+                      <div className="flex items-center space-x-2">
+                          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1 || isRefetching}><ChevronLeft className="h-4 w-4 mr-2" /> Previous</Button>
+                          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(lastPage, p + 1))} disabled={page === lastPage || isRefetching}>Next <ChevronRight className="h-4 w-4 ml-2" /></Button>
+                      </div>
+                  </div>
+                )}
             </>
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteConfirmArticle} onOpenChange={() => setDeleteConfirmArticle(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Article</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{deleteConfirmArticle?.title}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteMutation.mutate(deleteConfirmArticle.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete Article"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

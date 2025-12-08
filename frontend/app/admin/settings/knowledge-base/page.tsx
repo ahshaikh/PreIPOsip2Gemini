@@ -13,18 +13,14 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Plus, Edit, Trash2, Folder } from "lucide-react";
-
-// We need a dedicated controller for this.
-// For V1, we will (mis)use the CmsController for this to avoid creating another file.
-// In V2, this should be a dedicated KbController.
-// --- We'll assume a new /admin/kb-categories endpoint ---
-// (The user will need to create the Controller and Route)
+import { Plus, Edit, Trash2, Folder, AlertCircle } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export default function KnowledgeBasePage() {
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<any>(null);
+  const [deleteConfirmCategory, setDeleteConfirmCategory] = useState<any>(null);
 
   // Form State
   const [name, setName] = useState('');
@@ -51,6 +47,16 @@ export default function KnowledgeBasePage() {
       resetForm();
     },
     onError: (e: any) => toast.error("Error", { description: e.response?.data?.message })
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => api.delete(`/admin/kb-categories/${id}`),
+    onSuccess: () => {
+      toast.success("Category deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ['adminKbCategories'] });
+      setDeleteConfirmCategory(null);
+    },
+    onError: (e: any) => toast.error("Cannot delete category", { description: e.response?.data?.message })
   });
   
   const resetForm = () => {
@@ -145,9 +151,14 @@ export default function KnowledgeBasePage() {
                       {cat.parent_id ? categories.find((p:any) => p.id === cat.parent_id)?.name : '-'}
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="sm" onClick={() => handleEdit(cat)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => handleEdit(cat)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setDeleteConfirmCategory(cat)} className="text-destructive hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -156,6 +167,33 @@ export default function KnowledgeBasePage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteConfirmCategory} onOpenChange={() => setDeleteConfirmCategory(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Category</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{deleteConfirmCategory?.name}"? This action cannot be undone.
+              {deleteConfirmCategory && (
+                <span className="block mt-2 text-destructive font-medium flex items-center gap-1">
+                  <AlertCircle className="h-4 w-4" />
+                  Categories with articles or sub-categories cannot be deleted.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteMutation.mutate(deleteConfirmCategory.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete Category"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
