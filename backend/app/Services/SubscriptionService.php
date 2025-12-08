@@ -85,9 +85,28 @@ class SubscriptionService
             throw new \Exception("New plan amount must be higher.");
         }
 
-        return DB::transaction(function () use ($subscription, $newPlan) {
-            $oldAmount = $subscription->amount;
-            $newAmount = $newPlan->monthly_amount;
+        // Check plan change rules from current plan config
+        $currentPlan = $subscription->plan;
+        $changeConfig = $currentPlan->getConfig('plan_change_config', []);
+
+        if (isset($changeConfig['allow_upgrade']) && $changeConfig['allow_upgrade'] === false) {
+            throw new \Exception("Upgrades are not allowed for your current plan.");
+        }
+
+        // Check minimum months requirement
+        if (isset($changeConfig['min_months_before_change']) && $changeConfig['min_months_before_change'] > 0) {
+            $monthsOnPlan = $subscription->created_at->diffInMonths(now());
+            if ($monthsOnPlan < $changeConfig['min_months_before_change']) {
+                $remaining = $changeConfig['min_months_before_change'] - $monthsOnPlan;
+                throw new \Exception("You must stay on this plan for at least {$changeConfig['min_months_before_change']} months. {$remaining} months remaining.");
+            }
+        }
+
+        return DB::transaction(function () use ($subscription, $newPlan, $changeConfig) {
+            $sub = Subscription::where('id', $subscription->id)->lockForUpdate()->first();
+            if ($sub->status !== 'active') {
+                throw new \Exception("Only active subscriptions can be upgraded.");
+            }
 
             // Simple prorate for tests (full logic later)
             $proratedAmount = $newAmount - $oldAmount;
@@ -97,18 +116,28 @@ class SubscriptionService
                 'amount' => $newAmount,
             ]);
 
-            if ($proratedAmount > 0) {
+            // Add upgrade fee if configured
+            $upgradeFee = isset($changeConfig['upgrade_fee']) ? (float) $changeConfig['upgrade_fee'] : 0;
+            $totalCharge = $proratedAmount + $upgradeFee;
+
+            if ($totalCharge > 1) {
+                $totalCharge = round($totalCharge, 2);
+                $description = "Pro-rata charge for {$newPlan->name}";
+                if ($upgradeFee > 0) {
+                    $description .= " + ₹{$upgradeFee} upgrade fee";
+                }
+
                 Payment::create([
-                    'user_id' => $subscription->user_id,
-                    'subscription_id' => $subscription->id,
-                    'amount' => $proratedAmount,
+                    'user_id' => $sub->user_id,
+                    'subscription_id' => $sub->id,
+                    'amount' => $totalCharge,
                     'status' => 'pending',
                     'payment_type' => 'upgrade_charge',
-                    'description' => "Pro-rata charge",
+                    'description' => $description
                 ]);
             }
 
-            return $proratedAmount;
+            return $totalCharge;
         });
     }
 
@@ -121,12 +150,56 @@ class SubscriptionService
             throw new \Exception("New plan amount must be lower.");
         }
 
-        $subscription->update([
-            'plan_id' => $newPlan->id,
-            'amount' => $newPlan->monthly_amount,
-        ]);
+        // Check plan change rules from current plan config
+        $currentPlan = $subscription->plan;
+        $changeConfig = $currentPlan->getConfig('plan_change_config', []);
 
-        return 0;
+        if (isset($changeConfig['allow_downgrade']) && $changeConfig['allow_downgrade'] === false) {
+            throw new \Exception("Downgrades are not allowed for your current plan.");
+        }
+
+        // Check minimum months requirement
+        if (isset($changeConfig['min_months_before_change']) && $changeConfig['min_months_before_change'] > 0) {
+            $monthsOnPlan = $subscription->created_at->diffInMonths(now());
+            if ($monthsOnPlan < $changeConfig['min_months_before_change']) {
+                $remaining = $changeConfig['min_months_before_change'] - $monthsOnPlan;
+                throw new \Exception("You must stay on this plan for at least {$changeConfig['min_months_before_change']} months. {$remaining} months remaining.");
+            }
+        }
+
+        return DB::transaction(function () use ($subscription, $newPlan, $changeConfig) {
+            $sub = Subscription::where('id', $subscription->id)->lockForUpdate()->first();
+
+            // Forfeit bonuses if configured
+            if (isset($changeConfig['forfeit_bonuses_on_downgrade']) && $changeConfig['forfeit_bonuses_on_downgrade'] === true) {
+                // Delete all accrued bonuses for this subscription
+                \App\Models\BonusTransaction::where('subscription_id', $sub->id)
+                    ->where('status', 'accrued')
+                    ->delete();
+                Log::info("Forfeited accrued bonuses for Subscription #{$sub->id} due to downgrade");
+            }
+
+            $sub->update([
+                'plan_id' => $newPlan->id,
+                'amount' => $newPlan->monthly_amount // Set new amount
+            ]);
+
+            // Apply downgrade fee if configured
+            $downgradeFee = isset($changeConfig['downgrade_fee']) ? (float) $changeConfig['downgrade_fee'] : 0;
+            if ($downgradeFee > 0) {
+                Payment::create([
+                    'user_id' => $sub->user_id,
+                    'subscription_id' => $sub->id,
+                    'amount' => $downgradeFee,
+                    'status' => 'pending',
+                    'payment_type' => 'downgrade_fee',
+                    'description' => "Downgrade fee for switching to {$newPlan->name}"
+                ]);
+            }
+
+            // FSD Rule: No refund for current month on downgrade.
+            return $downgradeFee;
+        });
     }
 
     /**

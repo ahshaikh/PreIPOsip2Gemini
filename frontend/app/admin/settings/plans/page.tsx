@@ -1,4 +1,4 @@
-// V-REMEDIATE-1730-131 (Created - Revised) | V-FINAL-1730-484 (Scheduling UI) | V-ENHANCED-PLANS
+// V-REMEDIATE-1730-131 (Created - Revised) | V-FINAL-1730-484 (Scheduling UI) | V-ENHANCED-PLANS | V-BONUS-CONFIG-1208
 'use client';
 
 import { Button } from "@/components/ui/button";
@@ -10,14 +10,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Plus, PlusCircle, Edit, Trash2, Copy, Users, IndianRupee, TrendingUp, Star, Calendar, Eye, MoreHorizontal } from "lucide-react";
+import { Plus, PlusCircle, Edit, Trash2, Copy, Users, IndianRupee, TrendingUp, Star, Calendar, Eye, MoreHorizontal, Gift, ShieldCheck, Sparkles, PartyPopper, Tag, Clock } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { BonusConfigDialog } from "@/components/admin/BonusConfigDialog";
+import { EligibilityConfigDialog } from "@/components/admin/EligibilityConfigDialog";
+import { AdvancedFeaturesDialog } from "@/components/admin/AdvancedFeaturesDialog";
+import { ProfitSharingConfigDialog } from "@/components/admin/ProfitSharingConfigDialog";
+import { CelebrationBonusConfigDialog } from "@/components/admin/CelebrationBonusConfigDialog";
+import { AutoDebitConfigDialog } from "@/components/admin/AutoDebitConfigDialog";
+import { DiscountConfigDialog } from "@/components/admin/DiscountConfigDialog";
+import { PlanAnalyticsDashboard } from "@/components/admin/PlanAnalyticsDashboard";
 
 // Helper to format date for input
 const formatDateForInput = (date: string | null) => {
@@ -32,6 +42,10 @@ export default function PlanManagerPage() {
   const [deleteConfirmPlan, setDeleteConfirmPlan] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('all');
 
+  // Bonus Configuration State
+  const [bonusConfigOpen, setBonusConfigOpen] = useState(false);
+  const [bonusConfigPlan, setBonusConfigPlan] = useState<any>(null);
+
   // Form State
   const [name, setName] = useState('');
   const [monthlyAmount, setMonthlyAmount] = useState('');
@@ -43,10 +57,50 @@ export default function PlanManagerPage() {
   const [newFeature, setNewFeature] = useState('');
   const [minInvestment, setMinInvestment] = useState('');
   const [maxInvestment, setMaxInvestment] = useState('');
+  const [displayOrder, setDisplayOrder] = useState('0');
 
   // Date States
   const [availableFrom, setAvailableFrom] = useState('');
   const [availableUntil, setAvailableUntil] = useState('');
+
+  // Pause/Cancel Rules & Eligibility State
+  const [allowPause, setAllowPause] = useState(true);
+  const [maxPauseCount, setMaxPauseCount] = useState('3');
+  const [maxPauseDuration, setMaxPauseDuration] = useState('3');
+  const [maxSubscriptionsPerUser, setMaxSubscriptionsPerUser] = useState('1');
+
+  // Eligibility Configuration State
+  const [eligibilityConfigOpen, setEligibilityConfigOpen] = useState(false);
+  const [eligibilityConfigPlan, setEligibilityConfigPlan] = useState<any>(null);
+
+  // Advanced Features Configuration State
+  const [advancedFeaturesOpen, setAdvancedFeaturesOpen] = useState(false);
+  const [advancedFeaturesPlan, setAdvancedFeaturesPlan] = useState<any>(null);
+
+  // Profit Sharing Configuration State
+  const [profitSharingConfigOpen, setProfitSharingConfigOpen] = useState(false);
+  const [profitSharingConfigPlan, setProfitSharingConfigPlan] = useState<any>(null);
+
+  // Celebration Bonus Configuration State
+  const [celebrationBonusConfigOpen, setCelebrationBonusConfigOpen] = useState(false);
+  const [celebrationBonusConfigPlan, setCelebrationBonusConfigPlan] = useState<any>(null);
+
+  // Auto-Debit Configuration State
+  const [autoDebitConfigOpen, setAutoDebitConfigOpen] = useState(false);
+  const [autoDebitConfigPlan, setAutoDebitConfigPlan] = useState<any>(null);
+
+  // Discount Configuration State
+  const [discountConfigOpen, setDiscountConfigOpen] = useState(false);
+  const [discountConfigPlan, setDiscountConfigPlan] = useState<any>(null);
+
+  // Features 4, 5, 14 Form State
+  const [billingCycle, setBillingCycle] = useState<'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'yearly'>('monthly');
+  const [trialPeriodDays, setTrialPeriodDays] = useState('0');
+  const [metadata, setMetadata] = useState<Array<{key: string; value: string}>>([]);
+
+  // Bulk Actions State
+  const [selectedPlans, setSelectedPlans] = useState<number[]>([]);
+  const [showComparisonPreview, setShowComparisonPreview] = useState(false);
 
   const { data: plans, isLoading } = useQuery({
     queryKey: ['adminPlans'],
@@ -106,12 +160,131 @@ export default function PlanManagerPage() {
     onError: (e: any) => toast.error("Error duplicating plan", { description: e.response?.data?.message })
   });
 
+  // Bonus Configuration Mutation
+  const bonusConfigMutation = useMutation({
+    mutationFn: ({ planId, configs }: { planId: number; configs: any }) =>
+      api.put(`/admin/plans/${planId}`, { configs }),
+    onSuccess: () => {
+      toast.success("Bonus configuration saved successfully!");
+      queryClient.invalidateQueries({ queryKey: ['adminPlans'] });
+      setBonusConfigOpen(false);
+      setBonusConfigPlan(null);
+    },
+    onError: (e: any) => toast.error("Failed to save bonus configuration", { description: e.response?.data?.message })
+  });
+
+  // Eligibility Configuration Mutation
+  const eligibilityConfigMutation = useMutation({
+    mutationFn: ({ planId, eligibilityConfig }: { planId: number; eligibilityConfig: any }) =>
+      api.put(`/admin/plans/${planId}`, { configs: { eligibility_config: eligibilityConfig } }),
+    onSuccess: () => {
+      toast.success("Eligibility rules saved successfully!");
+      queryClient.invalidateQueries({ queryKey: ['adminPlans'] });
+      setEligibilityConfigOpen(false);
+      setEligibilityConfigPlan(null);
+    },
+    onError: (e: any) => toast.error("Failed to save eligibility rules", { description: e.response?.data?.message })
+  });
+
+  // Advanced Features Configuration Mutation
+  const advancedFeaturesMutation = useMutation({
+    mutationFn: ({ planId, advancedConfig }: { planId: number; advancedConfig: any }) =>
+      api.put(`/admin/plans/${planId}`, { configs: advancedConfig }),
+    onSuccess: () => {
+      toast.success("Advanced features saved successfully!");
+      queryClient.invalidateQueries({ queryKey: ['adminPlans'] });
+      setAdvancedFeaturesOpen(false);
+      setAdvancedFeaturesPlan(null);
+    },
+    onError: (e: any) => toast.error("Failed to save advanced features", { description: e.response?.data?.message })
+  });
+
+  // Profit Sharing Configuration Mutation
+  const profitSharingConfigMutation = useMutation({
+    mutationFn: ({ planId, profitSharingConfig }: { planId: number; profitSharingConfig: any }) =>
+      api.put(`/admin/plans/${planId}`, { configs: { profit_sharing_config: profitSharingConfig } }),
+    onSuccess: () => {
+      toast.success("Profit sharing configuration saved successfully!");
+      queryClient.invalidateQueries({ queryKey: ['adminPlans'] });
+      setProfitSharingConfigOpen(false);
+      setProfitSharingConfigPlan(null);
+    },
+    onError: (e: any) => toast.error("Failed to save profit sharing configuration", { description: e.response?.data?.message })
+  });
+
+  // Celebration Bonus Configuration Mutation
+  const celebrationBonusConfigMutation = useMutation({
+    mutationFn: ({ planId, celebrationBonusConfig }: { planId: number; celebrationBonusConfig: any }) =>
+      api.put(`/admin/plans/${planId}`, { configs: { celebration_bonus_config: celebrationBonusConfig } }),
+    onSuccess: () => {
+      toast.success("Celebration bonus configuration saved successfully!");
+      queryClient.invalidateQueries({ queryKey: ['adminPlans'] });
+      setCelebrationBonusConfigOpen(false);
+      setCelebrationBonusConfigPlan(null);
+    },
+    onError: (e: any) => toast.error("Failed to save celebration bonus configuration", { description: e.response?.data?.message })
+  });
+
+  // Auto-Debit Configuration Mutation
+  const autoDebitConfigMutation = useMutation({
+    mutationFn: ({ planId, autoDebitConfig }: { planId: number; autoDebitConfig: any }) =>
+      api.put(`/admin/plans/${planId}`, { configs: { auto_debit_config: autoDebitConfig } }),
+    onSuccess: () => {
+      toast.success("Auto-debit configuration saved successfully!");
+      queryClient.invalidateQueries({ queryKey: ['adminPlans'] });
+      setAutoDebitConfigOpen(false);
+      setAutoDebitConfigPlan(null);
+    },
+    onError: (e: any) => toast.error("Failed to save auto-debit configuration", { description: e.response?.data?.message })
+  });
+
+  // Discount Configuration Mutation
+  const discountConfigMutation = useMutation({
+    mutationFn: ({ planId, discountConfig }: { planId: number; discountConfig: any }) =>
+      api.put(`/admin/plans/${planId}`, { configs: { discount_config: discountConfig } }),
+    onSuccess: () => {
+      toast.success("Discount configuration saved successfully!");
+      queryClient.invalidateQueries({ queryKey: ['adminPlans'] });
+      setDiscountConfigOpen(false);
+      setDiscountConfigPlan(null);
+    },
+    onError: (e: any) => toast.error("Failed to save discount configuration", { description: e.response?.data?.message })
+  });
+
+  // Bulk Actions Mutations
+  const bulkActivateMutation = useMutation({
+    mutationFn: async (planIds: number[]) => {
+      await Promise.all(planIds.map(id => api.put(`/admin/plans/${id}`, { is_active: true })));
+    },
+    onSuccess: () => {
+      toast.success(`${selectedPlans.length} plan(s) activated successfully!`);
+      queryClient.invalidateQueries({ queryKey: ['adminPlans'] });
+      setSelectedPlans([]);
+    },
+    onError: (e: any) => toast.error("Failed to activate plans", { description: e.response?.data?.message })
+  });
+
+  const bulkDeactivateMutation = useMutation({
+    mutationFn: async (planIds: number[]) => {
+      await Promise.all(planIds.map(id => api.put(`/admin/plans/${id}`, { is_active: false })));
+    },
+    onSuccess: () => {
+      toast.success(`${selectedPlans.length} plan(s) deactivated successfully!`);
+      queryClient.invalidateQueries({ queryKey: ['adminPlans'] });
+      setSelectedPlans([]);
+    },
+    onError: (e: any) => toast.error("Failed to deactivate plans", { description: e.response?.data?.message })
+  });
+
   const resetForm = () => {
     setName(''); setMonthlyAmount(''); setDuration('36'); setDescription('');
     setIsActive(true); setIsFeatured(false); setEditingPlan(null);
     setAvailableFrom(''); setAvailableUntil('');
     setFeatures([]); setNewFeature('');
     setMinInvestment(''); setMaxInvestment('');
+    setDisplayOrder('0');
+    setAllowPause(true); setMaxPauseCount('3'); setMaxPauseDuration('3'); setMaxSubscriptionsPerUser('1');
+    setBillingCycle('monthly'); setTrialPeriodDays('0'); setMetadata([]);
   };
 
   const addFeature = () => {
@@ -138,11 +311,25 @@ export default function PlanManagerPage() {
     setFeatures(Array.isArray(plan.features) ? plan.features : []);
     setMinInvestment(plan.min_investment || '');
     setMaxInvestment(plan.max_investment || '');
+    setDisplayOrder(plan.display_order?.toString() || '0');
+    setAllowPause(plan.allow_pause ?? true);
+    setMaxPauseCount(plan.max_pause_count?.toString() || '3');
+    setMaxPauseDuration(plan.max_pause_duration_months?.toString() || '3');
+    setMaxSubscriptionsPerUser(plan.max_subscriptions_per_user?.toString() || '1');
+    setBillingCycle(plan.billing_cycle || 'monthly');
+    setTrialPeriodDays(plan.trial_period_days?.toString() || '0');
+    setMetadata(plan.metadata ? Object.entries(plan.metadata).map(([key, value]) => ({ key, value: String(value) })) : []);
     setIsDialogOpen(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Convert metadata array to object
+    const metadataObject = metadata.reduce((acc, { key, value }) => {
+      if (key.trim()) acc[key.trim()] = value;
+      return acc;
+    }, {} as Record<string, string>);
+
     const payload = {
         name,
         monthly_amount: parseFloat(monthlyAmount),
@@ -155,8 +342,151 @@ export default function PlanManagerPage() {
         features,
         min_investment: minInvestment ? parseFloat(minInvestment) : null,
         max_investment: maxInvestment ? parseFloat(maxInvestment) : null,
+        display_order: parseInt(displayOrder),
+        allow_pause: allowPause,
+        max_pause_count: parseInt(maxPauseCount),
+        max_pause_duration_months: parseInt(maxPauseDuration),
+        max_subscriptions_per_user: parseInt(maxSubscriptionsPerUser),
+        billing_cycle: billingCycle,
+        trial_period_days: parseInt(trialPeriodDays),
+        metadata: Object.keys(metadataObject).length > 0 ? metadataObject : null,
     };
     mutation.mutate(payload);
+  };
+
+  const handleBonusConfig = (plan: any) => {
+    // Transform configs array to object format for the dialog
+    const configsArray = plan.configs || [];
+    const configsObject = configsArray.reduce((acc: any, config: any) => {
+      acc[config.config_key] = config.value;
+      return acc;
+    }, {});
+
+    setBonusConfigPlan({ ...plan, configs: configsObject });
+    setBonusConfigOpen(true);
+  };
+
+  const handleSaveBonusConfig = (configs: any) => {
+    if (!bonusConfigPlan) return;
+    bonusConfigMutation.mutate({ planId: bonusConfigPlan.id, configs });
+  };
+
+  const handleEligibilityConfig = (plan: any) => {
+    // Extract eligibility_config from configs array
+    const configsArray = plan.configs || [];
+    const eligibilityConfig = configsArray.find((c: any) => c.config_key === 'eligibility_config')?.value || {};
+
+    setEligibilityConfigPlan({ ...plan, eligibilityConfig });
+    setEligibilityConfigOpen(true);
+  };
+
+  const handleSaveEligibilityConfig = (eligibilityConfig: any) => {
+    if (!eligibilityConfigPlan) return;
+    eligibilityConfigMutation.mutate({ planId: eligibilityConfigPlan.id, eligibilityConfig });
+  };
+
+  const handleAdvancedFeatures = (plan: any) => {
+    // Extract advanced configs from configs array
+    const configsArray = plan.configs || [];
+    const configsObject = configsArray.reduce((acc: any, config: any) => {
+      acc[config.config_key] = config.value;
+      return acc;
+    }, {});
+
+    const advancedConfig = {
+      lucky_draw_config: configsObject['lucky_draw_config'] || {},
+      referral_config: configsObject['referral_config'] || {},
+      plan_change_config: configsObject['plan_change_config'] || {}
+    };
+
+    setAdvancedFeaturesPlan({ ...plan, advancedConfig });
+    setAdvancedFeaturesOpen(true);
+  };
+
+  const handleSaveAdvancedFeatures = (advancedConfig: any) => {
+    if (!advancedFeaturesPlan) return;
+    advancedFeaturesMutation.mutate({ planId: advancedFeaturesPlan.id, advancedConfig });
+  };
+
+  const handleProfitSharingConfig = (plan: any) => {
+    // Extract profit_sharing_config from configs array
+    const configsArray = plan.configs || [];
+    const profitSharingConfig = configsArray.find((c: any) => c.config_key === 'profit_sharing_config')?.value || {};
+
+    setProfitSharingConfigPlan({ ...plan, profitSharingConfig });
+    setProfitSharingConfigOpen(true);
+  };
+
+  const handleSaveProfitSharingConfig = (profitSharingConfig: any) => {
+    if (!profitSharingConfigPlan) return;
+    profitSharingConfigMutation.mutate({ planId: profitSharingConfigPlan.id, profitSharingConfig });
+  };
+
+  const handleCelebrationBonusConfig = (plan: any) => {
+    // Extract celebration_bonus_config from configs array
+    const configsArray = plan.configs || [];
+    const celebrationBonusConfig = configsArray.find((c: any) => c.config_key === 'celebration_bonus_config')?.value || {};
+
+    setCelebrationBonusConfigPlan({ ...plan, celebrationBonusConfig });
+    setCelebrationBonusConfigOpen(true);
+  };
+
+  const handleSaveCelebrationBonusConfig = (celebrationBonusConfig: any) => {
+    if (!celebrationBonusConfigPlan) return;
+    celebrationBonusConfigMutation.mutate({ planId: celebrationBonusConfigPlan.id, celebrationBonusConfig });
+  };
+
+  const handleAutoDebitConfig = (plan: any) => {
+    // Extract auto_debit_config from configs array
+    const configsArray = plan.configs || [];
+    const autoDebitConfig = configsArray.find((c: any) => c.config_key === 'auto_debit_config')?.value || {};
+
+    setAutoDebitConfigPlan({ ...plan, autoDebitConfig });
+    setAutoDebitConfigOpen(true);
+  };
+
+  const handleSaveAutoDebitConfig = (autoDebitConfig: any) => {
+    if (!autoDebitConfigPlan) return;
+    autoDebitConfigMutation.mutate({ planId: autoDebitConfigPlan.id, autoDebitConfig });
+  };
+
+  const handleDiscountConfig = (plan: any) => {
+    // Extract discount_config from configs array
+    const configsArray = plan.configs || [];
+    const discountConfig = configsArray.find((c: any) => c.config_key === 'discount_config')?.value || {};
+
+    setDiscountConfigPlan({ ...plan, discountConfig });
+    setDiscountConfigOpen(true);
+  };
+
+  const handleSaveDiscountConfig = (discountConfig: any) => {
+    if (!discountConfigPlan) return;
+    discountConfigMutation.mutate({ planId: discountConfigPlan.id, discountConfig });
+  };
+
+  // Bulk Actions Handlers
+  const handleSelectPlan = (planId: number) => {
+    setSelectedPlans(prev =>
+      prev.includes(planId) ? prev.filter(id => id !== planId) : [...prev, planId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedPlans.length === filteredPlans?.length) {
+      setSelectedPlans([]);
+    } else {
+      setSelectedPlans(filteredPlans?.map((p: any) => p.id) || []);
+    }
+  };
+
+  const handleBulkActivate = () => {
+    if (selectedPlans.length === 0) return;
+    bulkActivateMutation.mutate(selectedPlans);
+  };
+
+  const handleBulkDeactivate = () => {
+    if (selectedPlans.length === 0) return;
+    bulkDeactivateMutation.mutate(selectedPlans);
   };
 
   // Filter plans based on active tab
@@ -211,10 +541,10 @@ export default function PlanManagerPage() {
                 </div>
               </div>
 
-              {/* Investment Limits */}
+              {/* Investment Limits & Display */}
               <div className="space-y-4">
-                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Investment Limits (Optional)</h4>
-                <div className="grid grid-cols-2 gap-4">
+                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Investment Limits & Display</h4>
+                <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label>Minimum Investment (₹)</Label>
                     <Input type="number" value={minInvestment} onChange={(e) => setMinInvestment(e.target.value)} placeholder="No minimum" />
@@ -222,6 +552,11 @@ export default function PlanManagerPage() {
                   <div className="space-y-2">
                     <Label>Maximum Investment (₹)</Label>
                     <Input type="number" value={maxInvestment} onChange={(e) => setMaxInvestment(e.target.value)} placeholder="No maximum" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Display Order</Label>
+                    <Input type="number" value={displayOrder} onChange={(e) => setDisplayOrder(e.target.value)} placeholder="0" />
+                    <p className="text-xs text-muted-foreground">Lower numbers appear first</p>
                   </div>
                 </div>
               </div>
@@ -271,6 +606,136 @@ export default function PlanManagerPage() {
               <div className="space-y-2">
                 <Label>Description</Label>
                 <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Describe what makes this plan special..." />
+              </div>
+
+              {/* Pause & Cancel Rules */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Pause & Cancel Rules</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Max Subscriptions Per User</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={maxSubscriptionsPerUser}
+                      onChange={(e) => setMaxSubscriptionsPerUser(e.target.value)}
+                      placeholder="1"
+                    />
+                    <p className="text-xs text-muted-foreground">How many times can a user subscribe to this plan?</p>
+                  </div>
+                  <div className="flex items-center space-x-2 pt-6">
+                    <Switch id="allow_pause" checked={allowPause} onCheckedChange={setAllowPause} />
+                    <Label htmlFor="allow_pause">Allow Pause</Label>
+                  </div>
+                </div>
+                {allowPause && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Max Pause Count</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={maxPauseCount}
+                        onChange={(e) => setMaxPauseCount(e.target.value)}
+                        placeholder="3"
+                      />
+                      <p className="text-xs text-muted-foreground">How many times can user pause?</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Max Pause Duration (Months)</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={maxPauseDuration}
+                        onChange={(e) => setMaxPauseDuration(e.target.value)}
+                        placeholder="3"
+                      />
+                      <p className="text-xs text-muted-foreground">Maximum months per pause</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Billing & Trial (Features 4 & 5) */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Billing & Trial</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Billing Cycle</Label>
+                    <Select value={billingCycle} onValueChange={(value: any) => setBillingCycle(value)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="bi-weekly">Bi-Weekly</SelectItem>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="quarterly">Quarterly</SelectItem>
+                        <SelectItem value="yearly">Yearly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">How often subscribers are billed</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Trial Period (Days)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={trialPeriodDays}
+                      onChange={(e) => setTrialPeriodDays(e.target.value)}
+                      placeholder="0"
+                    />
+                    <p className="text-xs text-muted-foreground">Days of free trial before first charge (0 = no trial)</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Custom Metadata (Feature 14) */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Custom Metadata</h4>
+                <div className="space-y-2">
+                  {metadata.map((meta, index) => (
+                    <div key={index} className="flex gap-2">
+                      <Input
+                        placeholder="Key"
+                        value={meta.key}
+                        onChange={(e) => {
+                          const newMetadata = [...metadata];
+                          newMetadata[index].key = e.target.value;
+                          setMetadata(newMetadata);
+                        }}
+                        className="flex-1"
+                      />
+                      <Input
+                        placeholder="Value"
+                        value={meta.value}
+                        onChange={(e) => {
+                          const newMetadata = [...metadata];
+                          newMetadata[index].value = e.target.value;
+                          setMetadata(newMetadata);
+                        }}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setMetadata(metadata.filter((_, i) => i !== index))}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setMetadata([...metadata, { key: '', value: '' }])}
+                  >
+                    <Plus className="h-4 w-4 mr-1" /> Add Metadata
+                  </Button>
+                  <p className="text-xs text-muted-foreground">Add custom key-value pairs for this plan</p>
+                </div>
               </div>
 
               {/* Toggles */}
@@ -350,15 +815,42 @@ export default function PlanManagerPage() {
                 <TabsTrigger value="active">Active</TabsTrigger>
                 <TabsTrigger value="inactive">Inactive</TabsTrigger>
                 <TabsTrigger value="featured">Featured</TabsTrigger>
+                <TabsTrigger value="analytics">📊 Analytics</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
         </CardHeader>
-        <CardContent>
-          {isLoading ? <p>Loading...</p> : (
-            <Table>
+        <CardContent className="space-y-4">
+          {activeTab === 'analytics' ? (
+            <PlanAnalyticsDashboard plans={plans || []} />
+          ) : (
+            <>
+              {/* Bulk Actions */}
+              {selectedPlans.length > 0 && (
+                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                  <span className="text-sm font-medium">{selectedPlans.length} plan(s) selected</span>
+                  <Button size="sm" variant="outline" onClick={handleBulkActivate} disabled={bulkActivateMutation.isPending}>
+                    Activate Selected
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={handleBulkDeactivate} disabled={bulkDeactivateMutation.isPending}>
+                    Deactivate Selected
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setSelectedPlans([])}>
+                    Clear Selection
+                  </Button>
+                </div>
+              )}
+
+              {isLoading ? <p>Loading...</p> : (
+                <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[50px]">
+                    <Checkbox
+                      checked={selectedPlans.length === filteredPlans?.length && filteredPlans?.length > 0}
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </TableHead>
                   <TableHead>Plan</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Duration</TableHead>
@@ -371,6 +863,12 @@ export default function PlanManagerPage() {
               <TableBody>
                 {filteredPlans?.map((plan: any) => (
                   <TableRow key={plan.id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedPlans.includes(plan.id)}
+                        onCheckedChange={() => handleSelectPlan(plan.id)}
+                      />
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         {plan.is_featured && <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />}
@@ -413,7 +911,28 @@ export default function PlanManagerPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => handleEdit(plan)}>
-                            <Edit className="h-4 w-4 mr-2" /> Edit
+                            <Edit className="h-4 w-4 mr-2" /> Edit Plan
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleBonusConfig(plan)}>
+                            <Gift className="h-4 w-4 mr-2" /> Configure Bonuses
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEligibilityConfig(plan)}>
+                            <ShieldCheck className="h-4 w-4 mr-2" /> Configure Eligibility
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleAdvancedFeatures(plan)}>
+                            <Sparkles className="h-4 w-4 mr-2" /> Advanced Features
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleProfitSharingConfig(plan)}>
+                            <TrendingUp className="h-4 w-4 mr-2" /> Profit Sharing
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleCelebrationBonusConfig(plan)}>
+                            <PartyPopper className="h-4 w-4 mr-2" /> Celebration Bonuses
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleAutoDebitConfig(plan)}>
+                            <Calendar className="h-4 w-4 mr-2" /> Auto-Debit Scheduling
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDiscountConfig(plan)}>
+                            <Tag className="h-4 w-4 mr-2" /> Discounts & Offers
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => duplicateMutation.mutate(plan)}>
                             <Copy className="h-4 w-4 mr-2" /> Duplicate
@@ -442,6 +961,8 @@ export default function PlanManagerPage() {
                 )}
               </TableBody>
             </Table>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
@@ -471,6 +992,93 @@ export default function PlanManagerPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bonus Configuration Dialog */}
+      {bonusConfigPlan && (
+        <BonusConfigDialog
+          open={bonusConfigOpen}
+          onOpenChange={setBonusConfigOpen}
+          planName={bonusConfigPlan.name}
+          monthlyAmount={bonusConfigPlan.monthly_amount}
+          durationMonths={bonusConfigPlan.duration_months}
+          configs={bonusConfigPlan.configs || {}}
+          onSave={handleSaveBonusConfig}
+          isSaving={bonusConfigMutation.isPending}
+        />
+      )}
+
+      {/* Eligibility Configuration Dialog */}
+      {eligibilityConfigPlan && (
+        <EligibilityConfigDialog
+          open={eligibilityConfigOpen}
+          onOpenChange={setEligibilityConfigOpen}
+          planName={eligibilityConfigPlan.name}
+          eligibilityConfig={eligibilityConfigPlan.eligibilityConfig || {}}
+          onSave={handleSaveEligibilityConfig}
+          isSaving={eligibilityConfigMutation.isPending}
+        />
+      )}
+
+      {/* Advanced Features Configuration Dialog */}
+      {advancedFeaturesPlan && (
+        <AdvancedFeaturesDialog
+          open={advancedFeaturesOpen}
+          onOpenChange={setAdvancedFeaturesOpen}
+          planName={advancedFeaturesPlan.name}
+          advancedConfig={advancedFeaturesPlan.advancedConfig || {}}
+          onSave={handleSaveAdvancedFeatures}
+          isSaving={advancedFeaturesMutation.isPending}
+        />
+      )}
+
+      {/* Profit Sharing Configuration Dialog */}
+      {profitSharingConfigPlan && (
+        <ProfitSharingConfigDialog
+          open={profitSharingConfigOpen}
+          onOpenChange={setProfitSharingConfigOpen}
+          planName={profitSharingConfigPlan.name}
+          profitSharingConfig={profitSharingConfigPlan.profitSharingConfig || {}}
+          onSave={handleSaveProfitSharingConfig}
+          isSaving={profitSharingConfigMutation.isPending}
+        />
+      )}
+
+      {/* Celebration Bonus Configuration Dialog */}
+      {celebrationBonusConfigPlan && (
+        <CelebrationBonusConfigDialog
+          open={celebrationBonusConfigOpen}
+          onOpenChange={setCelebrationBonusConfigOpen}
+          planName={celebrationBonusConfigPlan.name}
+          celebrationBonusConfig={celebrationBonusConfigPlan.celebrationBonusConfig || {}}
+          onSave={handleSaveCelebrationBonusConfig}
+          isSaving={celebrationBonusConfigMutation.isPending}
+        />
+      )}
+
+      {/* Auto-Debit Configuration Dialog */}
+      {autoDebitConfigPlan && (
+        <AutoDebitConfigDialog
+          open={autoDebitConfigOpen}
+          onOpenChange={setAutoDebitConfigOpen}
+          planName={autoDebitConfigPlan.name}
+          autoDebitConfig={autoDebitConfigPlan.autoDebitConfig || {}}
+          onSave={handleSaveAutoDebitConfig}
+          isSaving={autoDebitConfigMutation.isPending}
+        />
+      )}
+
+      {/* Discount Configuration Dialog */}
+      {discountConfigPlan && (
+        <DiscountConfigDialog
+          open={discountConfigOpen}
+          onOpenChange={setDiscountConfigOpen}
+          planName={discountConfigPlan.name}
+          discountConfig={discountConfigPlan.discountConfig || {}}
+          monthlyAmount={discountConfigPlan.monthly_amount || 0}
+          onSave={handleSaveDiscountConfig}
+          isSaving={discountConfigMutation.isPending}
+        />
+      )}
     </div>
   );
 }

@@ -45,10 +45,17 @@ class LuckyDrawService
         }
 
         $subscription = $payment->subscription->load('plan.configs');
-        
-        // 1. Get Base Entries from Plan Config
-        $config = $subscription->plan->getConfig('lucky_draw_entries', ['count' => 1]);
-        $baseEntries = (int)$config['count'];
+
+        // 1. Get Base Entries from Plan Config (support both old and new format)
+        $config = $subscription->plan->getConfig('lucky_draw_config', []);
+        if (empty($config)) {
+            // Fallback to old format
+            $config = $subscription->plan->getConfig('lucky_draw_entries', ['count' => 1]);
+            $baseEntries = (int)($config['count'] ?? 1);
+        } else {
+            // New format
+            $baseEntries = (int)($config['entries_per_payment'] ?? 1);
+        }
         
         $bonusEntries = 0;
 

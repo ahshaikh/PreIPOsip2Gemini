@@ -276,6 +276,32 @@ class BonusCalculatorService
             $referralBonusAmount *= (float) $activeCampaign->multiplier;
         }
 
+        // Apply tier-based multiplier from plan config
+        $plan = $payment->subscription->plan;
+        $referralConfig = $plan->getConfig('referral_config', []);
+        if (!empty($referralConfig['tiers'])) {
+            // Count total successful referrals for the referrer
+            $successfulReferrals = \App\Models\Referral::where('referrer_id', $referrer->id)
+                ->where('status', 'completed')
+                ->count();
+
+            // Find applicable tier (highest tier where min_referrals <= total)
+            $applicableTier = null;
+            foreach ($referralConfig['tiers'] as $tier) {
+                if ($successfulReferrals >= $tier['min_referrals']) {
+                    if (!$applicableTier || $tier['min_referrals'] > $applicableTier['min_referrals']) {
+                        $applicableTier = $tier;
+                    }
+                }
+            }
+
+            if ($applicableTier && isset($applicableTier['multiplier'])) {
+                $tierMultiplier = (float) $applicableTier['multiplier'];
+                $referralBonusAmount *= $tierMultiplier;
+                Log::info("Applied referral tier '{$applicableTier['name']}' ({$tierMultiplier}x) for {$successfulReferrals} successful referrals");
+            }
+        }
+
         // Create bonus transaction for referrer
         \App\Models\BonusTransaction::create([
             'user_id' => $referrer->id,

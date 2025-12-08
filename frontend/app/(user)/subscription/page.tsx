@@ -77,11 +77,36 @@ export default function SubscriptionPage() {
         name: data.name,
         description: data.description,
         prefill: data.prefill,
-        handler: function (response: any) {
-          toast.success("Payment Successful!", { description: "Verifying payment..." });
-          queryClient.invalidateQueries({ queryKey: ['subscription'] });
-          queryClient.invalidateQueries({ queryKey: ['portfolio'] });
-          queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
+        handler: async function (response: any) {
+          // Verify payment with backend
+          try {
+            const verifyPayload: any = {
+              payment_id: selectedPaymentId || paymentId,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            };
+
+            // Add order_id or subscription_id based on payment type
+            if (response.razorpay_order_id) {
+              verifyPayload.razorpay_order_id = response.razorpay_order_id;
+            }
+            if (response.razorpay_subscription_id) {
+              verifyPayload.razorpay_subscription_id = response.razorpay_subscription_id;
+            }
+
+            await api.post('/user/payment/verify', verifyPayload);
+
+            toast.success("Payment Verified!", { description: "Your payment has been successfully processed." });
+
+            // Refresh data
+            queryClient.invalidateQueries({ queryKey: ['subscription'] });
+            queryClient.invalidateQueries({ queryKey: ['portfolio'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
+          } catch (error: any) {
+            toast.error("Verification Failed", {
+              description: error.response?.data?.message || "Payment completed but verification failed. Please contact support."
+            });
+          }
         },
       };
 

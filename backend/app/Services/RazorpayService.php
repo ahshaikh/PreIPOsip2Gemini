@@ -99,11 +99,98 @@ class RazorpayService
     }
 
     // --- PAYMENT MANAGEMENT ---
-    public function fetchPayment($paymentId) { /* ... (same as before) ... */ }
-    public function capturePayment($paymentId, $amount) { /* ... (same as before) ... */ }
-    public function refundPayment($paymentId, $amount = null) { /* ... (same as before) ... */ }
-    public function verifySignature($attributes) { /* ... (same as before) ... */ }
-    public function verifyWebhookSignature($payload, $signature, $secret) { /* ... (same as before) ... */ }
+
+    /**
+     * Fetch payment details from Razorpay
+     */
+    public function fetchPayment($paymentId)
+    {
+        $this->log("Fetching Payment: {$paymentId}");
+        try {
+            $payment = $this->api->payment->fetch($paymentId);
+            $this->log("Payment Fetched: {$paymentId}");
+            return $payment;
+        } catch (Exception $e) {
+            $this->log("Payment Fetch Failed: " . $e->getMessage(), 'error');
+            throw $e;
+        }
+    }
+
+    /**
+     * Capture a payment (for manual capture mode)
+     */
+    public function capturePayment($paymentId, $amount)
+    {
+        $this->log("Capturing Payment: {$paymentId}, Amount={$amount}");
+        try {
+            $payment = $this->api->payment->fetch($paymentId);
+            $captured = $payment->capture(['amount' => $amount * 100]); // Paise
+            $this->log("Payment Captured: {$paymentId}");
+            return $captured;
+        } catch (Exception $e) {
+            $this->log("Payment Capture Failed: " . $e->getMessage(), 'error');
+            throw $e;
+        }
+    }
+
+    /**
+     * Refund a payment (full or partial)
+     */
+    public function refundPayment($paymentId, $amount = null)
+    {
+        $this->log("Refunding Payment: {$paymentId}" . ($amount ? ", Amount={$amount}" : " (Full)"));
+        try {
+            $refundData = [];
+            if ($amount !== null) {
+                $refundData['amount'] = $amount * 100; // Paise
+            }
+            $refund = $this->api->payment->fetch($paymentId)->refund($refundData);
+            $this->log("Refund Processed: {$refund->id}");
+            return $refund;
+        } catch (Exception $e) {
+            $this->log("Refund Failed: " . $e->getMessage(), 'error');
+            throw $e;
+        }
+    }
+
+    /**
+     * Verify payment signature from Razorpay checkout
+     */
+    public function verifySignature($attributes)
+    {
+        $this->log("Verifying Payment Signature");
+        try {
+            $this->api->utility->verifyPaymentSignature($attributes);
+            $this->log("Signature Verified Successfully");
+            return true;
+        } catch (Exception $e) {
+            $this->log("Signature Verification Failed: " . $e->getMessage(), 'error');
+            throw $e;
+        }
+    }
+
+    /**
+     * Verify webhook signature for security
+     */
+    public function verifyWebhookSignature($payload, $signature, $secret)
+    {
+        $this->log("Verifying Webhook Signature");
+        try {
+            $expectedSignature = hash_hmac('sha256', $payload, $secret);
+            $isValid = hash_equals($expectedSignature, $signature);
+
+            if ($isValid) {
+                $this->log("Webhook Signature Verified");
+            } else {
+                $this->log("Webhook Signature Verification Failed", 'warning');
+            }
+
+            return $isValid;
+        } catch (Exception $e) {
+            $this->log("Webhook Verification Error: " . $e->getMessage(), 'error');
+            return false;
+        }
+    }
 
     // --- NEW: SUBSCRIPTION / MANDATE ENGINE (FSD-PAY-103) ---
 
