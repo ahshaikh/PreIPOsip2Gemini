@@ -10,7 +10,8 @@ use App\Http\Requests\InitiatePaymentRequest;
 use Illuminate\Http\Request;
 use Razorpay\Api\Api;
 use Illuminate\Support\Facades\Storage;
-use App\Models\Plan; // <-- IMPORT
+use App\Models\Plan;
+use App\Jobs\ProcessSuccessfulPaymentJob;
 
 class PaymentController extends Controller
 {
@@ -213,6 +214,9 @@ class PaymentController extends Controller
             if ($payment->subscription && $payment->subscription->status === 'pending') {
                 $payment->subscription->update(['status' => 'active']);
             }
+
+            // Dispatch job to process bonuses, allocations, and wallet updates
+            ProcessSuccessfulPaymentJob::dispatch($payment);
 
             return response()->json([
                 'message' => 'Payment verified successfully.',
