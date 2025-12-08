@@ -29,7 +29,19 @@ class WalletController extends Controller
         $transactions = $wallet->transactions()->latest()->paginate(20);
         return response()->json(['wallet' => $wallet, 'transactions' => $transactions]);
     }
-    
+
+    /**
+     * Get user's withdrawal requests
+     */
+    public function withdrawals(Request $request)
+    {
+        $withdrawals = $request->user()->withdrawals()
+            ->latest()
+            ->paginate(20);
+
+        return response()->json($withdrawals);
+    }
+
     public function initiateDeposit(Request $request)
     {
         return response()->json(['message' => 'Deposit feature not implemented.'], 501);

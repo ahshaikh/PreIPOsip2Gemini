@@ -15,9 +15,25 @@ export default function SubscribePage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  
+
   const [planSlug, setPlanSlug] = useState<string | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
+
+  // Check if user already has an active subscription
+  const { data: existingSubscription } = useQuery({
+    queryKey: ['subscription'],
+    queryFn: async () => (await api.get('/user/subscription')).data,
+    retry: false,
+  });
+
+  // Redirect if user already has active subscription
+  useEffect(() => {
+    if (existingSubscription && ['active', 'paused'].includes(existingSubscription.status)) {
+      toast.info("You already have an active subscription", { description: "Redirecting to dashboard..." });
+      localStorage.removeItem('pending_plan');
+      router.push('/dashboard');
+    }
+  }, [existingSubscription, router]);
 
   // 1. Get all public plans
   const { data: plans, isLoading: isLoadingPlans } = useQuery({
