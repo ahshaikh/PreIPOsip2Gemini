@@ -211,7 +211,7 @@ export default function SubscriptionPage() {
       <Card>
         <CardHeader className="flex flex-row items-start justify-between">
           <div>
-              <CardTitle>My Subscription: {sub.plan.name}</CardTitle>
+              <CardTitle>My Subscription: {sub.plan?.name || 'Loading...'}</CardTitle>
               <CardDescription>Status: <span className="capitalize font-medium text-primary">{sub.status}</span></CardDescription>
           </div>
           {sub.status !== 'cancelled' && (

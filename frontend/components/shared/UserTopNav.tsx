@@ -283,7 +283,7 @@ export function UserTopNav({ user }: { user: any }) {
   const mainLinks = [
     { href: "/portfolio", label: "Portfolio", icon: TrendingUp },
     { href: "/transactions", label: "Transactions", icon: CreditCard },
-    { href: "/plans", label: "Plans", icon: Package },
+    { href: "/plan", label: "Plans", icon: Package },
   ];
 
   const marketingLinks = [

@@ -69,17 +69,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     setUser(userData);
 
-    // 2. --- THE "PENDING PLAN" LOGIC ---
+    // 2. Determine user role and appropriate dashboard
+    const adminRoles = ['super-admin', 'admin', 'kyc-officer', 'support', 'content-manager', 'finance-manager'];
+    const isAdmin = userData.roles && userData.roles.some((r: any) => adminRoles.includes(r.name));
+
+    // 3. --- THE "PENDING PLAN" LOGIC ---
     // Check if the user had selected a plan *before* they signed up
     const pendingPlan = localStorage.getItem('pending_plan');
 
-    if (pendingPlan) {
-      // Yes. Send them to the special /subscribe page
+    // Check if user already has an active subscription
+    const hasActiveSubscription = userData.subscription &&
+      ['active', 'paused'].includes(userData.subscription.status);
+
+    if (pendingPlan && !hasActiveSubscription && !isAdmin) {
+      // User selected a plan before signup AND doesn't have active subscription yet
+      // Send them to the special /subscribe page
       router.push('/subscribe');
     } else {
-      // No. This is a normal login. Send to dashboard based on role.
-      const adminRoles = ['super-admin', 'admin', 'kyc-officer', 'support', 'content-manager', 'finance-manager'];
-      const isAdmin = userData.roles && userData.roles.some(r => adminRoles.includes(r.name));
+      // Clear any pending plan if user already has subscription or is admin
+      if (pendingPlan && (hasActiveSubscription || isAdmin)) {
+        localStorage.removeItem('pending_plan');
+      }
+      // Send to appropriate dashboard based on role
       router.push(isAdmin ? '/admin/dashboard' : '/dashboard');
     }
     // ------------------------------------
