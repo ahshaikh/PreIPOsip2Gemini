@@ -178,7 +178,14 @@ export default function PlanManagerPage() {
   };
 
   const handleBonusConfig = (plan: any) => {
-    setBonusConfigPlan(plan);
+    // Transform configs array to object format for the dialog
+    const configsArray = plan.configs || [];
+    const configsObject = configsArray.reduce((acc: any, config: any) => {
+      acc[config.config_key] = config.value;
+      return acc;
+    }, {});
+
+    setBonusConfigPlan({ ...plan, configs: configsObject });
     setBonusConfigOpen(true);
   };
 
