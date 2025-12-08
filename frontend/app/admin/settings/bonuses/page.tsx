@@ -1,4 +1,4 @@
-// V-REMEDIATE-1730-168 (Created) | V-FINAL-1730-476 (36-Month Override Table)
+// V-REMEDIATE-1730-168 (Created) | V-FINAL-1730-476 (36-Month Override Table) | V-FIX-1730-552 (Array Safety)
 'use client';
 
 import { Button } from "@/components/ui/button";
@@ -175,6 +175,13 @@ export default function BonusSettingsPage() {
     queryFn: async () => (await api.get('/admin/plans')).data,
   });
 
+  // Helper to safely extract array from potentially wrapped config value
+  const getSafeArray = (data: any) => {
+    if (Array.isArray(data)) return data;
+    if (data && typeof data === 'object' && Array.isArray(data.value)) return data.value;
+    return [];
+  };
+
   // When plans load, select the first one automatically
   useEffect(() => {
     if (plans && plans.length > 0 && !selectedPlanId) {
@@ -190,7 +197,12 @@ export default function BonusSettingsPage() {
         // Transform the array of config objects into a key-value map
         const configMap: any = {};
         plan.configs.forEach((c: any) => {
-          configMap[c.config_key] = c.value;
+          // Normalize array configs on load to prevent rendering errors
+          let value = c.value;
+          if (['milestone_config', 'referral_tiers'].includes(c.config_key)) {
+             value = getSafeArray(value);
+          }
+          configMap[c.config_key] = value;
         });
         setConfigs(configMap);
       }
@@ -225,7 +237,8 @@ export default function BonusSettingsPage() {
 
   // Handler for array-based configs (Milestones, Tiers)
   const updateArrayConfig = (key: string, index: number, field: string, value: any) => {
-    const newArray = [...(configs[key] || [])];
+    // V-FIX: Safely extract array before spreading to avoid "object is not iterable"
+    const newArray = [...getSafeArray(configs[key])];
     newArray[index] = { ...newArray[index], [field]: value };
     
     setConfigs((prev: any) => ({
@@ -235,7 +248,8 @@ export default function BonusSettingsPage() {
   };
 
   const addArrayItem = (key: string, template: any) => {
-    const current = Array.isArray(configs[key]) ? configs[key] : (configs[key]?.value || []);
+    // V-FIX: Use safe extraction
+    const current = getSafeArray(configs[key]);
     setConfigs((prev: any) => ({
       ...prev,
       [key]: [...current, { ...template, _uid: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}` }]
@@ -243,7 +257,8 @@ export default function BonusSettingsPage() {
   };
 
   const removeArrayItem = (key: string, index: number) => {
-    const current = Array.isArray(configs[key]) ? configs[key] : (configs[key]?.value || []);
+    // V-FIX: Use safe extraction
+    const current = getSafeArray(configs[key]);
     setConfigs((prev: any) => ({
       ...prev,
       [key]: current.filter((_: any, i: number) => i !== index)
@@ -320,7 +335,8 @@ export default function BonusSettingsPage() {
               <CardDescription>One-time bonuses awarded at specific months.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {(configs.milestone_config || []).map((item: any, index: number) => (
+              {/* V-FIX: Use getSafeArray to prevent .map crashes on wrapped objects */}
+              {getSafeArray(configs.milestone_config).map((item: any, index: number) => (
                 <div key={item.id || item._uid || `milestone-${index}`} className="flex gap-4 items-end border-b pb-4">
                   <div className="flex-1 space-y-2">
                     <Label>Month</Label>
@@ -358,7 +374,8 @@ export default function BonusSettingsPage() {
               <CardDescription>Multipliers applied to bonuses based on active referrals.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {(configs.referral_tiers || []).map((item: any, index: number) => (
+              {/* V-FIX: Use getSafeArray to prevent .map crashes */}
+              {getSafeArray(configs.referral_tiers).map((item: any, index: number) => (
                 <div key={item.id || item._uid || `referral-${index}`} className="flex gap-4 items-end border-b pb-4">
                   <div className="flex-1 space-y-2">
                     <Label>Min Referrals</Label>
