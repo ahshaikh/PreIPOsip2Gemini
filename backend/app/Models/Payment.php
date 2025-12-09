@@ -33,7 +33,8 @@ class Payment extends Model
         'is_flagged',
         'flag_reason',
         'retry_count',
-        'failure_reason'
+        'failure_reason',
+        'payment_type',
     ];
 
     protected $casts = [
