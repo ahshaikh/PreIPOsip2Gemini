@@ -327,7 +327,13 @@
 
 ### Core Tables:
 
-# *1. Identity & Access Management (IAM) (13)**
+# DATABASE ARCHITECTURE
+
+**Required Tables:** 95+
+
+## Core Tables
+
+### 1. Identity & Access Management (IAM) (13)
 
 - `users` – Core user accounts (Admins, Investors, Company Users).  
 - `user_profiles` – Extended profile details (Address, DoB, Avatar).  
@@ -342,20 +348,22 @@
 - `ip_whitelists` – Allowed IP addresses for admin access.  
 - `user_settings` – User-specific configuration preferences.  
 
-# *2. Financial & Wallet System (10)**
+
+### 2. Financial & Wallet System (10)
 
 - `wallets` – User wallet balances (Deposit/Bonus/Winnings).  
 - `transactions` – Ledger of all credits and debits.  
-- `payments` – Payment gateway records (Razorpay, Stripe, etc.).  
+- `payments` – Payment gateway records.  
 - `withdrawals` – User withdrawal requests and statuses.  
-- `user_investments` – Portfolio records of shares/units purchased.  
+- `user_investments` – Portfolio records of purchased shares/units.  
 - `subscriptions` – User subscriptions to premium plans.  
 - `plans` – Definitions of investment tiers/plans.  
 - `plan_features` – Specific benefits linked to each plan.  
 - `plan_configs` – Dynamic configuration for plan logic.  
 - `bulk_purchases` – Large-volume share acquisition records.  
 
-# *3. Compliance & KYC (7)**
+
+### 3. Compliance & KYC (7)
 
 - `user_kyc` – User KYC submission metadata and status.  
 - `kyc_documents` – Uploaded identity-proof document links.  
@@ -365,87 +373,93 @@
 - `legal_agreement_versions` – Version history of legal agreements.  
 - `legal_agreement_audit_trails` – Audit logs of agreement acceptance.  
 
-# *4. Pre-IPO Products & Inventory (7)**
+
+### 4. Pre-IPO Products & Inventory (7)
 
 - `products` – Core share/stock listings.  
 - `product_highlights` – Key selling points for each product.  
 - `product_founders` – Company founder information.  
-- `product_funding_rounds` – Funding history of each product.  
+- `product_funding_rounds` – Funding history.  
 - `product_key_metrics` – Financial metrics (EBITDA, Revenue, etc.).  
 - `product_risk_disclosures` – Risks associated with investing.  
-- `product_price_histories` – Historical price points for charts.  
+- `product_price_histories` – Historical price points.  
 
-# *5. Company Portal (B2B) (14)**
+
+### 5. Company Portal (B2B) (14)
 
 - `companies` – Profiles of companies issuing shares.  
 - `company_users` – Staff accounts managing company profiles.  
-- `company_onboarding_progress` – Onboarding status tracking.  
-- `company_financial_reports` – Annual/quarterly reports uploaded.  
-- `company_documents` – Corporate documents (pitch decks, etc.).  
-- `company_team_members` – Executive and team profiles.  
-- `company_funding_rounds` – Funding rounds recorded by the company.  
-- `company_updates` – Updates/news posted by the company.  
-- `deals` – Specific investment deals.  
-- `company_analytics` – Engagement metrics and analytics.  
-- `investor_interests` – Investors marking interest in companies.  
-- `company_qna` – Investor questions and company responses.  
-- `company_webinars` – Scheduled webinars.  
-- `webinar_registrations` – User webinar registrations.  
+- `company_onboarding_progress` – Onboarding status.  
+- `company_financial_reports` – Uploaded reports.  
+- `company_documents` – Corporate documents.  
+- `company_team_members` – Executive profiles.  
+- `company_funding_rounds` – Funding round history.  
+- `company_updates` – News/updates.  
+- `deals` – Investment deals.  
+- `company_analytics` – Engagement metrics.  
+- `investor_interests` – User interest flags.  
+- `company_qna` – Q&A.  
+- `company_webinars` – Webinars.  
+- `webinar_registrations` – User registrations.  
 
-# *6. Marketing & Engagement (12)**
+
+### 6. Marketing & Engagement (12)
 
 - `referrals` – Who referred whom.  
-- `referral_campaigns` – Configuration for referral bonuses.  
-- `bonuses` – Bonus credits awarded to users.  
-- `bonus_transactions` – Ledger for bonus credit/debit.  
-- `profit_shares` – Profit-sharing event definitions.  
-- `user_profit_shares` – User-specific profit share distributions.  
-- `lucky_draws` – Lucky draw event definitions.  
-- `lucky_draw_entries` – User entries into lucky draws.  
-- `offers` – Promotional offers and discount codes.  
-- `promotional_materials` – Marketing materials for affiliates.  
-- `promotional_material_downloads` – Tracking downloads/usage of assets.  
+- `referral_campaigns` – Referral program configuration.  
+- `bonuses` – Bonus credits.  
+- `bonus_transactions` – Ledger for bonus movements.  
+- `profit_shares` – Profit sharing definitions.  
+- `user_profit_shares` – User-specific allocations.  
+- `lucky_draws` – Lucky draw events.  
+- `lucky_draw_entries` – User entries.  
+- `offers` – Discount/promo offers.  
+- `promotional_materials` – Affiliate assets.  
+- `promotional_material_downloads` – Download tracking.  
 
-# *7. Content Management System (CMS) (10)**
 
-- `pages` – Static pages (About Us, Contact, etc.).  
-- `page_versions` – Revision history of pages.  
-- `banners` – Homepage/dashboard banners.  
-- `redirects` – SEO redirects (301/302).  
-- `menus` – Navigation menu definitions.  
-- `menu_items` – Items inside menus.  
+### 7. Content Management System (CMS) (10)
+
+- `pages` – Static CMS pages.  
+- `page_versions` – Version history.  
+- `banners` – Promotional banners.  
+- `redirects` – SEO redirects.  
+- `menus` – Navigation menus.  
+- `menu_items` – Menu links.  
 - `blog_posts` – Blog articles.  
-- `faqs` – Frequently asked questions.  
-- `tutorials` – Guides/educational content.  
-- `content_reports` – Market reports or research documents.  
+- `faqs` – FAQs.  
+- `tutorials` – Tutorials/education.  
+- `content_reports` – Reports/documents.  
 
-# *8. Help Center & Support (7)**
 
-- `support_tickets` – Support tickets raised by users.  
-- `support_messages` – Chat/message history.  
-- `canned_responses` – Predefined replies for support.  
+### 8. Help Center & Support (7)
+
+- `support_tickets` – Tickets.  
+- `support_messages` – Conversation logs.  
+- `canned_responses` – Predefined replies.  
 - `kb_categories` – Knowledge base categories.  
-- `kb_articles` – Knowledge base articles.  
-- `kb_article_views` – Article view analytics.  
-- `article_feedback` – “Helpful?” feedback from users.  
+- `kb_articles` – KB articles.  
+- `kb_article_views` – Analytics.  
+- `article_feedback` – Feedback.  
 
-# *9. Communication & Infrastructure (15)**
 
-- `notifications` – In-app notifications.  
-- `user_notification_preferences` – User-specific notification preferences.  
-- `email_templates` – System email templates.  
-- `email_logs` – Log of outgoing emails.  
-- `sms_templates` – Templates for SMS.  
-- `sms_logs` – Log of sent SMS.  
-- `webhook_logs` – Logs of webhook callbacks (payment gateways).  
-- `activity_logs` – Audit log of admin/user actions.  
-- `settings` – System configuration key-value store.  
-- `feature_flags` – Feature toggles for enabling/disabling modules.  
-- `jobs` – Pending background jobs.  
-- `job_batches` – Batch metadata for queued jobs.  
-- `failed_jobs` – Failed background jobs.  
-- `cache` – Cache storage when using DB driver.  
-- `cache_locks` – Cache lock mechanism.  
+### 9. Communication & Infrastructure (15)
+
+- `notifications` – App notifications.  
+- `user_notification_preferences` – User preferences.  
+- `email_templates` – Email templates.  
+- `email_logs` – Email logs.  
+- `sms_templates` – SMS templates.  
+- `sms_logs` – SMS logs.  
+- `webhook_logs` – Webhook callbacks.  
+- `activity_logs` – Audit logs.  
+- `settings` – Key-value system settings.  
+- `feature_flags` – Feature toggles.  
+- `jobs` – Queue jobs.  
+- `job_batches` – Batch queue metadata.  
+- `failed_jobs` – Failed queue jobs.  
+- `cache` – Cache storage.  
+- `cache_locks` – Cache locks.  
 
 ---
 
