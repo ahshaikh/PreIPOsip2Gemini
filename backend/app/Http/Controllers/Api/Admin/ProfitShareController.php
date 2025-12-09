@@ -107,12 +107,170 @@ class ProfitShareController extends Controller
         $validated = $request->validate([
             'reason' => 'required|string|min:10',
         ]);
-        
+
         try {
             $this->service->reverseDistribution($profitShare, $validated['reason']);
             return response()->json(['message' => 'Distribution reversed successfully.']);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Get profit sharing configuration settings
+     *
+     * GET /api/v1/admin/profit-sharing-settings
+     */
+    public function getSettings()
+    {
+        $settings = \App\Models\Setting::where('group', 'profit_share_config')
+            ->get()
+            ->keyBy('key');
+
+        return response()->json(['settings' => $settings]);
+    }
+
+    /**
+     * Update profit sharing configuration settings
+     *
+     * PUT /api/v1/admin/profit-sharing-settings
+     */
+    public function updateSettings(Request $request)
+    {
+        $validated = $request->validate([
+            'settings' => 'required|array',
+            'settings.*.key' => 'required|string',
+            'settings.*.value' => 'required',
+        ]);
+
+        foreach ($validated['settings'] as $settingData) {
+            $setting = \App\Models\Setting::where('key', $settingData['key'])->first();
+
+            if ($setting && $setting->group === 'profit_share_config') {
+                $setting->update([
+                    'value' => $settingData['value'],
+                    'updated_by' => auth()->id(),
+                ]);
+
+                // Clear cache
+                \Illuminate\Support\Facades\Cache::forget('setting.' . $setting->key);
+            }
+        }
+
+        \Illuminate\Support\Facades\Cache::forget('settings');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Profit sharing settings updated successfully',
+        ]);
+    }
+
+    /**
+     * Preview distribution without saving to database
+     *
+     * POST /api/v1/admin/profit-sharing/{profitShare}/preview
+     */
+    public function preview(Request $request, ProfitShare $profitShare)
+    {
+        try {
+            $result = $this->service->calculateDistribution($profitShare, true);
+
+            // Format distributions for preview
+            $formatted = array_map(function($dist) {
+                return [
+                    'user_id' => $dist['user_id'],
+                    'username' => $dist['subscription']->user->username ?? 'Unknown',
+                    'investment' => $dist['investment_weight'],
+                    'tenure_months' => $dist['tenure_months'],
+                    'share_percent' => $dist['share_percent'] * 100,
+                    'amount' => round($dist['amount'], 2),
+                ];
+            }, $result['distributions']);
+
+            return response()->json([
+                'message' => 'Preview generated successfully',
+                'distributions' => $formatted,
+                'metadata' => $result['metadata'],
+                'total_distributed' => $result['total_distributed'],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Publish financial report with visibility controls
+     *
+     * POST /api/v1/admin/profit-sharing/{profitShare}/publish-report
+     */
+    public function publishReport(Request $request, ProfitShare $profitShare)
+    {
+        $validated = $request->validate([
+            'visibility' => 'required|in:public,private,partners_only',
+        ]);
+
+        try {
+            $reportData = $this->service->publishReport(
+                $profitShare,
+                $validated['visibility'],
+                $request->user()
+            );
+
+            return response()->json([
+                'message' => 'Report published successfully',
+                'report' => $reportData,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Get published report (with visibility checks)
+     *
+     * GET /api/v1/admin/profit-sharing/{profitShare}/report
+     */
+    public function getReport(ProfitShare $profitShare)
+    {
+        if (!$profitShare->published_at) {
+            return response()->json(['message' => 'Report not published yet'], 404);
+        }
+
+        $distributions = $profitShare->distributions()->with('user')->get();
+        $showDetails = setting('profit_share_show_beneficiary_details', false);
+
+        $reportData = [
+            'period_name' => $profitShare->period_name,
+            'period' => [
+                'start_date' => $profitShare->start_date->format('Y-m-d'),
+                'end_date' => $profitShare->end_date->format('Y-m-d'),
+            ],
+            'financials' => [
+                'net_profit' => $profitShare->net_profit,
+                'total_pool' => $profitShare->total_pool,
+                'total_distributed' => $profitShare->total_distributed,
+            ],
+            'statistics' => [
+                'total_beneficiaries' => $distributions->count(),
+                'average_per_user' => $distributions->count() > 0
+                    ? round($profitShare->total_distributed / $distributions->count(), 2)
+                    : 0,
+            ],
+            'metadata' => $profitShare->calculation_metadata,
+            'visibility' => $profitShare->report_visibility,
+            'published_at' => $profitShare->published_at,
+        ];
+
+        // Add beneficiary details based on visibility settings
+        if ($showDetails && $profitShare->report_visibility !== 'private') {
+            $reportData['beneficiaries'] = $distributions->map(function ($dist) {
+                return [
+                    'username' => $dist->user->username,
+                    'amount' => $dist->amount,
+                ];
+            })->toArray();
+        }
+
+        return response()->json(['report' => $reportData]);
     }
 }

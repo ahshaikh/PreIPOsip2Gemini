@@ -506,10 +506,15 @@ Route::prefix('v1')->group(function () {
             Route::get('/lucky-draws/{id}/analytics', [AdminLuckyDrawController::class, 'getAnalytics'])->middleware('permission:bonuses.manage_config');
             
             Route::apiResource('/profit-sharing', AdminProfitShareController::class)->middleware('permission:bonuses.manage_config');
+            Route::get('/profit-sharing-settings', [AdminProfitShareController::class, 'getSettings'])->middleware('permission:bonuses.manage_config');
+            Route::put('/profit-sharing-settings', [AdminProfitShareController::class, 'updateSettings'])->middleware('permission:bonuses.manage_config');
             Route::post('/profit-sharing/{profitShare}/calculate', [AdminProfitShareController::class, 'calculate'])->middleware('permission:bonuses.manage_config');
+            Route::post('/profit-sharing/{profitShare}/preview', [AdminProfitShareController::class, 'preview'])->middleware('permission:bonuses.manage_config');
             Route::post('/profit-sharing/{profitShare}/distribute', [AdminProfitShareController::class, 'distribute'])->middleware('permission:bonuses.manage_config');
             Route::post('/profit-sharing/{profitShare}/adjust', [AdminProfitShareController::class, 'adjust'])->middleware('permission:bonuses.manage_config');
             Route::post('/profit-sharing/{profitShare}/reverse', [AdminProfitShareController::class, 'reverse'])->middleware('permission:bonuses.manage_config');
+            Route::post('/profit-sharing/{profitShare}/publish-report', [AdminProfitShareController::class, 'publishReport'])->middleware('permission:bonuses.manage_config');
+            Route::get('/profit-sharing/{profitShare}/report', [AdminProfitShareController::class, 'getReport'])->middleware('permission:bonuses.manage_config');
 
             // Bonus Management
             Route::get('/bonuses', [App\Http\Controllers\Api\Admin\AdminBonusController::class, 'index'])->middleware('permission:bonuses.manage_config');

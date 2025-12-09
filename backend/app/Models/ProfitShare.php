@@ -19,7 +19,12 @@ class ProfitShare extends Model
         'total_pool',
         'net_profit',
         'status', // pending, calculated, distributed, cancelled, reversed
+        'report_visibility', // public, private, partners_only
+        'report_url',
+        'calculation_metadata',
         'admin_id',
+        'published_by',
+        'published_at',
     ];
 
     protected $casts = [
@@ -27,6 +32,8 @@ class ProfitShare extends Model
         'end_date' => 'date',
         'total_pool' => 'decimal:2',
         'net_profit' => 'decimal:2',
+        'calculation_metadata' => 'array',
+        'published_at' => 'datetime',
     ];
 
     // --- RELATIONSHIPS ---
@@ -45,6 +52,14 @@ class ProfitShare extends Model
     public function distributions(): HasMany
     {
         return $this->hasMany(UserProfitShare::class);
+    }
+
+    /**
+     * Get the admin who published the report.
+     */
+    public function publisher(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'published_by');
     }
 
     /**
