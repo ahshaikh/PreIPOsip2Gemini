@@ -323,64 +323,131 @@
 
 ## DATABASE ARCHITECTURE
 
-**Required Tables:** 55+
+**Required Tables:** 95+
 
 ### Core Tables:
-1. `users` - User accounts
-2. `user_profiles` - Extended profile info
-3. `user_kyc` - KYC data
-4. `kyc_documents` - Document storage references
-5. `plans` - Investment plans (configurable)
-6. `plan_features` - Plan features list
-7. `subscriptions` - User subscriptions
-8. `payments` - Payment transactions
-9. `products` - Pre-IPO products
-10. `bulk_purchases` - Inventory management
-11. `user_investments` - Share allocations
-12. `bonus_transactions` - All bonuses
-13. `referrals` - Referral tracking
-14. `lucky_draws` - Draw definitions
-15. `lucky_draw_entries` - User entries
-16. `profit_shares` - Profit distribution periods
-17. `user_profit_shares` - Individual distributions
-18. `wallets` - User wallet balances
-19. `transactions` - Financial transactions
-20. `withdrawals` - Withdrawal requests
-21. `support_tickets` - Support tickets
-22. `support_messages` - Ticket messages
-23. `notifications` - In-app notifications
-24. `email_logs` - Email tracking
-25. `sms_logs` - SMS tracking
-26. `settings` - All system settings (key-value)
-27. `pages` - CMS pages
-28. `menus` - Navigation menus
-29. `menu_items` - Menu links
-30. `blog_posts` - Blog articles
-31. `faqs` - FAQ items
-32. `forms` - Custom forms
-33. `form_submissions` - Form data
-34. `banners` - Promotional banners
-35. `redirects` - URL redirects
-36. `activity_logs` - User/admin activity
-37. `audit_trails` - Admin action logs
-38. `roles` - User roles
-39. `permissions` - Permission definitions
-40. `role_permissions` - Role-permission mapping
-41. `sessions` - Active sessions
-42. `password_resets` - Reset tokens
-43. `email_templates` - Email templates
-44. `sms_templates` - SMS templates
-45. `payment_gateways` - Gateway configs
-46. `webhooks` - Webhook endpoints
-47. `api_keys` - API authentication
-48. `backups` - Backup logs
-49. `cron_jobs` - Scheduled tasks
-50. `reports` - Saved reports
-51. `scheduled_reports` - Report schedules
-52. `feature_flags` - Feature toggles
-53. `consents` - User consents
-54. `data_exports` - Export requests
-55. `cache_records` - Cache management
+
+# **1. Identity & Access Management (IAM) (13)**
+
+- `users` – Core user accounts (Admins, Investors, Company Users).  
+- `user_profiles` – Extended profile details (Address, DoB, Avatar).  
+- `roles` – Role definitions (Super Admin, User, Company Admin, etc.).  
+- `permissions` – Granular access control capabilities.  
+- `model_has_roles` – Mapping users to roles.  
+- `model_has_permissions` – Mapping users directly to permissions.  
+- `role_has_permissions` – Mapping roles to sets of permissions.  
+- `personal_access_tokens` – API tokens for authentication (Sanctum).  
+- `password_reset_tokens` – Tokens for password recovery.  
+- `sessions` – Active user sessions.  
+- `ip_whitelists` – Allowed IP addresses for admin access.  
+- `user_settings` – User-specific configuration preferences.  
+
+# **2. Financial & Wallet System (10)**
+
+- `wallets` – User wallet balances (Deposit/Bonus/Winnings).  
+- `transactions` – Ledger of all credits and debits.  
+- `payments` – Payment gateway records (Razorpay, Stripe, etc.).  
+- `withdrawals` – User withdrawal requests and statuses.  
+- `user_investments` – Portfolio records of shares/units purchased.  
+- `subscriptions` – User subscriptions to premium plans.  
+- `plans` – Definitions of investment tiers/plans.  
+- `plan_features` – Specific benefits linked to each plan.  
+- `plan_configs` – Dynamic configuration for plan logic.  
+- `bulk_purchases` – Large-volume share acquisition records.  
+
+# **3. Compliance & KYC (7)**
+
+- `user_kyc` – User KYC submission metadata and status.  
+- `kyc_documents` – Uploaded identity-proof document links.  
+- `kyc_rejection_templates` – Pre-defined reasons for rejecting KYC.  
+- `user_legal_acceptances` – Logs of users agreeing to legal terms.  
+- `legal_agreements` – Definitions of legal documents (T&C, Privacy).  
+- `legal_agreement_versions` – Version history of legal agreements.  
+- `legal_agreement_audit_trails` – Audit logs of agreement acceptance.  
+
+# **4. Pre-IPO Products & Inventory (7)**
+
+- `products` – Core share/stock listings.  
+- `product_highlights` – Key selling points for each product.  
+- `product_founders` – Company founder information.  
+- `product_funding_rounds` – Funding history of each product.  
+- `product_key_metrics` – Financial metrics (EBITDA, Revenue, etc.).  
+- `product_risk_disclosures` – Risks associated with investing.  
+- `product_price_histories` – Historical price points for charts.  
+
+# **5. Company Portal (B2B) (14)**
+
+- `companies` – Profiles of companies issuing shares.  
+- `company_users` – Staff accounts managing company profiles.  
+- `company_onboarding_progress` – Onboarding status tracking.  
+- `company_financial_reports` – Annual/quarterly reports uploaded.  
+- `company_documents` – Corporate documents (pitch decks, etc.).  
+- `company_team_members` – Executive and team profiles.  
+- `company_funding_rounds` – Funding rounds recorded by the company.  
+- `company_updates` – Updates/news posted by the company.  
+- `deals` – Specific investment deals.  
+- `company_analytics` – Engagement metrics and analytics.  
+- `investor_interests` – Investors marking interest in companies.  
+- `company_qna` – Investor questions and company responses.  
+- `company_webinars` – Scheduled webinars.  
+- `webinar_registrations` – User webinar registrations.  
+
+# **6. Marketing & Engagement (12)**
+
+- `referrals` – Who referred whom.  
+- `referral_campaigns` – Configuration for referral bonuses.  
+- `bonuses` – Bonus credits awarded to users.  
+- `bonus_transactions` – Ledger for bonus credit/debit.  
+- `profit_shares` – Profit-sharing event definitions.  
+- `user_profit_shares` – User-specific profit share distributions.  
+- `lucky_draws` – Lucky draw event definitions.  
+- `lucky_draw_entries` – User entries into lucky draws.  
+- `offers` – Promotional offers and discount codes.  
+- `promotional_materials` – Marketing materials for affiliates.  
+- `promotional_material_downloads` – Tracking downloads/usage of assets.  
+
+# **7. Content Management System (CMS) (10)**
+
+- `pages` – Static pages (About Us, Contact, etc.).  
+- `page_versions` – Revision history of pages.  
+- `banners` – Homepage/dashboard banners.  
+- `redirects` – SEO redirects (301/302).  
+- `menus` – Navigation menu definitions.  
+- `menu_items` – Items inside menus.  
+- `blog_posts` – Blog articles.  
+- `faqs` – Frequently asked questions.  
+- `tutorials` – Guides/educational content.  
+- `content_reports` – Market reports or research documents.  
+
+# **8. Help Center & Support (7)**
+
+- `support_tickets` – Support tickets raised by users.  
+- `support_messages` – Chat/message history.  
+- `canned_responses` – Predefined replies for support.  
+- `kb_categories` – Knowledge base categories.  
+- `kb_articles` – Knowledge base articles.  
+- `kb_article_views` – Article view analytics.  
+- `article_feedback` – “Helpful?” feedback from users.  
+
+# **9. Communication & Infrastructure (15)**
+
+- `notifications` – In-app notifications.  
+- `user_notification_preferences` – User-specific notification preferences.  
+- `email_templates` – System email templates.  
+- `email_logs` – Log of outgoing emails.  
+- `sms_templates` – Templates for SMS.  
+- `sms_logs` – Log of sent SMS.  
+- `webhook_logs` – Logs of webhook callbacks (payment gateways).  
+- `activity_logs` – Audit log of admin/user actions.  
+- `settings` – System configuration key-value store.  
+- `feature_flags` – Feature toggles for enabling/disabling modules.  
+- `jobs` – Pending background jobs.  
+- `job_batches` – Batch metadata for queued jobs.  
+- `failed_jobs` – Failed background jobs.  
+- `cache` – Cache storage when using DB driver.  
+- `cache_locks` – Cache lock mechanism.  
+
+---
 
 **Key Points:**
 - All tables need `created_at`, `updated_at` timestamps
