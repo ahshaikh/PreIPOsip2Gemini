@@ -221,12 +221,79 @@ class SettingsSeeder extends Seeder
             ['key' => 'tds_threshold', 'value' => '5000', 'type' => 'number', 'group' => 'financial'],
 
             // ============================================================
-            // LEGAL SETTINGS
+            // LEGAL & COMPLIANCE SETTINGS
             // ============================================================
-            ['key' => 'cookie_consent_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'legal'],
-            ['key' => 'cookie_consent_message', 'value' => 'We use cookies to improve your experience.', 'type' => 'string', 'group' => 'legal'],
-            ['key' => 'gdpr_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'legal'],
-            ['key' => 'data_retention_days', 'value' => '365', 'type' => 'number', 'group' => 'legal'],
+
+            // Cookie Consent Banner Configuration
+            ['key' => 'cookie_consent_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'cookie_consent_version', 'value' => '1.0', 'type' => 'string', 'group' => 'compliance'],
+            ['key' => 'cookie_consent_title', 'value' => 'We use cookies', 'type' => 'string', 'group' => 'compliance'],
+            ['key' => 'cookie_consent_message', 'value' => 'We use cookies to improve your experience on our site and to show you personalized content. By clicking "Accept All", you consent to our use of cookies.', 'type' => 'text', 'group' => 'compliance'],
+            ['key' => 'cookie_consent_position', 'value' => 'bottom', 'type' => 'string', 'group' => 'compliance'], // bottom, top, bottom-left, bottom-right
+            ['key' => 'cookie_consent_theme', 'value' => 'light', 'type' => 'string', 'group' => 'compliance'], // light, dark
+            ['key' => 'cookie_consent_show_reject', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'cookie_consent_show_preferences', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'cookie_consent_auto_hide_delay', 'value' => '0', 'type' => 'number', 'group' => 'compliance'], // seconds, 0 = never
+            ['key' => 'cookie_consent_revisit_consent', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'cookie_consent_expiry_days', 'value' => '365', 'type' => 'number', 'group' => 'compliance'],
+
+            // Cookie Categories
+            ['key' => 'cookies_essential_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'cookies_analytics_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'cookies_marketing_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'cookies_preferences_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+
+            // GDPR Compliance
+            ['key' => 'gdpr_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'gdpr_region', 'value' => 'EU', 'type' => 'string', 'group' => 'compliance'], // EU, UK, Worldwide
+            ['key' => 'gdpr_data_export_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'gdpr_data_deletion_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'gdpr_data_portability_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'gdpr_data_rectification_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'gdpr_right_to_object_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'gdpr_dpo_name', 'value' => '', 'type' => 'string', 'group' => 'compliance'], // Data Protection Officer
+            ['key' => 'gdpr_dpo_email', 'value' => 'dpo@preipo-sip.com', 'type' => 'string', 'group' => 'compliance'],
+            ['key' => 'gdpr_dpo_phone', 'value' => '', 'type' => 'string', 'group' => 'compliance'],
+
+            // Data Retention Policy
+            ['key' => 'data_retention_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'data_retention_active_users_days', 'value' => '-1', 'type' => 'number', 'group' => 'compliance'], // -1 = indefinite
+            ['key' => 'data_retention_inactive_users_days', 'value' => '730', 'type' => 'number', 'group' => 'compliance'], // 2 years
+            ['key' => 'data_retention_deleted_users_days', 'value' => '90', 'type' => 'number', 'group' => 'compliance'],
+            ['key' => 'data_retention_transactions_days', 'value' => '2555', 'type' => 'number', 'group' => 'compliance'], // 7 years
+            ['key' => 'data_retention_logs_days', 'value' => '90', 'type' => 'number', 'group' => 'compliance'],
+            ['key' => 'data_retention_audit_trail_days', 'value' => '2555', 'type' => 'number', 'group' => 'compliance'], // 7 years
+            ['key' => 'data_retention_support_tickets_days', 'value' => '365', 'type' => 'number', 'group' => 'compliance'],
+            ['key' => 'data_retention_email_notifications_days', 'value' => '30', 'type' => 'number', 'group' => 'compliance'],
+            ['key' => 'data_retention_auto_cleanup_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'compliance'],
+
+            // Consent Management
+            ['key' => 'consent_required_for_registration', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'consent_required_documents', 'value' => 'terms_of_service,privacy_policy', 'type' => 'string', 'group' => 'compliance'],
+            ['key' => 'consent_version_tracking', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'consent_reaccept_on_update', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'consent_withdrawal_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'consent_granular_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'consent_marketing_emails', 'value' => 'opt-in', 'type' => 'string', 'group' => 'compliance'], // opt-in, opt-out
+            ['key' => 'consent_marketing_sms', 'value' => 'opt-in', 'type' => 'string', 'group' => 'compliance'],
+            ['key' => 'consent_data_sharing', 'value' => 'opt-in', 'type' => 'string', 'group' => 'compliance'],
+            ['key' => 'consent_profiling', 'value' => 'opt-in', 'type' => 'string', 'group' => 'compliance'],
+
+            // Legal Document Types
+            ['key' => 'legal_terms_of_service_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'legal_privacy_policy_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'legal_refund_policy_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'legal_risk_disclosure_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'legal_disclaimer_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'legal_acceptable_use_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+
+            // Compliance Notifications
+            ['key' => 'compliance_notify_on_export', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'compliance_notify_on_deletion', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'compliance_notify_admin_on_export', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'compliance_notify_admin_on_deletion', 'value' => 'true', 'type' => 'boolean', 'group' => 'compliance'],
+            ['key' => 'compliance_export_format', 'value' => 'json', 'type' => 'string', 'group' => 'compliance'], // json, csv, xml
+            ['key' => 'compliance_export_includes', 'value' => 'profile,transactions,subscriptions,kyc,support', 'type' => 'string', 'group' => 'compliance'],
 
             // ============================================================
             // SUPPORT SYSTEM SETTINGS
