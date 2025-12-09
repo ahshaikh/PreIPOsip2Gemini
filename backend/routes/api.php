@@ -51,6 +51,7 @@ use App\Http\Controllers\Api\Admin\WithdrawalController;
 use App\Http\Controllers\Api\Admin\LuckyDrawController as AdminLuckyDrawController;
 use App\Http\Controllers\Api\Admin\ProfitShareController as AdminProfitShareController;
 use App\Http\Controllers\Api\Admin\ReportController;
+use App\Http\Controllers\Api\Admin\AdvancedReportController;
 use App\Http\Controllers\Api\Admin\PerformanceMonitoringController;
 use App\Http\Controllers\Api\Admin\SupportTicketController as AdminSupportTicketController;
 use App\Http\Controllers\Api\Admin\PaymentController as AdminPaymentController;
@@ -303,6 +304,34 @@ Route::prefix('v1')->group(function () {
                 // Export (Merged)
                 Route::get('download', [ReportController::class, 'exportReport'])
                     ->middleware('permission:reports.export');
+
+                // Advanced Reports
+                Route::get('revenue', [AdvancedReportController::class, 'revenueReport'])->middleware('permission:reports.view_financial');
+                Route::get('bonus-distribution', [AdvancedReportController::class, 'bonusDistributionReport'])->middleware('permission:reports.view_financial');
+                Route::get('investment-analysis', [AdvancedReportController::class, 'investmentAnalysisReport'])->middleware('permission:reports.view_financial');
+                Route::get('cash-flow', [AdvancedReportController::class, 'cashFlowStatement'])->middleware('permission:reports.view_financial');
+                Route::get('transactions', [AdvancedReportController::class, 'transactionReport'])->middleware('permission:reports.view_financial');
+                Route::get('kyc-completion', [AdvancedReportController::class, 'kycCompletionReport'])->middleware('permission:reports.view_user');
+                Route::get('user-demographics', [AdvancedReportController::class, 'userDemographicsReport'])->middleware('permission:reports.view_user');
+                Route::get('subscription-performance', [AdvancedReportController::class, 'subscriptionPerformanceReport'])->middleware('permission:reports.view_financial');
+                Route::get('payment-collection', [AdvancedReportController::class, 'paymentCollectionReport'])->middleware('permission:reports.view_financial');
+                Route::get('referral-performance', [AdvancedReportController::class, 'referralPerformanceReport'])->middleware('permission:reports.view_user');
+                Route::get('portfolio-performance', [AdvancedReportController::class, 'portfolioPerformanceReport'])->middleware('permission:reports.view_financial');
+                Route::get('sebi-compliance', [AdvancedReportController::class, 'sebiComplianceReport'])->middleware('permission:reports.view_compliance');
+
+                // Custom Report Builder
+                Route::get('custom/metrics', [AdvancedReportController::class, 'getAvailableMetrics'])->middleware('permission:reports.view_financial');
+                Route::post('custom/generate', [AdvancedReportController::class, 'generateCustomReport'])->middleware('permission:reports.view_financial');
+            });
+
+            // Scheduled Reports Management
+            Route::prefix('scheduled-reports')->middleware('permission:reports.manage_scheduled')->group(function () {
+                Route::get('/', [AdvancedReportController::class, 'listScheduledReports']);
+                Route::post('/', [AdvancedReportController::class, 'createScheduledReport']);
+                Route::put('/{report}', [AdvancedReportController::class, 'updateScheduledReport']);
+                Route::delete('/{report}', [AdvancedReportController::class, 'deleteScheduledReport']);
+                Route::get('/{report}/runs', [AdvancedReportController::class, 'getReportRuns']);
+                Route::post('/{report}/run', [AdvancedReportController::class, 'runScheduledReport']);
             });
 
             // Inventory Summary
