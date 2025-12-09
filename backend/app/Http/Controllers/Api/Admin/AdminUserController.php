@@ -10,22 +10,39 @@ use App\Models\UserKyc;
 use App\Models\Wallet;
 use App\Models\Transaction;
 use App\Models\BonusTransaction;
+use App\Models\Subscription;
+use App\Models\Payment;
 use App\Http\Requests\Admin\AdjustBalanceRequest;
-use App\Services\WalletService; // <-- Service for secure transactions
+use App\Services\WalletService;
+use App\Services\EmailService;
+use App\Services\SmsService;
+use App\Services\AllocationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Notification;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdminUserController extends Controller
 {
     protected $walletService;
+    protected $emailService;
+    protected $smsService;
+    protected $allocationService;
 
-    // Inject the WalletService for secure balance adjustments
-    public function __construct(WalletService $walletService)
-    {
+    // Inject services
+    public function __construct(
+        WalletService $walletService,
+        EmailService $emailService,
+        SmsService $smsService,
+        AllocationService $allocationService
+    ) {
         $this->walletService = $walletService;
+        $this->emailService = $emailService;
+        $this->smsService = $smsService;
+        $this->allocationService = $allocationService;
     }
 
     /**
@@ -153,19 +170,45 @@ class AdminUserController extends Controller
 
     /**
      * Update the specified user's admin-level details.
+     * Enhanced to allow editing any field including profile.
      */
     public function update(Request $request, User $user)
     {
         $validated = $request->validate([
-            'status' => 'required|in:active,suspended,blocked',
-            // Add other editable fields if necessary
+            'username' => 'sometimes|string|alpha_dash|min:3|max:50|unique:users,username,' . $user->id,
+            'email' => 'sometimes|email|unique:users,email,' . $user->id,
+            'mobile' => 'sometimes|string|regex:/^[0-9]{10}$/|unique:users,mobile,' . $user->id,
+            'status' => 'sometimes|in:active,suspended,blocked',
+            'password' => 'sometimes|string|min:8',
+            'profile' => 'sometimes|array',
+            'profile.first_name' => 'sometimes|string|max:100',
+            'profile.last_name' => 'sometimes|string|max:100',
+            'profile.city' => 'sometimes|string|max:100',
+            'profile.state' => 'sometimes|string|max:100',
+            'profile.address' => 'sometimes|string',
         ]);
-        
-        $user->update($validated);
-        
+
+        DB::transaction(function () use ($validated, $user) {
+            // Update user fields
+            $userFields = array_intersect_key($validated, array_flip(['username', 'email', 'mobile', 'status']));
+
+            if (isset($validated['password'])) {
+                $userFields['password'] = Hash::make($validated['password']);
+            }
+
+            if (!empty($userFields)) {
+                $user->update($userFields);
+            }
+
+            // Update profile if provided
+            if (isset($validated['profile']) && $user->profile) {
+                $user->profile->update($validated['profile']);
+            }
+        });
+
         return response()->json([
-            'message' => 'User status updated.',
-            'user' => $user,
+            'message' => 'User updated successfully.',
+            'user' => $user->fresh(['profile']),
         ]);
     }
 
@@ -426,5 +469,499 @@ class AdminUserController extends Controller
         };
 
         return new StreamedResponse($callback, 200, $headers);
+    }
+
+    /**
+     * Soft delete a user with anonymization
+     *
+     * DELETE /api/v1/admin/users/{id}
+     */
+    public function destroy(User $user)
+    {
+        return DB::transaction(function () use ($user) {
+            // Anonymize user data before soft delete
+            $randomId = 'deleted_' . Str::random(10);
+
+            $user->update([
+                'username' => $randomId,
+                'email' => $randomId . '@deleted.local',
+                'mobile' => '0000000000',
+                'is_anonymized' => true,
+                'anonymized_at' => now(),
+                'status' => 'blocked',
+            ]);
+
+            // Anonymize profile
+            if ($user->profile) {
+                $user->profile->update([
+                    'first_name' => 'Deleted',
+                    'last_name' => 'User',
+                    'address' => null,
+                    'city' => null,
+                    'state' => null,
+                    'pincode' => null,
+                ]);
+            }
+
+            // Soft delete
+            $user->delete();
+
+            Log::info("User {$user->id} deleted and anonymized");
+
+            return response()->json(['message' => 'User deleted and anonymized successfully.']);
+        });
+    }
+
+    /**
+     * Block a user permanently with blacklisting option
+     *
+     * POST /api/v1/admin/users/{id}/block
+     */
+    public function block(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'reason' => 'required|string|max:500',
+            'blacklist' => 'sometimes|boolean',
+        ]);
+
+        $admin = $request->user();
+
+        $user->update([
+            'status' => 'blocked',
+            'block_reason' => $validated['reason'],
+            'blocked_at' => now(),
+            'blocked_by' => $admin->id,
+            'is_blacklisted' => $validated['blacklist'] ?? false,
+        ]);
+
+        // Log activity
+        $user->activityLogs()->create([
+            'action' => 'admin_blocked',
+            'description' => "Blocked by admin: {$validated['reason']}. Blacklisted: " . ($validated['blacklist'] ? 'Yes' : 'No'),
+            'ip_address' => $request->ip()
+        ]);
+
+        Log::info("User {$user->id} blocked by Admin {$admin->id}. Blacklisted: " . ($validated['blacklist'] ?? false));
+
+        return response()->json([
+            'message' => 'User blocked successfully.',
+            'user' => $user
+        ]);
+    }
+
+    /**
+     * Unblock a user
+     *
+     * POST /api/v1/admin/users/{id}/unblock
+     */
+    public function unblock(User $user)
+    {
+        $user->update([
+            'status' => 'active',
+            'block_reason' => null,
+            'blocked_at' => null,
+            'blocked_by' => null,
+            'is_blacklisted' => false,
+        ]);
+
+        $user->activityLogs()->create([
+            'action' => 'admin_unblocked',
+            'description' => 'Unblocked by admin',
+            'ip_address' => request()->ip()
+        ]);
+
+        Log::info("User {$user->id} unblocked");
+
+        return response()->json(['message' => 'User unblocked successfully.']);
+    }
+
+    /**
+     * Unsuspend a user
+     *
+     * POST /api/v1/admin/users/{id}/unsuspend
+     */
+    public function unsuspend(User $user)
+    {
+        $user->update([
+            'status' => 'active',
+            'suspension_reason' => null,
+            'suspended_at' => null,
+            'suspended_by' => null,
+        ]);
+
+        $user->activityLogs()->create([
+            'action' => 'admin_unsuspended',
+            'description' => 'Unsuspended by admin',
+            'ip_address' => request()->ip()
+        ]);
+
+        Log::info("User {$user->id} unsuspended");
+
+        return response()->json(['message' => 'User unsuspended successfully.']);
+    }
+
+    /**
+     * Override investment allocation for a user
+     *
+     * POST /api/v1/admin/users/{id}/override-allocation
+     */
+    public function overrideAllocation(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'subscription_id' => 'required|exists:subscriptions,id',
+            'allocation_amount' => 'required|numeric|min:0',
+            'reason' => 'required|string|max:500',
+        ]);
+
+        $subscription = Subscription::findOrFail($validated['subscription_id']);
+
+        if ($subscription->user_id !== $user->id) {
+            return response()->json(['message' => 'Subscription does not belong to this user'], 400);
+        }
+
+        // Override allocation using AllocationService
+        $result = $this->allocationService->overrideAllocation(
+            $subscription,
+            $validated['allocation_amount'],
+            $validated['reason']
+        );
+
+        Log::info("Allocation overridden for User {$user->id}, Subscription {$subscription->id}. New amount: {$validated['allocation_amount']}");
+
+        return response()->json([
+            'message' => 'Allocation overridden successfully.',
+            'allocation' => $result
+        ]);
+    }
+
+    /**
+     * Force payment processing for a user
+     *
+     * POST /api/v1/admin/users/{id}/force-payment
+     */
+    public function forcePayment(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'subscription_id' => 'required|exists:subscriptions,id',
+            'amount' => 'required|numeric|min:1',
+            'reason' => 'required|string|max:500',
+        ]);
+
+        $subscription = Subscription::findOrFail($validated['subscription_id']);
+
+        if ($subscription->user_id !== $user->id) {
+            return response()->json(['message' => 'Subscription does not belong to this user'], 400);
+        }
+
+        return DB::transaction(function () use ($validated, $user, $subscription, $request) {
+            // Create manual payment record
+            $payment = Payment::create([
+                'user_id' => $user->id,
+                'subscription_id' => $subscription->id,
+                'amount' => $validated['amount'],
+                'status' => 'paid',
+                'payment_method' => 'admin_manual',
+                'payment_date' => now(),
+                'is_on_time' => true,
+                'notes' => "Manual payment by admin: {$validated['reason']}",
+            ]);
+
+            // Update subscription
+            $subscription->increment('consecutive_payments_count');
+
+            // Log activity
+            $user->activityLogs()->create([
+                'action' => 'admin_force_payment',
+                'description' => "Manual payment processed: ₹{$validated['amount']}. Reason: {$validated['reason']}",
+                'ip_address' => $request->ip()
+            ]);
+
+            Log::info("Force payment processed for User {$user->id}. Amount: ₹{$validated['amount']}");
+
+            return response()->json([
+                'message' => 'Payment processed successfully.',
+                'payment' => $payment
+            ]);
+        });
+    }
+
+    /**
+     * Send email to a user
+     *
+     * POST /api/v1/admin/users/{id}/send-email
+     */
+    public function sendEmail(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'subject' => 'required|string|max:200',
+            'message' => 'required|string',
+            'template' => 'sometimes|string',
+        ]);
+
+        try {
+            $this->emailService->send(
+                $user->email,
+                $validated['subject'],
+                $validated['message'],
+                $validated['template'] ?? 'admin-message'
+            );
+
+            Log::info("Email sent to User {$user->id}. Subject: {$validated['subject']}");
+
+            return response()->json(['message' => 'Email sent successfully.']);
+        } catch (\Exception $e) {
+            Log::error("Failed to send email to User {$user->id}: " . $e->getMessage());
+            return response()->json(['message' => 'Failed to send email: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Send SMS to a user
+     *
+     * POST /api/v1/admin/users/{id}/send-sms
+     */
+    public function sendSms(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'message' => 'required|string|max:160',
+        ]);
+
+        try {
+            $this->smsService->send($user->mobile, $validated['message']);
+
+            Log::info("SMS sent to User {$user->id}. Message: {$validated['message']}");
+
+            return response()->json(['message' => 'SMS sent successfully.']);
+        } catch (\Exception $e) {
+            Log::error("Failed to send SMS to User {$user->id}: " . $e->getMessage());
+            return response()->json(['message' => 'Failed to send SMS: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Send push notification to a user
+     *
+     * POST /api/v1/admin/users/{id}/send-notification
+     */
+    public function sendNotification(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:100',
+            'message' => 'required|string|max:500',
+            'type' => 'sometimes|string|in:info,warning,success,error',
+            'url' => 'sometimes|url',
+        ]);
+
+        try {
+            $user->notify(new \App\Notifications\AdminMessage(
+                $validated['title'],
+                $validated['message'],
+                $validated['type'] ?? 'info',
+                $validated['url'] ?? null
+            ));
+
+            Log::info("Push notification sent to User {$user->id}. Title: {$validated['title']}");
+
+            return response()->json(['message' => 'Notification sent successfully.']);
+        } catch (\Exception $e) {
+            Log::error("Failed to send notification to User {$user->id}: " . $e->getMessage());
+            return response()->json(['message' => 'Failed to send notification: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Advanced search with multiple criteria
+     *
+     * POST /api/v1/admin/users/advanced-search
+     */
+    public function advancedSearch(Request $request)
+    {
+        $validated = $request->validate([
+            'username' => 'sometimes|string',
+            'email' => 'sometimes|string',
+            'mobile' => 'sometimes|string',
+            'status' => 'sometimes|array',
+            'status.*' => 'in:active,suspended,blocked',
+            'kyc_status' => 'sometimes|array',
+            'kyc_status.*' => 'in:pending,submitted,verified,rejected',
+            'subscription_status' => 'sometimes|array',
+            'subscription_status.*' => 'in:active,paused,completed,cancelled',
+            'wallet_balance_min' => 'sometimes|numeric',
+            'wallet_balance_max' => 'sometimes|numeric',
+            'created_from' => 'sometimes|date',
+            'created_to' => 'sometimes|date',
+            'has_referrals' => 'sometimes|boolean',
+            'is_blacklisted' => 'sometimes|boolean',
+        ]);
+
+        $query = User::with('profile', 'kyc', 'wallet', 'subscription');
+
+        // Apply filters
+        if (!empty($validated['username'])) {
+            $query->where('username', 'like', "%{$validated['username']}%");
+        }
+
+        if (!empty($validated['email'])) {
+            $query->where('email', 'like', "%{$validated['email']}%");
+        }
+
+        if (!empty($validated['mobile'])) {
+            $query->where('mobile', 'like', "%{$validated['mobile']}%");
+        }
+
+        if (!empty($validated['status'])) {
+            $query->whereIn('status', $validated['status']);
+        }
+
+        if (!empty($validated['kyc_status'])) {
+            $query->whereHas('kyc', function ($q) use ($validated) {
+                $q->whereIn('status', $validated['kyc_status']);
+            });
+        }
+
+        if (!empty($validated['subscription_status'])) {
+            $query->whereHas('subscription', function ($q) use ($validated) {
+                $q->whereIn('status', $validated['subscription_status']);
+            });
+        }
+
+        if (isset($validated['wallet_balance_min'])) {
+            $query->whereHas('wallet', function ($q) use ($validated) {
+                $q->where('balance', '>=', $validated['wallet_balance_min']);
+            });
+        }
+
+        if (isset($validated['wallet_balance_max'])) {
+            $query->whereHas('wallet', function ($q) use ($validated) {
+                $q->where('balance', '<=', $validated['wallet_balance_max']);
+            });
+        }
+
+        if (!empty($validated['created_from'])) {
+            $query->whereDate('created_at', '>=', $validated['created_from']);
+        }
+
+        if (!empty($validated['created_to'])) {
+            $query->whereDate('created_at', '<=', $validated['created_to']);
+        }
+
+        if (isset($validated['has_referrals'])) {
+            if ($validated['has_referrals']) {
+                $query->has('referrals');
+            } else {
+                $query->doesntHave('referrals');
+            }
+        }
+
+        if (isset($validated['is_blacklisted'])) {
+            $query->where('is_blacklisted', $validated['is_blacklisted']);
+        }
+
+        $users = $query->latest()->paginate(50);
+
+        return response()->json($users);
+    }
+
+    /**
+     * User segmentation for targeted actions
+     *
+     * GET /api/v1/admin/users/segments
+     */
+    public function segments()
+    {
+        $segments = [
+            'active_subscribers' => User::whereHas('subscription', function ($q) {
+                $q->where('status', 'active');
+            })->count(),
+
+            'inactive_users' => User::whereDoesntHave('subscription')->count(),
+
+            'kyc_pending' => User::whereHas('kyc', function ($q) {
+                $q->where('status', 'pending');
+            })->count(),
+
+            'kyc_verified' => User::whereHas('kyc', function ($q) {
+                $q->where('status', 'verified');
+            })->count(),
+
+            'high_value' => User::whereHas('wallet', function ($q) {
+                $q->where('balance', '>', 10000);
+            })->count(),
+
+            'low_activity' => User::whereDoesntHave('activityLogs', function ($q) {
+                $q->where('created_at', '>=', now()->subDays(30));
+            })->count(),
+
+            'suspended' => User::where('status', 'suspended')->count(),
+
+            'blocked' => User::where('status', 'blocked')->count(),
+
+            'blacklisted' => User::where('is_blacklisted', true)->count(),
+
+            'with_referrals' => User::has('referrals')->count(),
+
+            'total_users' => User::role('user')->count(),
+        ];
+
+        return response()->json(['segments' => $segments]);
+    }
+
+    /**
+     * Get users by segment for bulk actions
+     *
+     * GET /api/v1/admin/users/segment/{name}
+     */
+    public function getUsersBySegment(Request $request, string $segment)
+    {
+        $query = User::with('profile', 'wallet', 'subscription');
+
+        switch ($segment) {
+            case 'active_subscribers':
+                $query->whereHas('subscription', fn($q) => $q->where('status', 'active'));
+                break;
+
+            case 'inactive_users':
+                $query->whereDoesntHave('subscription');
+                break;
+
+            case 'kyc_pending':
+                $query->whereHas('kyc', fn($q) => $q->where('status', 'pending'));
+                break;
+
+            case 'kyc_verified':
+                $query->whereHas('kyc', fn($q) => $q->where('status', 'verified'));
+                break;
+
+            case 'high_value':
+                $query->whereHas('wallet', fn($q) => $q->where('balance', '>', 10000));
+                break;
+
+            case 'low_activity':
+                $query->whereDoesntHave('activityLogs', fn($q) => $q->where('created_at', '>=', now()->subDays(30)));
+                break;
+
+            case 'suspended':
+                $query->where('status', 'suspended');
+                break;
+
+            case 'blocked':
+                $query->where('status', 'blocked');
+                break;
+
+            case 'blacklisted':
+                $query->where('is_blacklisted', true);
+                break;
+
+            case 'with_referrals':
+                $query->has('referrals');
+                break;
+
+            default:
+                return response()->json(['message' => 'Invalid segment'], 400);
+        }
+
+        $users = $query->latest()->paginate(50);
+
+        return response()->json($users);
     }
 }

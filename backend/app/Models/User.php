@@ -32,6 +32,15 @@ class User extends Authenticatable
         'two_factor_secret',
         'two_factor_recovery_codes',
         'two_factor_confirmed_at',
+        'suspension_reason',
+        'suspended_at',
+        'suspended_by',
+        'block_reason',
+        'blocked_at',
+        'blocked_by',
+        'is_blacklisted',
+        'is_anonymized',
+        'anonymized_at',
     ];
 
     protected $hidden = [

@@ -374,6 +374,11 @@ Route::prefix('v1')->group(function () {
             Route::apiResource('/users', AdminUserController::class)->except(['store', 'update']);
             Route::get('/users/export/csv', [AdminUserController::class, 'export'])->middleware('permission:users.view');
 
+            // User Search and Segmentation
+            Route::post('/users/advanced-search', [AdminUserController::class, 'advancedSearch'])->middleware('permission:users.view');
+            Route::get('/users/segments', [AdminUserController::class, 'segments'])->middleware('permission:users.view');
+            Route::get('/users/segment/{segment}', [AdminUserController::class, 'getUsersBySegment'])->middleware('permission:users.view');
+
             // Critical admin actions - Rate limited
             Route::middleware('throttle:admin-actions')->group(function () {
                 Route::post('/users', [AdminUserController::class, 'store'])->middleware('permission:users.create');
@@ -381,7 +386,15 @@ Route::prefix('v1')->group(function () {
                 Route::post('/users/bulk-action', [AdminUserController::class, 'bulkAction'])->middleware('permission:users.edit');
                 Route::post('/users/import', [AdminUserController::class, 'import'])->middleware('permission:users.create');
                 Route::post('/users/{user}/suspend', [AdminUserController::class, 'suspend'])->middleware('permission:users.suspend');
+                Route::post('/users/{user}/unsuspend', [AdminUserController::class, 'unsuspend'])->middleware('permission:users.suspend');
+                Route::post('/users/{user}/block', [AdminUserController::class, 'block'])->middleware('permission:users.suspend');
+                Route::post('/users/{user}/unblock', [AdminUserController::class, 'unblock'])->middleware('permission:users.suspend');
                 Route::post('/users/{user}/adjust-balance', [AdminUserController::class, 'adjustBalance'])->middleware('permission:users.adjust_wallet');
+                Route::post('/users/{user}/override-allocation', [AdminUserController::class, 'overrideAllocation'])->middleware('permission:users.edit');
+                Route::post('/users/{user}/force-payment', [AdminUserController::class, 'forcePayment'])->middleware('permission:users.edit');
+                Route::post('/users/{user}/send-email', [AdminUserController::class, 'sendEmail'])->middleware('permission:users.edit');
+                Route::post('/users/{user}/send-sms', [AdminUserController::class, 'sendSms'])->middleware('permission:users.edit');
+                Route::post('/users/{user}/send-notification', [AdminUserController::class, 'sendNotification'])->middleware('permission:users.edit');
             });
 
             Route::apiResource('/roles', RoleController::class)->middleware('permission:users.manage_roles');
