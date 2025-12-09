@@ -51,6 +51,7 @@ use App\Http\Controllers\Api\Admin\WithdrawalController;
 use App\Http\Controllers\Api\Admin\LuckyDrawController as AdminLuckyDrawController;
 use App\Http\Controllers\Api\Admin\ProfitShareController as AdminProfitShareController;
 use App\Http\Controllers\Api\Admin\ReportController;
+use App\Http\Controllers\Api\Admin\AdvancedReportController;
 use App\Http\Controllers\Api\Admin\PerformanceMonitoringController;
 use App\Http\Controllers\Api\Admin\SupportTicketController as AdminSupportTicketController;
 use App\Http\Controllers\Api\Admin\PaymentController as AdminPaymentController;
@@ -303,6 +304,34 @@ Route::prefix('v1')->group(function () {
                 // Export (Merged)
                 Route::get('download', [ReportController::class, 'exportReport'])
                     ->middleware('permission:reports.export');
+
+                // Advanced Reports
+                Route::get('revenue', [AdvancedReportController::class, 'revenueReport'])->middleware('permission:reports.view_financial');
+                Route::get('bonus-distribution', [AdvancedReportController::class, 'bonusDistributionReport'])->middleware('permission:reports.view_financial');
+                Route::get('investment-analysis', [AdvancedReportController::class, 'investmentAnalysisReport'])->middleware('permission:reports.view_financial');
+                Route::get('cash-flow', [AdvancedReportController::class, 'cashFlowStatement'])->middleware('permission:reports.view_financial');
+                Route::get('transactions', [AdvancedReportController::class, 'transactionReport'])->middleware('permission:reports.view_financial');
+                Route::get('kyc-completion', [AdvancedReportController::class, 'kycCompletionReport'])->middleware('permission:reports.view_user');
+                Route::get('user-demographics', [AdvancedReportController::class, 'userDemographicsReport'])->middleware('permission:reports.view_user');
+                Route::get('subscription-performance', [AdvancedReportController::class, 'subscriptionPerformanceReport'])->middleware('permission:reports.view_financial');
+                Route::get('payment-collection', [AdvancedReportController::class, 'paymentCollectionReport'])->middleware('permission:reports.view_financial');
+                Route::get('referral-performance', [AdvancedReportController::class, 'referralPerformanceReport'])->middleware('permission:reports.view_user');
+                Route::get('portfolio-performance', [AdvancedReportController::class, 'portfolioPerformanceReport'])->middleware('permission:reports.view_financial');
+                Route::get('sebi-compliance', [AdvancedReportController::class, 'sebiComplianceReport'])->middleware('permission:reports.view_compliance');
+
+                // Custom Report Builder
+                Route::get('custom/metrics', [AdvancedReportController::class, 'getAvailableMetrics'])->middleware('permission:reports.view_financial');
+                Route::post('custom/generate', [AdvancedReportController::class, 'generateCustomReport'])->middleware('permission:reports.view_financial');
+            });
+
+            // Scheduled Reports Management
+            Route::prefix('scheduled-reports')->middleware('permission:reports.manage_scheduled')->group(function () {
+                Route::get('/', [AdvancedReportController::class, 'listScheduledReports']);
+                Route::post('/', [AdvancedReportController::class, 'createScheduledReport']);
+                Route::put('/{report}', [AdvancedReportController::class, 'updateScheduledReport']);
+                Route::delete('/{report}', [AdvancedReportController::class, 'deleteScheduledReport']);
+                Route::get('/{report}/runs', [AdvancedReportController::class, 'getReportRuns']);
+                Route::post('/{report}/run', [AdvancedReportController::class, 'runScheduledReport']);
             });
 
             // Inventory Summary
@@ -489,21 +518,50 @@ Route::prefix('v1')->group(function () {
             // IP Whitelist
             Route::apiResource('/ip-whitelist', IpWhitelistController::class)->middleware('permission:system.manage_backups');
 
+            // Payment Gateway & Method Configuration
+            Route::get('/payment-gateways', [AdminPaymentController::class, 'getGatewaySettings'])->middleware('permission:payments.manage_config');
+            Route::put('/payment-gateways', [AdminPaymentController::class, 'updateGatewaySettings'])->middleware('permission:payments.manage_config');
+            Route::get('/payment-methods', [AdminPaymentController::class, 'getMethodSettings'])->middleware('permission:payments.manage_config');
+            Route::put('/payment-methods', [AdminPaymentController::class, 'updateMethodSettings'])->middleware('permission:payments.manage_config');
+
+            // Auto-Debit Configuration
+            Route::get('/auto-debit-config', [AdminPaymentController::class, 'getAutoDebitConfig'])->middleware('permission:payments.manage_config');
+            Route::put('/auto-debit-config', [AdminPaymentController::class, 'updateAutoDebitConfig'])->middleware('permission:payments.manage_config');
+
+            // Payment Details & Analytics
+            Route::get('/payments/{payment}', [AdminPaymentController::class, 'show'])->middleware('permission:payments.view');
+            Route::get('/payments/failed', [AdminPaymentController::class, 'failedPayments'])->middleware('permission:payments.view');
+            Route::get('/payments/analytics', [AdminPaymentController::class, 'analytics'])->middleware('permission:payments.view');
+            Route::get('/payments/export', [AdminPaymentController::class, 'export'])->middleware('permission:payments.view');
+
             // Critical payment actions
             Route::middleware('throttle:admin-actions')->group(function () {
                 Route::post('/payments/offline', [AdminPaymentController::class, 'storeOffline'])->middleware('permission:payments.offline_entry');
                 Route::post('/payments/{payment}/refund', [AdminPaymentController::class, 'refund'])->middleware('permission:payments.refund');
                 Route::post('/payments/{payment}/approve', [AdminPaymentController::class, 'approveManual'])->middleware('permission:payments.approve');
                 Route::post('/payments/{payment}/reject', [AdminPaymentController::class, 'rejectManual'])->middleware('permission:payments.approve');
+                Route::post('/payments/{payment}/retry', [AdminPaymentController::class, 'retryPayment'])->middleware('permission:payments.retry');
             });
 
-            // Withdrawals
+            // Withdrawal Settings & Configuration
+            Route::get('/withdrawal-settings', [WithdrawalController::class, 'getSettings'])->middleware('permission:withdrawals.manage_config');
+            Route::put('/withdrawal-settings', [WithdrawalController::class, 'updateSettings'])->middleware('permission:withdrawals.manage_config');
+            Route::get('/withdrawal-fee-tiers', [WithdrawalController::class, 'getFeeTiers'])->middleware('permission:withdrawals.manage_config');
+            Route::put('/withdrawal-fee-tiers/{tier}', [WithdrawalController::class, 'updateFeeTier'])->middleware('permission:withdrawals.manage_config');
+
+            // Withdrawal Queue & Analytics
             Route::get('/withdrawal-queue', [WithdrawalController::class, 'index'])->middleware('permission:withdrawals.view_queue');
+            Route::get('/withdrawal-queue/{withdrawal}', [WithdrawalController::class, 'show'])->middleware('permission:withdrawals.view_queue');
+            Route::get('/withdrawal-analytics', [WithdrawalController::class, 'analytics'])->middleware('permission:withdrawals.view_queue');
+            Route::get('/withdrawal-queue/export', [WithdrawalController::class, 'export'])->middleware('permission:withdrawals.view_queue');
 
             Route::middleware('throttle:admin-actions')->group(function () {
                 Route::post('/withdrawal-queue/{withdrawal}/approve', [WithdrawalController::class, 'approve'])->middleware('permission:withdrawals.approve');
                 Route::post('/withdrawal-queue/{withdrawal}/complete', [WithdrawalController::class, 'complete'])->middleware('permission:withdrawals.complete');
                 Route::post('/withdrawal-queue/{withdrawal}/reject', [WithdrawalController::class, 'reject'])->middleware('permission:withdrawals.reject');
+                Route::post('/withdrawal-queue/bulk-approve', [WithdrawalController::class, 'bulkApprove'])->middleware('permission:withdrawals.approve');
+                Route::post('/withdrawal-queue/bulk-reject', [WithdrawalController::class, 'bulkReject'])->middleware('permission:withdrawals.reject');
+                Route::post('/withdrawal-queue/bulk-complete', [WithdrawalController::class, 'bulkComplete'])->middleware('permission:withdrawals.complete');
             });
             
             // Lucky Draw Management
@@ -584,6 +642,109 @@ Route::prefix('v1')->group(function () {
                 Route::post('/{id}/suspend', [CompanyUserController::class, 'suspend'])->middleware('permission:users.suspend');
                 Route::post('/{id}/reactivate', [CompanyUserController::class, 'reactivate'])->middleware('permission:users.edit');
                 Route::delete('/{id}', [CompanyUserController::class, 'destroy'])->middleware('permission:users.delete');
+            });
+
+            // -------------------------------------------------------------
+            // ADVANCED ADMIN FEATURES
+            // -------------------------------------------------------------
+
+            // Dashboard Customization
+            Route::prefix('dashboard')->group(function () {
+                Route::get('/widgets', [App\Http\Controllers\Api\Admin\DashboardCustomizationController::class, 'getWidgets']);
+                Route::post('/widgets', [App\Http\Controllers\Api\Admin\DashboardCustomizationController::class, 'saveWidgets']);
+                Route::post('/reset', [App\Http\Controllers\Api\Admin\DashboardCustomizationController::class, 'resetDashboard']);
+                Route::get('/widget-types', [App\Http\Controllers\Api\Admin\DashboardCustomizationController::class, 'getWidgetTypes']);
+            });
+
+            // Admin Preferences
+            Route::get('/preferences', [App\Http\Controllers\Api\Admin\DashboardCustomizationController::class, 'getPreferences']);
+            Route::put('/preferences', [App\Http\Controllers\Api\Admin\DashboardCustomizationController::class, 'updatePreference']);
+            Route::post('/preferences/bulk', [App\Http\Controllers\Api\Admin\DashboardCustomizationController::class, 'bulkUpdatePreferences']);
+
+            // System Monitoring
+            Route::prefix('system')->group(function () {
+                // Health Dashboard
+                Route::get('/health', [App\Http\Controllers\Api\Admin\SystemMonitorController::class, 'healthDashboard'])->middleware('permission:system.view_health');
+
+                // Error Tracking
+                Route::get('/errors', [App\Http\Controllers\Api\Admin\SystemMonitorController::class, 'getErrors'])->middleware('permission:system.view_health');
+                Route::put('/errors/{error}/resolve', [App\Http\Controllers\Api\Admin\SystemMonitorController::class, 'resolveError'])->middleware('permission:system.view_health');
+
+                // Queue Monitor
+                Route::get('/queue', [App\Http\Controllers\Api\Admin\SystemMonitorController::class, 'getQueueStats'])->middleware('permission:system.view_health');
+                Route::post('/queue/retry/{id}', [App\Http\Controllers\Api\Admin\SystemMonitorController::class, 'retryFailedJob'])->middleware('permission:system.view_health');
+                Route::delete('/queue/failed/{id}', [App\Http\Controllers\Api\Admin\SystemMonitorController::class, 'deleteFailedJob'])->middleware('permission:system.view_health');
+                Route::post('/queue/flush', [App\Http\Controllers\Api\Admin\SystemMonitorController::class, 'flushFailedJobs'])->middleware('permission:system.view_health');
+
+                // Performance Metrics
+                Route::get('/performance', [App\Http\Controllers\Api\Admin\SystemMonitorController::class, 'getPerformanceMetrics'])->middleware('permission:system.view_health');
+                Route::post('/performance', [App\Http\Controllers\Api\Admin\SystemMonitorController::class, 'recordMetric'])->middleware('permission:system.view_health');
+            });
+
+            // Developer Tools
+            Route::prefix('developer')->middleware('permission:system.developer_tools')->group(function () {
+                // SQL Query Tool
+                Route::post('/sql', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'executeSql']);
+                Route::get('/schema', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'getSchema']);
+
+                // API Testing
+                Route::get('/api-tests', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'listApiTests']);
+                Route::post('/api-tests', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'createApiTest']);
+                Route::put('/api-tests/{test}', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'updateApiTest']);
+                Route::post('/api-tests/{test}/execute', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'executeApiTest']);
+                Route::post('/api-tests/run-all', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'runAllApiTests']);
+                Route::delete('/api-tests/{test}', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'deleteApiTest']);
+
+                // Task Scheduler
+                Route::get('/tasks', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'listTasks']);
+                Route::post('/tasks', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'createTask']);
+                Route::put('/tasks/{task}', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'updateTask']);
+                Route::post('/tasks/{task}/run', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'runTask']);
+                Route::delete('/tasks/{task}', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'deleteTask']);
+            });
+
+            // Bulk Operations
+            Route::prefix('bulk')->middleware('throttle:admin-actions')->group(function () {
+                // Bulk User Updates
+                Route::post('/users/update', [App\Http\Controllers\Api\Admin\BulkOperationsController::class, 'bulkUpdateUsers'])->middleware('permission:users.edit');
+
+                // Bulk Imports
+                Route::post('/investments/import', [App\Http\Controllers\Api\Admin\BulkOperationsController::class, 'bulkImportInvestments'])->middleware('permission:products.create');
+                Route::get('/imports', [App\Http\Controllers\Api\Admin\BulkOperationsController::class, 'getImportHistory'])->middleware('permission:users.view');
+            });
+
+            // Data Export Wizard
+            Route::prefix('export')->group(function () {
+                Route::get('/types', [App\Http\Controllers\Api\Admin\BulkOperationsController::class, 'getExportTypes'])->middleware('permission:users.view');
+                Route::post('/', [App\Http\Controllers\Api\Admin\BulkOperationsController::class, 'createExport'])->middleware('permission:users.view');
+                Route::get('/history', [App\Http\Controllers\Api\Admin\BulkOperationsController::class, 'getExportHistory'])->middleware('permission:users.view');
+                Route::get('/{job}/download', [App\Http\Controllers\Api\Admin\BulkOperationsController::class, 'downloadExport'])->middleware('permission:users.view');
+                Route::delete('/{job}', [App\Http\Controllers\Api\Admin\BulkOperationsController::class, 'deleteExport'])->middleware('permission:users.view');
+            });
+
+            // Audit Logs & Change History
+            Route::prefix('audit-logs')->middleware('permission:system.view_logs')->group(function () {
+                Route::get('/', [App\Http\Controllers\Api\Admin\AuditLogController::class, 'index']);
+                Route::get('/{log}', [App\Http\Controllers\Api\Admin\AuditLogController::class, 'show']);
+                Route::get('/history/{type}/{id}', [App\Http\Controllers\Api\Admin\AuditLogController::class, 'getHistory']);
+                Route::get('/timeline', [App\Http\Controllers\Api\Admin\AuditLogController::class, 'getTimeline']);
+                Route::get('/stats', [App\Http\Controllers\Api\Admin\AuditLogController::class, 'getStats']);
+                Route::get('/{log}/compare', [App\Http\Controllers\Api\Admin\AuditLogController::class, 'compareChanges']);
+                Route::get('/export', [App\Http\Controllers\Api\Admin\AuditLogController::class, 'export']);
+            });
+
+            // Feature Flags
+            Route::prefix('feature-flags')->middleware('permission:system.manage_features')->group(function () {
+                Route::get('/', [App\Http\Controllers\Api\Admin\FeatureFlagController::class, 'index']);
+                Route::post('/', [App\Http\Controllers\Api\Admin\FeatureFlagController::class, 'store']);
+                Route::get('/{flag}', [App\Http\Controllers\Api\Admin\FeatureFlagController::class, 'show']);
+                Route::put('/{flag}', [App\Http\Controllers\Api\Admin\FeatureFlagController::class, 'update']);
+                Route::delete('/{flag}', [App\Http\Controllers\Api\Admin\FeatureFlagController::class, 'destroy']);
+                Route::post('/{flag}/toggle', [App\Http\Controllers\Api\Admin\FeatureFlagController::class, 'toggle']);
+                Route::post('/{flag}/rollout', [App\Http\Controllers\Api\Admin\FeatureFlagController::class, 'updateRollout']);
+                Route::get('/{flag}/check/{user}', [App\Http\Controllers\Api\Admin\FeatureFlagController::class, 'checkForUser']);
+                Route::get('/{flag}/affected-users', [App\Http\Controllers\Api\Admin\FeatureFlagController::class, 'getAffectedUsers']);
+                Route::post('/seed', [App\Http\Controllers\Api\Admin\FeatureFlagController::class, 'seedDefaultFlags']);
             });
         });
 

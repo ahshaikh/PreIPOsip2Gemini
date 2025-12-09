@@ -17,21 +17,29 @@ class Withdrawal extends Model
         'wallet_id',
         'amount',
         'fee',
-        'tds_deducted', // <-- NEW
+        'tds_deducted',
         'net_amount',
         'status',
+        'priority',
+        'fee_breakdown',
         'bank_details',
         'admin_id',
+        'approved_at',
+        'processed_at',
         'utr_number',
         'rejection_reason',
+        'admin_notes',
     ];
 
     protected $casts = [
         'bank_details' => 'json',
+        'fee_breakdown' => 'json',
         'amount' => 'decimal:2',
         'fee' => 'decimal:2',
-        'tds_deducted' => 'decimal:2', // <-- NEW
+        'tds_deducted' => 'decimal:2',
         'net_amount' => 'decimal:2',
+        'approved_at' => 'datetime',
+        'processed_at' => 'datetime',
     ];
 
     /**
