@@ -24,7 +24,11 @@ class Payment extends Model
         'gateway_payment_id',
         'gateway_signature',
         'method', // card, upi, netbanking
+        'payment_method', // upi, card, netbanking, wallet
+        'payment_metadata',
         'paid_at',
+        'refunded_at',
+        'refunded_by',
         'is_on_time',
         'is_flagged',
         'flag_reason',
@@ -34,8 +38,10 @@ class Payment extends Model
 
     protected $casts = [
         'paid_at' => 'datetime',
+        'refunded_at' => 'datetime',
         'is_on_time' => 'boolean',
         'is_flagged' => 'boolean',
+        'payment_metadata' => 'array',
     ];
 
     // --- RELATIONSHIPS ---

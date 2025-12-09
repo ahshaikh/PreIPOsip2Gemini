@@ -489,21 +489,50 @@ Route::prefix('v1')->group(function () {
             // IP Whitelist
             Route::apiResource('/ip-whitelist', IpWhitelistController::class)->middleware('permission:system.manage_backups');
 
+            // Payment Gateway & Method Configuration
+            Route::get('/payment-gateways', [AdminPaymentController::class, 'getGatewaySettings'])->middleware('permission:payments.manage_config');
+            Route::put('/payment-gateways', [AdminPaymentController::class, 'updateGatewaySettings'])->middleware('permission:payments.manage_config');
+            Route::get('/payment-methods', [AdminPaymentController::class, 'getMethodSettings'])->middleware('permission:payments.manage_config');
+            Route::put('/payment-methods', [AdminPaymentController::class, 'updateMethodSettings'])->middleware('permission:payments.manage_config');
+
+            // Auto-Debit Configuration
+            Route::get('/auto-debit-config', [AdminPaymentController::class, 'getAutoDebitConfig'])->middleware('permission:payments.manage_config');
+            Route::put('/auto-debit-config', [AdminPaymentController::class, 'updateAutoDebitConfig'])->middleware('permission:payments.manage_config');
+
+            // Payment Details & Analytics
+            Route::get('/payments/{payment}', [AdminPaymentController::class, 'show'])->middleware('permission:payments.view');
+            Route::get('/payments/failed', [AdminPaymentController::class, 'failedPayments'])->middleware('permission:payments.view');
+            Route::get('/payments/analytics', [AdminPaymentController::class, 'analytics'])->middleware('permission:payments.view');
+            Route::get('/payments/export', [AdminPaymentController::class, 'export'])->middleware('permission:payments.view');
+
             // Critical payment actions
             Route::middleware('throttle:admin-actions')->group(function () {
                 Route::post('/payments/offline', [AdminPaymentController::class, 'storeOffline'])->middleware('permission:payments.offline_entry');
                 Route::post('/payments/{payment}/refund', [AdminPaymentController::class, 'refund'])->middleware('permission:payments.refund');
                 Route::post('/payments/{payment}/approve', [AdminPaymentController::class, 'approveManual'])->middleware('permission:payments.approve');
                 Route::post('/payments/{payment}/reject', [AdminPaymentController::class, 'rejectManual'])->middleware('permission:payments.approve');
+                Route::post('/payments/{payment}/retry', [AdminPaymentController::class, 'retryPayment'])->middleware('permission:payments.retry');
             });
 
-            // Withdrawals
+            // Withdrawal Settings & Configuration
+            Route::get('/withdrawal-settings', [WithdrawalController::class, 'getSettings'])->middleware('permission:withdrawals.manage_config');
+            Route::put('/withdrawal-settings', [WithdrawalController::class, 'updateSettings'])->middleware('permission:withdrawals.manage_config');
+            Route::get('/withdrawal-fee-tiers', [WithdrawalController::class, 'getFeeTiers'])->middleware('permission:withdrawals.manage_config');
+            Route::put('/withdrawal-fee-tiers/{tier}', [WithdrawalController::class, 'updateFeeTier'])->middleware('permission:withdrawals.manage_config');
+
+            // Withdrawal Queue & Analytics
             Route::get('/withdrawal-queue', [WithdrawalController::class, 'index'])->middleware('permission:withdrawals.view_queue');
+            Route::get('/withdrawal-queue/{withdrawal}', [WithdrawalController::class, 'show'])->middleware('permission:withdrawals.view_queue');
+            Route::get('/withdrawal-analytics', [WithdrawalController::class, 'analytics'])->middleware('permission:withdrawals.view_queue');
+            Route::get('/withdrawal-queue/export', [WithdrawalController::class, 'export'])->middleware('permission:withdrawals.view_queue');
 
             Route::middleware('throttle:admin-actions')->group(function () {
                 Route::post('/withdrawal-queue/{withdrawal}/approve', [WithdrawalController::class, 'approve'])->middleware('permission:withdrawals.approve');
                 Route::post('/withdrawal-queue/{withdrawal}/complete', [WithdrawalController::class, 'complete'])->middleware('permission:withdrawals.complete');
                 Route::post('/withdrawal-queue/{withdrawal}/reject', [WithdrawalController::class, 'reject'])->middleware('permission:withdrawals.reject');
+                Route::post('/withdrawal-queue/bulk-approve', [WithdrawalController::class, 'bulkApprove'])->middleware('permission:withdrawals.approve');
+                Route::post('/withdrawal-queue/bulk-reject', [WithdrawalController::class, 'bulkReject'])->middleware('permission:withdrawals.reject');
+                Route::post('/withdrawal-queue/bulk-complete', [WithdrawalController::class, 'bulkComplete'])->middleware('permission:withdrawals.complete');
             });
             
             // Lucky Draw Management
