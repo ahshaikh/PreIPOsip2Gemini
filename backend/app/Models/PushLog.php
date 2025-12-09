@@ -1,68 +1,75 @@
 <?php
-// V-FINAL-1730-391 (Created)
-// Enhanced with tracking features
 
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class SmsLog extends Model
+class PushLog extends Model
 {
     use HasFactory;
 
+    protected $table = 'push_logs';
+
     protected $fillable = [
         'user_id',
-        'sms_template_id',
-        'to_mobile', // Keep for backward compatibility
-        'recipient_mobile',
-        'recipient_name',
-        'template_slug',
-        'dlt_template_id',
-        'message',
+        'device_token',
+        'device_type',
+        'title',
+        'body',
+        'data',
         'status',
         'provider',
         'provider_message_id',
         'provider_response',
         'error_message',
-        'gateway_message_id', // Keep for backward compatibility
         'sent_at',
         'delivered_at',
+        'opened_at',
         'failed_at',
-        'credits_used',
+        'priority',
+        'ttl',
+        'image_url',
+        'action_url',
+        'badge_count',
         'metadata',
     ];
 
     protected $casts = [
         'sent_at' => 'datetime',
         'delivered_at' => 'datetime',
+        'opened_at' => 'datetime',
         'failed_at' => 'datetime',
+        'data' => 'array',
         'provider_response' => 'array',
         'metadata' => 'array',
-        'credits_used' => 'decimal:2',
+        'badge_count' => 'integer',
+        'ttl' => 'integer',
     ];
 
     // Status constants
     const STATUS_PENDING = 'pending';
     const STATUS_QUEUED = 'queued';
-    const STATUS_SENDING = 'sending';
     const STATUS_SENT = 'sent';
     const STATUS_DELIVERED = 'delivered';
+    const STATUS_OPENED = 'opened';
     const STATUS_FAILED = 'failed';
-    const STATUS_REJECTED = 'rejected';
+
+    // Device type constants
+    const DEVICE_IOS = 'ios';
+    const DEVICE_ANDROID = 'android';
+    const DEVICE_WEB = 'web';
+
+    // Priority constants
+    const PRIORITY_HIGH = 'high';
+    const PRIORITY_NORMAL = 'normal';
 
     /**
      * Relationships
      */
-    public function user(): BelongsTo
+    public function user()
     {
         return $this->belongsTo(User::class);
-    }
-
-    public function smsTemplate(): BelongsTo
-    {
-        return $this->belongsTo(SmsTemplate::class);
     }
 
     /**
@@ -83,6 +90,11 @@ class SmsLog extends Model
         return $query->whereNotNull('delivered_at');
     }
 
+    public function scopeOpened($query)
+    {
+        return $query->whereNotNull('opened_at');
+    }
+
     public function scopeFailed($query)
     {
         return $query->where('status', self::STATUS_FAILED);
@@ -93,6 +105,11 @@ class SmsLog extends Model
         return $query->where('provider', $provider);
     }
 
+    public function scopeByDeviceType($query, $deviceType)
+    {
+        return $query->where('device_type', $deviceType);
+    }
+
     public function scopeRecent($query, $days = 30)
     {
         return $query->where('created_at', '>=', now()->subDays($days));
@@ -101,15 +118,13 @@ class SmsLog extends Model
     /**
      * Helper Methods
      */
-    public function markAsSent($providerMessageId = null, $providerResponse = null, $creditsUsed = null)
+    public function markAsSent($providerMessageId = null, $providerResponse = null)
     {
         $this->update([
             'status' => self::STATUS_SENT,
             'sent_at' => now(),
             'provider_message_id' => $providerMessageId,
-            'gateway_message_id' => $providerMessageId, // Backward compatibility
             'provider_response' => $providerResponse,
-            'credits_used' => $creditsUsed,
         ]);
     }
 
@@ -121,19 +136,18 @@ class SmsLog extends Model
         ]);
     }
 
+    public function markAsOpened()
+    {
+        $this->update([
+            'status' => self::STATUS_OPENED,
+            'opened_at' => now(),
+        ]);
+    }
+
     public function markAsFailed($errorMessage)
     {
         $this->update([
             'status' => self::STATUS_FAILED,
-            'failed_at' => now(),
-            'error_message' => $errorMessage,
-        ]);
-    }
-
-    public function markAsRejected($errorMessage)
-    {
-        $this->update([
-            'status' => self::STATUS_REJECTED,
             'failed_at' => now(),
             'error_message' => $errorMessage,
         ]);
@@ -147,13 +161,13 @@ class SmsLog extends Model
         return $this->delivered_at !== null;
     }
 
+    public function getIsOpenedAttribute()
+    {
+        return $this->opened_at !== null;
+    }
+
     public function getIsFailedAttribute()
     {
         return $this->failed_at !== null;
-    }
-
-    public function getMessageLengthAttribute()
-    {
-        return mb_strlen($this->message);
     }
 }

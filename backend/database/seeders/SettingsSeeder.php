@@ -126,24 +126,145 @@ class SettingsSeeder extends Seeder
             // ============================================================
             // EMAIL SETTINGS
             // ============================================================
-            ['key' => 'email_queue_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'email'],
-            ['key' => 'email_throttle_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'email'],
-            ['key' => 'email_throttle_limit', 'value' => '100', 'type' => 'number', 'group' => 'email'], // per hour
+            // SMTP Configuration
+            ['key' => 'email_provider', 'value' => 'smtp', 'type' => 'string', 'group' => 'email'], // smtp, sendgrid, mailgun, ses
+            ['key' => 'email_driver', 'value' => 'smtp', 'type' => 'string', 'group' => 'email'],
+            ['key' => 'email_host', 'value' => 'smtp.mailtrap.io', 'type' => 'string', 'group' => 'email'],
+            ['key' => 'email_port', 'value' => '2525', 'type' => 'number', 'group' => 'email'],
+            ['key' => 'email_encryption', 'value' => 'tls', 'type' => 'string', 'group' => 'email'], // tls, ssl, none
+            ['key' => 'email_username', 'value' => '', 'type' => 'string', 'group' => 'email'],
+            ['key' => 'email_password', 'value' => '', 'type' => 'string', 'group' => 'email'],
+
+            // Email Configuration
             ['key' => 'email_from_name', 'value' => 'PreIPO SIP', 'type' => 'string', 'group' => 'email'],
             ['key' => 'email_from_address', 'value' => 'noreply@preipo-sip.com', 'type' => 'string', 'group' => 'email'],
+            ['key' => 'email_reply_to', 'value' => 'support@preipo-sip.com', 'type' => 'string', 'group' => 'email'],
+
+            // Email Queue & Throttling
+            ['key' => 'email_queue_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'email'],
+            ['key' => 'email_queue_name', 'value' => 'emails', 'type' => 'string', 'group' => 'email'],
+            ['key' => 'email_throttle_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'email'],
+            ['key' => 'email_throttle_limit', 'value' => '100', 'type' => 'number', 'group' => 'email'], // per hour
+            ['key' => 'email_retry_attempts', 'value' => '3', 'type' => 'number', 'group' => 'email'],
+            ['key' => 'email_retry_delay', 'value' => '60', 'type' => 'number', 'group' => 'email'], // seconds
+
+            // Email Tracking
+            ['key' => 'email_tracking_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'email'],
+            ['key' => 'email_track_opens', 'value' => 'true', 'type' => 'boolean', 'group' => 'email'],
+            ['key' => 'email_track_clicks', 'value' => 'true', 'type' => 'boolean', 'group' => 'email'],
+
+            // Email Blacklist
             ['key' => 'email_blacklist', 'value' => '', 'type' => 'text', 'group' => 'email'],
-            ['key' => 'email_domain_blacklist', 'value' => 'tempmail.com,throwaway.email', 'type' => 'text', 'group' => 'email'],
+            ['key' => 'email_domain_blacklist', 'value' => 'tempmail.com,throwaway.email,guerrillamail.com', 'type' => 'text', 'group' => 'email'],
+
+            // SendGrid (if using)
+            ['key' => 'sendgrid_api_key', 'value' => '', 'type' => 'string', 'group' => 'email'],
+            ['key' => 'sendgrid_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'email'],
 
             // ============================================================
-            // NOTIFICATION SETTINGS
+            // SMS SETTINGS
             // ============================================================
+            ['key' => 'sms_provider', 'value' => 'log', 'type' => 'string', 'group' => 'sms'], // log, msg91, twilio, nexmo
+            ['key' => 'sms_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'sms'],
+
+            // MSG91 Configuration
+            ['key' => 'msg91_auth_key', 'value' => '', 'type' => 'string', 'group' => 'sms'],
+            ['key' => 'msg91_sender_id', 'value' => 'PREIPO', 'type' => 'string', 'group' => 'sms'],
+            ['key' => 'msg91_dlt_te_id', 'value' => '', 'type' => 'string', 'group' => 'sms'],
+            ['key' => 'msg91_route', 'value' => '4', 'type' => 'string', 'group' => 'sms'], // 4 = promotional, 1 = transactional
+
+            // Twilio Configuration
+            ['key' => 'twilio_sid', 'value' => '', 'type' => 'string', 'group' => 'sms'],
+            ['key' => 'twilio_auth_token', 'value' => '', 'type' => 'string', 'group' => 'sms'],
+            ['key' => 'twilio_from_number', 'value' => '', 'type' => 'string', 'group' => 'sms'],
+
+            // SMS Settings
+            ['key' => 'sms_queue_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'sms'],
+            ['key' => 'sms_queue_name', 'value' => 'sms', 'type' => 'string', 'group' => 'sms'],
+            ['key' => 'sms_max_length', 'value' => '160', 'type' => 'number', 'group' => 'sms'],
+            ['key' => 'sms_throttle_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'sms'],
+            ['key' => 'sms_throttle_limit', 'value' => '100', 'type' => 'number', 'group' => 'sms'], // per hour
+            ['key' => 'sms_retry_attempts', 'value' => '3', 'type' => 'number', 'group' => 'sms'],
+            ['key' => 'sms_retry_delay', 'value' => '30', 'type' => 'number', 'group' => 'sms'], // seconds
+            ['key' => 'sms_country_code', 'value' => '+91', 'type' => 'string', 'group' => 'sms'],
+
+            // ============================================================
+            // PUSH NOTIFICATION SETTINGS
+            // ============================================================
+            ['key' => 'push_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'push'],
+            ['key' => 'push_provider', 'value' => 'fcm', 'type' => 'string', 'group' => 'push'], // fcm, onesignal, sns
+
+            // Firebase Cloud Messaging (FCM)
+            ['key' => 'fcm_server_key', 'value' => '', 'type' => 'text', 'group' => 'push'],
+            ['key' => 'fcm_sender_id', 'value' => '', 'type' => 'string', 'group' => 'push'],
+            ['key' => 'fcm_project_id', 'value' => '', 'type' => 'string', 'group' => 'push'],
+            ['key' => 'fcm_credentials_path', 'value' => '', 'type' => 'string', 'group' => 'push'],
+
+            // OneSignal
+            ['key' => 'onesignal_app_id', 'value' => '', 'type' => 'string', 'group' => 'push'],
+            ['key' => 'onesignal_api_key', 'value' => '', 'type' => 'string', 'group' => 'push'],
+            ['key' => 'onesignal_rest_api_key', 'value' => '', 'type' => 'string', 'group' => 'push'],
+
+            // Push Settings
+            ['key' => 'push_queue_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'push'],
+            ['key' => 'push_queue_name', 'value' => 'push', 'type' => 'string', 'group' => 'push'],
+            ['key' => 'push_icon_url', 'value' => '', 'type' => 'string', 'group' => 'push'],
+            ['key' => 'push_badge_url', 'value' => '', 'type' => 'string', 'group' => 'push'],
+            ['key' => 'push_sound', 'value' => 'default', 'type' => 'string', 'group' => 'push'],
+            ['key' => 'push_ttl', 'value' => '86400', 'type' => 'number', 'group' => 'push'], // seconds (1 day)
+            ['key' => 'push_priority', 'value' => 'high', 'type' => 'string', 'group' => 'push'], // high, normal
+            ['key' => 'push_collapse_key', 'value' => '', 'type' => 'string', 'group' => 'push'],
+
+            // ============================================================
+            // NOTIFICATION SYSTEM SETTINGS
+            // ============================================================
+            // Channels
             ['key' => 'notification_channels', 'value' => 'email,sms,push,database', 'type' => 'string', 'group' => 'notification'],
+            ['key' => 'notification_default_channel', 'value' => 'email', 'type' => 'string', 'group' => 'notification'],
+            ['key' => 'notification_channels_enabled', 'value' => 'email,database', 'type' => 'string', 'group' => 'notification'],
+
+            // Priority & Routing
             ['key' => 'notification_priority_order', 'value' => 'push,sms,email,database', 'type' => 'string', 'group' => 'notification'],
             ['key' => 'notification_fallback_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'notification'],
-            ['key' => 'sms_provider', 'value' => 'log', 'type' => 'string', 'group' => 'notification'],
-            ['key' => 'msg91_auth_key', 'value' => '', 'type' => 'string', 'group' => 'notification'],
-            ['key' => 'msg91_sender_id', 'value' => 'PREIPO', 'type' => 'string', 'group' => 'notification'],
-            ['key' => 'msg91_dlt_te_id', 'value' => '', 'type' => 'string', 'group' => 'notification'],
+            ['key' => 'notification_fallback_delay', 'value' => '300', 'type' => 'number', 'group' => 'notification'], // seconds
+
+            // Critical Notifications
+            ['key' => 'notification_critical_override', 'value' => 'true', 'type' => 'boolean', 'group' => 'notification'],
+            ['key' => 'notification_critical_channels', 'value' => 'email,sms,push', 'type' => 'string', 'group' => 'notification'],
+            ['key' => 'notification_critical_bypass_preferences', 'value' => 'true', 'type' => 'boolean', 'group' => 'notification'],
+
+            // Batching
+            ['key' => 'notification_batching_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'notification'],
+            ['key' => 'notification_batch_size', 'value' => '100', 'type' => 'number', 'group' => 'notification'],
+            ['key' => 'notification_batch_delay', 'value' => '60', 'type' => 'number', 'group' => 'notification'], // seconds
+            ['key' => 'notification_batch_per_user_limit', 'value' => '10', 'type' => 'number', 'group' => 'notification'],
+
+            // Queue Configuration
+            ['key' => 'notification_queue_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'notification'],
+            ['key' => 'notification_queue_default', 'value' => 'notifications', 'type' => 'string', 'group' => 'notification'],
+            ['key' => 'notification_queue_high_priority', 'value' => 'high_priority', 'type' => 'string', 'group' => 'notification'],
+            ['key' => 'notification_queue_low_priority', 'value' => 'low_priority', 'type' => 'string', 'group' => 'notification'],
+
+            // Logging & Tracking
+            ['key' => 'notification_logging_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'notification'],
+            ['key' => 'notification_log_retention_days', 'value' => '90', 'type' => 'number', 'group' => 'notification'],
+            ['key' => 'notification_track_delivery', 'value' => 'true', 'type' => 'boolean', 'group' => 'notification'],
+            ['key' => 'notification_track_opens', 'value' => 'true', 'type' => 'boolean', 'group' => 'notification'],
+            ['key' => 'notification_track_clicks', 'value' => 'true', 'type' => 'boolean', 'group' => 'notification'],
+
+            // Rate Limiting
+            ['key' => 'notification_rate_limit_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'notification'],
+            ['key' => 'notification_rate_limit_per_user_hour', 'value' => '10', 'type' => 'number', 'group' => 'notification'],
+            ['key' => 'notification_rate_limit_per_user_day', 'value' => '50', 'type' => 'number', 'group' => 'notification'],
+
+            // Templates
+            ['key' => 'notification_template_caching', 'value' => 'true', 'type' => 'boolean', 'group' => 'notification'],
+            ['key' => 'notification_template_cache_ttl', 'value' => '3600', 'type' => 'number', 'group' => 'notification'], // seconds
+
+            // Testing
+            ['key' => 'notification_test_mode', 'value' => 'false', 'type' => 'boolean', 'group' => 'notification'],
+            ['key' => 'notification_test_email', 'value' => 'test@preipo-sip.com', 'type' => 'string', 'group' => 'notification'],
+            ['key' => 'notification_test_mobile', 'value' => '', 'type' => 'string', 'group' => 'notification'],
 
             // ============================================================
             // PAYMENT SETTINGS
