@@ -493,9 +493,17 @@ Route::prefix('v1')->group(function () {
                 Route::post('/withdrawal-queue/{withdrawal}/reject', [WithdrawalController::class, 'reject'])->middleware('permission:withdrawals.reject');
             });
             
-            // Bonus Modules
+            // Lucky Draw Management
             Route::apiResource('/lucky-draws', AdminLuckyDrawController::class)->middleware('permission:bonuses.manage_config');
-            Route::post('/lucky-draws/{luckyDraw}/execute', [AdminLuckyDrawController::class, 'executeDraw'])->middleware('permission:bonuses.manage_config');
+            Route::get('/lucky-draws-settings', [AdminLuckyDrawController::class, 'getSettings'])->middleware('permission:bonuses.manage_config');
+            Route::put('/lucky-draws-settings', [AdminLuckyDrawController::class, 'updateSettings'])->middleware('permission:bonuses.manage_config');
+            Route::post('/lucky-draws/{id}/execute', [AdminLuckyDrawController::class, 'executeDraw'])->middleware('permission:bonuses.manage_config');
+            Route::post('/lucky-draws/{id}/cancel', [AdminLuckyDrawController::class, 'cancel'])->middleware('permission:bonuses.manage_config');
+            Route::get('/lucky-draws/{id}/winners', [AdminLuckyDrawController::class, 'getWinners'])->middleware('permission:bonuses.manage_config');
+            Route::post('/lucky-draws/{drawId}/winners/{entryId}/disqualify', [AdminLuckyDrawController::class, 'disqualifyWinner'])->middleware('permission:bonuses.manage_config');
+            Route::post('/lucky-draws/{id}/upload-video', [AdminLuckyDrawController::class, 'uploadVideo'])->middleware('permission:bonuses.manage_config');
+            Route::get('/lucky-draws/{drawId}/winners/{entryId}/certificate', [AdminLuckyDrawController::class, 'generateCertificate'])->middleware('permission:bonuses.manage_config');
+            Route::get('/lucky-draws/{id}/analytics', [AdminLuckyDrawController::class, 'getAnalytics'])->middleware('permission:bonuses.manage_config');
             
             Route::apiResource('/profit-sharing', AdminProfitShareController::class)->middleware('permission:bonuses.manage_config');
             Route::post('/profit-sharing/{profitShare}/calculate', [AdminProfitShareController::class, 'calculate'])->middleware('permission:bonuses.manage_config');

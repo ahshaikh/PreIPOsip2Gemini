@@ -18,11 +18,21 @@ class LuckyDraw extends Model
         'draw_date',
         'prize_structure',
         'status', // open, drawn, completed, cancelled
+        'frequency', // monthly, quarterly, custom
+        'entry_rules',
+        'result_visibility', // public, private, winners_only
+        'certificate_template',
+        'draw_video_url',
+        'draw_metadata',
+        'created_by',
+        'executed_by',
     ];
 
     protected $casts = [
         'draw_date' => 'date',
         'prize_structure' => 'array',
+        'entry_rules' => 'array',
+        'draw_metadata' => 'array',
     ];
 
     /**
