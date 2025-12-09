@@ -643,6 +643,109 @@ Route::prefix('v1')->group(function () {
                 Route::post('/{id}/reactivate', [CompanyUserController::class, 'reactivate'])->middleware('permission:users.edit');
                 Route::delete('/{id}', [CompanyUserController::class, 'destroy'])->middleware('permission:users.delete');
             });
+
+            // -------------------------------------------------------------
+            // ADVANCED ADMIN FEATURES
+            // -------------------------------------------------------------
+
+            // Dashboard Customization
+            Route::prefix('dashboard')->group(function () {
+                Route::get('/widgets', [App\Http\Controllers\Api\Admin\DashboardCustomizationController::class, 'getWidgets']);
+                Route::post('/widgets', [App\Http\Controllers\Api\Admin\DashboardCustomizationController::class, 'saveWidgets']);
+                Route::post('/reset', [App\Http\Controllers\Api\Admin\DashboardCustomizationController::class, 'resetDashboard']);
+                Route::get('/widget-types', [App\Http\Controllers\Api\Admin\DashboardCustomizationController::class, 'getWidgetTypes']);
+            });
+
+            // Admin Preferences
+            Route::get('/preferences', [App\Http\Controllers\Api\Admin\DashboardCustomizationController::class, 'getPreferences']);
+            Route::put('/preferences', [App\Http\Controllers\Api\Admin\DashboardCustomizationController::class, 'updatePreference']);
+            Route::post('/preferences/bulk', [App\Http\Controllers\Api\Admin\DashboardCustomizationController::class, 'bulkUpdatePreferences']);
+
+            // System Monitoring
+            Route::prefix('system')->group(function () {
+                // Health Dashboard
+                Route::get('/health', [App\Http\Controllers\Api\Admin\SystemMonitorController::class, 'healthDashboard'])->middleware('permission:system.view_health');
+
+                // Error Tracking
+                Route::get('/errors', [App\Http\Controllers\Api\Admin\SystemMonitorController::class, 'getErrors'])->middleware('permission:system.view_health');
+                Route::put('/errors/{error}/resolve', [App\Http\Controllers\Api\Admin\SystemMonitorController::class, 'resolveError'])->middleware('permission:system.view_health');
+
+                // Queue Monitor
+                Route::get('/queue', [App\Http\Controllers\Api\Admin\SystemMonitorController::class, 'getQueueStats'])->middleware('permission:system.view_health');
+                Route::post('/queue/retry/{id}', [App\Http\Controllers\Api\Admin\SystemMonitorController::class, 'retryFailedJob'])->middleware('permission:system.view_health');
+                Route::delete('/queue/failed/{id}', [App\Http\Controllers\Api\Admin\SystemMonitorController::class, 'deleteFailedJob'])->middleware('permission:system.view_health');
+                Route::post('/queue/flush', [App\Http\Controllers\Api\Admin\SystemMonitorController::class, 'flushFailedJobs'])->middleware('permission:system.view_health');
+
+                // Performance Metrics
+                Route::get('/performance', [App\Http\Controllers\Api\Admin\SystemMonitorController::class, 'getPerformanceMetrics'])->middleware('permission:system.view_health');
+                Route::post('/performance', [App\Http\Controllers\Api\Admin\SystemMonitorController::class, 'recordMetric'])->middleware('permission:system.view_health');
+            });
+
+            // Developer Tools
+            Route::prefix('developer')->middleware('permission:system.developer_tools')->group(function () {
+                // SQL Query Tool
+                Route::post('/sql', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'executeSql']);
+                Route::get('/schema', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'getSchema']);
+
+                // API Testing
+                Route::get('/api-tests', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'listApiTests']);
+                Route::post('/api-tests', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'createApiTest']);
+                Route::put('/api-tests/{test}', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'updateApiTest']);
+                Route::post('/api-tests/{test}/execute', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'executeApiTest']);
+                Route::post('/api-tests/run-all', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'runAllApiTests']);
+                Route::delete('/api-tests/{test}', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'deleteApiTest']);
+
+                // Task Scheduler
+                Route::get('/tasks', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'listTasks']);
+                Route::post('/tasks', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'createTask']);
+                Route::put('/tasks/{task}', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'updateTask']);
+                Route::post('/tasks/{task}/run', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'runTask']);
+                Route::delete('/tasks/{task}', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'deleteTask']);
+            });
+
+            // Bulk Operations
+            Route::prefix('bulk')->middleware('throttle:admin-actions')->group(function () {
+                // Bulk User Updates
+                Route::post('/users/update', [App\Http\Controllers\Api\Admin\BulkOperationsController::class, 'bulkUpdateUsers'])->middleware('permission:users.edit');
+
+                // Bulk Imports
+                Route::post('/investments/import', [App\Http\Controllers\Api\Admin\BulkOperationsController::class, 'bulkImportInvestments'])->middleware('permission:products.create');
+                Route::get('/imports', [App\Http\Controllers\Api\Admin\BulkOperationsController::class, 'getImportHistory'])->middleware('permission:users.view');
+            });
+
+            // Data Export Wizard
+            Route::prefix('export')->group(function () {
+                Route::get('/types', [App\Http\Controllers\Api\Admin\BulkOperationsController::class, 'getExportTypes'])->middleware('permission:users.view');
+                Route::post('/', [App\Http\Controllers\Api\Admin\BulkOperationsController::class, 'createExport'])->middleware('permission:users.view');
+                Route::get('/history', [App\Http\Controllers\Api\Admin\BulkOperationsController::class, 'getExportHistory'])->middleware('permission:users.view');
+                Route::get('/{job}/download', [App\Http\Controllers\Api\Admin\BulkOperationsController::class, 'downloadExport'])->middleware('permission:users.view');
+                Route::delete('/{job}', [App\Http\Controllers\Api\Admin\BulkOperationsController::class, 'deleteExport'])->middleware('permission:users.view');
+            });
+
+            // Audit Logs & Change History
+            Route::prefix('audit-logs')->middleware('permission:system.view_logs')->group(function () {
+                Route::get('/', [App\Http\Controllers\Api\Admin\AuditLogController::class, 'index']);
+                Route::get('/{log}', [App\Http\Controllers\Api\Admin\AuditLogController::class, 'show']);
+                Route::get('/history/{type}/{id}', [App\Http\Controllers\Api\Admin\AuditLogController::class, 'getHistory']);
+                Route::get('/timeline', [App\Http\Controllers\Api\Admin\AuditLogController::class, 'getTimeline']);
+                Route::get('/stats', [App\Http\Controllers\Api\Admin\AuditLogController::class, 'getStats']);
+                Route::get('/{log}/compare', [App\Http\Controllers\Api\Admin\AuditLogController::class, 'compareChanges']);
+                Route::get('/export', [App\Http\Controllers\Api\Admin\AuditLogController::class, 'export']);
+            });
+
+            // Feature Flags
+            Route::prefix('feature-flags')->middleware('permission:system.manage_features')->group(function () {
+                Route::get('/', [App\Http\Controllers\Api\Admin\FeatureFlagController::class, 'index']);
+                Route::post('/', [App\Http\Controllers\Api\Admin\FeatureFlagController::class, 'store']);
+                Route::get('/{flag}', [App\Http\Controllers\Api\Admin\FeatureFlagController::class, 'show']);
+                Route::put('/{flag}', [App\Http\Controllers\Api\Admin\FeatureFlagController::class, 'update']);
+                Route::delete('/{flag}', [App\Http\Controllers\Api\Admin\FeatureFlagController::class, 'destroy']);
+                Route::post('/{flag}/toggle', [App\Http\Controllers\Api\Admin\FeatureFlagController::class, 'toggle']);
+                Route::post('/{flag}/rollout', [App\Http\Controllers\Api\Admin\FeatureFlagController::class, 'updateRollout']);
+                Route::get('/{flag}/check/{user}', [App\Http\Controllers\Api\Admin\FeatureFlagController::class, 'checkForUser']);
+                Route::get('/{flag}/affected-users', [App\Http\Controllers\Api\Admin\FeatureFlagController::class, 'getAffectedUsers']);
+                Route::post('/seed', [App\Http\Controllers\Api\Admin\FeatureFlagController::class, 'seedDefaultFlags']);
+            });
         });
 
         // ========================================================================
