@@ -327,7 +327,7 @@
 
 ### Core Tables:
 
-# **1. Identity & Access Management (IAM) (13)**
+# *1. Identity & Access Management (IAM) (13)**
 
 - `users` – Core user accounts (Admins, Investors, Company Users).  
 - `user_profiles` – Extended profile details (Address, DoB, Avatar).  
@@ -342,7 +342,7 @@
 - `ip_whitelists` – Allowed IP addresses for admin access.  
 - `user_settings` – User-specific configuration preferences.  
 
-# **2. Financial & Wallet System (10)**
+# *2. Financial & Wallet System (10)**
 
 - `wallets` – User wallet balances (Deposit/Bonus/Winnings).  
 - `transactions` – Ledger of all credits and debits.  
@@ -355,7 +355,7 @@
 - `plan_configs` – Dynamic configuration for plan logic.  
 - `bulk_purchases` – Large-volume share acquisition records.  
 
-# **3. Compliance & KYC (7)**
+# *3. Compliance & KYC (7)**
 
 - `user_kyc` – User KYC submission metadata and status.  
 - `kyc_documents` – Uploaded identity-proof document links.  
@@ -365,7 +365,7 @@
 - `legal_agreement_versions` – Version history of legal agreements.  
 - `legal_agreement_audit_trails` – Audit logs of agreement acceptance.  
 
-# **4. Pre-IPO Products & Inventory (7)**
+# *4. Pre-IPO Products & Inventory (7)**
 
 - `products` – Core share/stock listings.  
 - `product_highlights` – Key selling points for each product.  
@@ -375,7 +375,7 @@
 - `product_risk_disclosures` – Risks associated with investing.  
 - `product_price_histories` – Historical price points for charts.  
 
-# **5. Company Portal (B2B) (14)**
+# *5. Company Portal (B2B) (14)**
 
 - `companies` – Profiles of companies issuing shares.  
 - `company_users` – Staff accounts managing company profiles.  
@@ -392,7 +392,7 @@
 - `company_webinars` – Scheduled webinars.  
 - `webinar_registrations` – User webinar registrations.  
 
-# **6. Marketing & Engagement (12)**
+# *6. Marketing & Engagement (12)**
 
 - `referrals` – Who referred whom.  
 - `referral_campaigns` – Configuration for referral bonuses.  
@@ -406,7 +406,7 @@
 - `promotional_materials` – Marketing materials for affiliates.  
 - `promotional_material_downloads` – Tracking downloads/usage of assets.  
 
-# **7. Content Management System (CMS) (10)**
+# *7. Content Management System (CMS) (10)**
 
 - `pages` – Static pages (About Us, Contact, etc.).  
 - `page_versions` – Revision history of pages.  
@@ -419,7 +419,7 @@
 - `tutorials` – Guides/educational content.  
 - `content_reports` – Market reports or research documents.  
 
-# **8. Help Center & Support (7)**
+# *8. Help Center & Support (7)**
 
 - `support_tickets` – Support tickets raised by users.  
 - `support_messages` – Chat/message history.  
@@ -429,7 +429,7 @@
 - `kb_article_views` – Article view analytics.  
 - `article_feedback` – “Helpful?” feedback from users.  
 
-# **9. Communication & Infrastructure (15)**
+# *9. Communication & Infrastructure (15)**
 
 - `notifications` – In-app notifications.  
 - `user_notification_preferences` – User-specific notification preferences.  
