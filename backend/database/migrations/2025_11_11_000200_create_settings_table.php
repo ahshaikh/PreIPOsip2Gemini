@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('type')->default('string');
             $table->string('group')->default('system');
             $table->foreignId('updated_by')->nullable()->constrained('users')->onDelete('set null');
+	    $table->timestamps(); // <--- FIXED: Added timestamps
         });
     }
 

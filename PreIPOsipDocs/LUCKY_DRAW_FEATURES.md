@@ -335,29 +335,29 @@ Returns all winners with:
 
 ### Lucky Draw Management
 ```
-GET    /api/v1/admin/lucky-draws                              - List all draws with stats
-GET    /api/v1/admin/lucky-draws/{id}                         - Get draw details
-POST   /api/v1/admin/lucky-draws                              - Create new draw
-PUT    /api/v1/admin/lucky-draws/{id}                         - Edit draw (before execution)
-DELETE /api/v1/admin/lucky-draws/{id}                         - Delete draw (soft delete)
-POST   /api/v1/admin/lucky-draws/{id}/execute                 - Execute draw manually
-POST   /api/v1/admin/lucky-draws/{id}/cancel                  - Cancel draw
+GET    /api/v1/admin/lucky-draws                              		- List all draws with stats
+GET    /api/v1/admin/lucky-draws/{id}                         		- Get draw details
+POST   /api/v1/admin/lucky-draws                              		- Create new draw
+PUT    /api/v1/admin/lucky-draws/{id}                         		- Edit draw (before execution)
+DELETE /api/v1/admin/lucky-draws/{id}                         		- Delete draw (soft delete)
+POST   /api/v1/admin/lucky-draws/{id}/execute                 		- Execute draw manually
+POST   /api/v1/admin/lucky-draws/{id}/cancel                  		- Cancel draw
 
-GET    /api/v1/admin/lucky-draws-settings                     - Get settings
-PUT    /api/v1/admin/lucky-draws-settings                     - Update settings
+GET    /api/v1/admin/lucky-draws-settings                     		- Get settings
+PUT    /api/v1/admin/lucky-draws-settings                     		- Update settings
 
-GET    /api/v1/admin/lucky-draws/{id}/winners                 - Get all winners
+GET    /api/v1/admin/lucky-draws/{id}/winners                 		- Get all winners
 POST   /api/v1/admin/lucky-draws/{drawId}/winners/{entryId}/disqualify  - Disqualify winner
 
-POST   /api/v1/admin/lucky-draws/{id}/upload-video            - Upload draw video
+POST   /api/v1/admin/lucky-draws/{id}/upload-video            		- Upload draw video
 GET    /api/v1/admin/lucky-draws/{drawId}/winners/{entryId}/certificate - Generate certificate
 
-GET    /api/v1/admin/lucky-draws/{id}/analytics               - Get draw analytics
+GET    /api/v1/admin/lucky-draws/{id}/analytics               		- Get draw analytics
 ```
 
 ### User Endpoints
 ```
-GET    /api/v1/user/lucky-draws                               - User's draw entries
+GET    /api/v1/user/lucky-draws                               		- User's draw entries
 ```
 
 ---
@@ -410,18 +410,18 @@ CREATE TABLE lucky_draw_entries (
 
 All settings stored in `settings` table with group `lucky_draw_config`:
 
-| Setting Key | Default | Type | Description |
-|------------|---------|------|-------------|
-| `lucky_draw_frequency` | `monthly` | string | Draw frequency |
-| `lucky_draw_custom_interval_days` | `30` | number | Custom interval days |
-| `lucky_draw_ontime_bonus` | `1` | number | Bonus entries for on-time |
-| `lucky_draw_streak_bonus` | `5` | number | Bonus entries for streak |
-| `lucky_draw_streak_months` | `6` | number | Months for streak bonus |
-| `lucky_draw_prize_pool` | `152500` | number | Default prize pool |
-| `lucky_draw_auto_publish` | `true` | boolean | Auto-publish results |
-| `lucky_draw_publish_full_details` | `false` | boolean | Show full details |
-| `lucky_draw_enable_certificates` | `true` | boolean | Enable certificates |
-| `lucky_draw_certificate_footer` | `Congratulations!` | string | Certificate footer text |
+| Setting Key 				| Default 		| Type    | Description 		|
+|---------------------------------------|-----------------------|---------|-----------------------------|
+| `lucky_draw_frequency` 		| `monthly` 		| string  | Draw frequency 		|
+| `lucky_draw_custom_interval_days` 	| `30` 			| number  | Custom interval days 	|
+| `lucky_draw_ontime_bonus` 		| `1` 			| number  | Bonus entries for on-time 	|
+| `lucky_draw_streak_bonus` 		| `5` 			| number  | Bonus entries for streak 	|
+| `lucky_draw_streak_months` 		| `6` 			| number  | Months for streak bonus 	|
+| `lucky_draw_prize_pool` 		| `152500` 		| number  | Default prize pool 		|
+| `lucky_draw_auto_publish` 		| `true` 		| boolean | Auto-publish results 	|
+| `lucky_draw_publish_full_details` 	| `false` 		| boolean | Show full details 		|
+| `lucky_draw_enable_certificates` 	| `true` 		| boolean | Enable certificates 	|
+| `lucky_draw_certificate_footer` 	| `Congratulations!` 	| string  | Certificate footer text 	|
 
 ---
 
@@ -511,12 +511,12 @@ php artisan app:process-monthly-lucky-draw --force
 
 ## Security Considerations
 
-1. **Permission Protection**: All admin endpoints require `bonuses.manage_config` permission
-2. **Status Validation**: Only 'open' draws can be executed/edited
-3. **Transaction Safety**: Prize distribution uses database transactions
-4. **Audit Trail**: All actions logged with admin ID
-5. **Soft Deletes**: Draws use soft deletes for data integrity
-6. **Video Validation**: File type and size validation
+1. **Permission Protection**: 	All admin endpoints require `bonuses.manage_config` permission
+2. **Status Validation**: 	Only 'open' draws can be executed/edited
+3. **Transaction Safety**: 	Prize distribution uses database transactions
+4. **Audit Trail**: 		All actions logged with admin ID
+5. **Soft Deletes**: 		Draws use soft deletes for data integrity
+6. **Video Validation**: 	File type and size validation
 
 ---
 

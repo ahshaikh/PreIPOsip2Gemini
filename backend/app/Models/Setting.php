@@ -11,7 +11,8 @@ class Setting extends Model
 {
     use HasFactory;
 
-    public $timestamps = false; // Settings are not timestamped by default
+    	// REMOVED: public $timestamps = false; 
+	// Settings should now support timestamps to match the migration behavior.
 
     protected $fillable = [
         'key',

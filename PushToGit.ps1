@@ -4,11 +4,11 @@
 # and pushes the entire project (backend, frontend, docs) to the main branch.
 #
 # RUN IN: PowerShell (as Admin or with execution policy set)
-# USAGE: .\push-to-github.ps1
+# USAGE: .\PushToGit.ps1
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "Updated Help Center"
+$CommitMessage = "Organised all Doc Files"
 #----------------------
 
 function Get-GitCredential {

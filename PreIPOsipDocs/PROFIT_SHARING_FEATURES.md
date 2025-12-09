@@ -483,23 +483,23 @@ CREATE TABLE user_profit_shares (
 
 All settings stored in `settings` table with group `profit_share_config`:
 
-| Setting Key | Default | Type | Description |
-|------------|---------|------|-------------|
-| `profit_share_frequency` | `quarterly` | string | Distribution frequency |
-| `profit_share_auto_calculate` | `false` | boolean | Auto-calculate distributions |
-| `profit_share_auto_distribute` | `false` | boolean | Auto-distribute after calculation |
-| `profit_share_min_months` | `3` | number | Min months to be eligible |
-| `profit_share_min_investment` | `10000` | number | Min investment amount |
-| `profit_share_require_active_subscription` | `true` | boolean | Require active subscription |
-| `profit_share_formula_type` | `weighted_investment` | string | Calculation formula |
-| `profit_share_investment_weight` | `0.7` | number | Investment weight (tenure formula) |
-| `profit_share_tenure_weight` | `0.3` | number | Tenure weight (tenure formula) |
-| `profit_share_default_visibility` | `private` | string | Default report visibility |
-| `profit_share_auto_publish` | `false` | boolean | Auto-publish reports |
-| `profit_share_show_beneficiary_details` | `false` | boolean | Show beneficiary details |
-| `profit_share_tds_enabled` | `true` | boolean | Apply TDS deduction |
-| `profit_share_tds_rate` | `0.10` | number | TDS rate (10%) |
-| `profit_share_tds_threshold` | `5000` | number | TDS threshold amount |
+| Setting Key 					| Default 		| Type 		| Description 				|
+|-----------------------------------------------|-----------------------|---------------|---------------------------------------|
+| `profit_share_frequency` 			| `quarterly` 		| string 	| Distribution frequency 		|
+| `profit_share_auto_calculate` 		| `false` 		| boolean 	| Auto-calculate distributions 		|
+| `profit_share_auto_distribute` 		| `false` 		| boolean 	| Auto-distribute after calculation 	|
+| `profit_share_min_months` 			| `3` 			| number 	| Min months to be eligible 		|
+| `profit_share_min_investment` 		| `10000` 		| number 	| Min investment amount 		|
+| `profit_share_require_active_subscription` 	| `true` 		| boolean 	| Require active subscription 		|
+| `profit_share_formula_type` 			| `weighted_investment` | string 	| Calculation formula 			|
+| `profit_share_investment_weight` 		| `0.7` 		| number 	| Investment weight (tenure formula) 	|
+| `profit_share_tenure_weight` 			| `0.3` 		| number 	| Tenure weight (tenure formula) 	|
+| `profit_share_default_visibility` 		| `private` 		| string 	| Default report visibility 		|
+| `profit_share_auto_publish` 			| `false` 		| boolean 	| Auto-publish reports 			|
+| `profit_share_show_beneficiary_details` 	| `false` 		| boolean 	| Show beneficiary details 		|
+| `profit_share_tds_enabled` 			| `true` 		| boolean 	| Apply TDS deduction 			|
+| `profit_share_tds_rate` 			| `0.10` 		| number 	| TDS rate (10%) 			|
+| `profit_share_tds_threshold` 			| `5000` 		| number 	| TDS threshold amount 			|
 
 ---
 
@@ -629,13 +629,13 @@ All settings stored in `settings` table with group `profit_share_config`:
 
 ## Security Considerations
 
-1. **Permission Protection**: All admin endpoints require `bonuses.manage_config` permission
-2. **Status Validation**: Only correct status transitions allowed (pending → calculated → distributed)
-3. **Transaction Safety**: All distributions use database transactions
-4. **Audit Trail**: All actions logged with admin ID and timestamps
-5. **Balance Verification**: Reversal checks wallet balances before deducting
-6. **Visibility Controls**: Report access respects visibility settings
-7. **TDS Compliance**: Automatic TDS deduction for tax compliance
+1. **Permission Protection**: 	All admin endpoints require `bonuses.manage_config` permission
+2. **Status Validation**: 	Only correct status transitions allowed (pending → calculated → distributed)
+3. **Transaction Safety**: 	All distributions use database transactions
+4. **Audit Trail**: 		All actions logged with admin ID and timestamps
+5. **Balance Verification**: 	Reversal checks wallet balances before deducting
+6. **Visibility Controls**: 	Report access respects visibility settings
+7. **TDS Compliance**: 		Automatic TDS deduction for tax compliance
 
 ---
 

@@ -6,23 +6,23 @@ This document provides comprehensive documentation for all 17 Payment & Withdraw
 
 ## Table of Contents
 
-1. [Payment Gateway Setup](#1-payment-gateway-setup)
-2. [Payment Methods Configuration](#2-payment-methods-configuration)
-3. [Auto-Debit Configuration](#3-auto-debit-configuration)
-4. [View All Payments with Filters](#4-view-all-payments-with-filters)
-5. [View Payment Details](#5-view-payment-details)
-6. [Manual Payment Entry](#6-manual-payment-entry)
-7. [Refund Payment](#7-refund-payment)
-8. [Handle Failed Payments](#8-handle-failed-payments)
-9. [Withdrawal Settings](#9-withdrawal-settings)
-10. [Withdrawal Fee Tiers](#10-withdrawal-fee-tiers)
-11. [View Withdrawal Queue](#11-view-withdrawal-queue)
-12. [View Withdrawal Details](#12-view-withdrawal-details)
-13. [Approve/Reject/Process Withdrawal](#13-approverejectprocess-withdrawal)
-14. [Bulk Withdrawal Processing](#14-bulk-withdrawal-processing)
-15. [Withdrawal Analytics](#15-withdrawal-analytics)
-16. [Payment Analytics](#16-payment-analytics)
-17. [Export Functionality](#17-export-functionality)
+1.  [Payment Gateway Setup]		(#1-payment-gateway-setup)
+2.  [Payment Methods Configuration]	(#2-payment-methods-configuration)
+3.  [Auto-Debit Configuration]		(#3-auto-debit-configuration)
+4.  [View All Payments with Filters]	(#4-view-all-payments-with-filters)
+5.  [View Payment Details]		(#5-view-payment-details)
+6.  [Manual Payment Entry]		(#6-manual-payment-entry)
+7.  [Refund Payment]			(#7-refund-payment)
+8.  [Handle Failed Payments]		(#8-handle-failed-payments)
+9.  [Withdrawal Settings]		(#9-withdrawal-settings)
+10. [Withdrawal Fee Tiers]		(#10-withdrawal-fee-tiers)
+11. [View Withdrawal Queue]		(#11-view-withdrawal-queue)
+12. [View Withdrawal Details]		(#12-view-withdrawal-details)
+13. [Approve/Reject/Process Withdrawal]	(#13-approverejectprocess-withdrawal)
+14. [Bulk Withdrawal Processing]	(#14-bulk-withdrawal-processing)
+15. [Withdrawal Analytics]		(#15-withdrawal-analytics)
+16. [Payment Analytics]			(#16-payment-analytics)
+17. [Export Functionality]		(#17-export-functionality)
 
 ---
 
@@ -228,10 +228,10 @@ curl -X PUT "https://api.example.com/api/v1/admin/auto-debit-config" \
 
 ### Auto-Debit Flow
 
-1. **Reminder**: Sent 3 days before payment due date (configurable)
-2. **Initial Debit Attempt**: On the due date
-3. **Retry Attempts**: Up to 3 retries (configurable) with 1-day intervals
-4. **Suspension**: Subscription suspended if all retries fail
+1. **Reminder**: 		Sent 3 days before payment due date (configurable)
+2. **Initial Debit Attempt**: 	On the due date
+3. **Retry Attempts**: 		Up to 3 retries (configurable) with 1-day intervals
+4. **Suspension**: 		Subscription suspended if all retries fail
 
 ---
 
@@ -600,15 +600,15 @@ curl -X PUT "https://api.example.com/api/v1/admin/withdrawal-settings" \
 
 ### Setting Descriptions
 
-- **enabled**: Enable/disable withdrawal functionality
-- **min_amount**: Minimum withdrawal amount
-- **auto_approval_max_amount**: Max amount for auto-approval (trusted users only)
-- **tds_rate**: TDS percentage (0.10 = 10%)
-- **tds_threshold**: Amount above which TDS is deducted
-- **processing_days**: Standard processing time
-- **priority_processing_enabled**: Enable priority processing for high-value withdrawals
-- **priority_threshold**: Amount threshold for priority processing
-- **bulk_processing_limit**: Max withdrawals per bulk operation
+- **enabled**: 				Enable/disable withdrawal functionality
+- **min_amount**: 			Minimum withdrawal amount
+- **auto_approval_max_amount**: 	Max amount for auto-approval (trusted users only)
+- **tds_rate**: 			TDS percentage (0.10 = 10%)
+- **tds_threshold**: 			Amount above which TDS is deducted
+- **processing_days**: 			Standard processing time
+- **priority_processing_enabled**: 	Enable priority processing for high-value withdrawals
+- **priority_threshold**: 		Amount threshold for priority processing
+- **bulk_processing_limit**: 		Max withdrawals per bulk operation
 
 ---
 
@@ -1072,13 +1072,13 @@ curl -X GET "https://api.example.com/api/v1/admin/withdrawal-analytics?start_dat
 
 ### Key Metrics
 
-- **Total Withdrawals**: Number of withdrawal requests
-- **Total Amount**: Sum of all requested amounts
-- **Total Fees**: Sum of all processing fees
-- **Total TDS**: Sum of all TDS deductions
-- **Net Disbursed**: Actual amount paid to users
-- **Avg Processing Time**: Average hours from request to completion
-- **Completion Rate**: Success vs. rejection percentage
+- **Total Withdrawals**: 	Number of withdrawal requests
+- **Total Amount**: 		Sum of all requested amounts
+- **Total Fees**: 		Sum of all processing fees
+- **Total TDS**: 		Sum of all TDS deductions
+- **Net Disbursed**: 		Actual amount paid to users
+- **Avg Processing Time**: 	Average hours from request to completion
+- **Completion Rate**: 		Success vs. rejection percentage
 
 ---
 
@@ -1177,10 +1177,10 @@ curl -X GET "https://api.example.com/api/v1/admin/payments/analytics?start_date=
 
 ### Insights
 
-- **Success Rate**: (successful / total) × 100 = 90%
-- **Gateway Performance**: Compare success rates across gateways
-- **Method Preferences**: Most used payment methods
-- **Daily Trends**: Track payment patterns over time
+- **Success Rate**: 		(successful / total) × 100 = 90%
+- **Gateway Performance**: 	Compare success rates across gateways
+- **Method Preferences**: 	Most used payment methods
+- **Daily Trends**: 		Track payment patterns over time
 
 ---
 
@@ -1254,55 +1254,55 @@ ALTER TABLE withdrawals ADD COLUMN admin_notes TEXT NULL AFTER rejection_reason;
 
 ### Payment Gateway Settings
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| payment_gateway_razorpay_enabled | boolean | true | Enable Razorpay |
-| payment_gateway_razorpay_key | string | '' | Razorpay API Key |
-| payment_gateway_razorpay_secret | string | '' | Razorpay Secret |
-| payment_gateway_stripe_enabled | boolean | false | Enable Stripe |
-| payment_gateway_paytm_enabled | boolean | false | Enable Paytm |
+| Key 					| Type    | Default | Description 	|
+|---------------------------------------|---------|---------|-------------------|
+| payment_gateway_razorpay_enabled 	| boolean | true    | Enable Razorpay 	|
+| payment_gateway_razorpay_key 		| string  | ''      | Razorpay API Key 	|
+| payment_gateway_razorpay_secret 	| string  | ''      | Razorpay Secret 	|
+| payment_gateway_stripe_enabled 	| boolean | false   | Enable Stripe 	|
+| payment_gateway_paytm_enabled 	| boolean | false   | Enable Paytm 	|
 
 ### Payment Method Settings
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| payment_method_upi_enabled | boolean | true | Enable UPI |
-| payment_method_upi_fee | number | 0 | UPI flat fee |
-| payment_method_upi_fee_percent | number | 0 | UPI percentage fee |
-| payment_method_card_enabled | boolean | true | Enable Cards |
-| payment_method_card_fee | number | 0 | Card flat fee |
-| payment_method_card_fee_percent | number | 2 | Card percentage fee |
+| Key 					| Type    | Default | Description 	  |
+|---------------------------------------|---------|---------|---------------------|
+| payment_method_upi_enabled 		| boolean | true    | Enable UPI 	  |
+| payment_method_upi_fee 		| number  | 0       | UPI flat fee 	  |
+| payment_method_upi_fee_percent 	| number  | 0       | UPI percentage fee  |
+| payment_method_card_enabled 		| boolean | true    | Enable Cards 	  |
+| payment_method_card_fee 		| number  | 0       | Card flat fee 	  |
+| payment_method_card_fee_percent 	| number  | 2       | Card percentage fee |
 
 ### Auto-Debit Settings
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| auto_debit_enabled | boolean | true | Enable auto-debit |
-| auto_debit_max_retries | number | 3 | Max retry attempts |
-| auto_debit_retry_interval_days | number | 1 | Days between retries |
-| auto_debit_reminder_days | number | 3 | Reminder before due date |
-| auto_debit_suspend_after_max_retries | boolean | true | Suspend on failure |
+| Key 					| Type    | Default | Description 		|
+|---------------------------------------|---------|---------|---------------------------|
+| auto_debit_enabled 			| boolean | true    | Enable auto-debit 	|
+| auto_debit_max_retries 		| number  | 3       | Max retry attempts 	|
+| auto_debit_retry_interval_days 	| number  | 1       | Days between retries 	|
+| auto_debit_reminder_days 		| number  | 3       | Reminder before due date 	|
+| auto_debit_suspend_after_max_retries 	| boolean | true    | Suspend on failure 	|
 
 ### Withdrawal Fee Tiers
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| withdrawal_fee_tier_1_max | number | 5000 | Tier 1 max amount |
-| withdrawal_fee_tier_1_flat | number | 0 | Tier 1 flat fee |
-| withdrawal_fee_tier_1_percent | number | 0 | Tier 1 percentage |
-| withdrawal_fee_tier_2_max | number | 25000 | Tier 2 max amount |
-| withdrawal_fee_tier_2_flat | number | 10 | Tier 2 flat fee |
-| withdrawal_fee_tier_2_percent | number | 0.5 | Tier 2 percentage |
+| Key 				| Type   | Default | Description       |
+|-------------------------------|--------|---------|-------------------|
+| withdrawal_fee_tier_1_max 	| number | 5000    | Tier 1 max amount |
+| withdrawal_fee_tier_1_flat 	| number | 0 	   | Tier 1 flat fee   |
+| withdrawal_fee_tier_1_percent | number | 0 	   | Tier 1 percentage |
+| withdrawal_fee_tier_2_max 	| number | 25000   | Tier 2 max amount |
+| withdrawal_fee_tier_2_flat 	| number | 10 	   | Tier 2 flat fee   |
+| withdrawal_fee_tier_2_percent | number | 0.5     | Tier 2 percentage |
 
 ### Withdrawal Configuration
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| withdrawal_enabled | boolean | true | Enable withdrawals |
-| min_withdrawal_amount | number | 1000 | Minimum amount |
-| withdrawal_processing_days | number | 3 | Standard processing |
-| withdrawal_priority_threshold | number | 50000 | Priority threshold |
-| withdrawal_bulk_processing_limit | number | 50 | Bulk operation limit |
+| Key 					| Type    | Default | Description          |
+|---------------------------------------|---------|---------|----------------------|
+| withdrawal_enabled 			| boolean | true    | Enable withdrawals   |
+| min_withdrawal_amount 		| number  | 1000    | Minimum amount       |
+| withdrawal_processing_days 		| number  | 3       | Standard processing  |
+| withdrawal_priority_threshold 	| number  | 50000   | Priority threshold   |
+| withdrawal_bulk_processing_limit 	| number  | 50      | Bulk operation limit |
 
 ---
 
