@@ -321,12 +321,6 @@
 
 ---
 
-## DATABASE ARCHITECTURE
-
-**Required Tables:** 95+
-
-### Core Tables:
-
 # DATABASE ARCHITECTURE
 
 **Required Tables:** 95+
