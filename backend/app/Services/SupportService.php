@@ -8,11 +8,7 @@ use App\Models\User;
 use App\Notifications\TicketEscalatedNotification;
 use App\Notifications\TicketClosedNotification;
 use Illuminate\Support\Facades\Log;
-<<<<<<< HEAD
-use Illuminate\Support\Facades\Notification;
-=======
 use App\Services\NotificationService;
->>>>>>> 5a046271830c8a9f8526dde5fea7b414a73819b6
 
 class SupportService
 {
@@ -91,10 +87,6 @@ class SupportService
                 'closed_at' => now()
             ]);
 
-<<<<<<< HEAD
-            // Notify the user that their ticket has been closed
-            $ticket->user->notify(new TicketClosedNotification($ticket));
-=======
             // Send final "Ticket Closed" notification to user
             if ($ticket->user) {
                 $this->notificationService->send($ticket->user, 'support.ticket_closed', [
@@ -104,7 +96,6 @@ class SupportService
                     'closed_at' => now()->format('Y-m-d H:i:s'),
                 ]);
             }
->>>>>>> 5a046271830c8a9f8526dde5fea7b414a73819b6
         }
         
         return $closableTickets->count();

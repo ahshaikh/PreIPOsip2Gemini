@@ -5,43 +5,116 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\CannedResponse;
-use Illuminate{Http\Request;
+use Illuminate\Http\Request;
 
 class CannedResponseController extends Controller
 {
-    // GET /admin/canned-responses
-    public function index()
+    /**
+     * List all canned responses
+     * GET /api/v1/admin/canned-responses
+     */
+    public function index(Request $request)
     {
-        return CannedResponse::where('is_active', true)->orderBy('title')->get();
+        $query = CannedResponse::query();
+
+        // Filter by category
+        if ($request->filled('category')) {
+            $query->where('category', $request->category);
+        }
+
+        // Filter by active status
+        if ($request->filled('is_active')) {
+            $query->where('is_active', $request->boolean('is_active'));
+        }
+
+        // Search
+        if ($request->filled('search')) {
+            $query->where(function ($q) use ($request) {
+                $q->where('title', 'like', '%' . $request->search . '%')
+                  ->orWhere('content', 'like', '%' . $request->search . '%');
+            });
+        }
+
+        return response()->json([
+            'data' => $query->orderBy('category')->orderBy('title')->get(),
+        ]);
     }
 
-    // POST /admin/canned-responses
+    /**
+     * Get all canned response categories
+     * GET /api/v1/admin/canned-responses/categories
+     */
+    public function categories()
+    {
+        $categories = CannedResponse::select('category')
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category');
+
+        return response()->json(['categories' => $categories]);
+    }
+
+    /**
+     * Create new canned response
+     * POST /api/v1/admin/canned-responses
+     */
     public function store(Request $request)
     {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
-            'body' => 'required|string',
+            'content' => 'required|string',
+            'category' => 'required|string|max:100',
+            'is_active' => 'boolean',
         ]);
+
         $response = CannedResponse::create($validated);
-        return response()->json($response, 201);
+
+        return response()->json([
+            'message' => 'Canned response created successfully',
+            'data' => $response,
+        ], 201);
     }
-    
-    // PUT /admin/canned-responses/{id}
+
+    /**
+     * Show single canned response
+     * GET /api/v1/admin/canned-responses/{id}
+     */
+    public function show(CannedResponse $cannedResponse)
+    {
+        return response()->json(['data' => $cannedResponse]);
+    }
+
+    /**
+     * Update canned response
+     * PUT /api/v1/admin/canned-responses/{id}
+     */
     public function update(Request $request, CannedResponse $cannedResponse)
     {
-         $validated = $request->validate([
+        $validated = $request->validate([
             'title' => 'required|string|max:255',
-            'body' => 'required|string',
-            'is_active' => 'boolean'
+            'content' => 'required|string',
+            'category' => 'required|string|max:100',
+            'is_active' => 'boolean',
         ]);
+
         $cannedResponse->update($validated);
-        return response()->json($cannedResponse);
+
+        return response()->json([
+            'message' => 'Canned response updated successfully',
+            'data' => $cannedResponse,
+        ]);
     }
-    
-    // DELETE /admin/canned-responses/{id}
+
+    /**
+     * Delete canned response
+     * DELETE /api/v1/admin/canned-responses/{id}
+     */
     public function destroy(CannedResponse $cannedResponse)
     {
         $cannedResponse->delete();
-        return response()->noContent();
+
+        return response()->json([
+            'message' => 'Canned response deleted successfully',
+        ]);
     }
 }

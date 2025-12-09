@@ -227,6 +227,71 @@ class SettingsSeeder extends Seeder
             ['key' => 'cookie_consent_message', 'value' => 'We use cookies to improve your experience.', 'type' => 'string', 'group' => 'legal'],
             ['key' => 'gdpr_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'legal'],
             ['key' => 'data_retention_days', 'value' => '365', 'type' => 'number', 'group' => 'legal'],
+
+            // ============================================================
+            // SUPPORT SYSTEM SETTINGS
+            // ============================================================
+            // Ticket System
+            ['key' => 'support_auto_assign_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'support'],
+            ['key' => 'support_auto_assign_strategy', 'value' => 'round_robin', 'type' => 'string', 'group' => 'support'], // round_robin, least_busy, random
+            ['key' => 'support_default_priority', 'value' => 'medium', 'type' => 'string', 'group' => 'support'],
+            ['key' => 'support_default_sla_hours', 'value' => '24', 'type' => 'number', 'group' => 'support'],
+            ['key' => 'support_high_priority_sla_hours', 'value' => '4', 'type' => 'number', 'group' => 'support'],
+            ['key' => 'support_medium_priority_sla_hours', 'value' => '24', 'type' => 'number', 'group' => 'support'],
+            ['key' => 'support_low_priority_sla_hours', 'value' => '72', 'type' => 'number', 'group' => 'support'],
+
+            // Ticket Auto-Close
+            ['key' => 'support_auto_close_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'support'],
+            ['key' => 'support_auto_close_days', 'value' => '7', 'type' => 'number', 'group' => 'support'],
+            ['key' => 'support_auto_close_notify_user', 'value' => 'true', 'type' => 'boolean', 'group' => 'support'],
+
+            // Ticket Escalation
+            ['key' => 'support_escalation_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'support'],
+            ['key' => 'support_escalation_notify_admins', 'value' => 'true', 'type' => 'boolean', 'group' => 'support'],
+
+            // Ticket Rating
+            ['key' => 'support_rating_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'support'],
+            ['key' => 'support_rating_required', 'value' => 'false', 'type' => 'boolean', 'group' => 'support'],
+
+            // Canned Responses
+            ['key' => 'support_canned_responses_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'support'],
+
+            // Ticket Categories (comma-separated)
+            ['key' => 'support_categories', 'value' => 'general,payment,kyc,withdrawal,bonus,technical,account', 'type' => 'string', 'group' => 'support'],
+
+            // Ticket Priorities (comma-separated)
+            ['key' => 'support_priorities', 'value' => 'low,medium,high,urgent', 'type' => 'string', 'group' => 'support'],
+
+            // ============================================================
+            // LIVE CHAT SETTINGS
+            // ============================================================
+            ['key' => 'live_chat_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'chat'],
+            ['key' => 'live_chat_online_status', 'value' => 'auto', 'type' => 'string', 'group' => 'chat'], // auto, online, offline
+            ['key' => 'live_chat_office_hours_start', 'value' => '09:00', 'type' => 'string', 'group' => 'chat'],
+            ['key' => 'live_chat_office_hours_end', 'value' => '18:00', 'type' => 'string', 'group' => 'chat'],
+            ['key' => 'live_chat_offline_message', 'value' => 'Our support team is currently offline. Please leave a message or create a ticket.', 'type' => 'text', 'group' => 'chat'],
+            ['key' => 'live_chat_welcome_message', 'value' => 'Hello! How can we help you today?', 'type' => 'text', 'group' => 'chat'],
+            ['key' => 'live_chat_max_concurrent_chats', 'value' => '5', 'type' => 'number', 'group' => 'chat'],
+            ['key' => 'live_chat_auto_assign', 'value' => 'true', 'type' => 'boolean', 'group' => 'chat'],
+            ['key' => 'live_chat_transcript_storage', 'value' => 'true', 'type' => 'boolean', 'group' => 'chat'],
+            ['key' => 'live_chat_transcript_retention_days', 'value' => '90', 'type' => 'number', 'group' => 'chat'],
+            ['key' => 'live_chat_typing_indicator', 'value' => 'true', 'type' => 'boolean', 'group' => 'chat'],
+            ['key' => 'live_chat_file_upload', 'value' => 'true', 'type' => 'boolean', 'group' => 'chat'],
+            ['key' => 'live_chat_max_file_size', 'value' => '5120', 'type' => 'number', 'group' => 'chat'], // KB
+
+            // ============================================================
+            // KNOWLEDGE BASE SETTINGS
+            // ============================================================
+            ['key' => 'kb_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'knowledge_base'],
+            ['key' => 'kb_public_access', 'value' => 'true', 'type' => 'boolean', 'group' => 'knowledge_base'],
+            ['key' => 'kb_search_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'knowledge_base'],
+            ['key' => 'kb_search_analytics', 'value' => 'true', 'type' => 'boolean', 'group' => 'knowledge_base'],
+            ['key' => 'kb_article_views_tracking', 'value' => 'true', 'type' => 'boolean', 'group' => 'knowledge_base'],
+            ['key' => 'kb_article_rating_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'knowledge_base'],
+            ['key' => 'kb_article_comments_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'knowledge_base'],
+            ['key' => 'kb_related_articles_count', 'value' => '5', 'type' => 'number', 'group' => 'knowledge_base'],
+            ['key' => 'kb_popular_articles_count', 'value' => '10', 'type' => 'number', 'group' => 'knowledge_base'],
+            ['key' => 'kb_recent_articles_count', 'value' => '5', 'type' => 'number', 'group' => 'knowledge_base'],
         ];
 
         foreach ($settings as $setting) {
