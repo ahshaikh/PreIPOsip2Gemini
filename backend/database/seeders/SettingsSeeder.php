@@ -31,6 +31,26 @@ class SettingsSeeder extends Seeder
             ['key' => 'referral_kyc_required', 'value' => 'true', 'type' => 'boolean', 'group' => 'system'],
             ['key' => 'kyc_required_for_investment', 'value' => 'true', 'type' => 'boolean', 'group' => 'system'],
 
+            // KYC Document Requirements
+            ['key' => 'kyc_require_aadhaar_front', 'value' => 'true', 'type' => 'boolean', 'group' => 'system'],
+            ['key' => 'kyc_require_aadhaar_back', 'value' => 'true', 'type' => 'boolean', 'group' => 'system'],
+            ['key' => 'kyc_require_pan_card', 'value' => 'true', 'type' => 'boolean', 'group' => 'system'],
+            ['key' => 'kyc_require_demat_sheet', 'value' => 'true', 'type' => 'boolean', 'group' => 'system'],
+            ['key' => 'kyc_require_bank_details', 'value' => 'true', 'type' => 'boolean', 'group' => 'system'],
+            ['key' => 'kyc_auto_approval_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'system'],
+            ['key' => 'kyc_require_admin_approval', 'value' => 'true', 'type' => 'boolean', 'group' => 'system'],
+
+            // PMLA Compliance Settings
+            ['key' => 'pmla_verify_deposit_source', 'value' => 'true', 'type' => 'boolean', 'group' => 'security'],
+            ['key' => 'pmla_same_name_check', 'value' => 'true', 'type' => 'boolean', 'group' => 'security'],
+            ['key' => 'pmla_flag_third_party', 'value' => 'true', 'type' => 'boolean', 'group' => 'security'],
+            ['key' => 'pmla_block_deposit_no_kyc', 'value' => 'true', 'type' => 'boolean', 'group' => 'security'],
+            ['key' => 'pmla_block_withdrawal_no_kyc', 'value' => 'true', 'type' => 'boolean', 'group' => 'security'],
+            ['key' => 'pmla_block_withdrawal_manual_deposit', 'value' => 'true', 'type' => 'boolean', 'group' => 'security'],
+            ['key' => 'pmla_high_value_threshold', 'value' => '1000000', 'type' => 'number', 'group' => 'security'],
+            ['key' => 'pmla_daily_transaction_limit', 'value' => '5000000', 'type' => 'number', 'group' => 'security'],
+            ['key' => 'pmla_require_source_declaration', 'value' => 'true', 'type' => 'boolean', 'group' => 'security'],
+
             // ============================================================
             // SITE SETTINGS
             // ============================================================
@@ -75,7 +95,12 @@ class SettingsSeeder extends Seeder
             // Login Security
             ['key' => 'max_login_attempts', 'value' => '5', 'type' => 'number', 'group' => 'security'],
             ['key' => 'lockout_duration', 'value' => '30', 'type' => 'number', 'group' => 'security'], // minutes
+            ['key' => 'lockout_duration_minutes', 'value' => '30', 'type' => 'number', 'group' => 'security'], // alias for frontend
             ['key' => 'session_regenerate_on_login', 'value' => 'true', 'type' => 'boolean', 'group' => 'security'],
+            ['key' => 'session_timeout_minutes', 'value' => '120', 'type' => 'number', 'group' => 'security'],
+            ['key' => 'email_verification_required', 'value' => 'true', 'type' => 'boolean', 'group' => 'security'],
+            ['key' => 'mobile_verification_required', 'value' => 'true', 'type' => 'boolean', 'group' => 'security'],
+            ['key' => 'two_factor_required', 'value' => 'false', 'type' => 'boolean', 'group' => 'security'],
 
             // IP & Access Control
             ['key' => 'admin_ip_whitelist', 'value' => '', 'type' => 'text', 'group' => 'security'],
@@ -192,15 +217,24 @@ class SettingsSeeder extends Seeder
             // PUSH NOTIFICATION SETTINGS
             // ============================================================
             ['key' => 'push_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'push'],
+            ['key' => 'push_notifications_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'push'], // alias for frontend
             ['key' => 'push_provider', 'value' => 'fcm', 'type' => 'string', 'group' => 'push'], // fcm, onesignal, sns
 
             // Firebase Cloud Messaging (FCM)
             ['key' => 'fcm_server_key', 'value' => '', 'type' => 'text', 'group' => 'push'],
+            ['key' => 'firebase_server_key', 'value' => '', 'type' => 'text', 'group' => 'push'], // alias
             ['key' => 'fcm_sender_id', 'value' => '', 'type' => 'string', 'group' => 'push'],
+            ['key' => 'firebase_sender_id', 'value' => '', 'type' => 'string', 'group' => 'push'], // alias
             ['key' => 'fcm_project_id', 'value' => '', 'type' => 'string', 'group' => 'push'],
+            ['key' => 'firebase_project_id', 'value' => '', 'type' => 'string', 'group' => 'push'], // alias
             ['key' => 'fcm_credentials_path', 'value' => '', 'type' => 'string', 'group' => 'push'],
 
+            // VAPID Keys for Web Push
+            ['key' => 'vapid_public_key', 'value' => '', 'type' => 'string', 'group' => 'push'],
+            ['key' => 'vapid_private_key', 'value' => '', 'type' => 'string', 'group' => 'push'],
+
             // OneSignal
+            ['key' => 'use_onesignal', 'value' => 'false', 'type' => 'boolean', 'group' => 'push'],
             ['key' => 'onesignal_app_id', 'value' => '', 'type' => 'string', 'group' => 'push'],
             ['key' => 'onesignal_api_key', 'value' => '', 'type' => 'string', 'group' => 'push'],
             ['key' => 'onesignal_rest_api_key', 'value' => '', 'type' => 'string', 'group' => 'push'],
@@ -293,9 +327,13 @@ class SettingsSeeder extends Seeder
             // ============================================================
             ['key' => 'api_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'api'],
             ['key' => 'api_rate_limit', 'value' => '60', 'type' => 'number', 'group' => 'api'],
+            ['key' => 'api_throttling_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'api'],
             ['key' => 'api_version', 'value' => 'v1', 'type' => 'string', 'group' => 'api'],
             ['key' => 'api_key_required', 'value' => 'false', 'type' => 'boolean', 'group' => 'api'],
             ['key' => 'api_ip_whitelist', 'value' => '', 'type' => 'text', 'group' => 'api'],
+            ['key' => 'kyc_api_url', 'value' => '', 'type' => 'string', 'group' => 'api'],
+            ['key' => 'kyc_api_key', 'value' => '', 'type' => 'string', 'group' => 'api'],
+            ['key' => 'payment_webhook_url', 'value' => '', 'type' => 'string', 'group' => 'api'],
 
             // ============================================================
             // BACKUP SETTINGS
@@ -317,6 +355,16 @@ class SettingsSeeder extends Seeder
             ['key' => 'cache_driver', 'value' => 'redis', 'type' => 'string', 'group' => 'cache'],
             ['key' => 'cache_ttl', 'value' => '3600', 'type' => 'number', 'group' => 'cache'], // seconds
             ['key' => 'cache_prefix', 'value' => 'preipo_', 'type' => 'string', 'group' => 'cache'],
+            ['key' => 'redis_caching_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'cache'],
+            ['key' => 'query_caching_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'cache'],
+            ['key' => 'cdn_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'cache'],
+
+            // ============================================================
+            // QUEUE & BACKGROUND JOBS
+            // ============================================================
+            ['key' => 'queue_driver', 'value' => 'redis', 'type' => 'string', 'group' => 'queue'],
+            ['key' => 'max_job_retries', 'value' => '3', 'type' => 'number', 'group' => 'queue'],
+            ['key' => 'job_timeout', 'value' => '60', 'type' => 'number', 'group' => 'queue'], // seconds
 
             // ============================================================
             // LOG SETTINGS
@@ -326,6 +374,8 @@ class SettingsSeeder extends Seeder
             ['key' => 'log_retention_days', 'value' => '30', 'type' => 'number', 'group' => 'log'],
             ['key' => 'log_rotation_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'log'],
             ['key' => 'log_max_files', 'value' => '7', 'type' => 'number', 'group' => 'log'],
+            ['key' => 'debug_mode', 'value' => 'false', 'type' => 'boolean', 'group' => 'log'],
+            ['key' => 'sql_logging_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'log'],
 
             // ============================================================
             // CRON JOBS
@@ -485,91 +535,12 @@ class SettingsSeeder extends Seeder
             ['key' => 'kb_recent_articles_count', 'value' => '5', 'type' => 'number', 'group' => 'knowledge_base'],
 
             // ============================================================
-            // SEO & META MANAGEMENT SETTINGS
+            // FEATURE FLAGS
             // ============================================================
-
-            // Global SEO Configuration
-            ['key' => 'seo_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
-            ['key' => 'seo_meta_title_suffix', 'value' => ' | PreIPO SIP', 'type' => 'string', 'group' => 'seo'],
-            ['key' => 'seo_meta_title_separator', 'value' => '|', 'type' => 'string', 'group' => 'seo'],
-            ['key' => 'seo_default_title', 'value' => 'PreIPO SIP - Pre-IPO Investment Platform', 'type' => 'string', 'group' => 'seo'],
-            ['key' => 'seo_default_description', 'value' => 'Invest in pre-IPO companies with systematic investment plans. Secure, transparent, and professional investment platform.', 'type' => 'text', 'group' => 'seo'],
-            ['key' => 'seo_default_keywords', 'value' => 'pre-ipo, investment, sip, startup investment, equity investment', 'type' => 'text', 'group' => 'seo'],
-            ['key' => 'seo_default_author', 'value' => 'PreIPO SIP Team', 'type' => 'string', 'group' => 'seo'],
-            ['key' => 'seo_canonical_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
-            ['key' => 'seo_auto_meta_description', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
-            ['key' => 'seo_auto_meta_keywords', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
-
-            // Open Graph (OG) Tags
-            ['key' => 'seo_og_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
-            ['key' => 'seo_og_site_name', 'value' => 'PreIPO SIP', 'type' => 'string', 'group' => 'seo'],
-            ['key' => 'seo_og_default_image', 'value' => '/images/og-default.jpg', 'type' => 'string', 'group' => 'seo'],
-            ['key' => 'seo_og_default_type', 'value' => 'website', 'type' => 'string', 'group' => 'seo'],
-            ['key' => 'seo_og_locale', 'value' => 'en_US', 'type' => 'string', 'group' => 'seo'],
-
-            // Twitter Card Tags
-            ['key' => 'seo_twitter_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
-            ['key' => 'seo_twitter_card_type', 'value' => 'summary_large_image', 'type' => 'string', 'group' => 'seo'],
-            ['key' => 'seo_twitter_site', 'value' => '@preiposip', 'type' => 'string', 'group' => 'seo'],
-            ['key' => 'seo_twitter_creator', 'value' => '@preiposip', 'type' => 'string', 'group' => 'seo'],
-
-            // Schema.org Markup
-            ['key' => 'seo_schema_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
-            ['key' => 'seo_schema_type', 'value' => 'FinancialService', 'type' => 'string', 'group' => 'seo'],
-            ['key' => 'seo_schema_organization_name', 'value' => 'PreIPO SIP', 'type' => 'string', 'group' => 'seo'],
-            ['key' => 'seo_schema_logo', 'value' => '/images/logo.png', 'type' => 'string', 'group' => 'seo'],
-            ['key' => 'seo_schema_contact_type', 'value' => 'customer support', 'type' => 'string', 'group' => 'seo'],
-
-            // Robots.txt Configuration
-            ['key' => 'seo_robots_txt', 'value' => "User-agent: *\nDisallow: /admin/\nDisallow: /api/\nDisallow: /user/\nAllow: /\nSitemap: {siteUrl}/sitemap.xml", 'type' => 'text', 'group' => 'seo'],
-            ['key' => 'seo_robots_meta_default', 'value' => 'index, follow', 'type' => 'string', 'group' => 'seo'],
-            ['key' => 'seo_robots_noindex_users', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
-            ['key' => 'seo_robots_noindex_admin', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
-
-            // Sitemap Configuration
-            ['key' => 'seo_sitemap_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
-            ['key' => 'seo_sitemap_auto_generate', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
-            ['key' => 'seo_sitemap_frequency', 'value' => 'daily', 'type' => 'string', 'group' => 'seo'],
-            ['key' => 'seo_sitemap_priority_home', 'value' => '1.0', 'type' => 'string', 'group' => 'seo'],
-            ['key' => 'seo_sitemap_priority_pages', 'value' => '0.8', 'type' => 'string', 'group' => 'seo'],
-            ['key' => 'seo_sitemap_priority_products', 'value' => '0.9', 'type' => 'string', 'group' => 'seo'],
-            ['key' => 'seo_sitemap_priority_blog', 'value' => '0.7', 'type' => 'string', 'group' => 'seo'],
-            ['key' => 'seo_sitemap_include_images', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
-            ['key' => 'seo_sitemap_ping_google', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
-            ['key' => 'seo_sitemap_ping_bing', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
-
-            // Redirects Configuration
-            ['key' => 'seo_redirects_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
-            ['key' => 'seo_redirects_tracking', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
-            ['key' => 'seo_redirects_log_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
-            ['key' => 'seo_redirects_wildcard_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'seo'],
-
-            // Analytics Integration
-            ['key' => 'analytics_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'analytics'],
-            ['key' => 'analytics_google_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'analytics'],
-            ['key' => 'analytics_google_id', 'value' => '', 'type' => 'string', 'group' => 'analytics'],
-            ['key' => 'analytics_google_ga4_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'analytics'],
-            ['key' => 'analytics_google_measurement_id', 'value' => '', 'type' => 'string', 'group' => 'analytics'],
-            ['key' => 'analytics_gtm_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'analytics'],
-            ['key' => 'analytics_gtm_id', 'value' => '', 'type' => 'string', 'group' => 'analytics'],
-            ['key' => 'analytics_facebook_pixel_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'analytics'],
-            ['key' => 'analytics_facebook_pixel_id', 'value' => '', 'type' => 'string', 'group' => 'analytics'],
-            ['key' => 'analytics_hotjar_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'analytics'],
-            ['key' => 'analytics_hotjar_id', 'value' => '', 'type' => 'string', 'group' => 'analytics'],
-            ['key' => 'analytics_mixpanel_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'analytics'],
-            ['key' => 'analytics_mixpanel_token', 'value' => '', 'type' => 'string', 'group' => 'analytics'],
-            ['key' => 'analytics_custom_script', 'value' => '', 'type' => 'text', 'group' => 'analytics'],
-            ['key' => 'analytics_track_logged_users', 'value' => 'true', 'type' => 'boolean', 'group' => 'analytics'],
-            ['key' => 'analytics_anonymize_ip', 'value' => 'true', 'type' => 'boolean', 'group' => 'analytics'],
-            ['key' => 'analytics_respect_dnt', 'value' => 'true', 'type' => 'boolean', 'group' => 'analytics'], // Do Not Track
-
-            // SEO Analysis
-            ['key' => 'seo_analysis_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
-            ['key' => 'seo_analysis_min_score', 'value' => '70', 'type' => 'number', 'group' => 'seo'],
-            ['key' => 'seo_analysis_auto_suggestions', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
-            ['key' => 'seo_analysis_check_images', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
-            ['key' => 'seo_analysis_check_links', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
-            ['key' => 'seo_analysis_check_readability', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
+            ['key' => 'beta_features_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'feature_flags'],
+            ['key' => 'dark_mode_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'feature_flags'],
+            ['key' => 'sip_calculator_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'feature_flags'],
+            ['key' => 'multi_language_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'feature_flags'],
         ];
 
         foreach ($settings as $setting) {
