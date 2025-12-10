@@ -99,7 +99,7 @@ class BonusCalculatorService
             }
 
             // Also award referral bonus to referrer if this user was referred
-            if (setting('referral_bonus_enabled', true)) {
+            if (setting('referral_enabled', true) && setting('referral_bonus_enabled', true)) {
                 $referralBonus = $this->awardReferralBonus($payment);
                 // Note: Referral bonus is awarded to referrer, not counted in this user's total
                 if ($referralBonus > 0) {

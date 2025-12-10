@@ -306,6 +306,64 @@ class DeveloperToolsController extends Controller
     }
 
     /**
+     * Get system cron jobs (from Kernel.php)
+     * GET /api/v1/admin/developer/system-cron-jobs
+     */
+    public function getSystemCronJobs()
+    {
+        // System cron jobs defined in Kernel.php
+        $systemJobs = [
+            [
+                'id' => 'system-celebration-bonuses',
+                'name' => 'Process Celebration Bonuses',
+                'command' => 'App\\Console\\Commands\\ProcessCelebrationBonuses',
+                'expression' => '0 8 * * *', // Daily at 08:00
+                'description' => 'Process celebration bonuses for users',
+                'schedule' => 'Daily at 08:00',
+                'is_system' => true,
+            ],
+            [
+                'id' => 'system-auto-debits',
+                'name' => 'Process Auto Debits',
+                'command' => 'App\\Console\\Commands\\ProcessAutoDebits',
+                'expression' => '0 9 * * *', // Daily at 09:00
+                'description' => 'Process automatic recurring payments',
+                'schedule' => 'Daily at 09:00',
+                'is_system' => true,
+            ],
+            [
+                'id' => 'system-ticket-sla',
+                'name' => 'Check Ticket SLA',
+                'command' => 'App\\Console\\Commands\\CheckTicketSLACommand',
+                'expression' => '0 * * * *', // Hourly
+                'description' => 'Check and update ticket SLA status',
+                'schedule' => 'Every hour',
+                'is_system' => true,
+            ],
+            [
+                'id' => 'system-lucky-draw',
+                'name' => 'Process Monthly Lucky Draw',
+                'command' => 'App\\Console\\Commands\\ProcessMonthlyLuckyDraw',
+                'expression' => '0 4 * * *', // Daily at 04:00
+                'description' => 'Execute monthly lucky draw',
+                'schedule' => 'Daily at 04:00',
+                'is_system' => true,
+            ],
+            [
+                'id' => 'system-sitemap',
+                'name' => 'Generate Sitemap',
+                'command' => 'App\\Console\\Commands\\GenerateSitemap',
+                'expression' => '0 3 * * *', // Daily at 03:00
+                'description' => 'Generate XML sitemap for SEO',
+                'schedule' => 'Daily at 03:00',
+                'is_system' => true,
+            ],
+        ];
+
+        return response()->json(['jobs' => $systemJobs]);
+    }
+
+    /**
      * List scheduled tasks
      * GET /api/v1/admin/developer/tasks
      */

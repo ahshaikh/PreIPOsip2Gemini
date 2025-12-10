@@ -33,6 +33,13 @@ class KycController extends Controller
 
     public function store(KycSubmitRequest $request)
     {
+        // Check if KYC module is enabled
+        if (!setting('kyc_enabled', true)) {
+            return response()->json([
+                'message' => 'KYC verification is currently disabled. Please contact support.'
+            ], 503);
+        }
+
         $user = $request->user();
         $kyc = $user->kyc;
 

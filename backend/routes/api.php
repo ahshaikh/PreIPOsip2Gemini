@@ -340,9 +340,16 @@ Route::prefix('v1')->group(function () {
             Route::get('inventory/summary', [ReportController::class, 'getInventorySummary'])
                 ->middleware('permission:products.view');
 
-            // System Backup
-            Route::get('system/backup/db', [BackupController::class, 'downloadDbDump'])
-                ->middleware('permission:system.manage_backups');
+            // System Backup Management
+            Route::prefix('system/backup')->middleware('permission:system.manage_backups')->group(function () {
+                Route::get('/config', [BackupController::class, 'getConfig']);
+                Route::put('/config', [BackupController::class, 'updateConfig']);
+                Route::get('/history', [BackupController::class, 'getHistory']);
+                Route::post('/create', [BackupController::class, 'createBackup']);
+                Route::get('/download/{filename}', [BackupController::class, 'downloadBackup']);
+                Route::delete('/{filename}', [BackupController::class, 'deleteBackup']);
+                Route::get('/db', [BackupController::class, 'downloadDbDump']); // Legacy endpoint
+            });
 
             // System Health
             Route::get('/system/health', [SystemHealthController::class, 'index'])->middleware('permission:system.view_health');
@@ -715,6 +722,7 @@ Route::prefix('v1')->group(function () {
                 Route::delete('/api-tests/{test}', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'deleteApiTest']);
 
                 // Task Scheduler
+                Route::get('/system-cron-jobs', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'getSystemCronJobs']);
                 Route::get('/tasks', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'listTasks']);
                 Route::post('/tasks', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'createTask']);
                 Route::put('/tasks/{task}', [App\Http\Controllers\Api\Admin\DeveloperToolsController::class, 'updateTask']);
