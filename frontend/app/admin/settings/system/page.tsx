@@ -165,7 +165,7 @@ export default function SystemSettingsPage() {
   const handleSave = () => {
     const settingsPayload = Object.values(settingsMap).map(s => ({
       key: s.key,
-      value: s.value
+      value: String(s.value) // Ensure all values are strings
     }));
     mutation.mutate(settingsPayload);
   };
