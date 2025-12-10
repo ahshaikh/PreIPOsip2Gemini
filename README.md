@@ -328,16 +328,16 @@
 - [ ] Risk Disclosure System
 - [ ] Price Trend Visualization 
 
-###20. Company Portal (B2B) Features (11 Functions)
-## Account & Profile Management
+### 20. Company Portal (B2B) Features (11 Functions)
+#### Account & Profile Management
 - [ ] Company Profile Builder
 - [ ] Multi-User Access Control 
 - [ ] Onboarding Wizard
-## Fundraising & Documents
+#### Fundraising & Documents
 - [ ] Deal Room
 - [ ] Financial Reporting Center
 - [ ] Document Repository 
-## Investor Engagement & Communication
+#### Investor Engagement & Communication
 - [ ] Company Updates Feed
 - [ ] Webinar Management 
 - [ ] Investor Q&A Module
