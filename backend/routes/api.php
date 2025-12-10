@@ -57,6 +57,8 @@ use App\Http\Controllers\Api\Admin\SupportTicketController as AdminSupportTicket
 use App\Http\Controllers\Api\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Api\Admin\FaqController as AdminFaqController;
 use App\Http\Controllers\Api\Admin\BlogPostController as AdminBlogController;
+use App\Http\Controllers\Api\Admin\BlogCategoryController;
+use App\Http\Controllers\Api\Admin\PageBlockController;
 use App\Http\Controllers\Api\Admin\RoleController;
 use App\Http\Controllers\Api\Admin\CmsController;
 use App\Http\Controllers\Api\Admin\ThemeSeoController;
@@ -448,7 +450,24 @@ Route::prefix('v1')->group(function () {
             Route::get('/pages/{page}/analyze', [PageController::class, 'analyze'])->middleware('permission:settings.manage_cms');
             Route::apiResource('/email-templates', EmailTemplateController::class)->middleware('permission:settings.manage_notifications');
             Route::apiResource('/faqs', AdminFaqController::class)->middleware('permission:settings.manage_cms');
+
+            // Blog Management (V-CMS-ENHANCEMENT-007)
             Route::apiResource('/blog-posts', AdminBlogController::class)->middleware('permission:settings.manage_cms');
+            Route::apiResource('/blog-categories', BlogCategoryController::class)->middleware('permission:settings.manage_cms');
+            Route::get('/blog-categories-active', [BlogCategoryController::class, 'active'])->middleware('permission:settings.manage_cms'); // Lightweight endpoint for dropdowns
+            Route::post('/blog-categories/reorder', [BlogCategoryController::class, 'reorder'])->middleware('permission:settings.manage_cms');
+            Route::get('/blog-posts/stats/overview', [AdminBlogController::class, 'stats'])->middleware('permission:settings.manage_cms');
+            Route::get('/blog-categories/stats/overview', [BlogCategoryController::class, 'stats'])->middleware('permission:settings.manage_cms');
+
+            // Page Blocks - Block-based Page Builder (V-CMS-ENHANCEMENT-012)
+            Route::get('/page-blocks/types', [PageBlockController::class, 'getBlockTypes'])->middleware('permission:settings.manage_cms');
+            Route::apiResource('/page-blocks', PageBlockController::class)->except(['index', 'store'])->middleware('permission:settings.manage_cms');
+            Route::post('/page-blocks/{pageBlock}/duplicate', [PageBlockController::class, 'duplicate'])->middleware('permission:settings.manage_cms');
+            Route::post('/page-blocks/{pageBlock}/toggle', [PageBlockController::class, 'toggle'])->middleware('permission:settings.manage_cms');
+            Route::get('/page-blocks/{pageBlock}/analytics', [PageBlockController::class, 'analytics'])->middleware('permission:settings.manage_cms');
+            Route::get('/pages/{page}/blocks', [PageBlockController::class, 'index'])->middleware('permission:settings.manage_cms');
+            Route::post('/pages/{page}/blocks', [PageBlockController::class, 'store'])->middleware('permission:settings.manage_cms');
+            Route::post('/pages/{page}/blocks/reorder', [PageBlockController::class, 'reorder'])->middleware('permission:settings.manage_cms');
 
             // Route::apiResource('/referral-campaigns', AdminReferralCampaignController::class); // DEPRECATED -> Use AdminReferralController group above
 

@@ -34,33 +34,40 @@ class CmsController extends Controller
             }
         }];
     }
-    // --- MENU MANAGEMENT (FSD-FRONT-003) ---
+    // --- MENU MANAGEMENT (FSD-FRONT-003) | V-CMS-ENHANCEMENT-009 (Multi-level support)
     public function getMenus()
     {
-        return Menu::with('items')->get();
+        // Load menus with nested items (parent-child relationships)
+        return Menu::with(['items.children'])->get();
     }
 
     public function updateMenu(Request $request, Menu $menu)
     {
         $validated = $request->validate([
             'items' => 'required|array',
+            'items.*.id' => 'nullable|integer', // For existing items
             'items.*.label' => 'required|string',
             'items.*.url' => ['required', ...$this->safeUrlRule()],
             'items.*.parent_id' => 'nullable|integer',
+            'items.*.display_order' => 'nullable|integer',
         ]);
 
         DB::transaction(function () use ($menu, $validated) {
-            $menu->items()->delete();
+            // Delete all existing items (will be recreated with proper order and parent_id)
+            $menu->allItems()->delete();
+
+            // Create items with parent_id support
             foreach ($validated['items'] as $index => $item) {
                 $menu->items()->create([
                     'label' => $item['label'],
                     'url' => $item['url'],
-                    'display_order' => $index,
+                    'parent_id' => $item['parent_id'] ?? null,
+                    'display_order' => $item['display_order'] ?? $index,
                 ]);
             }
         });
 
-        return response()->json($menu->load('items'));
+        return response()->json($menu->load(['items.children']));
     }
 
     // --- BANNER MANAGEMENT (FSD-FRONT-021) ---

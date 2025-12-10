@@ -1,4 +1,4 @@
-// V-FINAL-1730-193 | V-ENHANCED-BLOG
+// V-FINAL-1730-193 | V-ENHANCED-BLOG | V-CMS-ENHANCEMENT-010 (Dynamic Categories)
 'use client';
 
 import { Button } from "@/components/ui/button";
@@ -16,18 +16,9 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { PlusCircle, Edit, BookOpen, Trash2, Eye, Search, Calendar, FileText, Image, Tag, TrendingUp, Copy, ExternalLink } from "lucide-react";
+import { PlusCircle, Edit, BookOpen, Trash2, Eye, Search, Calendar, FileText, Image, Tag, TrendingUp, Copy, ExternalLink, Settings, FolderOpen } from "lucide-react";
 import { useState } from "react";
-
-// Blog categories
-const BLOG_CATEGORIES = [
-  { value: 'news', label: 'News & Updates' },
-  { value: 'investment', label: 'Investment Tips' },
-  { value: 'market', label: 'Market Analysis' },
-  { value: 'guide', label: 'How-to Guides' },
-  { value: 'announcement', label: 'Announcements' },
-  { value: 'other', label: 'Other' },
-];
+import Link from "next/link";
 
 export default function BlogSettingsPage() {
   const queryClient = useQueryClient();
@@ -37,12 +28,12 @@ export default function BlogSettingsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  // Form State
+  // Form State - V-CMS-ENHANCEMENT-010: Changed category (string) to categoryId (number)
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [excerpt, setExcerpt] = useState('');
   const [status, setStatus] = useState('draft');
-  const [category, setCategory] = useState('news');
+  const [categoryId, setCategoryId] = useState<number | null>(null); // Changed from category (string) to categoryId (number)
   const [featuredImage, setFeaturedImage] = useState('');
   const [isFeatured, setIsFeatured] = useState(false);
   const [seoTitle, setSeoTitle] = useState('');
@@ -50,9 +41,16 @@ export default function BlogSettingsPage() {
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
 
+  // Fetch blog posts
   const { data, isLoading } = useQuery({
     queryKey: ['adminBlogPosts'],
     queryFn: async () => (await api.get('/admin/blog-posts')).data,
+  });
+
+  // V-CMS-ENHANCEMENT-010: Fetch dynamic blog categories from API
+  const { data: categories, isLoading: categoriesLoading } = useQuery({
+    queryKey: ['adminBlogCategories'],
+    queryFn: async () => (await api.get('/admin/blog-categories')).data,
   });
 
   const mutation = useMutation({
@@ -86,12 +84,13 @@ export default function BlogSettingsPage() {
       title: `${post.title} (Copy)`,
       content: post.content,
       excerpt: post.excerpt,
-      category: post.category,
+      category_id: post.category_id, // V-CMS-ENHANCEMENT-010: Use category_id instead of category
       status: 'draft',
       featured_image: post.featured_image,
       seo_title: post.seo_title,
       seo_description: post.seo_description,
       tags: post.tags,
+      is_featured: false, // Duplicated posts are not featured by default
     }),
     onSuccess: () => {
       toast.success("Post duplicated as draft");
@@ -101,7 +100,8 @@ export default function BlogSettingsPage() {
 
   const resetForm = () => {
     setTitle(''); setContent(''); setExcerpt(''); setStatus('draft');
-    setCategory('news'); setFeaturedImage(''); setIsFeatured(false);
+    setCategoryId(null); // V-CMS-ENHANCEMENT-010: Reset to null instead of 'news'
+    setFeaturedImage(''); setIsFeatured(false);
     setSeoTitle(''); setSeoDescription(''); setTags([]); setNewTag('');
     setEditingPost(null);
   };
@@ -112,7 +112,7 @@ export default function BlogSettingsPage() {
     setContent(post.content);
     setExcerpt(post.excerpt || '');
     setStatus(post.status);
-    setCategory(post.category || 'news');
+    setCategoryId(post.category_id || null); // V-CMS-ENHANCEMENT-010: Use category_id
     setFeaturedImage(post.featured_image || '');
     setIsFeatured(post.is_featured || false);
     setSeoTitle(post.seo_title || '');
@@ -128,7 +128,7 @@ export default function BlogSettingsPage() {
       content,
       excerpt,
       status,
-      category,
+      category_id: categoryId, // V-CMS-ENHANCEMENT-010: Send category_id instead of category
       featured_image: featuredImage,
       is_featured: isFeatured,
       seo_title: seoTitle,
@@ -192,15 +192,45 @@ export default function BlogSettingsPage() {
                       <Input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="Enter post title" />
                     </div>
                     <div className="space-y-2">
-                      <Label>Category</Label>
-                      <Select value={category} onValueChange={setCategory}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+                      <div className="flex items-center justify-between">
+                        <Label>Category</Label>
+                        <Link href="/admin/settings/blog-categories" target="_blank">
+                          <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs">
+                            <Settings className="h-3 w-3 mr-1" />
+                            Manage
+                          </Button>
+                        </Link>
+                      </div>
+                      <Select
+                        value={categoryId?.toString() || ''}
+                        onValueChange={(val) => setCategoryId(val ? parseInt(val) : null)}
+                        disabled={categoriesLoading}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={categoriesLoading ? "Loading categories..." : "Select category..."} />
+                        </SelectTrigger>
                         <SelectContent>
-                          {BLOG_CATEGORIES.map(cat => (
-                            <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                          <SelectItem value="">
+                            <span className="text-muted-foreground">None</span>
+                          </SelectItem>
+                          {categories?.filter((c: any) => c.is_active).map((cat: any) => (
+                            <SelectItem key={cat.id} value={cat.id.toString()}>
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className="w-3 h-3 rounded-full flex-shrink-0"
+                                  style={{ backgroundColor: cat.color }}
+                                />
+                                {cat.name}
+                              </div>
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                      {!categoriesLoading && categories?.length === 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          No categories yet. <Link href="/admin/settings/blog-categories" className="text-primary underline">Create one</Link>
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -436,9 +466,18 @@ export default function BlogSettingsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">
-                          {BLOG_CATEGORIES.find(c => c.value === post.category)?.label || 'Other'}
-                        </Badge>
+                        {post.blog_category ? (
+                          <Badge
+                            style={{ backgroundColor: post.blog_category.color, color: '#fff' }}
+                            className="text-xs px-2 py-1"
+                          >
+                            {post.blog_category.name}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-xs">
+                            Uncategorized
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge variant={post.status === 'published' ? 'default' : 'secondary'}>
