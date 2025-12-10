@@ -480,6 +480,93 @@ class SettingsSeeder extends Seeder
             ['key' => 'kb_related_articles_count', 'value' => '5', 'type' => 'number', 'group' => 'knowledge_base'],
             ['key' => 'kb_popular_articles_count', 'value' => '10', 'type' => 'number', 'group' => 'knowledge_base'],
             ['key' => 'kb_recent_articles_count', 'value' => '5', 'type' => 'number', 'group' => 'knowledge_base'],
+
+            // ============================================================
+            // SEO & META MANAGEMENT SETTINGS
+            // ============================================================
+
+            // Global SEO Configuration
+            ['key' => 'seo_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
+            ['key' => 'seo_meta_title_suffix', 'value' => ' | PreIPO SIP', 'type' => 'string', 'group' => 'seo'],
+            ['key' => 'seo_meta_title_separator', 'value' => '|', 'type' => 'string', 'group' => 'seo'],
+            ['key' => 'seo_default_title', 'value' => 'PreIPO SIP - Pre-IPO Investment Platform', 'type' => 'string', 'group' => 'seo'],
+            ['key' => 'seo_default_description', 'value' => 'Invest in pre-IPO companies with systematic investment plans. Secure, transparent, and professional investment platform.', 'type' => 'text', 'group' => 'seo'],
+            ['key' => 'seo_default_keywords', 'value' => 'pre-ipo, investment, sip, startup investment, equity investment', 'type' => 'text', 'group' => 'seo'],
+            ['key' => 'seo_default_author', 'value' => 'PreIPO SIP Team', 'type' => 'string', 'group' => 'seo'],
+            ['key' => 'seo_canonical_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
+            ['key' => 'seo_auto_meta_description', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
+            ['key' => 'seo_auto_meta_keywords', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
+
+            // Open Graph (OG) Tags
+            ['key' => 'seo_og_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
+            ['key' => 'seo_og_site_name', 'value' => 'PreIPO SIP', 'type' => 'string', 'group' => 'seo'],
+            ['key' => 'seo_og_default_image', 'value' => '/images/og-default.jpg', 'type' => 'string', 'group' => 'seo'],
+            ['key' => 'seo_og_default_type', 'value' => 'website', 'type' => 'string', 'group' => 'seo'],
+            ['key' => 'seo_og_locale', 'value' => 'en_US', 'type' => 'string', 'group' => 'seo'],
+
+            // Twitter Card Tags
+            ['key' => 'seo_twitter_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
+            ['key' => 'seo_twitter_card_type', 'value' => 'summary_large_image', 'type' => 'string', 'group' => 'seo'],
+            ['key' => 'seo_twitter_site', 'value' => '@preiposip', 'type' => 'string', 'group' => 'seo'],
+            ['key' => 'seo_twitter_creator', 'value' => '@preiposip', 'type' => 'string', 'group' => 'seo'],
+
+            // Schema.org Markup
+            ['key' => 'seo_schema_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
+            ['key' => 'seo_schema_type', 'value' => 'FinancialService', 'type' => 'string', 'group' => 'seo'],
+            ['key' => 'seo_schema_organization_name', 'value' => 'PreIPO SIP', 'type' => 'string', 'group' => 'seo'],
+            ['key' => 'seo_schema_logo', 'value' => '/images/logo.png', 'type' => 'string', 'group' => 'seo'],
+            ['key' => 'seo_schema_contact_type', 'value' => 'customer support', 'type' => 'string', 'group' => 'seo'],
+
+            // Robots.txt Configuration
+            ['key' => 'seo_robots_txt', 'value' => "User-agent: *\nDisallow: /admin/\nDisallow: /api/\nDisallow: /user/\nAllow: /\nSitemap: {siteUrl}/sitemap.xml", 'type' => 'text', 'group' => 'seo'],
+            ['key' => 'seo_robots_meta_default', 'value' => 'index, follow', 'type' => 'string', 'group' => 'seo'],
+            ['key' => 'seo_robots_noindex_users', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
+            ['key' => 'seo_robots_noindex_admin', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
+
+            // Sitemap Configuration
+            ['key' => 'seo_sitemap_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
+            ['key' => 'seo_sitemap_auto_generate', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
+            ['key' => 'seo_sitemap_frequency', 'value' => 'daily', 'type' => 'string', 'group' => 'seo'],
+            ['key' => 'seo_sitemap_priority_home', 'value' => '1.0', 'type' => 'string', 'group' => 'seo'],
+            ['key' => 'seo_sitemap_priority_pages', 'value' => '0.8', 'type' => 'string', 'group' => 'seo'],
+            ['key' => 'seo_sitemap_priority_products', 'value' => '0.9', 'type' => 'string', 'group' => 'seo'],
+            ['key' => 'seo_sitemap_priority_blog', 'value' => '0.7', 'type' => 'string', 'group' => 'seo'],
+            ['key' => 'seo_sitemap_include_images', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
+            ['key' => 'seo_sitemap_ping_google', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
+            ['key' => 'seo_sitemap_ping_bing', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
+
+            // Redirects Configuration
+            ['key' => 'seo_redirects_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
+            ['key' => 'seo_redirects_tracking', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
+            ['key' => 'seo_redirects_log_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
+            ['key' => 'seo_redirects_wildcard_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'seo'],
+
+            // Analytics Integration
+            ['key' => 'analytics_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'analytics'],
+            ['key' => 'analytics_google_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'analytics'],
+            ['key' => 'analytics_google_id', 'value' => '', 'type' => 'string', 'group' => 'analytics'],
+            ['key' => 'analytics_google_ga4_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'analytics'],
+            ['key' => 'analytics_google_measurement_id', 'value' => '', 'type' => 'string', 'group' => 'analytics'],
+            ['key' => 'analytics_gtm_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'analytics'],
+            ['key' => 'analytics_gtm_id', 'value' => '', 'type' => 'string', 'group' => 'analytics'],
+            ['key' => 'analytics_facebook_pixel_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'analytics'],
+            ['key' => 'analytics_facebook_pixel_id', 'value' => '', 'type' => 'string', 'group' => 'analytics'],
+            ['key' => 'analytics_hotjar_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'analytics'],
+            ['key' => 'analytics_hotjar_id', 'value' => '', 'type' => 'string', 'group' => 'analytics'],
+            ['key' => 'analytics_mixpanel_enabled', 'value' => 'false', 'type' => 'boolean', 'group' => 'analytics'],
+            ['key' => 'analytics_mixpanel_token', 'value' => '', 'type' => 'string', 'group' => 'analytics'],
+            ['key' => 'analytics_custom_script', 'value' => '', 'type' => 'text', 'group' => 'analytics'],
+            ['key' => 'analytics_track_logged_users', 'value' => 'true', 'type' => 'boolean', 'group' => 'analytics'],
+            ['key' => 'analytics_anonymize_ip', 'value' => 'true', 'type' => 'boolean', 'group' => 'analytics'],
+            ['key' => 'analytics_respect_dnt', 'value' => 'true', 'type' => 'boolean', 'group' => 'analytics'], // Do Not Track
+
+            // SEO Analysis
+            ['key' => 'seo_analysis_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
+            ['key' => 'seo_analysis_min_score', 'value' => '70', 'type' => 'number', 'group' => 'seo'],
+            ['key' => 'seo_analysis_auto_suggestions', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
+            ['key' => 'seo_analysis_check_images', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
+            ['key' => 'seo_analysis_check_links', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
+            ['key' => 'seo_analysis_check_readability', 'value' => 'true', 'type' => 'boolean', 'group' => 'seo'],
         ];
 
         foreach ($settings as $setting) {
