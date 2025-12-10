@@ -443,8 +443,18 @@ Route::prefix('v1')->group(function () {
             // Business Management
             Route::apiResource('/plans', PlanController::class)->middleware('permission:plans.edit');
             Route::apiResource('/products', ProductController::class)->middleware('permission:products.edit');
+
+            // Bulk Purchase Management (V-BULK-PURCHASE-ENHANCEMENT-005)
             Route::apiResource('/bulk-purchases', BulkPurchaseController::class)->middleware('permission:products.edit');
-            
+            Route::post('/bulk-purchases/{bulkPurchase}/manual-allocate', [BulkPurchaseController::class, 'manualAllocate'])->middleware('permission:products.edit');
+            Route::get('/bulk-purchases/inventory/summary', [BulkPurchaseController::class, 'inventorySummary'])->middleware('permission:products.view');
+            Route::get('/bulk-purchases/allocation/trends', [BulkPurchaseController::class, 'allocationTrends'])->middleware('permission:products.view');
+            Route::get('/bulk-purchases/allocation/history', [BulkPurchaseController::class, 'allocationHistory'])->middleware('permission:products.view');
+            Route::get('/bulk-purchases/allocation/history/export', [BulkPurchaseController::class, 'exportAllocationHistory'])->middleware('permission:products.view');
+            Route::get('/bulk-purchases/config/low-stock', [BulkPurchaseController::class, 'getLowStockConfigEndpoint'])->middleware('permission:products.view');
+            Route::put('/bulk-purchases/config/low-stock', [BulkPurchaseController::class, 'updateLowStockConfig'])->middleware('permission:products.edit');
+            Route::get('/bulk-purchases/reorder/suggestions', [BulkPurchaseController::class, 'reorderSuggestions'])->middleware('permission:products.view');
+
             // CMS & Settings
             Route::apiResource('/pages', PageController::class)->middleware('permission:settings.manage_cms');
             Route::get('/pages/{page}/analyze', [PageController::class, 'analyze'])->middleware('permission:settings.manage_cms');

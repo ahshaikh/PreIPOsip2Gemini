@@ -16,15 +16,31 @@ class UserInvestment extends Model
         'user_id',
         'product_id',
         'payment_id',
+        'subscription_id',
         'bulk_purchase_id',
         'units_allocated',
         'value_allocated', // This is the COST BASIS (Face Value)
+        'invested_amount', // Alias for value_allocated
+        'shares_allocated', // Alias for units_allocated
+        'allocation_date',
+        'allocation_type', // 'automatic' or 'manual'
+        'allocated_by_admin_id', // Admin who manually allocated
+        'notes', // Notes for manual allocations
+        'status', // 'active', 'reversed', etc.
+        'is_reversed',
+        'reversed_at',
+        'reversal_reason',
         'source', // 'investment' or 'bonus'
     ];
 
     protected $casts = [
         'units_allocated' => 'decimal:4',
         'value_allocated' => 'decimal:2',
+        'invested_amount' => 'decimal:2',
+        'shares_allocated' => 'decimal:4',
+        'allocation_date' => 'datetime',
+        'is_reversed' => 'boolean',
+        'reversed_at' => 'datetime',
     ];
 
     // --- RELATIONSHIPS ---
@@ -47,6 +63,11 @@ class UserInvestment extends Model
     public function payment(): BelongsTo
     {
         return $this->belongsTo(Payment::class);
+    }
+
+    public function allocatedByAdmin(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'allocated_by_admin_id');
     }
 
     // --- ACCESSORS (CALCULATED VALUES) ---
