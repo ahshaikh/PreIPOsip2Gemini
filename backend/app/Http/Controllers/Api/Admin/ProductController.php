@@ -1,5 +1,5 @@
 <?php
-// V-PHASE2-1730-056 (Created) | V-REMEDIATE-1730-288 | V-FINAL-1730-506 (Save Relations) | V-FINAL-1730-510 (Save Risks) | V-FINAL-1730-514 (Compliance Save)
+// V-PHASE2-1730-056 (Created) | V-REMEDIATE-1730-288 | V-FINAL-1730-506 (Save Relations) | V-FINAL-1730-510 (Save Risks) | V-FINAL-1730-514 (Compliance Save) | V-PRODUCT-EXTENDED-1210 (Media, Docs, News, Allocation)
 
 namespace App\Http\Controllers\Api\Admin;
 
@@ -18,7 +18,8 @@ class ProductController extends Controller
         if ($request->has('with')) {
             $relations = explode(',', $request->with);
             $query->with(array_intersect($relations, [
-                'highlights', 'founders', 'fundingRounds', 'keyMetrics', 'riskDisclosures'
+                'highlights', 'founders', 'fundingRounds', 'keyMetrics', 'riskDisclosures',
+                'media', 'documents', 'news' // V-PRODUCT-EXTENDED-1210
             ]));
         }
         return $query->latest()->get();
@@ -39,7 +40,7 @@ class ProductController extends Controller
 
     public function show(Product $product)
     {
-        return $product->load('highlights', 'founders', 'fundingRounds', 'keyMetrics', 'priceHistory', 'riskDisclosures');
+        return $product->load('highlights', 'founders', 'fundingRounds', 'keyMetrics', 'priceHistory', 'riskDisclosures', 'media', 'documents', 'news');
     }
 
     public function update(Request $request, Product $product)
@@ -62,12 +63,23 @@ class ProductController extends Controller
             'funding_rounds' => 'nullable|array',
             'key_metrics' => 'nullable|array',
             'risk_disclosures' => 'nullable|array',
-            
+            // V-PRODUCT-EXTENDED-1210: New Relations
+            'media' => 'nullable|array',
+            'documents' => 'nullable|array',
+            'news' => 'nullable|array',
+
             // FSD-PROD-012: Compliance Fields
             'sebi_approval_number' => 'nullable|string|max:255',
             'sebi_approval_date' => 'nullable|date',
             'compliance_notes' => 'nullable|string',
             'regulatory_warnings' => 'nullable|string',
+
+            // V-PRODUCT-ALLOCATION-1210: Allocation Fields
+            'allocation_method' => 'nullable|in:auto,manual,hybrid',
+            'allocation_rules' => 'nullable|array',
+            'max_allocation_per_user' => 'nullable|numeric|min:0',
+            'total_units_available' => 'nullable|numeric|min:0',
+            'enable_waitlist' => 'nullable|boolean',
         ]);
 
         DB::transaction(function () use ($product, $validated, $request) {
@@ -112,9 +124,22 @@ class ProductController extends Controller
                 $product->riskDisclosures()->delete();
                 $product->riskDisclosures()->createMany($validated['risk_disclosures']);
             }
+            // V-PRODUCT-EXTENDED-1210: Handle new relations
+            if ($request->has('media')) {
+                $product->media()->delete();
+                $product->media()->createMany($validated['media']);
+            }
+            if ($request->has('documents')) {
+                $product->documents()->delete();
+                $product->documents()->createMany($validated['documents']);
+            }
+            if ($request->has('news')) {
+                $product->news()->delete();
+                $product->news()->createMany($validated['news']);
+            }
         });
 
-        return response()->json($product->load('highlights', 'founders', 'fundingRounds', 'keyMetrics', 'riskDisclosures'));
+        return response()->json($product->load('highlights', 'founders', 'fundingRounds', 'keyMetrics', 'riskDisclosures', 'media', 'documents', 'news'));
     }
 
     public function destroy(Product $product)

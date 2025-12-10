@@ -1,4 +1,4 @@
-// V-REMEDIATE-1730-171 (Created) | V-FINAL-1730-515 (Full Product Editor)
+// V-REMEDIATE-1730-171 (Created) | V-FINAL-1730-515 (Full Product Editor) | V-PRODUCT-EXTENDED-1210 (Media, Docs, News, Allocation)
 'use client';
 
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, GripVertical, Save, AlertTriangle, Shield } from "lucide-react";
+import { Plus, Edit, Trash2, GripVertical, Save, AlertTriangle, Shield, Image, FileText, Newspaper, BarChart3 } from "lucide-react";
 
 /**
  * Generate a unique ID for array items
@@ -91,13 +91,17 @@ function EditProductForm({ product, onSave, onCancel }: { product: any, onSave: 
     return (
         <div className="space-y-4">
             <Tabs defaultValue="basic" className="h-[70vh]">
-                <TabsList className="grid w-full grid-cols-6">
-                    <TabsTrigger value="basic">Basic Info</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-5 lg:grid-cols-10">
+                    <TabsTrigger value="basic">Basic</TabsTrigger>
                     <TabsTrigger value="pricing">Pricing</TabsTrigger>
+                    <TabsTrigger value="allocation"><BarChart3 className="mr-1 h-3 w-3" />Allocation</TabsTrigger>
+                    <TabsTrigger value="media"><Image className="mr-1 h-3 w-3" />Media</TabsTrigger>
                     <TabsTrigger value="company">Company</TabsTrigger>
-                    <TabsTrigger value="financials">Financials</TabsTrigger>
-                    <TabsTrigger value="risks" className="text-destructive"><AlertTriangle className="mr-2 h-4 w-4" /> Risks</TabsTrigger>
-                    <TabsTrigger value="compliance"><Shield className="mr-2 h-4 w-4" /> Compliance</TabsTrigger>
+                    <TabsTrigger value="financials">Financial</TabsTrigger>
+                    <TabsTrigger value="documents"><FileText className="mr-1 h-3 w-3" />Docs</TabsTrigger>
+                    <TabsTrigger value="news"><Newspaper className="mr-1 h-3 w-3" />News</TabsTrigger>
+                    <TabsTrigger value="risks" className="text-destructive">Risks</TabsTrigger>
+                    <TabsTrigger value="compliance"><Shield className="mr-1 h-3 w-3" />Legal</TabsTrigger>
                 </TabsList>
 
                 <ScrollArea className="h-full w-full p-4">
@@ -261,6 +265,142 @@ function EditProductForm({ product, onSave, onCancel }: { product: any, onSave: 
                         </Card>
                     </TabsContent>
 
+                    {/* --- Allocation (V-PRODUCT-ALLOCATION-1210) --- */}
+                    <TabsContent value="allocation" className="space-y-4">
+                        <Card>
+                            <CardHeader><CardTitle>Allocation Configuration</CardTitle></CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label>Allocation Method</Label>
+                                    <Select value={formData.allocation_method || 'auto'} onValueChange={(v) => handleChange('allocation_method', v)}>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="auto">Auto (First-come, first-served)</SelectItem>
+                                            <SelectItem value="manual">Manual (Admin approval required)</SelectItem>
+                                            <SelectItem value="hybrid">Hybrid (Auto + Manual priority)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Total Units Available</Label>
+                                        <Input type="number" value={formData.total_units_available || 0} onChange={(e) => handleChange('total_units_available', parseFloat(e.target.value))} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Max Per User</Label>
+                                        <Input type="number" value={formData.max_allocation_per_user || 0} onChange={(e) => handleChange('max_allocation_per_user', parseFloat(e.target.value))} />
+                                    </div>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <Switch id="waitlist" checked={formData.enable_waitlist || false} onCheckedChange={(c) => handleChange('enable_waitlist', c)} />
+                                    <Label htmlFor="waitlist">Enable Waitlist (when fully allocated)</Label>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    {/* --- Media Gallery (V-PRODUCT-EXTENDED-1210) --- */}
+                    <TabsContent value="media" className="space-y-4">
+                        <Card>
+                            <CardHeader><CardTitle>Product Media Gallery</CardTitle></CardHeader>
+                            <CardContent className="space-y-4">
+                                {formData.media?.map((item: any, index: number) => (
+                                    <div key={item.id || item._uid || `media-${index}`} className="border p-3 rounded-md space-y-2">
+                                        <div className="flex justify-between"><Label>Media #{index + 1}</Label><Button variant="destructive" size="xs" onClick={() => removeArrayItem('media', index)}>Remove</Button></div>
+                                        <Select value={item.media_type || 'image'} onValueChange={(v) => handleArrayChange('media', index, 'media_type', v)}>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="image">Image</SelectItem>
+                                                <SelectItem value="video">Video</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <Input placeholder="Media URL" value={item.url} onChange={(e) => handleArrayChange('media', index, 'url', e.target.value)} />
+                                        {item.media_type === 'video' && <Input placeholder="Thumbnail URL" value={item.thumbnail_url} onChange={(e) => handleArrayChange('media', index, 'thumbnail_url', e.target.value)} />}
+                                        <Input placeholder="Title" value={item.title} onChange={(e) => handleArrayChange('media', index, 'title', e.target.value)} />
+                                        <Textarea placeholder="Caption" value={item.caption} onChange={(e) => handleArrayChange('media', index, 'caption', e.target.value)} rows={2} />
+                                        <div className="flex items-center space-x-2">
+                                            <Switch id={`primary-${index}`} checked={item.is_primary || false} onCheckedChange={(c) => handleArrayChange('media', index, 'is_primary', c)} />
+                                            <Label htmlFor={`primary-${index}`}>Primary Image</Label>
+                                        </div>
+                                    </div>
+                                ))}
+                                <Button variant="outline" size="sm" onClick={() => addArrayItem('media', { media_type: 'image', url: '', title: '', caption: '', is_primary: false })}>+ Add Media</Button>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    {/* --- Documents (V-PRODUCT-EXTENDED-1210) --- */}
+                    <TabsContent value="documents" className="space-y-4">
+                        <Card>
+                            <CardHeader><CardTitle>Product Documents</CardTitle></CardHeader>
+                            <CardContent className="space-y-4">
+                                {formData.documents?.map((item: any, index: number) => (
+                                    <div key={item.id || item._uid || `doc-${index}`} className="border p-3 rounded-md space-y-2">
+                                        <div className="flex justify-between"><Label>Document #{index + 1}</Label><Button variant="destructive" size="xs" onClick={() => removeArrayItem('documents', index)}>Remove</Button></div>
+                                        <Select value={item.document_type || 'other'} onValueChange={(v) => handleArrayChange('documents', index, 'document_type', v)}>
+                                            <SelectTrigger><SelectValue placeholder="Document Type" /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="prospectus">Prospectus</SelectItem>
+                                                <SelectItem value="financial_statement">Financial Statement</SelectItem>
+                                                <SelectItem value="legal_agreement">Legal Agreement</SelectItem>
+                                                <SelectItem value="sebi_filing">SEBI Filing</SelectItem>
+                                                <SelectItem value="annual_report">Annual Report</SelectItem>
+                                                <SelectItem value="presentation">Presentation</SelectItem>
+                                                <SelectItem value="other">Other</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <Input placeholder="Title" value={item.title} onChange={(e) => handleArrayChange('documents', index, 'title', e.target.value)} />
+                                        <Textarea placeholder="Description" value={item.description} onChange={(e) => handleArrayChange('documents', index, 'description', e.target.value)} rows={2} />
+                                        <Input placeholder="File URL" value={item.file_url} onChange={(e) => handleArrayChange('documents', index, 'file_url', e.target.value)} />
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <Input placeholder="File Type (pdf, docx)" value={item.file_type} onChange={(e) => handleArrayChange('documents', index, 'file_type', e.target.value)} />
+                                            <Input type="date" placeholder="Document Date" value={item.document_date} onChange={(e) => handleArrayChange('documents', index, 'document_date', e.target.value)} />
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <Switch id={`public-${index}`} checked={item.is_public !== false} onCheckedChange={(c) => handleArrayChange('documents', index, 'is_public', c)} />
+                                            <Label htmlFor={`public-${index}`}>Public (Visible to all users)</Label>
+                                        </div>
+                                    </div>
+                                ))}
+                                <Button variant="outline" size="sm" onClick={() => addArrayItem('documents', { document_type: 'other', title: '', file_url: '', is_public: true })}>+ Add Document</Button>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    {/* --- News & Updates (V-PRODUCT-EXTENDED-1210) --- */}
+                    <TabsContent value="news" className="space-y-4">
+                        <Card>
+                            <CardHeader><CardTitle>News & Updates</CardTitle></CardHeader>
+                            <CardContent className="space-y-4">
+                                {formData.news?.map((item: any, index: number) => (
+                                    <div key={item.id || item._uid || `news-${index}`} className="border p-3 rounded-md space-y-2">
+                                        <div className="flex justify-between"><Label>Article #{index + 1}</Label><Button variant="destructive" size="xs" onClick={() => removeArrayItem('news', index)}>Remove</Button></div>
+                                        <Input placeholder="Title" value={item.title} onChange={(e) => handleArrayChange('news', index, 'title', e.target.value)} />
+                                        <Textarea placeholder="Summary" value={item.summary} onChange={(e) => handleArrayChange('news', index, 'summary', e.target.value)} rows={2} />
+                                        <Textarea placeholder="Full Content" value={item.content} onChange={(e) => handleArrayChange('news', index, 'content', e.target.value)} rows={4} />
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <Input placeholder="Author" value={item.author} onChange={(e) => handleArrayChange('news', index, 'author', e.target.value)} />
+                                            <Input type="date" value={item.published_date} onChange={(e) => handleArrayChange('news', index, 'published_date', e.target.value)} />
+                                        </div>
+                                        <Input placeholder="Source URL (optional)" value={item.source_url} onChange={(e) => handleArrayChange('news', index, 'source_url', e.target.value)} />
+                                        <Input placeholder="Thumbnail URL" value={item.thumbnail_url} onChange={(e) => handleArrayChange('news', index, 'thumbnail_url', e.target.value)} />
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex items-center space-x-2">
+                                                <Switch id={`featured-${index}`} checked={item.is_featured || false} onCheckedChange={(c) => handleArrayChange('news', index, 'is_featured', c)} />
+                                                <Label htmlFor={`featured-${index}`}>Featured</Label>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                                <Switch id={`published-${index}`} checked={item.is_published !== false} onCheckedChange={(c) => handleArrayChange('news', index, 'is_published', c)} />
+                                                <Label htmlFor={`published-${index}`}>Published</Label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                                <Button variant="outline" size="sm" onClick={() => addArrayItem('news', { title: '', content: '', published_date: formatDateForInput(new Date().toISOString()), is_published: true })}>+ Add News Article</Button>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
                 </ScrollArea>
             </Tabs>
             <div className="flex justify-end gap-2 border-t pt-4">
@@ -349,6 +489,16 @@ export default function ProductManagerPage() {
       sebi_approval_date: '',
       regulatory_warnings: '',
       compliance_notes: '',
+      // V-PRODUCT-EXTENDED-1210: New fields
+      media: [],
+      documents: [],
+      news: [],
+      allocation_method: 'auto',
+      allocation_rules: {},
+      max_allocation_per_user: 0,
+      total_units_available: 0,
+      units_allocated: 0,
+      enable_waitlist: false,
     });
     setIsCreateMode(true);
     setIsDialogOpen(true);

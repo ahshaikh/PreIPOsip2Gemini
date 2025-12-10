@@ -1,5 +1,5 @@
 <?php
-// V-PHASE2-1730-040 (Created) | V-FINAL-1730-411 (Logic Upgraded) | V-FINAL-1730-497 (Price Fields Added) | V-FINAL-1730-504 (Company Info Relations) | V-FINAL-1730-509 (Risk Relation Added) | V-FINAL-1730-513 (Compliance Fields)
+// V-PHASE2-1730-040 (Created) | V-FINAL-1730-411 (Logic Upgraded) | V-FINAL-1730-497 (Price Fields Added) | V-FINAL-1730-504 (Company Info Relations) | V-FINAL-1730-509 (Risk Relation Added) | V-FINAL-1730-513 (Compliance Fields) | V-PRODUCT-EXTENDED-1210 (Media, Docs, News, Allocation)
 
 namespace App\Models;
 
@@ -34,6 +34,13 @@ class Product extends Model
         'sebi_approval_date',
         'compliance_notes',
         'regulatory_warnings',
+        // V-PRODUCT-ALLOCATION-1210: Allocation Fields
+        'allocation_method',
+        'allocation_rules',
+        'max_allocation_per_user',
+        'total_units_available',
+        'units_allocated',
+        'enable_waitlist',
     ];
 
     protected $casts = [
@@ -47,6 +54,12 @@ class Product extends Model
         'last_price_update' => 'datetime',
         // FSD-PROD-012: Compliance Casts
         'sebi_approval_date' => 'date',
+        // V-PRODUCT-ALLOCATION-1210: Allocation Casts
+        'allocation_rules' => 'array',
+        'max_allocation_per_user' => 'decimal:2',
+        'total_units_available' => 'decimal:2',
+        'units_allocated' => 'decimal:2',
+        'enable_waitlist' => 'boolean',
     ];
 
     /**
@@ -70,6 +83,10 @@ class Product extends Model
     public function fundingRounds(): HasMany { return $this->hasMany(ProductFundingRound::class)->orderBy('date'); }
     public function keyMetrics(): HasMany { return $this->hasMany(ProductKeyMetric::class); }
     public function riskDisclosures(): HasMany { return $this->hasMany(ProductRiskDisclosure::class)->orderBy('display_order'); }
+    // V-PRODUCT-EXTENDED-1210: New Relationships
+    public function media(): HasMany { return $this->hasMany(ProductMedia::class)->orderBy('display_order'); }
+    public function documents(): HasMany { return $this->hasMany(ProductDocument::class)->orderBy('display_order'); }
+    public function news(): HasMany { return $this->hasMany(ProductNews::class)->orderBy('published_date', 'desc'); }
     
     // --- ACCESSORS ---
     protected function totalAllocated(): Attribute
