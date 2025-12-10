@@ -1,4 +1,4 @@
-// V-FINAL-1730-519 (Created) | V-CMS-ENHANCEMENT-009 (Multi-level support)
+// V-FINAL-1730-519 (Created) | V-CMS-ENHANCEMENT-009 (Multi-level support) | V-CMS-ENHANCEMENT-013 (Drag-drop with @hello-pangea/dnd)
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,7 +11,8 @@ import api from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, Save, GripVertical, ChevronRight, Layers } from "lucide-react";
+import { Plus, Trash2, Save, GripVertical, ChevronRight, Layers, Move } from "lucide-react";
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 interface MenuItem {
   id?: number;
@@ -112,6 +113,30 @@ export default function MenuManagerPage() {
     setMenuItems(updatedItems);
   };
 
+  // Handle drag-drop reordering
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+
+    const sourceIndex = result.source.index;
+    const destinationIndex = result.destination.index;
+
+    if (sourceIndex === destinationIndex) return;
+
+    // Reorder items
+    const items = Array.from(menuItems);
+    const [removed] = items.splice(sourceIndex, 1);
+    items.splice(destinationIndex, 0, removed);
+
+    // Update display_order for all items
+    const updatedItems = items.map((item, idx) => ({
+      ...item,
+      display_order: idx
+    }));
+
+    setMenuItems(updatedItems);
+    toast.success("Items reordered. Click 'Save Changes' to persist.");
+  };
+
   const handleSave = () => {
     // Validate: check for circular references and max depth
     const hasCircularRef = menuItems.some((item, idx) => {
@@ -180,7 +205,7 @@ export default function MenuManagerPage() {
             <div>
               <h1 className="text-3xl font-bold">Menu Manager</h1>
               <p className="text-muted-foreground mt-1">
-                Create and manage multi-level navigation menus with nested items (up to 3 levels)
+                Create and manage multi-level navigation menus with nested items (up to 3 levels). Drag to reorder.
               </p>
             </div>
             <Button onClick={handleSave} disabled={mutation.isPending}>
@@ -205,7 +230,7 @@ export default function MenuManagerPage() {
                               {m.name} Menu
                             </CardTitle>
                             <CardDescription>
-                              Manage menu items with support for nested sub-items. Drag icon indicates hierarchy, arrow shows parent-child relationships.
+                              Manage menu items with nested sub-items. <Move className="inline h-3 w-3" /> <strong>Drag items</strong> to reorder them.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
@@ -218,97 +243,125 @@ export default function MenuManagerPage() {
                                 </Button>
                               </div>
                             ) : (
-                              <>
-                                {menuItems.map((item, index) => {
-                                  const nestingLevel = getNestingLevel(item);
-                                  const parentOptions = getParentOptions(item, index);
-
-                                  return (
+                              <DragDropContext onDragEnd={handleDragEnd}>
+                                <Droppable droppableId="menu-items">
+                                  {(provided, snapshot) => (
                                     <div
-                                      key={index}
-                                      className="flex gap-4 items-end border p-4 rounded-lg bg-muted/20 hover:bg-muted/30 transition-colors"
-                                      style={{
-                                        marginLeft: `${nestingLevel * 32}px`,
-                                        borderLeft: nestingLevel > 0 ? '3px solid hsl(var(--primary))' : undefined
-                                      }}
+                                      {...provided.droppableProps}
+                                      ref={provided.innerRef}
+                                      className={`space-y-3 ${snapshot.isDraggingOver ? 'bg-primary/5 rounded-lg p-2' : ''}`}
                                     >
-                                        <div className="flex items-center gap-2 self-center">
-                                          <GripVertical className="h-5 w-5 text-muted-foreground" />
-                                          {nestingLevel > 0 && (
-                                            <ChevronRight className="h-4 w-4 text-primary" />
-                                          )}
-                                        </div>
+                                      {menuItems.map((item, index) => {
+                                        const nestingLevel = getNestingLevel(item);
+                                        const parentOptions = getParentOptions(item, index);
 
-                                        <div className="flex-1 space-y-2">
-                                            <Label className="flex items-center gap-2">
-                                              Label
-                                              {nestingLevel > 0 && (
-                                                <span className="text-xs text-primary font-medium">
-                                                  (Level {nestingLevel + 1} - Sub-item)
-                                                </span>
-                                              )}
-                                            </Label>
-                                            <Input
-                                              value={item.label}
-                                              onChange={(e) => updateItem(index, 'label', e.target.value)}
-                                              placeholder="e.g., About Us"
-                                            />
-                                        </div>
-
-                                        <div className="flex-1 space-y-2">
-                                            <Label>URL</Label>
-                                            <Input
-                                              value={item.url}
-                                              onChange={(e) => updateItem(index, 'url', e.target.value)}
-                                              placeholder="/about or https://example.com"
-                                            />
-                                        </div>
-
-                                        {nestingLevel < 2 && (
-                                          <div className="w-64 space-y-2">
-                                              <Label>Parent Menu Item (Optional)</Label>
-                                              <Select
-                                                value={item.parent_id?.toString() || 'none'}
-                                                onValueChange={(val) => {
-                                                  const newParentId = val === 'none' ? null : parseInt(val);
-                                                  updateItem(index, 'parent_id', newParentId);
+                                        return (
+                                          <Draggable
+                                            key={`item-${index}`}
+                                            draggableId={`item-${index}`}
+                                            index={index}
+                                          >
+                                            {(provided, snapshot) => (
+                                              <div
+                                                ref={provided.innerRef}
+                                                {...provided.draggableProps}
+                                                className={`flex gap-4 items-end border p-4 rounded-lg transition-all ${
+                                                  snapshot.isDragging
+                                                    ? 'bg-primary/10 shadow-lg scale-105 border-primary'
+                                                    : 'bg-muted/20 hover:bg-muted/30'
+                                                }`}
+                                                style={{
+                                                  ...provided.draggableProps.style,
+                                                  marginLeft: snapshot.isDragging ? 0 : `${nestingLevel * 32}px`,
+                                                  borderLeft: nestingLevel > 0 && !snapshot.isDragging ? '3px solid hsl(var(--primary))' : undefined
                                                 }}
                                               >
-                                                <SelectTrigger>
-                                                  <SelectValue placeholder="No parent (top-level)" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                  <SelectItem value="none">
-                                                    <span className="font-medium">No parent (top-level)</span>
-                                                  </SelectItem>
-                                                  {parentOptions.map((parentItem, parentIdx) => {
-                                                    const actualIndex = menuItems.indexOf(parentItem);
-                                                    return (
-                                                      <SelectItem key={parentIdx} value={parentItem.id?.toString() || `temp-${actualIndex}`}>
-                                                        {parentItem.label}
-                                                      </SelectItem>
-                                                    );
-                                                  })}
-                                                </SelectContent>
-                                              </Select>
-                                          </div>
-                                        )}
+                                                  <div
+                                                    {...provided.dragHandleProps}
+                                                    className="flex items-center gap-2 self-center cursor-grab active:cursor-grabbing"
+                                                  >
+                                                    <GripVertical className={`h-5 w-5 ${snapshot.isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
+                                                    {nestingLevel > 0 && !snapshot.isDragging && (
+                                                      <ChevronRight className="h-4 w-4 text-primary" />
+                                                    )}
+                                                  </div>
 
-                                        {nestingLevel === 2 && (
-                                          <div className="w-64 flex items-end">
-                                            <p className="text-xs text-muted-foreground">
-                                              Max nesting level reached
-                                            </p>
-                                          </div>
-                                        )}
+                                                  <div className="flex-1 space-y-2">
+                                                      <Label className="flex items-center gap-2">
+                                                        Label
+                                                        {nestingLevel > 0 && (
+                                                          <span className="text-xs text-primary font-medium">
+                                                            (Level {nestingLevel + 1} - Sub-item)
+                                                          </span>
+                                                        )}
+                                                      </Label>
+                                                      <Input
+                                                        value={item.label}
+                                                        onChange={(e) => updateItem(index, 'label', e.target.value)}
+                                                        placeholder="e.g., About Us"
+                                                      />
+                                                  </div>
 
-                                        <Button variant="destructive" size="icon" onClick={() => removeItem(index)}>
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
+                                                  <div className="flex-1 space-y-2">
+                                                      <Label>URL</Label>
+                                                      <Input
+                                                        value={item.url}
+                                                        onChange={(e) => updateItem(index, 'url', e.target.value)}
+                                                        placeholder="/about or https://example.com"
+                                                      />
+                                                  </div>
+
+                                                  {nestingLevel < 2 && (
+                                                    <div className="w-64 space-y-2">
+                                                        <Label>Parent Menu Item (Optional)</Label>
+                                                        <Select
+                                                          value={item.parent_id?.toString() || 'none'}
+                                                          onValueChange={(val) => {
+                                                            const newParentId = val === 'none' ? null : parseInt(val);
+                                                            updateItem(index, 'parent_id', newParentId);
+                                                          }}
+                                                        >
+                                                          <SelectTrigger>
+                                                            <SelectValue placeholder="No parent (top-level)" />
+                                                          </SelectTrigger>
+                                                          <SelectContent>
+                                                            <SelectItem value="none">
+                                                              <span className="font-medium">No parent (top-level)</span>
+                                                            </SelectItem>
+                                                            {parentOptions.map((parentItem, parentIdx) => {
+                                                              const actualIndex = menuItems.indexOf(parentItem);
+                                                              return (
+                                                                <SelectItem key={parentIdx} value={parentItem.id?.toString() || `temp-${actualIndex}`}>
+                                                                  {parentItem.label}
+                                                                </SelectItem>
+                                                              );
+                                                            })}
+                                                          </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                  )}
+
+                                                  {nestingLevel === 2 && (
+                                                    <div className="w-64 flex items-end">
+                                                      <p className="text-xs text-muted-foreground">
+                                                        Max nesting level reached
+                                                      </p>
+                                                    </div>
+                                                  )}
+
+                                                  <Button variant="destructive" size="icon" onClick={() => removeItem(index)}>
+                                                      <Trash2 className="h-4 w-4" />
+                                                  </Button>
+                                              </div>
+                                            )}
+                                          </Draggable>
+                                        );
+                                      })}
+                                      {provided.placeholder}
                                     </div>
-                                  );
-                                })}
-                              </>
+                                  )}
+                                </Droppable>
+                              </DragDropContext>
                             )}
 
                             <div className="flex gap-2 pt-4">
@@ -337,7 +390,7 @@ export default function MenuManagerPage() {
                     {/* Help Card */}
                     <Card>
                       <CardHeader>
-                        <CardTitle className="text-lg">How to Create Nested Menus</CardTitle>
+                        <CardTitle className="text-lg">How to Create & Manage Nested Menus</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-2 text-sm text-muted-foreground">
                         <div className="flex items-start gap-2">
@@ -362,11 +415,17 @@ export default function MenuManagerPage() {
                           <div className="mt-1 h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                             <span className="text-xs font-bold text-primary">4</span>
                           </div>
-                          <p>Nested items are shown with <strong>indentation</strong> and a <strong>blue border</strong> on the left</p>
+                          <p><strong>Drag and drop</strong> items using the <GripVertical className="inline h-3 w-3" /> handle to reorder them</p>
                         </div>
                         <div className="flex items-start gap-2">
                           <div className="mt-1 h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                             <span className="text-xs font-bold text-primary">5</span>
+                          </div>
+                          <p>Nested items are shown with <strong>indentation</strong> and a <strong>blue border</strong> on the left</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <div className="mt-1 h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <span className="text-xs font-bold text-primary">6</span>
                           </div>
                           <p>Click <strong>"Save Changes"</strong> when you're done to update the menu on your site</p>
                         </div>
