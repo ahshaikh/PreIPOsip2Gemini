@@ -319,6 +319,31 @@
 - [ ] Task scheduler
 - [ ] Feature flags
 
+### 19. Pre-IPO Products & Inventory Features (7 Functions)
+- [ ] Comprehensive Product Catalog Management
+- [ ] Key Selling Points (Highlights)
+- [ ] Founder Profiles
+- [ ] Funding History Timeline
+- [ ] Financial Health Dashboard 
+- [ ] Risk Disclosure System
+- [ ] Price Trend Visualization 
+
+###20. Company Portal (B2B) Features (11 Functions)
+## Account & Profile Management
+- [ ] Company Profile Builder
+- [ ] Multi-User Access Control 
+- [ ] Onboarding Wizard
+## Fundraising & Documents
+- [ ] Deal Room
+- [ ] Financial Reporting Center
+- [ ] Document Repository 
+## Investor Engagement & Communication
+- [ ] Company Updates Feed
+- [ ] Webinar Management 
+- [ ] Investor Q&A Module
+- [ ] Interest Tracking
+- [ ] Engagement Analytics
+
 ---
 
 # DATABASE ARCHITECTURE
