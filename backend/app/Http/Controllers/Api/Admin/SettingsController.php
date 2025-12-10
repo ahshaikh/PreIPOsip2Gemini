@@ -30,18 +30,25 @@ class SettingsController extends Controller
     {
         $validated = $request->validate([
             'settings' => 'required|array',
-            'settings.*.key' => 'required|string|exists:settings,key',
+            'settings.*.key' => 'required|string',
             'settings.*.value' => 'nullable|string',
         ]);
 
         $adminId = $request->user()->id;
 
         foreach ($validated['settings'] as $settingData) {
-            Setting::where('key', $settingData['key'])->update([
-                'value' => $settingData['value'],
-                'updated_by' => $adminId
-            ]);
-            
+            // Update or create setting if it doesn't exist
+            Setting::updateOrCreate(
+                ['key' => $settingData['key']],
+                [
+                    'value' => $settingData['value'],
+                    'updated_by' => $adminId,
+                    // Set default values for new settings
+                    'type' => $settingData['type'] ?? 'string',
+                    'group' => $settingData['group'] ?? 'system',
+                ]
+            );
+
             // Bust individual key cache
             Cache::forget('setting.' . $settingData['key']);
         }
