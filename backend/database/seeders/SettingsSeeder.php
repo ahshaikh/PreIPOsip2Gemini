@@ -340,10 +340,13 @@ class SettingsSeeder extends Seeder
             // ============================================================
             ['key' => 'backup_enabled', 'value' => 'true', 'type' => 'boolean', 'group' => 'backup'],
             ['key' => 'backup_schedule', 'value' => 'daily', 'type' => 'string', 'group' => 'backup'],
+            ['key' => 'backup_time', 'value' => '02:00', 'type' => 'string', 'group' => 'backup'],
             ['key' => 'backup_retention_days', 'value' => '30', 'type' => 'number', 'group' => 'backup'],
             ['key' => 'backup_storage', 'value' => 'local', 'type' => 'string', 'group' => 'backup'],
             ['key' => 'backup_notification_email', 'value' => '', 'type' => 'string', 'group' => 'backup'],
             ['key' => 'backup_include_uploads', 'value' => 'true', 'type' => 'boolean', 'group' => 'backup'],
+            ['key' => 'backup_include_files', 'value' => 'true', 'type' => 'boolean', 'group' => 'backup'],
+            ['key' => 'backup_email_report', 'value' => 'false', 'type' => 'boolean', 'group' => 'backup'],
 
             // ============================================================
             // CACHE SETTINGS

@@ -60,7 +60,8 @@ class AuthController extends Controller
         Wallet::create(['user_id' => $user->id]);
         $user->assignRole('user');
 
-        if ($request->filled('referral_code')) {
+        // Process referral code if provided and referral module is enabled
+        if ($request->filled('referral_code') && $this->getSettingSafely('referral_enabled', 'true') === 'true') {
             $referrer = User::where('referral_code', $request->referral_code)->first();
             if ($referrer) {
                 $user->update(['referred_by' => $referrer->id]);
@@ -82,6 +83,13 @@ class AuthController extends Controller
      */
     public function login(LoginRequest $request)
     {
+        // Check if login is enabled
+        if ($this->getSettingSafely('login_enabled', 'true') === 'false') {
+            return response()->json([
+                'message' => 'Login is currently disabled. Please contact support for assistance.'
+            ], 503);
+        }
+
         $user = $request->authenticate();
 
         // --- V-SECURITY-FIX: User Status Validation ---

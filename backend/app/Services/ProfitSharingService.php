@@ -22,6 +22,11 @@ class ProfitSharingService
      */
     public function distributeProfits(Plan $plan, float $profitPool, string $period): array
     {
+        // Check if profit sharing is globally enabled
+        if (!setting('profit_sharing_enabled', true)) {
+            throw new \Exception('Profit sharing is currently disabled system-wide.');
+        }
+
         $config = $plan->getConfig('profit_sharing_config', []);
 
         if (empty($config) || !($config['enabled'] ?? false)) {

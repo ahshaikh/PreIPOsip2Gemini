@@ -264,10 +264,33 @@ export default function SystemSettingsPage() {
               <CardDescription>Enable or disable major platform features</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {renderSettings([
-                'registration_enabled', 'login_enabled', 'investment_enabled',
-                'withdrawal_enabled', 'support_tickets_enabled'
-              ])}
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-medium mb-2 text-sm text-muted-foreground">Core Modules</h4>
+                  {renderSettings([
+                    'registration_enabled', 'login_enabled', 'investment_enabled',
+                    'withdrawal_enabled', 'support_tickets_enabled'
+                  ])}
+                </div>
+                <Separator />
+                <div>
+                  <h4 className="font-medium mb-2 text-sm text-muted-foreground">KYC & Verification</h4>
+                  {renderSettings(['kyc_enabled', 'kyc_required_for_investment'])}
+                </div>
+                <Separator />
+                <div>
+                  <h4 className="font-medium mb-2 text-sm text-muted-foreground">Referral & Rewards</h4>
+                  {renderSettings(['referral_enabled', 'lucky_draw_enabled', 'profit_sharing_enabled'])}
+                </div>
+                <Separator />
+                <div>
+                  <h4 className="font-medium mb-2 text-sm text-muted-foreground">Bonus Modules</h4>
+                  {renderSettings([
+                    'progressive_bonus_enabled', 'milestone_bonus_enabled',
+                    'consistency_bonus_enabled', 'celebration_bonus_enabled'
+                  ])}
+                </div>
+              </div>
             </CardContent>
           </Card>
 

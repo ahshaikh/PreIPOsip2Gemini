@@ -28,6 +28,12 @@ class ProcessReferralJob implements ShouldQueue
 
     public function handle(ReferralService $referralService, WalletService $walletService): void
     {
+        // Check if referral module is enabled
+        if (!setting('referral_enabled', true)) {
+            Log::info("Referral processing skipped: referral module is disabled");
+            return;
+        }
+
         $referral = Referral::where('referred_id', $this->referredUser->id)
                             ->where('status', 'pending')
                             ->first();

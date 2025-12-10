@@ -34,7 +34,8 @@ import {
   Building2,
   GraduationCap,
   FileBarChart,
-  Layers
+  Layers,
+  Clock
 } from 'lucide-react';
 
 const navItems = [
@@ -83,6 +84,7 @@ const settingsNav = [
     { href: '/admin/settings/system-health', label: 'System Health', icon: Activity },
     { href: '/admin/settings/activity', label: 'Global Audit Log', icon: FileText },
     { href: '/admin/settings/backups', label: 'Backups', icon: Database },
+    { href: '/admin/settings/cron-jobs', label: 'Cron Jobs', icon: Clock },
 ];
 
 export function AdminNav() {

@@ -31,7 +31,7 @@ class WithdrawalRequest extends FormRequest
         }
 
         // Check if withdrawals are enabled
-        if (!setting('withdrawals_enabled', true)) {
+        if (!setting('withdrawal_enabled', true)) {
             return false;
         }
 

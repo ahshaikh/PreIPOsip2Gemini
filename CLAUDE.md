@@ -7,7 +7,7 @@
 > * All features must be toggleable and configurable via the Admin Panel without code deployment.
 
 ## 1. About This Project
-The PreIPOsip Platform is a fully configurable investment It features complex logic for bonuses (progressive, milestone, consistency), referral tiers, and profit sharing—all of which are database-driven.
+The PreIPOsip Platform is a fully configurable investment platform. It features complex logic for bonuses (progressive, milestone, consistency), referral tiers, and profit sharing—all of which are database-driven.
 
 Fully configurable Pre-IPO SIP platform for investment system allowing users to invest in Pre-IPO companies via Systematic Investment Plans (SIP), bonuses (progressive/milestone/referral), lucky draws, profit sharing, KYC, payments/withdrawals. Admin panel manages 300+ functions across system config, users, reports, notifications. Database: 95+ tables (users, plans, subscriptions, payments, products, bonuses, wallets). Live at preiposip.com; uses Razorpay, MSG91, DigiLocker integrations.​
 
@@ -68,9 +68,15 @@ cd backend
 composer install
 cp .env.example .env && php artisan key:generate
 php artisan migrate --seed  # Seeds critical settings & roles
-php artisan serve           # Starts server at http://localhost:8000
+php artisan serve           # Starts server at http://localhost:8000 
+```
+
+
+
+
 
 ## 6. Architecture & Workflows
+
 ### Feature Mapping
 Feature		Frontend Path			Backend Controller		DB Tables
 Auth		/app/(public)/login		AuthController			users, personal_access_tokens

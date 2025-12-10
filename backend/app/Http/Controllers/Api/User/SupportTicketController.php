@@ -44,6 +44,13 @@ class SupportTicketController extends Controller
      */
     public function store(Request $request)
     {
+        // Check if support tickets are enabled
+        if (!setting('support_tickets_enabled', true)) {
+            return response()->json([
+                'message' => 'Support tickets are currently disabled. Please contact us via email.'
+            ], 503);
+        }
+
         $validated = $request->validate([
             'subject' => 'required|string|max:255',
             'category' => 'required|string|in:technical,investment,payment,kyc,withdrawal,bonus,account,subscription,general,other',
