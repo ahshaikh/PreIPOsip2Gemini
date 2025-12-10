@@ -45,4 +45,20 @@ class Page extends Model
     {
         return $this->hasMany(UserLegalAcceptance::class);
     }
+
+    /**
+     * Get all content blocks for this page (V-CMS-ENHANCEMENT-011)
+     */
+    public function blocks(): HasMany
+    {
+        return $this->hasMany(PageBlock::class)->orderBy('display_order');
+    }
+
+    /**
+     * Get only active blocks for this page
+     */
+    public function activeBlocks(): HasMany
+    {
+        return $this->hasMany(PageBlock::class)->where('is_active', true)->orderBy('display_order');
+    }
 }
