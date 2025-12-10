@@ -429,6 +429,68 @@ export default function PageBuilderPage() {
               </div>
             )}
 
+            {editingBlock?.type === 'features' && (
+              <div className="space-y-4">
+                <div>
+                  <Label>Section Heading</Label>
+                  <Input
+                    value={blockConfig.heading || ''}
+                    onChange={(e) => setBlockConfig({...blockConfig, heading: e.target.value})}
+                    placeholder="Our Features"
+                  />
+                </div>
+                <div>
+                  <Label>Features (JSON Array)</Label>
+                  <Textarea
+                    value={JSON.stringify(blockConfig.items || [], null, 2)}
+                    onChange={(e) => {
+                      try {
+                        const items = JSON.parse(e.target.value);
+                        setBlockConfig({...blockConfig, items});
+                      } catch {}
+                    }}
+                    rows={8}
+                    placeholder='[{"title":"Fast","description":"...","icon":"Zap"}]'
+                    className="font-mono text-xs"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Format: [&#123;"title": "...", "description": "...", "icon": "Zap"&#125;]
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {editingBlock?.type === 'accordion' && (
+              <div className="space-y-4">
+                <div>
+                  <Label>Section Heading</Label>
+                  <Input
+                    value={blockConfig.heading || ''}
+                    onChange={(e) => setBlockConfig({...blockConfig, heading: e.target.value})}
+                    placeholder="Frequently Asked Questions"
+                  />
+                </div>
+                <div>
+                  <Label>Items (JSON Array)</Label>
+                  <Textarea
+                    value={JSON.stringify(blockConfig.items || [], null, 2)}
+                    onChange={(e) => {
+                      try {
+                        const items = JSON.parse(e.target.value);
+                        setBlockConfig({...blockConfig, items});
+                      } catch {}
+                    }}
+                    rows={8}
+                    placeholder='[{"question":"How?","answer":"..."}]'
+                    className="font-mono text-xs"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Format: [&#123;"question": "...", "answer": "..."&#125;]
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={() => setEditingBlock(null)}>
                 Cancel
