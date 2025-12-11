@@ -1,11 +1,12 @@
 <?php
-// V-PHASE2-1730-040 (Created) | V-FINAL-1730-411 (Logic Upgraded) | V-FINAL-1730-497 (Price Fields Added) | V-FINAL-1730-504 (Company Info Relations) | V-FINAL-1730-509 (Risk Relation Added) | V-FINAL-1730-513 (Compliance Fields) | V-PRODUCT-EXTENDED-1210 (Media, Docs, News, Allocation)
+// V-PHASE2-1730-040 (Created) | V-FINAL-1730-411 (Logic Upgraded) | V-FINAL-1730-497 (Price Fields Added) | V-FINAL-1730-504 (Company Info Relations) | V-FINAL-1730-509 (Risk Relation Added) | V-FINAL-1730-513 (Compliance Fields) | V-PRODUCT-EXTENDED-1210 (Media, Docs, News, Allocation) | V-COMPANY-INTEGRATION-1210 (Company Ownership)
 
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -41,6 +42,13 @@ class Product extends Model
         'total_units_available',
         'units_allocated',
         'enable_waitlist',
+        // V-COMPANY-INTEGRATION-1210: Company Ownership
+        'company_id',
+        'created_by',
+        'approval_status',
+        'rejection_reason',
+        'approved_at',
+        'approved_by',
     ];
 
     protected $casts = [
@@ -60,6 +68,8 @@ class Product extends Model
         'total_units_available' => 'decimal:2',
         'units_allocated' => 'decimal:2',
         'enable_waitlist' => 'boolean',
+        // V-COMPANY-INTEGRATION-1210: Company Ownership Casts
+        'approved_at' => 'datetime',
     ];
 
     /**
@@ -87,7 +97,12 @@ class Product extends Model
     public function media(): HasMany { return $this->hasMany(ProductMedia::class)->orderBy('display_order'); }
     public function documents(): HasMany { return $this->hasMany(ProductDocument::class)->orderBy('display_order'); }
     public function news(): HasMany { return $this->hasMany(ProductNews::class)->orderBy('published_date', 'desc'); }
-    
+    // V-COMPANY-INTEGRATION-1210: Company Ownership Relationships
+    public function company(): BelongsTo { return $this->belongsTo(Company::class); }
+    public function creator(): BelongsTo { return $this->belongsTo(CompanyUser::class, 'created_by'); }
+    public function approver(): BelongsTo { return $this->belongsTo(User::class, 'approved_by'); }
+    public function deals(): HasMany { return $this->hasMany(Deal::class); }
+
     // --- ACCESSORS ---
     protected function totalAllocated(): Attribute
     {

@@ -1,4 +1,5 @@
 <?php
+// V-COMPANY-INTEGRATION-1210 (Product Relationship Added)
 
 namespace App\Models;
 
@@ -93,6 +94,14 @@ class Company extends Model
     public function fundingRounds()
     {
         return $this->hasMany(CompanyFundingRound::class);
+    }
+
+    /**
+     * V-COMPANY-INTEGRATION-1210: Company has many products
+     */
+    public function products()
+    {
+        return $this->hasMany(Product::class);
     }
 
     public function scopeActive($query)
