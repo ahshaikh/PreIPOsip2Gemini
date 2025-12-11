@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'; // Import React Query
 import api from '@/lib/api'; // Your API utility
 import { Search, ChevronRight, Menu, X, ThumbsUp, ThumbsDown, ArrowRight, ChevronDown, BookOpen, Shield, FileText, IndianRupee, HelpCircle, TrendingUp, Landmark, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import SupportQuickLinks from '@/components/shared/SupportQuickLinks';
 
 // Icon mapping for dynamic categories
 const ICON_MAP: any = {
@@ -168,6 +169,13 @@ export default function HelpCenterPage() {
 
       {/* MAIN LAYOUT */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
+
+        {/* Quick Links to Other Support Channels */}
+        <div className="mb-12">
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">How Can We Help You?</h2>
+          <SupportQuickLinks currentPage="help-center" />
+        </div>
+
         <div className="flex flex-col lg:flex-row gap-12">
           
           {/* SIDEBAR */}

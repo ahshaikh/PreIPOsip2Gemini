@@ -18,11 +18,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   PlusCircle, MessageSquare, Clock, CheckCircle, AlertCircle,
   HelpCircle, Search, FileText, ExternalLink, Phone, Mail,
-  MessageCircleQuestion, Headphones, Calendar, ChevronRight, Book
+  MessageCircleQuestion, Headphones, Calendar, ChevronRight, Book, Loader2
 } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import SupportQuickLinks from "@/components/shared/SupportQuickLinks";
+import AISuggestionsPanel from "@/components/support/AISuggestionsPanel";
 
 // Ticket categories with icons and descriptions
 const TICKET_CATEGORIES = [
@@ -144,12 +146,16 @@ export default function SupportPage() {
           <DialogTrigger asChild>
             <Button><PlusCircle className="mr-2 h-4 w-4" /> New Ticket</Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create a Support Ticket</DialogTitle>
-              <DialogDescription>Please describe your issue in detail. We'll get back to you as soon as possible.</DialogDescription>
+              <DialogDescription>
+                Describe your issue and we'll suggest relevant articles. AI will help classify and prioritize your ticket.
+              </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left Column: Form */}
+              <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="category">Category</Label>
                 <Select value={category} onValueChange={setCategory}>
@@ -214,8 +220,25 @@ export default function SupportPage() {
                 </Button>
               </DialogFooter>
             </form>
+
+            {/* Right Column: AI Suggestions */}
+            <div className="lg:border-l lg:pl-6">
+              <AISuggestionsPanel
+                subject={subject}
+                description={message}
+                onCategoryChange={setCategory}
+                onPriorityChange={setPriority}
+              />
+            </div>
+          </div>
           </DialogContent>
         </Dialog>
+      </div>
+
+      {/* Cross-links to Other Support Channels */}
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Other Ways to Get Help</h2>
+        <SupportQuickLinks currentPage="support" />
       </div>
 
       {/* Stats Cards */}

@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { ChevronDown, Search } from "lucide-react";
+import SupportQuickLinks from "@/components/shared/SupportQuickLinks";
 
 export default function FAQPage() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
@@ -46,6 +47,14 @@ export default function FAQPage() {
                 )}
               </div>
             ))}
+          </div>
+
+          {/* Cross-links to Other Support Options */}
+          <div className="mt-16">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center">
+              Still Have Questions?
+            </h2>
+            <SupportQuickLinks currentPage="faq" />
           </div>
         </div>
       </section>

@@ -3,33 +3,35 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { 
-  BarChart3, ThumbsUp, MessageSquare, Eye, 
-  Plus, Edit, Trash2, FolderOpen, FileText 
+import {
+  BarChart3, ThumbsUp, MessageSquare, Eye,
+  Plus, Edit, Trash2, FolderOpen, FileText,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from '@/components/ui/table';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger 
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function HelpCenterAdminDashboard() {
   const queryClient = useQueryClient();
-  
+
   // --- STATE ---
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
-  // ADDED: State for the new icon
   const [newCategoryIcon, setNewCategoryIcon] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage] = useState(15);
 
   // --- QUERIES ---
   const { data: stats } = useQuery({
@@ -37,9 +39,12 @@ export default function HelpCenterAdminDashboard() {
     queryFn: async () => (await api.get('/admin/help-center-analytics/stats')).data
   });
 
-  const { data: articles } = useQuery({
-    queryKey: ['kb-articles'],
-    queryFn: async () => (await api.get('/admin/kb-articles')).data
+  const { data: articles, isLoading: articlesLoading } = useQuery({
+    queryKey: ['kb-articles', currentPage, perPage],
+    queryFn: async () => {
+      const response = await api.get(`/admin/kb-articles?page=${currentPage}&per_page=${perPage}`);
+      return response.data;
+    }
   });
 
   const { data: categories } = useQuery({
@@ -78,12 +83,19 @@ export default function HelpCenterAdminDashboard() {
   });
 
   const deleteCategoryMutation = useMutation({
-    mutationFn: async (id: number) => await api.delete(`/admin/kb-categories/${id}`),
+    mutationFn: async (id: number) => {
+      const response = await api.delete(`/admin/kb-categories/${id}`);
+      return response.data;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kb-categories'] });
-      toast.success('Category deleted');
+      toast.success('Category deleted successfully');
     },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to delete category')
+    onError: (err: any) => {
+      const errorMessage = err.response?.data?.message || 'Failed to delete category';
+      toast.error(errorMessage);
+      console.error('Delete category error:', err);
+    }
   });
 
   // Helper to handle the submit action
@@ -196,36 +208,82 @@ export default function HelpCenterAdminDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {articles?.data?.map((article: any) => (
-                    <TableRow key={article.id}>
-                      <TableCell className="font-medium">{article.title}</TableCell>
-                      <TableCell>{article.category?.name || 'Uncategorized'}</TableCell>
-                      <TableCell>
-                        <Badge variant={article.status === 'published' ? 'default' : 'secondary'}>
-                          {article.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{article.views}</TableCell>
-                      <TableCell className="text-right space-x-2">
-                        <Link href={`/admin/help-center/articles/${article.id}`}>
-                          <Button variant="ghost" size="sm"><Edit className="w-4 h-4 text-blue-500" /></Button>
-                        </Link>
-                        <Button 
-                          variant="ghost" size="sm" 
-                          onClick={() => {
-                            if(confirm('Are you sure?')) deleteArticleMutation.mutate(article.id)
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </Button>
+                  {articlesLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8">
+                        <div className="flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                        </div>
                       </TableCell>
                     </TableRow>
-                  ))}
-                  {articles?.data?.length === 0 && (
-                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No articles found</TableCell></TableRow>
+                  ) : articles?.data && articles.data.length > 0 ? (
+                    articles.data.map((article: any) => (
+                      <TableRow key={article.id}>
+                        <TableCell className="font-medium">{article.title}</TableCell>
+                        <TableCell>{article.category?.name || 'Uncategorized'}</TableCell>
+                        <TableCell>
+                          <Badge variant={article.status === 'published' ? 'default' : 'secondary'}>
+                            {article.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{article.views || 0}</TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Link href={`/admin/help-center/articles/${article.id}`}>
+                            <Button variant="ghost" size="sm"><Edit className="w-4 h-4 text-blue-500" /></Button>
+                          </Link>
+                          <Button
+                            variant="ghost" size="sm"
+                            onClick={() => {
+                              if(confirm('Are you sure you want to delete this article?')) deleteArticleMutation.mutate(article.id)
+                            }}
+                            disabled={deleteArticleMutation.isPending}
+                          >
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                        No articles found
+                      </TableCell>
+                    </TableRow>
                   )}
                 </TableBody>
               </Table>
+
+              {/* Pagination Controls */}
+              {articles && articles.total > perPage && (
+                <div className="flex items-center justify-between px-6 py-4 border-t">
+                  <div className="text-sm text-slate-600">
+                    Showing {articles.from || 0} to {articles.to || 0} of {articles.total || 0} articles
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={!articles.prev_page_url || articlesLoading}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Previous
+                    </Button>
+                    <div className="text-sm font-medium px-4">
+                      Page {articles.current_page} of {articles.last_page}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => p + 1)}
+                      disabled={!articles.next_page_url || articlesLoading}
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -255,11 +313,14 @@ export default function HelpCenterAdminDashboard() {
                       <TableCell className="text-xs text-gray-500">{cat.icon || 'No Icon'}</TableCell>
                       <TableCell>{cat.slug}</TableCell>
                       <TableCell className="text-right">
-                        <Button 
-                          variant="ghost" size="sm" 
+                        <Button
+                          variant="ghost" size="sm"
                           onClick={() => {
-                            if(confirm('Delete heading? This will fail if it has articles.')) deleteCategoryMutation.mutate(cat.id)
+                            if(confirm('Are you sure you want to delete this category? This will fail if it has articles.')) {
+                              deleteCategoryMutation.mutate(cat.id);
+                            }
                           }}
+                          disabled={deleteCategoryMutation.isPending}
                         >
                           <Trash2 className="w-4 h-4 text-red-500" />
                         </Button>

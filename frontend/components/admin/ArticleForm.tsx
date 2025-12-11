@@ -36,10 +36,27 @@ export default function ArticleForm({ initialData, isEditing = false }: ArticleF
     content: initialData?.content || '',
     status: initialData?.status || 'draft',
     // Default to today's date if creating new, or use existing date (YYYY-MM-DD)
-    last_updated: initialData?.last_updated 
-      ? new Date(initialData.last_updated).toISOString().split('T')[0] 
+    last_updated: initialData?.last_updated
+      ? new Date(initialData.last_updated).toISOString().split('T')[0]
       : new Date().toISOString().split('T')[0],
   });
+
+  // Update form when initialData changes (for edit mode)
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        title: initialData.title || '',
+        slug: initialData.slug || '',
+        summary: initialData.summary || '',
+        kb_category_id: initialData.kb_category_id || '',
+        content: initialData.content || '',
+        status: initialData.status || 'draft',
+        last_updated: initialData.last_updated
+          ? new Date(initialData.last_updated).toISOString().split('T')[0]
+          : new Date().toISOString().split('T')[0],
+      });
+    }
+  }, [initialData]);
 
   // Fetch Categories for Dropdown
   useEffect(() => {
