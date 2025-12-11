@@ -23,6 +23,7 @@ import {
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import SupportQuickLinks from "@/components/shared/SupportQuickLinks";
 
 // Ticket categories with icons and descriptions
 const TICKET_CATEGORIES = [
@@ -216,6 +217,12 @@ export default function SupportPage() {
             </form>
           </DialogContent>
         </Dialog>
+      </div>
+
+      {/* Cross-links to Other Support Channels */}
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Other Ways to Get Help</h2>
+        <SupportQuickLinks currentPage="support" />
       </div>
 
       {/* Stats Cards */}

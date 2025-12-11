@@ -35,6 +35,8 @@ use App\Http\Controllers\Api\User\WithdrawalController as UserWithdrawalControll
 use App\Http\Controllers\Api\User\ActivityController;
 use App\Http\Controllers\Api\User\NotificationController as UserNotificationController;
 use App\Http\Controllers\Api\User\UserDashboardController;
+use App\Http\Controllers\Api\User\LiveChatController as UserLiveChatController;
+use App\Http\Controllers\Api\User\KnowledgeBaseController as UserKnowledgeBaseController;
 
 
 // Admin Controllers
@@ -70,6 +72,11 @@ use App\Http\Controllers\Api\Admin\IpWhitelistController;
 use App\Http\Controllers\Api\Admin\NotificationController as AdminNotificationController;
 use App\Http\Controllers\Api\Admin\KbArticleController;
 use App\Http\Controllers\Api\Admin\KbCategoryController;
+use App\Http\Controllers\Api\Admin\KnowledgeBaseArticleController;
+use App\Http\Controllers\Api\Admin\KnowledgeBaseCategoryController;
+use App\Http\Controllers\Api\Admin\CannedResponseController;
+use App\Http\Controllers\Api\Admin\LiveChatController as AdminLiveChatController;
+use App\Http\Controllers\Api\Admin\HelpCenterDashboardController;
 use App\Http\Controllers\Api\Admin\ComplianceController;
 use App\Http\Controllers\Api\Admin\DealController;
 use App\Http\Controllers\Api\Admin\CompanyController;
@@ -269,7 +276,51 @@ Route::prefix('v1')->group(function () {
             Route::post('/support-tickets/{supportTicket}/reply', [UserSupportTicketController::class, 'reply']);
             Route::post('/support-tickets/{supportTicket}/close', [UserSupportTicketController::class, 'close']);
             Route::post('/support-tickets/{supportTicket}/rate', [UserSupportTicketController::class, 'rate']);
-            
+
+            // ============================================
+            // LIVE CHAT - User Side
+            // ============================================
+            Route::prefix('live-chat')->group(function () {
+                // Session Management
+                Route::post('/availability', [UserLiveChatController::class, 'checkAvailability']);
+                Route::get('/sessions', [UserLiveChatController::class, 'sessions']);
+                Route::get('/active-session', [UserLiveChatController::class, 'activeSession']);
+                Route::post('/sessions', [UserLiveChatController::class, 'startSession']);
+
+                // Messaging
+                Route::get('/sessions/{code}/messages', [UserLiveChatController::class, 'messages']);
+                Route::post('/sessions/{code}/messages', [UserLiveChatController::class, 'sendMessage']);
+                Route::post('/sessions/{code}/typing', [UserLiveChatController::class, 'sendTypingIndicator']);
+
+                // Session Actions
+                Route::post('/sessions/{code}/close', [UserLiveChatController::class, 'closeSession']);
+                Route::post('/sessions/{code}/rate', [UserLiveChatController::class, 'rateSession']);
+                Route::get('/sessions/{code}/transcript', [UserLiveChatController::class, 'downloadTranscript']);
+            });
+
+            // ============================================
+            // KNOWLEDGE BASE - User Side
+            // ============================================
+            Route::prefix('knowledge-base')->group(function () {
+                // Browse
+                Route::get('/categories', [UserKnowledgeBaseController::class, 'categories']);
+                Route::get('/categories/{slug}/articles', [UserKnowledgeBaseController::class, 'articlesByCategory']);
+                Route::get('/articles/{slug}', [UserKnowledgeBaseController::class, 'article']);
+
+                // Search
+                Route::get('/search', [UserKnowledgeBaseController::class, 'search']);
+                Route::post('/search-click', [UserKnowledgeBaseController::class, 'trackSearchClick']);
+
+                // Popular & Recent
+                Route::get('/popular', [UserKnowledgeBaseController::class, 'popular']);
+                Route::get('/recent', [UserKnowledgeBaseController::class, 'recent']);
+                Route::get('/featured', [UserKnowledgeBaseController::class, 'featured']);
+
+                // User Feedback
+                Route::post('/articles/{slug}/rate', [UserKnowledgeBaseController::class, 'rateArticle']);
+                Route::post('/articles/{slug}/helpful', [UserKnowledgeBaseController::class, 'markHelpful']);
+            });
+
             // Bonus Modules
             Route::get('/lucky-draws', [UserLuckyDrawController::class, 'index']);
             Route::get('/profit-sharing', [UserProfitShareController::class, 'index']);
@@ -493,10 +544,77 @@ Route::prefix('v1')->group(function () {
 
             // Help Center Analytics (NEW)
             Route::prefix('help-center-analytics')->group(function () {
-                Route::get('/stats', [App\Http\Controllers\Api\Admin\HelpCenterDashboardController::class, 'stats']);
-                Route::get('/feedback', [App\Http\Controllers\Api\Admin\HelpCenterDashboardController::class, 'feedback']);
-                Route::get('/visits', [App\Http\Controllers\Api\Admin\HelpCenterDashboardController::class, 'visits']);
-                Route::get('/needs-attention', [App\Http\Controllers\Api\Admin\HelpCenterDashboardController::class, 'needsAttention']);
+                Route::get('/stats', [HelpCenterDashboardController::class, 'stats']);
+                Route::get('/feedback', [HelpCenterDashboardController::class, 'feedback']);
+                Route::get('/visits', [HelpCenterDashboardController::class, 'visits']);
+                Route::get('/needs-attention', [HelpCenterDashboardController::class, 'needsAttention']);
+            });
+
+            // ============================================
+            // CANNED RESPONSES (Support Quick Replies)
+            // ============================================
+            Route::prefix('canned-responses')->middleware('permission:settings.manage_cms')->group(function () {
+                Route::get('/', [CannedResponseController::class, 'index']);
+                Route::post('/', [CannedResponseController::class, 'store']);
+                Route::get('/{id}', [CannedResponseController::class, 'show']);
+                Route::put('/{id}', [CannedResponseController::class, 'update']);
+                Route::delete('/{id}', [CannedResponseController::class, 'destroy']);
+                Route::get('/category/{category}', [CannedResponseController::class, 'byCategory']);
+            });
+
+            // ============================================
+            // LIVE CHAT - Admin Management
+            // ============================================
+            Route::prefix('live-chat')->middleware('permission:users.view')->group(function () {
+                // Session Management
+                Route::get('/sessions', [AdminLiveChatController::class, 'index']);
+                Route::get('/sessions/{code}', [AdminLiveChatController::class, 'show']);
+                Route::get('/waiting', [AdminLiveChatController::class, 'waitingQueue']);
+
+                // Chat Actions
+                Route::post('/sessions/{code}/accept', [AdminLiveChatController::class, 'acceptSession']);
+                Route::post('/sessions/{code}/messages', [AdminLiveChatController::class, 'sendMessage']);
+                Route::post('/sessions/{code}/close', [AdminLiveChatController::class, 'closeSession']);
+                Route::post('/sessions/{code}/transfer', [AdminLiveChatController::class, 'transferSession']);
+
+                // Agent Management
+                Route::get('/agent/status', [AdminLiveChatController::class, 'getAgentStatus']);
+                Route::put('/agent/status', [AdminLiveChatController::class, 'updateAgentStatus']);
+                Route::get('/agents', [AdminLiveChatController::class, 'listAgents']);
+
+                // Analytics
+                Route::get('/stats', [AdminLiveChatController::class, 'stats']);
+                Route::get('/transcripts', [AdminLiveChatController::class, 'transcripts']);
+            });
+
+            // ============================================
+            // ADVANCED KNOWLEDGE BASE (New Implementation)
+            // ============================================
+            Route::prefix('knowledge-base')->middleware('permission:settings.manage_cms')->group(function () {
+                // Categories
+                Route::get('/categories', [KnowledgeBaseCategoryController::class, 'index']);
+                Route::get('/categories/tree', [KnowledgeBaseCategoryController::class, 'tree']);
+                Route::post('/categories', [KnowledgeBaseCategoryController::class, 'store']);
+                Route::get('/categories/{category}', [KnowledgeBaseCategoryController::class, 'show']);
+                Route::put('/categories/{category}', [KnowledgeBaseCategoryController::class, 'update']);
+                Route::delete('/categories/{category}', [KnowledgeBaseCategoryController::class, 'destroy']);
+                Route::post('/categories/reorder', [KnowledgeBaseCategoryController::class, 'reorder']);
+
+                // Articles
+                Route::get('/articles', [KnowledgeBaseArticleController::class, 'index']);
+                Route::post('/articles', [KnowledgeBaseArticleController::class, 'store']);
+                Route::get('/articles/{article}', [KnowledgeBaseArticleController::class, 'show']);
+                Route::put('/articles/{article}', [KnowledgeBaseArticleController::class, 'update']);
+                Route::delete('/articles/{article}', [KnowledgeBaseArticleController::class, 'destroy']);
+
+                // Article Actions
+                Route::post('/articles/{article}/publish', [KnowledgeBaseArticleController::class, 'togglePublish']);
+                Route::post('/articles/{article}/feature', [KnowledgeBaseArticleController::class, 'toggleFeature']);
+                Route::post('/articles/{article}/duplicate', [KnowledgeBaseArticleController::class, 'duplicate']);
+
+                // Analytics
+                Route::get('/articles/{article}/analytics', [KnowledgeBaseArticleController::class, 'analytics']);
+                Route::get('/search-analytics', [KnowledgeBaseArticleController::class, 'searchAnalytics']);
             });
 
             // Compliance Manager - Legal Agreements

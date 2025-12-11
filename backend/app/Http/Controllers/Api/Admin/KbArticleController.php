@@ -70,7 +70,10 @@ class KbArticleController extends Controller
 
     public function show(KbArticle $kbArticle)
     {
-        return $kbArticle;
+        // Load the category relationship for the form
+        $kbArticle->load('category:id,name,slug', 'author:id,username');
+
+        return response()->json($kbArticle);
     }
 
     public function update(Request $request, KbArticle $kbArticle)
