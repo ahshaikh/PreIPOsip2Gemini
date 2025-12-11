@@ -37,6 +37,7 @@ use App\Http\Controllers\Api\User\NotificationController as UserNotificationCont
 use App\Http\Controllers\Api\User\UserDashboardController;
 use App\Http\Controllers\Api\User\LiveChatController as UserLiveChatController;
 use App\Http\Controllers\Api\User\KnowledgeBaseController as UserKnowledgeBaseController;
+use App\Http\Controllers\Api\SupportAIController;
 
 
 // Admin Controllers
@@ -276,6 +277,26 @@ Route::prefix('v1')->group(function () {
             Route::post('/support-tickets/{supportTicket}/reply', [UserSupportTicketController::class, 'reply']);
             Route::post('/support-tickets/{supportTicket}/close', [UserSupportTicketController::class, 'close']);
             Route::post('/support-tickets/{supportTicket}/rate', [UserSupportTicketController::class, 'rate']);
+
+            // ============================================
+            // AI-POWERED SUPPORT FEATURES
+            // ============================================
+            Route::prefix('support/ai')->group(function () {
+                // Article suggestions based on ticket content
+                Route::post('/suggest-articles', [SupportAIController::class, 'suggestArticles']);
+
+                // Auto-classify ticket category
+                Route::post('/classify', [SupportAIController::class, 'classifyTicket']);
+
+                // Detect duplicate tickets
+                Route::post('/detect-duplicates', [SupportAIController::class, 'detectDuplicates']);
+
+                // Analyze sentiment and urgency
+                Route::post('/analyze-sentiment', [SupportAIController::class, 'analyzeSentiment']);
+
+                // Comprehensive analysis (all features)
+                Route::post('/analyze', [SupportAIController::class, 'comprehensiveAnalysis']);
+            });
 
             // ============================================
             // LIVE CHAT - User Side
