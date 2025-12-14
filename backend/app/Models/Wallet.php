@@ -1,5 +1,5 @@
 <?php
-// V-PHASE3-1730-076 (Created) | V-FINAL-1730-356 (Upgraded for Full Ledger)
+// V-PHASE3-1730-076 (Created) | V-FINAL-1730-356 (Upgraded) | V-SEC-1730-604 (Unsafe Methods Removed)
 
 namespace App\Models;
 
@@ -8,8 +8,16 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Casts\Attribute;
-use Illuminate\Support\Facades\DB;
 
+/**
+ * Wallet Model
+ * * Represents the user's financial wallet.
+ * * ⚠️ SECURITY NOTE:
+ * Do not add 'deposit' or 'withdraw' methods here. 
+ * All financial operations must go through \App\Services\WalletService
+ * to ensure ACID compliance, double-entry ledger logging, and 
+ * pessimistic locking (lockForUpdate) to prevent race conditions.
+ */
 class Wallet extends Model
 {
     use HasFactory;
@@ -81,67 +89,5 @@ class Wallet extends Model
                 return abs($this->transactions()->where('type', 'withdrawal')->sum('amount'));
             }
         );
-    }
-
-    // --- CORE LOGIC METHODS (UPGRADED) ---
-
-    /**
-     * Deposits money into the wallet and creates a transaction.
-     */
-    public function deposit(float $amount, string $type, string $description, ?Model $reference = null)
-    {
-        if ($amount <= 0) {
-            throw new \InvalidArgumentException("Deposit amount must be positive.");
-        }
-
-        return DB::transaction(function () use ($amount, $type, $description, $reference) {
-            $balance_before = $this->balance; // Get balance before increment
-            
-            $this->increment('balance', $amount);
-            
-            return $this->transactions()->create([
-                'user_id' => $this->user_id,
-                'type' => $type,
-                'status' => 'completed', // Deposits are instant
-                'amount' => $amount,
-                'balance_before' => $balance_before,
-                'balance_after' => $this->balance,
-                'description' => $description,
-                'reference_type' => $reference ? get_class($reference) : null,
-                'reference_id' => $reference ? $reference->id : null,
-            ]);
-        });
-    }
-
-    /**
-     * Withdraws money from the wallet and creates a transaction.
-     */
-    public function withdraw(float $amount, string $type, string $description, ?Model $reference = null)
-    {
-        if ($amount <= 0) {
-            throw new \InvalidArgumentException("Withdrawal amount must be positive.");
-        }
-
-        if ($this->available_balance < $amount) {
-            throw new \Exception("Insufficient funds.");
-        }
-
-        return DB::transaction(function () use ($amount, $type, $description, $reference) {
-            $balance_before = $this->balance; // Get balance before decrement
-
-            $this->decrement('balance', $amount);
-            
-            return $this->transactions()->create([
-                'user_id' => $this->user_id,
-                'type' => $type,
-                'status' => 'completed', // Withdrawals are instant
-                'amount' => -$amount,
-                'balance_before' => $balance_before,
-                'balance_after' => $this->balance,
-                'description' => $description,
-                'reference_type' => $reference ? get_class($reference) : null,
-                'reference_id' => $reference ? $reference->id : null,
-            ]);
-        });
     }
 }

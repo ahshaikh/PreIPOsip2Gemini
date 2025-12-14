@@ -19,15 +19,15 @@ The Payment & Withdrawal module is the **most critical** component of the platfo
 
 ### Overall Assessment
 
-| Aspect | Score (0-10) | Status |
-|--------|--------------|--------|
-| **Architecture** | 8/10 | ✅ Good |
-| **Security** | 7/10 | ⚠️ Needs Improvement |
-| **Code Quality** | 8/10 | ✅ Good |
-| **Performance** | 7/10 | ⚠️ Needs Optimization |
-| **Testability** | 6/10 | ⚠️ Limited |
-| **Error Handling** | 7/10 | ⚠️ Incomplete |
-| **Documentation** | 9/10 | ✅ Excellent |
+| Aspect 		| Score (0-10) 	| Status 		|
+|-----------------------|---------------|-----------------------|
+| **Architecture** 	| 8/10 		| ✅ Good 		|
+| **Security** 		| 7/10 		| ⚠️ Needs Improvement 	|
+| **Code Quality** 	| 8/10 		| ✅ Good 		|
+| **Performance** 	| 7/10 		| ⚠️ Needs Optimization |
+| **Testability** 	| 6/10 		| ⚠️ Limited 		|
+| **Error Handling** 	| 7/10 		| ⚠️ Incomplete 		|
+| **Documentation** 	| 9/10 		| ✅ Excellent 		|
 
 **Overall Module Score: 7.4/10**
 
@@ -37,23 +37,27 @@ The Payment & Withdrawal module is the **most critical** component of the platfo
 
 ### Component Inventory
 
-| Component | File | Lines | Purpose | Quality |
-|-----------|------|-------|---------|---------|
-| **Services** | | | | |
-| RazorpayService | `Services/RazorpayService.php` | 266 | Payment gateway API wrapper | ✅ Good |
-| PaymentWebhookService | `Services/PaymentWebhookService.php` | 220 | Webhook event handlers | ✅ Good |
-| WithdrawalService | `Services/WithdrawalService.php` | 171 | Withdrawal lifecycle management | ✅ Good |
-| WalletService | `Services/WalletService.php` | 216 | Core wallet operations | ✅ Excellent |
-| **Controllers** | | | | |
-| User/PaymentController | `Controllers/Api/User/PaymentController.php` | 243 | User payment initiation | ⚠️ Fair |
-| WebhookController | `Controllers/Api/WebhookController.php` | 99 | Webhook entry point | ✅ Good |
-| **Models** | | | | |
-| Payment | `Models/Payment.php` | 118 | Payment records | ✅ Good |
-| Withdrawal | `Models/Withdrawal.php` | 68 | Withdrawal records | ✅ Good |
-| **Jobs** | | | | |
-| ProcessSuccessfulPaymentJob | `Jobs/ProcessSuccessfulPaymentJob.php` | 106 | Post-payment processing | ✅ Good |
-| **Middleware** | | | | |
-| VerifyWebhookSignature | `Middleware/VerifyWebhookSignature.php` | 192 | Webhook security | ⚠️ Unused |
+| Component 			| File 						| Lines | Purpose 				| Quality 	|
+|-------------------------------|-----------------------------------------------|-------|---------------------------------------|---------------|
+| **Services** 			| 						| 	| 					| 		|
+| RazorpayService 		| `Services/RazorpayService.php` 		| 266 	| Payment gateway API wrapper 		| ✅ Good 	|
+| PaymentWebhookService 	| `Services/PaymentWebhookService.php` 		| 220 	| Webhook event handlers 		| ✅ Good 	|
+| WithdrawalService 		| `Services/WithdrawalService.php` 		| 171 	| Withdrawal lifecycle management 	| ✅ Good 	|
+| WalletService 		| `Services/WalletService.php` 			| 216 	| Core wallet operations 		| ✅ Excellent 	|
+| 	 			| 						| 	| 					| 		|
+| **Controllers** 		| 						| 	| 					| 		|
+| User/PaymentController 	| `Controllers/Api/User/PaymentController.php` 	| 243 	| User payment initiation 		| ⚠️ Fair 	|
+| WebhookController 		| `Controllers/Api/WebhookController.php` 	| 99 	| Webhook entry point 			| ✅ Good 	|
+| 	 			| 						| 	| 					| 		|
+| **Models** 			| 						| 	| 					| 		|
+| Payment 			| `Models/Payment.php` 				| 118 	| Payment records 			| ✅ Good 	|
+| Withdrawal 			| `Models/Withdrawal.php` 			| 68 	| Withdrawal records 			| ✅ Good 	|
+| 	 			| 						| 	| 					| 		|
+| **Jobs** 			| 						| 	| 					| 		|
+| ProcessSuccessfulPaymentJob 	| `Jobs/ProcessSuccessfulPaymentJob.php` 	| 106 	| Post-payment processing 		| ✅ Good 	|
+| 	 			| 						| 	| 					| 		|
+| **Middleware** 		| 						| 	| 					| 	  	|
+| VerifyWebhookSignature 	| `Middleware/VerifyWebhookSignature.php` 	| 192 	| Webhook security 			| ⚠️ Unused 	|
 
 ---
 
@@ -733,11 +737,11 @@ $wallet = $user->wallet()
 
 ### Current State
 
-| Test Type | Coverage | Status |
-|-----------|----------|--------|
-| Unit Tests | Unknown | ❓ Not analyzed yet |
-| Integration Tests | Unknown | ❓ Not analyzed yet |
-| Webhook Tests | Likely Present | ⚠️ Needs verification |
+| Test Type 		| Coverage 	| Status 		|
+|-----------------------|---------------|-----------------------|
+| Unit Tests 		| Unknown 	| ❓ Not analyzed yet 	|
+| Integration Tests 	| Unknown 	| ❓ Not analyzed yet 	|
+| Webhook Tests 	| Likely Present| ⚠️ Needs verification |
 
 ### Testability Strengths
 
@@ -798,13 +802,13 @@ Services directly instantiate models, making pure unit testing difficult.
 
 ### Security Vulnerabilities
 
-| ID | Severity | Issue | Location |
-|----|----------|-------|----------|
-| SEC-1 | 🔴 Critical | Webhook signature verification bypassed | WebhookController.php:36 |
-| SEC-2 | 🔴 High | Webhook secret hardcoded in .env | WebhookController.php:26 |
-| SEC-3 | 🟡 Medium | No rate limiting on payment endpoints | routes/api.php |
-| SEC-4 | 🟡 Medium | Manual payment proof not validated for file type spoofing | PaymentController.php:144 |
-| SEC-5 | 🟢 Low | Payment IDs are sequential (information leakage) | Database schema |
+| ID    | Severity    | Issue 								| Location 			|
+|-------|-------------|-----------------------------------------------------------------|-------------------------------|
+| SEC-1 | 🔴 Critical | Webhook signature verification bypassed 				| WebhookController.php:36 	|
+| SEC-2 | 🔴 High     | Webhook secret hardcoded in .env 				| WebhookController.php:26 	|
+| SEC-3 | 🟡 Medium   | No rate limiting on payment endpoints 				| routes/api.php 		|
+| SEC-4 | 🟡 Medium   | Manual payment proof not validated for file type spoofing 	| PaymentController.php:144 	|
+| SEC-5 | 🟢 Low      | Payment IDs are sequential (information leakage) 		| Database schema 		|
 
 ### Recommended Security Enhancements
 
@@ -851,7 +855,7 @@ $table->uuid('id')->primary();
  * ## Webhook Events Handled
  *
  * | Event                    | Handler Method              |
- * |--------------------------|------------------------------|
+ * |--------------------------|-----------------------------|
  * | payment.captured         | handleSuccessfulPayment()   |
  * | subscription.charged     | handleSubscriptionCharged() |
  * ...
@@ -870,45 +874,45 @@ $table->uuid('id')->primary();
 
 ### Immediate Actions (CRITICAL)
 
-| Priority | Issue | Effort | Impact |
-|----------|-------|--------|--------|
-| 1 | Fix webhook signature verification bypass | 2 hours | 🔴 High |
-| 2 | Move webhook secret to DB settings | 1 hour | 🔴 High |
-| 3 | Add payment amount validation to service layer | 2 hours | 🟡 Medium |
+| Priority | Issue 					    | Effort | Impact    |
+|----------|------------------------------------------------|--------|-----------|
+| 1 	   | Fix webhook signature verification bypass 	    | 2 hours| 🔴 High   | 
+| 2 	   | Move webhook secret to DB settings   	    | 1 hour | 🔴 High   |
+| 3   	   | Add payment amount validation to service layer | 2 hours| 🟡 Medium |
 
 ### Short-Term (1-2 Weeks)
 
-| Priority | Issue | Effort | Impact |
-|----------|-------|--------|--------|
-| 4 | Extract payment initiation logic to service | 4 hours | 🟡 Medium |
-| 5 | Improve error handling in payment verification | 2 hours | 🟡 Medium |
-| 6 | Add rate limiting to payment endpoints | 2 hours | 🟡 Medium |
-| 7 | Enhance withdrawal auto-approval logic | 3 hours | 🟡 Medium |
-| 8 | Use ResilientRazorpayService with circuit breaker | 2 hours | 🟡 Medium |
+| Priority | Issue 						| Effort  | Impact    |
+|----------|----------------------------------------------------|---------|-----------|
+| 4 	   | Extract payment initiation logic to service    	| 4 hours | 🟡 Medium |
+| 5  	   | Improve error handling in payment verification 	| 2 hours | 🟡 Medium |
+| 6 	   | Add rate limiting to payment endpoints 	    	| 2 hours | 🟡 Medium |
+| 7 	   | Enhance withdrawal auto-approval logic 	    	| 3 hours | 🟡 Medium |
+| 8 	   | Use ResilientRazorpayService with circuit breaker 	| 2 hours | 🟡 Medium |
 
 ### Long-Term (1-2 Months)
 
-| Priority | Issue | Effort | Impact |
-|----------|-------|--------|--------|
-| 9 | Write comprehensive test suite | 2 weeks | 🟡 Medium |
-| 10 | Add API documentation (Swagger) | 1 week | 🟢 Low |
-| 11 | Implement fraud detection system | 2 weeks | 🟡 Medium |
-| 12 | Add wallet lock timeout monitoring | 3 days | 🟢 Low |
+| Priority | Issue 				| Effort | Impact    |
+|----------|------------------------------------|--------|-----------|
+| 9 	   | Write comprehensive test suite 	| 2 weeks| 🟡 Medium |
+| 10 	   | Add API documentation (Swagger) 	| 1 week | 🟢 Low    |
+| 11  	   | Implement fraud detection system 	| 2 weeks| 🟡 Medium |
+| 12 	   | Add wallet lock timeout monitoring | 3 days | 🟢 Low    |
 
 ---
 
 ## 📈 Module Health Score Breakdown
 
-| Criteria | Weight | Score | Weighted |
-|----------|--------|-------|----------|
-| **Architecture** | 20% | 8/10 | 1.6 |
-| **Security** | 25% | 7/10 | 1.75 |
-| **Code Quality** | 15% | 8/10 | 1.2 |
-| **Performance** | 15% | 7/10 | 1.05 |
-| **Testability** | 10% | 6/10 | 0.6 |
-| **Error Handling** | 10% | 7/10 | 0.7 |
-| **Documentation** | 5% | 9/10 | 0.45 |
-| **TOTAL** | 100% | | **7.35/10** |
+| Criteria 		| Weight| Score | Weighted |
+|-----------------------|-------|-------|----------|
+| **Architecture** 	| 20% 	| 8/10 	| 1.6 	   |
+| **Security** 		| 25% 	| 7/10 	| 1.75     |
+| **Code Quality** 	| 15% 	| 8/10 	| 1.2      |
+| **Performance** 	| 15% 	| 7/10 	| 1.05     |
+| **Testability** 	| 10% 	| 6/10 	| 0.6      |
+| **Error Handling**	| 10% 	| 7/10 	| 0.7      |
+| **Documentation** 	| 5%  	| 9/10 	| 0.45     |
+| **TOTAL** 		| 100% 	| 	| 7.35/10  |
 
 ---
 

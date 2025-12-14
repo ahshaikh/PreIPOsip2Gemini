@@ -1,5 +1,5 @@
 <?php
-// V-PHASE5-CELEBRATION-1208 (Created)
+// V-PHASE5-CELEBRATION-1208 (Created) | V-FIX-1730-603 (WalletService Integration)
 
 namespace App\Services;
 
@@ -7,9 +7,17 @@ use App\Models\Subscription;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class CelebrationBonusService
 {
+    protected $walletService;
+
+    public function __construct(WalletService $walletService)
+    {
+        $this->walletService = $walletService;
+    }
+
     /**
      * Check and award celebration bonuses for a subscription based on an event.
      *
@@ -114,12 +122,14 @@ class CelebrationBonusService
 
     /**
      * Award a milestone bonus to a subscriber.
+     * Uses WalletService to ensure transactional integrity and lock balances.
      */
     protected function awardMilestoneBonus(Subscription $subscription, array $milestone): array
     {
         $user = $subscription->user;
         $bonusType = $milestone['bonus_type'] ?? 'fixed';
         $bonusValue = (float) ($milestone['bonus_amount'] ?? 0);
+        $milestoneName = $milestone['name'] ?? 'Milestone Bonus';
 
         // Calculate actual bonus amount
         if ($bonusType === 'percentage') {
@@ -130,53 +140,41 @@ class CelebrationBonusService
             $bonusAmount = $bonusValue;
         }
 
-        DB::beginTransaction();
         try {
-            // Credit to wallet
-            $wallet = $user->wallet;
-            $wallet->balance += $bonusAmount;
-            $wallet->save();
+            // 1. Delegate financial operation to WalletService
+            // This handles DB transactions, row locking, and ledger creation
+            $transaction = $this->walletService->deposit(
+                $user,
+                $bonusAmount,
+                'celebration_bonus',
+                $milestoneName,
+                $subscription // Reference model
+            );
 
-            // Create transaction record
-            $transaction = Transaction::create([
-                'user_id' => $user->id,
-                'subscription_id' => $subscription->id,
-                'type' => 'celebration_bonus',
-                'amount' => $bonusAmount,
-                'status' => 'completed',
-                'description' => $milestone['name'] ?? 'Milestone Bonus',
-                'metadata' => json_encode([
+            // 2. Attach specific metadata to the transaction created by WalletService
+            $transaction->update([
+                'subscription_id' => $subscription->id, // Ensure direct link if column exists
+                'metadata' => array_merge($transaction->metadata ?? [], [
                     'milestone_type' => $milestone['type'],
                     'milestone_threshold' => $milestone['threshold'],
-                    'milestone_name' => $milestone['name'] ?? 'Unnamed Milestone',
+                    'milestone_name' => $milestoneName,
                     'bonus_type' => $bonusType,
                     'plan_id' => $subscription->plan_id,
                     'plan_name' => $subscription->plan->name
                 ])
             ]);
 
-            // Create wallet transaction (double-entry bookkeeping)
-            DB::table('wallet_transactions')->insert([
-                'wallet_id' => $wallet->id,
-                'transaction_id' => $transaction->id,
-                'type' => 'credit',
-                'amount' => $bonusAmount,
-                'balance_after' => $wallet->balance,
-                'description' => $milestone['name'] ?? 'Milestone Bonus',
-                'created_at' => now(),
-                'updated_at' => now()
-            ]);
-
-            DB::commit();
+            Log::info("Celebration Bonus Awarded: User {$user->id}, Amount {$bonusAmount}, Milestone {$milestoneName}");
 
             return [
-                'milestone_name' => $milestone['name'] ?? 'Unnamed Milestone',
+                'milestone_name' => $milestoneName,
                 'milestone_type' => $milestone['type'],
                 'amount' => $bonusAmount,
                 'transaction_id' => $transaction->id
             ];
+
         } catch (\Exception $e) {
-            DB::rollBack();
+            Log::error("Failed to award celebration bonus: " . $e->getMessage());
             throw $e;
         }
     }
@@ -189,10 +187,18 @@ class CelebrationBonusService
         $milestoneName = $milestone['name'] ?? '';
         $milestoneType = $milestone['type'] ?? '';
 
+        // Check using JSON queries on metadata or direct transaction properties
         return Transaction::where('user_id', $subscription->user_id)
-            ->where('subscription_id', $subscription->id)
             ->where('type', 'celebration_bonus')
             ->where('status', 'completed')
+            ->where(function ($query) use ($milestoneName, $milestoneType, $subscription) {
+                // Check subscription link
+                $query->where('subscription_id', $subscription->id)
+                      ->orWhere(function($q) use ($subscription) {
+                          $q->where('reference_type', get_class($subscription))
+                            ->where('reference_id', $subscription->id);
+                      });
+            })
             ->where(function ($query) use ($milestoneName, $milestoneType) {
                 $query->whereRaw("JSON_EXTRACT(metadata, '$.milestone_name') = ?", [$milestoneName])
                     ->orWhereRaw("JSON_EXTRACT(metadata, '$.milestone_type') = ?", [$milestoneType]);
@@ -307,7 +313,13 @@ class CelebrationBonusService
             ->where('status', 'completed');
 
         if ($subscription) {
-            $query->where('subscription_id', $subscription->id);
+            $query->where(function($q) use ($subscription) {
+                $q->where('subscription_id', $subscription->id)
+                  ->orWhere(function($subQ) use ($subscription) {
+                      $subQ->where('reference_type', get_class($subscription))
+                           ->where('reference_id', $subscription->id);
+                  });
+            });
         }
 
         $transactions = $query->get();

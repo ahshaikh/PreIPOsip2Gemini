@@ -12,9 +12,19 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use App\Services\WalletService; // [ADDED] Required to actually credit the user's wallet
 
 class AdminBonusController extends Controller
 {
+    // [ADDED] Property for the WalletService
+    protected $walletService;
+
+    // [ADDED] Constructor to inject WalletService
+    public function __construct(WalletService $walletService)
+    {
+        $this->walletService = $walletService;
+    }
+
     /**
      * Get all bonus transactions with advanced filtering
      *
@@ -328,17 +338,35 @@ class AdminBonusController extends Controller
         $amount = (float) $validated['amount'];
         $reason = $validated['reason'];
 
-        // Create special bonus transaction
-        $bonus = BonusTransaction::create([
-            'user_id' => $user->id,
-            'subscription_id' => $user->subscriptions()->latest()->first()?->id,
-            'payment_id' => null, // No specific payment associated
-            'type' => 'special_bonus',
-            'amount' => $amount,
-            'multiplier_applied' => 1.0,
-            'base_amount' => $amount,
-            'description' => "Special Bonus: {$reason}"
-        ]);
+        // [MODIFIED] Added DB::transaction to ensure both the record creation and the wallet deposit happen atomically.
+        // If either fails, the database rolls back.
+        try {
+            $bonus = DB::transaction(function () use ($user, $amount, $reason) {
+
+        // 1. Create special bonus transaction record
+                $bonusTransaction = BonusTransaction::create([
+                    'user_id' => $user->id,
+                    'subscription_id' => $user->subscriptions()->latest()->first()?->id,
+                    'payment_id' => null, // No specific payment associated
+                    'type' => 'special_bonus',
+                    'amount' => $amount,
+                    'multiplier_applied' => 1.0,
+                    'base_amount' => $amount,
+                    'description' => "Special Bonus: {$reason}"
+                ]);
+
+                // 2. [ADDED] Call WalletService to credit the user's balance.
+                // This was missing in the previous version, meaning users got a record but no actual money.
+                $this->walletService->deposit(
+                    $user,
+                    $amount,
+                    'bonus_credit',
+                    "Special Bonus: {$reason}",
+                    $bonusTransaction // Link the wallet ledger entry to this bonus transaction
+                );
+
+                return $bonusTransaction;
+            });
 
         // Send notification to user
         $user->notify(new BonusCredited($amount, 'Special'));
@@ -350,7 +378,13 @@ class AdminBonusController extends Controller
             'message' => "Special bonus of ₹{$amount} awarded to {$user->username}",
             'bonus' => $bonus,
         ]);
+
+    } catch (\Exception $e) {
+            Log::error("Failed to award special bonus: " . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Failed to award bonus.'], 500);
+        }
     }
+
 
     /**
      * Award bulk special bonuses to multiple users
@@ -376,21 +410,36 @@ class AdminBonusController extends Controller
             if (!$user) continue;
 
             try {
-                $bonus = BonusTransaction::create([
-                    'user_id' => $user->id,
-                    'subscription_id' => $user->subscriptions()->latest()->first()?->id,
-                    'payment_id' => null,
-                    'type' => 'special_bonus',
-                    'amount' => $amount,
-                    'multiplier_applied' => 1.0,
-                    'base_amount' => $amount,
-                    'description' => "Special Bonus: {$reason}"
-                ]);
+                // [MODIFIED] Added DB::transaction to ensure atomicity for each user in the bulk loop.
+                DB::transaction(function () use ($user, $amount, $reason) {
+                    
+                    // 1. Create Record
+                    $bonusTransaction = BonusTransaction::create([
+                        'user_id' => $user->id,
+                        'subscription_id' => $user->subscriptions()->latest()->first()?->id,
+                        'payment_id' => null,
+                        'type' => 'special_bonus',
+                        'amount' => $amount,
+                        'multiplier_applied' => 1.0,
+                        'base_amount' => $amount,
+                        'description' => "Special Bonus: {$reason}"
+                    ]);
+
+                    // 2. [ADDED] Call WalletService to credit the user's balance.
+                    $this->walletService->deposit(
+                        $user,
+                        $amount,
+                        'bonus_credit',
+                        "Special Bonus: {$reason}",
+                        $bonusTransaction
+                    );
+                });
 
                 $user->notify(new BonusCredited($amount, 'Special'));
                 $successCount++;
             } catch (\Exception $e) {
                 Log::error("Failed to award bonus to User {$userId}: " . $e->getMessage());
+                // We continue the loop so one failure doesn't stop the rest
             }
         }
 
@@ -463,16 +512,30 @@ class AdminBonusController extends Controller
                 }
 
                 try {
-                    BonusTransaction::create([
-                        'user_id' => $user->id,
-                        'subscription_id' => $user->subscriptions()->latest()->first()?->id,
-                        'payment_id' => null,
-                        'type' => 'special_bonus',
-                        'amount' => (float) $amount,
-                        'multiplier_applied' => 1.0,
-                        'base_amount' => (float) $amount,
-                        'description' => "Bulk Bonus (CSV): {$reason}"
-                    ]);
+                    // [MODIFIED] Added DB::transaction to ensure atomicity for CSV uploads
+                    DB::transaction(function () use ($user, $amount, $reason) {
+                        
+                        // 1. Create Record
+                        $bonusTransaction = BonusTransaction::create([
+                            'user_id' => $user->id,
+                            'subscription_id' => $user->subscriptions()->latest()->first()?->id,
+                            'payment_id' => null,
+                            'type' => 'special_bonus',
+                            'amount' => (float) $amount,
+                            'multiplier_applied' => 1.0,
+                            'base_amount' => (float) $amount,
+                            'description' => "Bulk Bonus (CSV): {$reason}"
+                        ]);
+
+                        // 2. [ADDED] Call WalletService to credit the user's balance.
+                        $this->walletService->deposit(
+                            $user,
+                            (float) $amount,
+                            'bonus_credit',
+                            "Bulk Bonus (CSV): {$reason}",
+                            $bonusTransaction
+                        );
+                    });
 
                     $user->notify(new BonusCredited((float) $amount, 'Special'));
                     $successCount++;

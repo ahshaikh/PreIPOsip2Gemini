@@ -35,4 +35,31 @@ return [
         ],
     ],
 
+    // --- PAYMENT GATEWAYS (Added for Configuration Management Fix) ---
+
+    'razorpay' => [
+        'key' => env('RAZORPAY_KEY'),
+        'secret' => env('RAZORPAY_SECRET'),
+        'webhook_secret' => env('RAZORPAY_WEBHOOK_SECRET'),
+    ],
+
+    'stripe' => [
+        'key' => env('STRIPE_KEY'),
+        'secret' => env('STRIPE_SECRET'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+    ],
+
+    'paytm' => [
+        'merchant_id' => env('PAYTM_MERCHANT_ID'),
+        'merchant_key' => env('PAYTM_MERCHANT_KEY'),
+        'website' => env('PAYTM_WEBSITE', 'WEBSTAGING'),
+        'channel' => env('PAYTM_CHANNEL', 'WEB'),
+        'industry_type' => env('PAYTM_INDUSTRY_TYPE', 'Retail'),
+    ],
+
+    // Generic Webhook Secret (fallback)
+    'webhook' => [
+        'secret' => env('WEBHOOK_SECRET'),
+    ],
+
 ];

@@ -18,15 +18,15 @@ The Wallet Management module is **critical infrastructure** for the platform, ha
 
 ### Overall Assessment
 
-| Aspect | Score (0-10) | Status |
-|--------|--------------|--------|
-| **Architecture** | 6/10 | ⚠️ Duplicate Logic |
-| **Security** | 8/10 | ✅ Good (but issues found) |
-| **Code Quality** | 7/10 | ⚠️ Code Duplication |
-| **Performance** | 8/10 | ✅ Good |
-| **Testability** | 7/10 | ⚠️ Fair |
-| **Error Handling** | 7/10 | ⚠️ Incomplete |
-| **Documentation** | 6/10 | ⚠️ Minimal |
+| Aspect 		| Score (0-10) 	| Status 			|
+|-----------------------|---------------|-------------------------------|
+| **Architecture** 	| 6/10 		| ⚠️ Duplicate Logic 		|
+| **Security** 		| 8/10 		| ✅ Good (but issues found) 	|
+| **Code Quality** 	| 7/10 		| ⚠️ Code Duplication 		|
+| **Performance** 	| 8/10 		| ✅ Good 			|
+| **Testability** 	| 7/10 		| ⚠️ Fair 			|
+| **Error Handling** 	| 7/10 		| ⚠️ Incomplete 			|
+| **Documentation** 	| 6/10 		| ⚠️ Minimal 			|
 
 **Overall Module Score: 7.0/10**
 
@@ -36,19 +36,19 @@ The Wallet Management module is **critical infrastructure** for the platform, ha
 
 ### Component Inventory
 
-| Component | File | Lines | Purpose | Quality |
-|-----------|------|-------|---------|---------|
-| **Models** | | | | |
-| Wallet | `Models/Wallet.php` | 146 | Wallet balances & operations | ⚠️ Unsafe |
-| Transaction | `Models/Transaction.php` | 80 | Transaction ledger | ✅ Good |
-| **Services** | | | | |
-| WalletService | `Services/WalletService.php` | 215 | **Primary** wallet operations | ✅ Excellent |
-| WithdrawalService | `Services/WithdrawalService.php` | 171 | Withdrawal lifecycle | ✅ Good |
-| **Controllers** | | | | |
-| User/WalletController | `Controllers/Api/User/WalletController.php` | 133 | User wallet interface | ✅ Good |
-| Admin/AdminUserController | `Controllers/Api/Admin/AdminUserController.php` | ~1000+ | Admin wallet adjustments | ✅ Good |
-| **Form Requests** | | | | |
-| WithdrawalRequest | `Requests/User/WithdrawalRequest.php` | 85 | Withdrawal validation | ✅ Excellent |
+| Component 			| File 						  | Lines | Purpose 			 | Quality 	|
+|-------------------------------|-------------------------------------------------|-------|------------------------------|--------------|
+| **Models** 			| 						  | 	  | 				 | 		|
+| Wallet 			| `Models/Wallet.php` 				  | 146   | Wallet balances & operations | ⚠️ Unsafe 	|
+| Transaction 			| `Models/Transaction.php` 			  | 80 	  | Transaction ledger 		 | ✅ Good 	|
+| **Services** 			| 						  | 	  | 				 | 		|
+| WalletService 		| `Services/WalletService.php` 			  | 215   | **Primary** wallet operations| ✅ Excellent |
+| WithdrawalService 		| `Services/WithdrawalService.php` 		  | 171   | Withdrawal lifecycle 	 | ✅ Good 	|
+| **Controllers** 		| 						  | 	  | 				 | 		|
+| User/WalletController 	| `Controllers/Api/User/WalletController.php` 	  | 133   | User wallet interface 	 | ✅ Good 	|
+| Admin/AdminUserController 	| `Controllers/Api/Admin/AdminUserController.php` |~1000+ | Admin wallet adjustments 	 | ✅ Good 	|
+| **Form Requests** 		| 						  | 	  | 				 | 		|
+| WithdrawalRequest 		| `Requests/User/WithdrawalRequest.php` 	  | 85 	  | Withdrawal validation 	 | ✅ Excellent |
 
 ---
 
@@ -122,10 +122,10 @@ ACTUAL:   ₹1200 (Lost ₹100!)
 Searching the codebase, I found:
 ```bash
 # WalletService is used in:
-- PaymentWebhookService (GOOD ✅)
-- ProcessSuccessfulPaymentJob (GOOD ✅)
-- WithdrawalService (GOOD ✅)
-- AdminUserController (GOOD ✅)
+- PaymentWebhookService 	(GOOD ✅)
+- ProcessSuccessfulPaymentJob 	(GOOD ✅)
+- WithdrawalService 		(GOOD ✅)
+- AdminUserController 		(GOOD ✅)
 
 # Wallet model methods are used in:
 - ??? (Need to search entire codebase)
@@ -631,12 +631,12 @@ $transactions = $wallet->transactions()
 
 ### Security Vulnerabilities
 
-| ID | Severity | Issue | Location |
-|----|----------|-------|----------|
-| SEC-1 | 🔴 Critical | Wallet model methods lack locking (race condition) | Wallet.php:91-146 |
-| SEC-2 | 🟡 Medium | No admin audit trail for manual adjustments | AdminUserController.php:243 |
-| SEC-3 | 🟡 Medium | Wallet creation race condition | WalletController.php:28 |
-| SEC-4 | 🟢 Low | Transaction IDs are UUIDs but predictable timestamps | Transaction.php |
+| ID 	| Severity    | Issue 							| Location 		      |
+|-------|-------------|---------------------------------------------------------|-----------------------------|
+| SEC-1 | 🔴 Critical | Wallet model methods lack locking (race condition) 	| Wallet.php:91-146           |
+| SEC-2 | 🟡 Medium   | No admin audit trail for manual adjustments 		| AdminUserController.php:243 |
+| SEC-3 | 🟡 Medium   | Wallet creation race condition 				| WalletController.php:28     |
+| SEC-4 | 🟢 Low      | Transaction IDs are UUIDs but predictable timestamps 	| Transaction.php 	      |
 
 ---
 
@@ -762,43 +762,43 @@ Add module documentation:
 
 ### Immediate Actions (CRITICAL)
 
-| Priority | Issue | Effort | Impact |
-|----------|-------|--------|--------|
-| 1 | Remove or deprecate unsafe Wallet model methods | 2 hours | 🔴 Critical |
-| 2 | Search codebase for direct wallet method usage | 1 hour | 🔴 Critical |
-| 3 | Add admin audit trail for wallet adjustments | 2 hours | 🟡 High |
+| Priority | Issue 					     | Effort  | Impact      |
+|----------|-------------------------------------------------|---------|-------------|
+| 1 	   | Remove or deprecate unsafe Wallet model methods | 2 hours | 🔴 Critical |
+| 2 	   | Search codebase for direct wallet method usage  | 1 hour  | 🔴 Critical |
+| 3 	   | Add admin audit trail for wallet adjustments    | 2 hours | 🟡 High     |
 
 ### Short-Term (1-2 Weeks)
 
-| Priority | Issue | Effort | Impact |
-|----------|-------|--------|--------|
-| 4 | Fix wallet creation race condition | 2 hours | 🟡 Medium |
-| 5 | Add validation to Transaction model | 3 hours | 🟡 Medium |
-| 6 | Add soft deletes to Wallet/Transaction | 2 hours | 🟡 Medium |
-| 7 | Optimize PDF generation | 3 hours | 🟡 Medium |
+| Priority | Issue 				    | Effort  | Impact    |
+|----------|----------------------------------------|---------|-----------|
+| 4 	   | Fix wallet creation race condition     | 2 hours | 🟡 Medium |
+| 5 	   | Add validation to Transaction model    | 3 hours | 🟡 Medium |
+| 6 	   | Add soft deletes to Wallet/Transaction | 2 hours | 🟡 Medium |
+| 7 	   | Optimize PDF generation 		    | 3 hours | 🟡 Medium |
 
 ### Long-Term (1-2 Months)
 
-| Priority | Issue | Effort | Impact |
-|----------|-------|--------|--------|
-| 8 | Extract WithdrawalLimitService | 1 week | 🟢 Low |
-| 9 | Add comprehensive module documentation | 3 days | 🟢 Low |
-| 10 | Create wallet operation flowcharts | 2 days | 🟢 Low |
+| Priority | Issue 					| Effort | Impact |
+|----------|--------------------------------------------|--------|--------|
+| 8 	   | Extract WithdrawalLimitService 		| 1 week | 🟢 Low |
+| 9 	   | Add comprehensive module documentation 	| 3 days | 🟢 Low |
+| 10 	   | Create wallet operation flowcharts 	| 2 days | 🟢 Low |
 
 ---
 
 ## 📈 Module Health Score Breakdown
 
-| Criteria | Weight | Score | Weighted |
-|----------|--------|-------|----------|
-| **Architecture** | 20% | 6/10 | 1.2 |
-| **Security** | 25% | 8/10 | 2.0 |
-| **Code Quality** | 15% | 7/10 | 1.05 |
-| **Performance** | 15% | 8/10 | 1.2 |
-| **Testability** | 10% | 7/10 | 0.7 |
-| **Error Handling** | 10% | 7/10 | 0.7 |
-| **Documentation** | 5% | 6/10 | 0.3 |
-| **TOTAL** | 100% | | **7.15/10** |
+| Criteria 		| Weight | Score |Weighted|
+|-----------------------|--------|-------|--------|
+| **Architecture** 	| 20% 	 | 6/10  | 1.2    | 
+| **Security** 		| 25% 	 | 8/10  | 2.0    |
+| **Code Quality** 	| 15% 	 | 7/10  | 1.05   |
+| **Performance** 	| 15% 	 | 8/10  | 1.2    |
+| **Testability** 	| 10% 	 | 7/10  | 0.7    |
+| **Error Handling** 	| 10% 	 | 7/10  | 0.7 	  |
+| **Documentation** 	| 5% 	 | 6/10  | 0.3    |
+| **TOTAL** 		| 100% 	 | 	 |7.15/10 |
 
 ---
 

@@ -8,14 +8,16 @@ use App\Models\Subscription;
 use App\Models\BonusTransaction;
 use App\Models\Transaction;
 use App\Models\User;
-use App\Models\UserProfitShare; // <-- IMPORT
+use App\Models\UserProfitShare;
 use App\Services\WalletService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Collection;
 
 class ProfitShareService
 {
     protected $walletService;
+
     public function __construct(WalletService $walletService)
     {
         $this->walletService = $walletService;
@@ -134,7 +136,7 @@ class ProfitShareService
             $totalTenure += $tenureMonths;
 
             $config = $sub->plan->getConfig('profit_share', ['percentage' => 5]);
-            $sharePercent = (float)$config['percentage'] / 100;
+            $sharePercent = (float)($config['percentage'] ?? 5) / 100;
 
             $userShares[] = [
                 'user_id' => $sub->user_id,
@@ -205,7 +207,7 @@ class ProfitShareService
             throw new \Exception("This period is not ready for distribution.");
         }
 
-        $distributions = $profitShare->distributions()->with('user.wallet', 'user.kyc')->get();
+        $distributions = $profitShare->distributions()->with('user.wallet', 'user.kyc', 'user.subscription')->get();
         if ($distributions->isEmpty()) throw new \Exception('No distributions to process.');
         
         $tdsRate = (float) setting('tds_rate', 0.10);
@@ -214,6 +216,8 @@ class ProfitShareService
         return DB::transaction(function () use ($profitShare, $distributions, $admin, $tdsRate, $tdsThreshold) {
             foreach ($distributions as $dist) {
                 $user = $dist->user;
+                if (!$user) continue;
+
                 $wallet = $user->wallet;
                 $grossAmount = $dist->amount;
                 
@@ -223,15 +227,17 @@ class ProfitShareService
                 }
                 $netAmount = $grossAmount - $tdsDeducted;
 
+                // 1. Create Bonus Record
                 $bonus = BonusTransaction::create([
                     'user_id' => $user->id,
-                    'subscription_id' => $user->subscription->id,
+                    'subscription_id' => $user->subscription?->id,
                     'type' => 'profit_share',
                     'amount' => $grossAmount,
                     'tds_deducted' => $tdsDeducted,
                     'description' => "Profit Share: {$profitShare->period_name}",
                 ]);
 
+                // 2. Credit Wallet
                 if ($netAmount > 0) {
                     $this->walletService->deposit(
                         $user,
@@ -248,7 +254,7 @@ class ProfitShareService
     }
 
     /**
-     * NEW: Manual Adjustment
+     * Manual Adjustment
      */
     public function manualAdjustment(ProfitShare $profitShare, int $userId, float $amount, string $reason)
     {
@@ -262,13 +268,13 @@ class ProfitShareService
             ['user_id' => $user->id],
             [
                 'amount' => $amount,
-                'notes' => $reason, // Assumes 'notes' column exists
+                'notes' => $reason,
             ]
         );
     }
     
     /**
-     * NEW: Reverse Distribution
+     * Reverse Distribution
      */
     public function reverseDistribution(ProfitShare $profitShare, string $reason)
     {
@@ -285,7 +291,7 @@ class ProfitShareService
                 $user = $dist->user;
                 $wallet = $user->wallet;
                 $bonus = $dist->bonusTransaction;
-                $netAmount = $bonus->net_amount; // Get net amount (Amount - TDS)
+                $netAmount = $bonus->amount - $bonus->tds_deducted;
                 
                 if ($wallet->balance < $netAmount) {
                     Log::error("Reversal Failed: User {$user->id} has insufficient balance (₹{$wallet->balance}) to reverse ₹{$netAmount}");
@@ -296,7 +302,7 @@ class ProfitShareService
                 $this->walletService->withdraw($user, $netAmount, 'reversal', "Reversal: {$reason}", $dist);
                 
                 // 2. Create reversal bonus transaction
-                $bonus->reverse("Reversal: {$reason}");
+                $bonus->update(['description' => $bonus->description . " [REVERSED]"]);
             }
             
             $profitShare->update(['status' => 'reversed']);
@@ -306,11 +312,6 @@ class ProfitShareService
 
     /**
      * Publish Financial Report with visibility controls
-     *
-     * @param ProfitShare $profitShare The profit share period
-     * @param string $visibility Visibility level: public, private, partners_only
-     * @param User $admin Admin publishing the report
-     * @return array Report data
      */
     public function publishReport(ProfitShare $profitShare, string $visibility, User $admin)
     {
@@ -321,7 +322,6 @@ class ProfitShareService
         $distributions = $profitShare->distributions()->with('user')->get();
         $showDetails = setting('profit_share_show_beneficiary_details', false);
 
-        // Generate report data based on visibility
         $reportData = [
             'period_name' => $profitShare->period_name,
             'period' => [
@@ -339,7 +339,7 @@ class ProfitShareService
             'statistics' => [
                 'total_beneficiaries' => $distributions->count(),
                 'average_per_user' => $distributions->count() > 0
-                    ? round($profitShare->total_distributed / $distributions->count(), 2)
+                    ? round($distributions->sum('amount') / $distributions->count(), 2)
                     : 0,
                 'highest_share' => $distributions->max('amount'),
                 'lowest_share' => $distributions->min('amount'),
@@ -349,23 +349,18 @@ class ProfitShareService
             'published_by' => $admin->username,
         ];
 
-        // Add beneficiary details based on settings and visibility
         if ($showDetails || $visibility === 'public') {
             $reportData['beneficiaries'] = $distributions->map(function ($dist) use ($visibility) {
                 $data = [
                     'user_id' => $dist->user_id,
                     'amount' => $dist->amount,
                 ];
-
-                // Only show username for public visibility
                 if ($visibility === 'public') {
                     $data['username'] = $dist->user->username;
                 }
-
                 return $data;
             })->toArray();
         } else {
-            // Just show distribution ranges for privacy
             $reportData['distribution_ranges'] = [
                 'below_1000' => $distributions->where('amount', '<', 1000)->count(),
                 '1000_5000' => $distributions->whereBetween('amount', [1000, 5000])->count(),
@@ -374,10 +369,9 @@ class ProfitShareService
             ];
         }
 
-        // Update profit share record
         $profitShare->update([
             'report_visibility' => $visibility,
-            'report_url' => null, // Can be set to file path if generating PDF
+            'report_url' => null,
             'published_by' => $admin->id,
             'published_at' => now(),
         ]);
@@ -385,5 +379,88 @@ class ProfitShareService
         Log::info("Profit Share Report published for period {$profitShare->period_name} by Admin {$admin->id}");
 
         return $reportData;
+    }
+
+    /**
+     * Calculate potential share for a specific subscription (Preview/Dry-Run).
+     * (Ported from Legacy ProfitSharingService)
+     */
+    public function calculatePotentialShare(Subscription $subscription, float $profitPool): array
+    {
+        // 1. Check Global Settings Eligibility
+        $minMonths = (int) setting('profit_share_min_months', 3);
+        $minInvestment = (float) setting('profit_share_min_investment', 10000);
+        $requireActive = setting('profit_share_require_active_subscription', true);
+
+        $subscription->load('plan'); // Ensure plan is loaded
+
+        if ($requireActive && $subscription->status !== 'active') {
+            return ['eligible' => false, 'reason' => 'Subscription not active'];
+        }
+
+        if ($subscription->amount < $minInvestment) {
+            return ['eligible' => false, 'reason' => "Investment amount below minimum requirement of {$minInvestment}."];
+        }
+
+        // 2. Check User Tenure
+        $userJoinDate = $subscription->user->created_at;
+        $monthsSinceJoin = $userJoinDate->diffInMonths(now());
+
+        if ($monthsSinceJoin < $minMonths) {
+            return [
+                'eligible' => false, 
+                'reason' => "User tenure less than {$minMonths} months. Current: {$monthsSinceJoin} months."
+            ];
+        }
+
+        // 3. Calculation Preview
+        // We use the 'Weighted Investment' formula logic by default for individual estimation
+        $config = $subscription->plan->getConfig('profit_share', ['percentage' => 5]);
+        $sharePercent = (float)($config['percentage'] ?? 5);
+        
+        // Estimation: User Investment * Share % * (Pool Ratio estimate)
+        // Note: Exact share requires total pool weight which changes dynamically.
+        // This returns a raw "Maximum Potential" if they were the only investor (simplified).
+        // A better estimate would be: Pool * Plan %
+        $estimatedMaxShare = $profitPool * ($sharePercent / 100);
+
+        return [
+            'eligible' => true,
+            'plan_percentage' => $sharePercent,
+            'user_tenure_months' => $monthsSinceJoin,
+            'estimated_pool_share_potential' => $estimatedMaxShare,
+            'note' => 'Actual amount depends on total weighted investments of all eligible users.'
+        ];
+    }
+
+    /**
+     * Get user's profit sharing summary.
+     * (Ported from Legacy ProfitSharingService, adapted for BonusTransaction)
+     */
+    public function getUserProfitSummary(User $user): array
+    {
+        // Use BonusTransaction as the source of truth for payouts
+        $transactions = BonusTransaction::where('user_id', $user->id)
+            ->where('type', 'profit_share')
+            ->latest()
+            ->get();
+
+        return [
+            'total_earned' => $transactions->sum('amount'), // Gross
+            'total_tds' => $transactions->sum('tds_deducted'),
+            'net_earned' => $transactions->sum(fn($t) => $t->amount - $t->tds_deducted),
+            'distribution_count' => $transactions->count(),
+            'last_distribution' => $transactions->first()?->created_at,
+            'history' => $transactions->map(function ($txn) {
+                return [
+                    'id' => $txn->id,
+                    'amount' => $txn->amount,
+                    'tds' => $txn->tds_deducted,
+                    'net_amount' => $txn->amount - $txn->tds_deducted,
+                    'description' => $txn->description,
+                    'date' => $txn->created_at
+                ];
+            })
+        ];
     }
 }

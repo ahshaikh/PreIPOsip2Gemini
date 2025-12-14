@@ -18,18 +18,18 @@ This is a comprehensive audit of the PreIPOsip platform, a fully configurable Pr
 
 ### Key Statistics
 
-| Component | Count |
-|-----------|-------|
-| Backend Controllers | 122+ |
-| Backend Models | 119+ |
-| Backend Services | 32+ |
-| Backend Jobs | 13+ |
-| Backend Middleware | 14+ |
-| Database Migrations | 92+ |
-| Frontend Admin Routes | 40+ |
-| Frontend User Routes | 20+ |
-| Frontend Company Routes | 12+ |
-| Frontend Public Routes | 30+ |
+| Component 			| Count |
+|-------------------------------|-------|
+| Backend Controllers 		| 122+ 	|
+| Backend Models 		| 119+ 	|
+| Backend Services 		| 32+ 	|
+| Backend Jobs 			| 13+ 	|
+| Backend Middleware 		| 14+ 	|
+| Database Migrations 		| 92+ 	|
+| Frontend Admin Routes 	| 40+ 	|
+| Frontend User Routes 		| 20+ 	|
+| Frontend Company Routes 	| 12+ 	|
+| Frontend Public Routes 	| 30+ 	|
 
 ---
 
@@ -776,28 +776,28 @@ Based on the project's Functional Specification Document (FSD), the system is di
 
 ## MODULE SUMMARY TABLE
 
-| Module # | Module Name | Backend Controllers | Backend Models | Backend Services | Frontend Routes | Complexity |
-|----------|-------------|---------------------|----------------|------------------|-----------------|------------|
-| 1 | Authentication & Authorization | 6 | 7 | 2 | 3 | High |
-| 2 | User Management | 8 | 5 | 0 | 5 | Medium |
-| 3 | KYC Management | 2 | 4 | 1 | 2 | Medium |
-| 4 | Investment Plans | 2 | 4 | 1 | 2 | High |
-| 5 | Subscription Management | 2 | 2 | 2 | 3 | High |
-| 6 | Payment & Withdrawal | 5 | 4 | 6 | 3 | Critical |
-| 7 | Wallet Management | 2 | 2 | 1 | 1 | Critical |
-| 8 | Bonus Calculation Engine | 2 | 4 | 2 | 1 | Critical |
-| 9 | Referral System | 3 | 5 | 1 | 2 | Medium |
-| 10 | Lucky Draw | 2 | 4 | 1 | 2 | Medium |
-| 11 | Profit Sharing | 2 | 3 | 2* | 2 | High |
-| 12 | Pre-IPO Products & Inventory | 3 | 14 | 2 | 3 | High |
-| 13 | Company Portal (B2B) | 12 | 14 | 0 | 13 | High |
-| 14 | Support & Helpdesk | 8 | 10 | 2 | 3 | High |
-| 15 | Knowledge Base & Help Center | 6 | 5 | 0 | 2 | Medium |
-| 16 | Notification System | 7 | 12 | 6 | 2 | High |
-| 17 | CMS & Content Management | 17 | 18 | 1 | 15+ | High |
-| 18 | Reporting & Analytics | 5 | 8 | 1 | 2 | High |
-| 19 | Compliance & Legal | 4 | 7 | 0 | 10+ | Medium |
-| 20 | System Administration | 18 | 20+ | 3 | 40+ | Critical |
+| #  | Module Name 			| Backend Controllers 	| Backend Models| BackendService| FrontendRoutes| Complexity |
+|----|----------------------------------|-----------------------|---------------|---------------|---------------|------------|
+| 1  | Authentication & Authorization 	| 6 			| 7 		| 2 		| 3 		| High 	     |
+| 2  | User Management 			| 8 			| 5 		| 0 		| 5 		| Medium     |
+| 3  | KYC Management 			| 2 			| 4 		| 1 		| 2 		| Medium     |
+| 4  | Investment Plans 		| 2 			| 4 		| 1 		| 2 		| High 	     |
+| 5  | Subscription Management 		| 2 			| 2 		| 2 		| 3 		| High       |
+| 6  | Payment & Withdrawal 		| 5 			| 4 		| 6 		| 3 		| Critical   |
+| 7  | Wallet Management 		| 2 			| 2 		| 1 		| 1 		| Critical   |
+| 8  | Bonus Calculation Engine 	| 2 			| 4 		| 2 		| 1 		| Critical   |
+| 9  | Referral System 			| 3 			| 5 		| 1 		| 2 		| Medium     |
+| 10 | Lucky Draw 			| 2 			| 4 		| 1 		| 2 		| Medium     |
+| 11 | Profit Sharing 			| 2 			| 3 		| 2* 		| 2 		| High       |
+| 12 | Pre-IPO Products & Inventory 	| 3 			| 14 		| 2 		| 3 		| High       |
+| 13 | Company Portal (B2B) 		| 12 			| 14 		| 0 		| 13		| High       |
+| 14 | Support & Helpdesk 		| 8 			| 10 		| 2 		| 3 		| High       |
+| 15 | Knowledge Base & Help Center 	| 6 			| 5 		| 0 		| 2 		| Medium     |
+| 16 | Notification System 		| 7 			| 12 		| 6 		| 2 		| High       |
+| 17 | CMS & Content Management 	| 17 			| 18 		| 1 		| 15+ 		| High       |
+| 18 | Reporting & Analytics 		| 5 			| 8 		| 1 		| 2 		| High       |
+| 19 | Compliance & Legal 		| 4 			| 7 		| 0 		| 10+ 		| Medium     |
+| 20 | System Administration 		| 18 			| 20+ 		| 3 		| 40+ 		| Critical   |
 
 **Notes:**
 - `*` indicates duplicate services found (needs consolidation)

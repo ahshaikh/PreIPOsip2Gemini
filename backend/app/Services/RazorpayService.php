@@ -7,6 +7,7 @@ use Razorpay\Api\Api;
 use Illuminate\Support\Facades\Log;
 use Exception;
 use App\Models\Plan; // <-- IMPORT
+use InvalidArgumentException; // Added for specific exception type
 
 /**
  * RazorpayService - Payment Gateway Integration
@@ -82,6 +83,9 @@ class RazorpayService
     // --- ORDER MANAGEMENT ---
     public function createOrder($amount, $receipt)
     {
+        // SECURITY: Validate amount at service level to prevent bypass
+        $this->validateAmount($amount);
+
         $this->log("Creating Order: Amount={$amount}, Receipt={$receipt}");
         try {
             $order = $this->api->order->create([
@@ -116,11 +120,34 @@ class RazorpayService
         }
     }
 
+    // --- PAYMENT MANAGEMENT ---
+
+    /**
+     * Fetch payment details from Razorpay
+     */
+    public function fetchPayment($paymentId)
+    {
+        $this->log("Fetching Payment: {$paymentId}");
+        try {
+            $payment = $this->api->payment->fetch($paymentId);
+            $this->log("Payment Fetched: {$paymentId}");
+            return $payment;
+        } catch (Exception $e) {
+            $this->log("Payment Fetch Failed: " . $e->getMessage(), 'error');
+            throw $e;
+        }
+    }
+
     /**
      * Capture a payment (for manual capture mode)
      */
     public function capturePayment($paymentId, $amount)
     {
+        // Validate capture amount if provided
+        if ($amount) {
+            $this->validateAmount($amount);
+        }
+
         $this->log("Capturing Payment: {$paymentId}, Amount={$amount}");
         try {
             $payment = $this->api->payment->fetch($paymentId);
@@ -201,6 +228,9 @@ class RazorpayService
     {
         $this->log("Syncing Plan #{$plan->id} with Razorpay...");
         
+        // Validate plan amount
+        $this->validateAmount($plan->monthly_amount);
+
         $planData = [
             'period' => 'monthly',
             'interval' => 1,
@@ -255,6 +285,24 @@ class RazorpayService
         } catch (Exception $e) {
             $this->log("Subscription Creation Failed: " . $e->getMessage(), 'error');
             throw $e;
+        }
+    }
+
+    /**
+     * Internal Validation Helper
+     * Prevents bypassing amount limits via Service calls
+     */
+    protected function validateAmount($amount)
+    {
+        if (!is_numeric($amount) || $amount <= 0) {
+            throw new InvalidArgumentException("Payment amount must be a positive number.");
+        }
+
+        $min = (float) setting('min_payment_amount', 1);
+        $max = (float) setting('max_payment_amount', 1000000);
+
+        if ($amount < $min || $amount > $max) {
+            throw new InvalidArgumentException("Payment amount must be between ₹{$min} and ₹{$max}.");
         }
     }
 
