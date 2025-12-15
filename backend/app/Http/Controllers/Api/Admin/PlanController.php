@@ -1,14 +1,16 @@
 <?php
-// V-PHASE2-1730-055 (Created) | V-REMEDIATE-1730-189 (Auto-Debit Integrated) | V-FIX-TRANSACTION (Gemini)
+// V-PHASE2-1730-055 (Created) | V-REMEDIATE-1730-189 (Auto-Debit Integrated) | V-FIX-TRANSACTION (Gemini) | V-AUDIT-FIX-REFACTOR
 
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Services\RazorpayService;
+use App\Http\Requests\Admin\StorePlanRequest; // [AUDIT FIX]
+use App\Http\Requests\Admin\UpdatePlanRequest; // [AUDIT FIX]
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\DB; // FIX: Import DB Facade
+use Illuminate\Support\Facades\DB;
 
 class PlanController extends Controller
 {
@@ -24,31 +26,9 @@ class PlanController extends Controller
         return Plan::with('configs', 'features')->latest()->get();
     }
 
-    public function store(Request $request)
+    public function store(StorePlanRequest $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'monthly_amount' => 'required|numeric|min:0',
-            'duration_months' => 'required|integer|min:1',
-            'description' => 'nullable|string',
-            'is_active' => 'required|boolean',
-            'is_featured' => 'required|boolean',
-            'available_from' => 'nullable|date',
-            'available_until' => 'nullable|date',
-            'allow_pause' => 'nullable|boolean',
-            'max_pause_count' => 'nullable|integer|min:0',
-            'max_pause_duration_months' => 'nullable|integer|min:1',
-            'max_subscriptions_per_user' => 'nullable|integer|min:1',
-            'min_investment' => 'nullable|numeric|min:0',
-            'max_investment' => 'nullable|numeric|min:0',
-            'display_order' => 'nullable|integer',
-            'billing_cycle' => 'nullable|in:weekly,bi-weekly,monthly,quarterly,yearly',
-            'trial_period_days' => 'nullable|integer|min:0',
-            'metadata' => 'nullable|json',
-            'features' => 'nullable|array',
-            'features.*.feature_text' => 'required|string',
-            'configs' => 'nullable|array',
-        ]);
+        $validated = $request->validated();
 
         // FIX: Wrap in transaction to prevent "Ghost Plans" if Razorpay fails
         try {
@@ -67,7 +47,7 @@ class PlanController extends Controller
 
                 // Sync with Razorpay inside transaction
                 // If this throws an exception, DB::transaction will rollback everything
-                $this->razorpay->createPlan($plan);
+                $this->razorpay->createOrUpdatePlan($plan); // [AUDIT FIX] Method renamed in Interface refactor
 
                 return $plan;
             });
@@ -87,29 +67,9 @@ class PlanController extends Controller
         return $plan->load('configs', 'features');
     }
 
-    public function update(Request $request, Plan $plan)
+    public function update(UpdatePlanRequest $request, Plan $plan)
     {
-        $validated = $request->validate([
-            'name' => 'sometimes|required|string|max:255',
-            'monthly_amount' => 'sometimes|required|numeric|min:0',
-            'duration_months' => 'sometimes|required|integer|min:1',
-            'description' => 'nullable|string',
-            'is_active' => 'sometimes|required|boolean',
-            'is_featured' => 'sometimes|required|boolean',
-            'available_from' => 'nullable|date',
-            'available_until' => 'nullable|date',
-            'allow_pause' => 'nullable|boolean',
-            'max_pause_count' => 'nullable|integer|min:0',
-            'max_pause_duration_months' => 'nullable|integer|min:1',
-            'max_subscriptions_per_user' => 'nullable|integer|min:1',
-            'min_investment' => 'nullable|numeric|min:0',
-            'max_investment' => 'nullable|numeric|min:0',
-            'display_order' => 'nullable|integer',
-            'billing_cycle' => 'nullable|in:weekly,bi-weekly,monthly,quarterly,yearly',
-            'trial_period_days' => 'nullable|integer|min:0',
-            'metadata' => 'nullable|json',
-            'configs' => 'nullable|array',
-        ]);
+        $validated = $request->validated();
 
         // FIX: Critical check to prevent price/cycle changes on active plans
         if ($plan->subscriptions()->exists()) {

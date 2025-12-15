@@ -1,18 +1,16 @@
 <?php
-// V-PHASE2-1730-036 (Created) | V-FINAL-1730-399 (Logic Upgraded)
+// V-PHASE2-1730-036 (Created) | V-FINAL-1730-399 (Logic Upgraded) | V-AUDIT-FIX-ENCRYPTION
 
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Support\Facades\Crypt;
 
 class Setting extends Model
 {
     use HasFactory;
-
-    	// REMOVED: public $timestamps = false; 
-	// Settings should now support timestamps to match the migration behavior.
 
     protected $fillable = [
         'key',
@@ -33,6 +31,7 @@ class Setting extends Model
             \Illuminate\Support\Facades\Cache::forget('setting.' . $setting->key);
             // Invalidate the "all settings" cache
             \Illuminate\Support\Facades\Cache::forget('settings');
+            \Illuminate\Support\Facades\Cache::forget('settings.all_grouped_full');
         });
     }
 
@@ -59,9 +58,23 @@ class Setting extends Model
                     'boolean' => in_array($value, ['true', '1', 1, true], true),
                     'number'  => (int) $value,
                     'json'    => json_decode($value, true),
+                    'encrypted' => $this->decryptValue($value), // [AUDIT FIX] Handle decryption
                     default   => (string) $value,
                 };
             },
         );
+    }
+
+    /**
+     * Helper to safely decrypt values.
+     */
+    private function decryptValue($value)
+    {
+        if (empty($value)) return null;
+        try {
+            return Crypt::decryptString($value);
+        } catch (\Exception $e) {
+            return $value; // Return raw if decryption fails (fallback)
+        }
     }
 }

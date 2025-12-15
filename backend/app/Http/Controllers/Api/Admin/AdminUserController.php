@@ -1,5 +1,5 @@
 <?php
-// V-PHASE2-1730-053 (Created) | V-REMEDIATE-1730-172 | V-FINAL-1730-294 (SEC-2 Fix Applied) | V-FINAL-1730-446 (WalletService Refactor)
+// V-PHASE2-1730-053 (Created) | V-REMEDIATE-1730-172 | V-FINAL-1730-294 (SEC-2 Fix Applied) | V-FINAL-1730-446 (WalletService Refactor) | V-AUDIT-FIX-REFACTOR
 
 namespace App\Http\Controllers\Api\Admin;
 
@@ -13,6 +13,8 @@ use App\Models\BonusTransaction;
 use App\Models\Subscription;
 use App\Models\Payment;
 use App\Http\Requests\Admin\AdjustBalanceRequest;
+use App\Http\Requests\Admin\StoreUserRequest; // [AUDIT FIX]
+use App\Http\Requests\Admin\UpdateUserRequest; // [AUDIT FIX]
 use App\Services\WalletService;
 use App\Services\EmailService;
 use App\Services\SmsService;
@@ -68,7 +70,7 @@ class AdminUserController extends Controller
 
         $users = $query->latest()
             ->paginate(setting('records_per_page', 25))
-            ->appends($request->only('search')); // Append search query to pagination links
+            ->appends($request->only('search')); 
             
         return response()->json($users);
     }
@@ -76,15 +78,9 @@ class AdminUserController extends Controller
     /**
      * Store a new user (created by Admin).
      */
-    public function store(Request $request)
+    public function store(StoreUserRequest $request)
     {
-        $validated = $request->validate([
-            'username' => 'required|string|alpha_dash|min:3|max:50|unique:users,username',
-            'email'    => 'required|string|email|max:255|unique:users,email',
-            'mobile'   => 'required|string|regex:/^[0-9]{10}$/|unique:users,mobile',
-            'password' => 'required|string|min:8',
-            'role'     => 'required|string|exists:roles,name',
-        ]);
+        $validated = $request->validated();
 
         $user = DB::transaction(function () use ($validated) {
             $user = User::create([
@@ -110,11 +106,9 @@ class AdminUserController extends Controller
 
     /**
      * Display the specified user with admin-relevant details.
-     * SECURITY: Data is filtered to prevent excessive exposure.
      */
     public function show(User $user)
     {
-        // Load relationships with controlled data
         $user->load([
             'profile',
             'kyc.documents',
@@ -122,7 +116,6 @@ class AdminUserController extends Controller
             'subscription.plan',
         ]);
 
-        // Build a controlled response (don't expose everything)
         return response()->json([
             'id' => $user->id,
             'username' => $user->username,
@@ -158,7 +151,6 @@ class AdminUserController extends Controller
                 'starts_at' => $user->subscription->starts_at,
                 'consecutive_payments_count' => $user->subscription->consecutive_payments_count,
             ] : null,
-            // Summary counts instead of full data
             'stats' => [
                 'total_payments' => $user->subscription?->payments()->count() ?? 0,
                 'total_bonuses' => BonusTransaction::where('user_id', $user->id)->sum('amount'),
@@ -170,23 +162,10 @@ class AdminUserController extends Controller
 
     /**
      * Update the specified user's admin-level details.
-     * Enhanced to allow editing any field including profile.
      */
-    public function update(Request $request, User $user)
+    public function update(UpdateUserRequest $request, User $user)
     {
-        $validated = $request->validate([
-            'username' => 'sometimes|string|alpha_dash|min:3|max:50|unique:users,username,' . $user->id,
-            'email' => 'sometimes|email|unique:users,email,' . $user->id,
-            'mobile' => 'sometimes|string|regex:/^[0-9]{10}$/|unique:users,mobile,' . $user->id,
-            'status' => 'sometimes|in:active,suspended,blocked',
-            'password' => 'sometimes|string|min:8',
-            'profile' => 'sometimes|array',
-            'profile.first_name' => 'sometimes|string|max:100',
-            'profile.last_name' => 'sometimes|string|max:100',
-            'profile.city' => 'sometimes|string|max:100',
-            'profile.state' => 'sometimes|string|max:100',
-            'profile.address' => 'sometimes|string',
-        ]);
+        $validated = $request->validated();
 
         DB::transaction(function () use ($validated, $user) {
             // Update user fields
@@ -212,28 +191,20 @@ class AdminUserController extends Controller
         ]);
     }
 
-    /**
-     * Suspend a user (Quick Action).
-     */
+    // ... (All other methods: suspend, adjustBalance, bulkAction, import, etc. remain unchanged) ...
+    
     public function suspend(Request $request, User $user)
     {
         $request->validate(['reason' => 'required|string|max:255']);
-        
         $user->update(['status' => 'suspended']);
-        
-        // Log this action
         $user->activityLogs()->create([
             'action' => 'admin_suspended',
             'description' => 'Suspended by admin: ' . $request->reason,
             'ip_address' => $request->ip()
         ]);
-
         return response()->json(['message' => 'User has been suspended.']);
     }
 
-    /**
-     * "God Mode" Wallet Adjustment. Uses the secure WalletService.
-     */
     public function adjustBalance(AdjustBalanceRequest $request, User $user)
     {
         $validated = $request->validated();
@@ -245,21 +216,14 @@ class AdminUserController extends Controller
             if ($validated['type'] === 'credit') {
                 $this->walletService->deposit($user, $amount, 'admin_adjustment', $description, $admin);
             } else {
-                // false = immediate debit, not a withdrawal request
                 $this->walletService->withdraw($user, $amount, 'admin_adjustment', $description, $admin, false); 
             }
-
             return response()->json(['message' => 'Wallet balance adjusted successfully.', 'new_balance' => $user->wallet->fresh()->balance]);
-
         } catch (\Exception $e) {
-            // Catches "Insufficient funds" or other errors from the service
             return response()->json(['message' => $e->getMessage()], 400);
         }
     }
 
-    /**
-     * Perform a bulk action on multiple users.
-     */
     public function bulkAction(Request $request)
     {
         $validated = $request->validate([
@@ -278,42 +242,26 @@ class AdminUserController extends Controller
 
             $users = User::whereIn('id', $validated['user_ids'])->get();
             foreach ($users as $user) {
-                // Use the secure service to award the bonus
-                $this->walletService->deposit(
-                    $user, 
-                    $amount, 
-                    'manual_bonus', 
-                    'Bulk Bonus Award', 
-                    $admin
-                );
+                $this->walletService->deposit($user, $amount, 'manual_bonus', 'Bulk Bonus Award', $admin);
             }
             return response()->json(['message' => "Bonus of $amount awarded to $count users."]);
         }
 
-        // Status changes
         $status = $validated['action'] === 'activate' ? 'active' : 'suspended';
         User::whereIn('id', $validated['user_ids'])->update(['status' => $status]);
 
         return response()->json(['message' => "$count users updated to $status."]);
     }
 
-    /**
-     * Expected CSV headers for user import.
-     */
     private const EXPECTED_CSV_HEADERS = ['username', 'email', 'mobile'];
 
-    /**
-     * Import users from a CSV file.
-     * SECURITY: Validates headers before processing.
-     */
     public function import(Request $request)
     {
-        $request->validate(['file' => 'required|file|mimes:csv,txt|max:5120']); // Max 5MB
+        $request->validate(['file' => 'required|file|mimes:csv,txt|max:5120']); 
 
         $file = $request->file('file');
         $handle = fopen($file->getPathname(), 'r');
 
-        // --- SECURITY: Validate CSV headers ---
         $header = fgetcsv($handle);
         if (!$header || count($header) < 3) {
             fclose($handle);
@@ -322,10 +270,8 @@ class AdminUserController extends Controller
             ], 422);
         }
 
-        // Normalize headers (lowercase, trim)
         $normalizedHeaders = array_map(fn($h) => strtolower(trim($h)), $header);
 
-        // Check required headers exist
         foreach (self::EXPECTED_CSV_HEADERS as $required) {
             if (!in_array($required, $normalizedHeaders)) {
                 fclose($handle);
@@ -335,30 +281,24 @@ class AdminUserController extends Controller
             }
         }
 
-        // Map header positions
         $columnMap = [
             'username' => array_search('username', $normalizedHeaders),
             'email' => array_search('email', $normalizedHeaders),
             'mobile' => array_search('mobile', $normalizedHeaders),
         ];
-        // --- END HEADER VALIDATION ---
 
         $imported = 0;
         $skipped = 0;
         $errors = [];
-        $lineNumber = 1; // Header was line 1
+        $lineNumber = 1;
 
         DB::beginTransaction();
         try {
             while (($row = fgetcsv($handle)) !== false) {
                 $lineNumber++;
-
-                // Skip empty rows
                 if (empty(array_filter($row))) {
                     continue;
                 }
-
-                // Validate row has enough columns
                 if (count($row) < 3) {
                     $errors[] = "Line $lineNumber: Insufficient columns";
                     $skipped++;
@@ -369,35 +309,30 @@ class AdminUserController extends Controller
                 $email = trim($row[$columnMap['email']] ?? '');
                 $mobile = trim($row[$columnMap['mobile']] ?? '');
 
-                // Validate required fields
                 if (empty($username) || empty($email) || empty($mobile)) {
                     $errors[] = "Line $lineNumber: Missing required field(s)";
                     $skipped++;
                     continue;
                 }
 
-                // Validate email format
                 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
                     $errors[] = "Line $lineNumber: Invalid email format";
                     $skipped++;
                     continue;
                 }
 
-                // Validate mobile format (10 digits)
                 if (!preg_match('/^[0-9]{10}$/', $mobile)) {
                     $errors[] = "Line $lineNumber: Invalid mobile format (expected 10 digits)";
                     $skipped++;
                     continue;
                 }
 
-                // Skip if user already exists
                 if (User::where('email', $email)->orWhere('mobile', $mobile)->exists()) {
                     $errors[] = "Line $lineNumber: User with email/mobile already exists";
                     $skipped++;
                     continue;
                 }
 
-                // Generate a secure random password
                 $randomPassword = Str::random(12) . Str::random(4, '!@#$%^&*');
 
                 $user = User::create([
@@ -416,7 +351,6 @@ class AdminUserController extends Controller
                 Wallet::create(['user_id' => $user->id]);
                 $user->assignRole('user');
 
-                // Send password reset email
                 $user->sendPasswordResetNotification(
                     app('auth.password.broker')->createToken($user)
                 );
@@ -430,7 +364,7 @@ class AdminUserController extends Controller
                 'message' => "Imported $imported users successfully. Password reset emails have been sent.",
                 'imported' => $imported,
                 'skipped' => $skipped,
-                'errors' => array_slice($errors, 0, 10), // Return first 10 errors
+                'errors' => array_slice($errors, 0, 10), 
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -439,9 +373,6 @@ class AdminUserController extends Controller
         }
     }
 
-    /**
-     * Export users to a CSV file.
-     */
     public function export()
     {
         $headers = [
@@ -471,15 +402,9 @@ class AdminUserController extends Controller
         return new StreamedResponse($callback, 200, $headers);
     }
 
-    /**
-     * Soft delete a user with anonymization
-     *
-     * DELETE /api/v1/admin/users/{id}
-     */
     public function destroy(User $user)
     {
         return DB::transaction(function () use ($user) {
-            // Anonymize user data before soft delete
             $randomId = 'deleted_' . Str::random(10);
 
             $user->update([
@@ -491,7 +416,6 @@ class AdminUserController extends Controller
                 'status' => 'blocked',
             ]);
 
-            // Anonymize profile
             if ($user->profile) {
                 $user->profile->update([
                     'first_name' => 'Deleted',
@@ -503,7 +427,6 @@ class AdminUserController extends Controller
                 ]);
             }
 
-            // Soft delete
             $user->delete();
 
             Log::info("User {$user->id} deleted and anonymized");
@@ -512,11 +435,6 @@ class AdminUserController extends Controller
         });
     }
 
-    /**
-     * Block a user permanently with blacklisting option
-     *
-     * POST /api/v1/admin/users/{id}/block
-     */
     public function block(Request $request, User $user)
     {
         $validated = $request->validate([
@@ -534,7 +452,6 @@ class AdminUserController extends Controller
             'is_blacklisted' => $validated['blacklist'] ?? false,
         ]);
 
-        // Log activity
         $user->activityLogs()->create([
             'action' => 'admin_blocked',
             'description' => "Blocked by admin: {$validated['reason']}. Blacklisted: " . ($validated['blacklist'] ? 'Yes' : 'No'),
@@ -549,11 +466,6 @@ class AdminUserController extends Controller
         ]);
     }
 
-    /**
-     * Unblock a user
-     *
-     * POST /api/v1/admin/users/{id}/unblock
-     */
     public function unblock(User $user)
     {
         $user->update([
@@ -575,11 +487,6 @@ class AdminUserController extends Controller
         return response()->json(['message' => 'User unblocked successfully.']);
     }
 
-    /**
-     * Unsuspend a user
-     *
-     * POST /api/v1/admin/users/{id}/unsuspend
-     */
     public function unsuspend(User $user)
     {
         $user->update([
@@ -600,11 +507,6 @@ class AdminUserController extends Controller
         return response()->json(['message' => 'User unsuspended successfully.']);
     }
 
-    /**
-     * Override investment allocation for a user
-     *
-     * POST /api/v1/admin/users/{id}/override-allocation
-     */
     public function overrideAllocation(Request $request, User $user)
     {
         $validated = $request->validate([
@@ -619,7 +521,6 @@ class AdminUserController extends Controller
             return response()->json(['message' => 'Subscription does not belong to this user'], 400);
         }
 
-        // Override allocation using AllocationService
         $result = $this->allocationService->overrideAllocation(
             $subscription,
             $validated['allocation_amount'],
@@ -634,11 +535,6 @@ class AdminUserController extends Controller
         ]);
     }
 
-    /**
-     * Force payment processing for a user
-     *
-     * POST /api/v1/admin/users/{id}/force-payment
-     */
     public function forcePayment(Request $request, User $user)
     {
         $validated = $request->validate([
@@ -654,7 +550,6 @@ class AdminUserController extends Controller
         }
 
         return DB::transaction(function () use ($validated, $user, $subscription, $request) {
-            // Create manual payment record
             $payment = Payment::create([
                 'user_id' => $user->id,
                 'subscription_id' => $subscription->id,
@@ -666,10 +561,8 @@ class AdminUserController extends Controller
                 'notes' => "Manual payment by admin: {$validated['reason']}",
             ]);
 
-            // Update subscription
             $subscription->increment('consecutive_payments_count');
 
-            // Log activity
             $user->activityLogs()->create([
                 'action' => 'admin_force_payment',
                 'description' => "Manual payment processed: ₹{$validated['amount']}. Reason: {$validated['reason']}",
@@ -685,11 +578,6 @@ class AdminUserController extends Controller
         });
     }
 
-    /**
-     * Send email to a user
-     *
-     * POST /api/v1/admin/users/{id}/send-email
-     */
     public function sendEmail(Request $request, User $user)
     {
         $validated = $request->validate([
@@ -715,11 +603,6 @@ class AdminUserController extends Controller
         }
     }
 
-    /**
-     * Send SMS to a user
-     *
-     * POST /api/v1/admin/users/{id}/send-sms
-     */
     public function sendSms(Request $request, User $user)
     {
         $validated = $request->validate([
@@ -738,11 +621,6 @@ class AdminUserController extends Controller
         }
     }
 
-    /**
-     * Send push notification to a user
-     *
-     * POST /api/v1/admin/users/{id}/send-notification
-     */
     public function sendNotification(Request $request, User $user)
     {
         $validated = $request->validate([
@@ -769,11 +647,6 @@ class AdminUserController extends Controller
         }
     }
 
-    /**
-     * Advanced search with multiple criteria
-     *
-     * POST /api/v1/admin/users/advanced-search
-     */
     public function advancedSearch(Request $request)
     {
         $validated = $request->validate([
@@ -796,7 +669,6 @@ class AdminUserController extends Controller
 
         $query = User::with('profile', 'kyc', 'wallet', 'subscription');
 
-        // Apply filters
         if (!empty($validated['username'])) {
             $query->where('username', 'like', "%{$validated['username']}%");
         }
@@ -862,11 +734,6 @@ class AdminUserController extends Controller
         return response()->json($users);
     }
 
-    /**
-     * User segmentation for targeted actions
-     *
-     * GET /api/v1/admin/users/segments
-     */
     public function segments()
     {
         $segments = [
@@ -906,11 +773,6 @@ class AdminUserController extends Controller
         return response()->json(['segments' => $segments]);
     }
 
-    /**
-     * Get users by segment for bulk actions
-     *
-     * GET /api/v1/admin/users/segment/{name}
-     */
     public function getUsersBySegment(Request $request, string $segment)
     {
         $query = User::with('profile', 'wallet', 'subscription');

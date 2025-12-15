@@ -7,17 +7,19 @@ use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use Exception;
+use App\Contracts\PaymentGatewayInterface; // [AUDIT FIX]
 
 class PaymentInitiationService
 {
+    // [AUDIT FIX] Depend on Abstraction (Interface), not Concretion (RazorpayService)
     public function __construct(
-        protected RazorpayService $razorpayService
+        protected PaymentGatewayInterface $gateway
     ) {}
 
     /**
      * Handle the complete payment initiation flow.
      */
-    public function initiate(User $user, Payment $payment, bool $isAutoDebit): array
+    public function initiate(User $user, Payment $payment, bool $isAutoDebit = false): array
     {
         // 1. Dynamic Limits Check
         $this->validateLimits($payment);
@@ -50,42 +52,42 @@ class PaymentInitiationService
     {
         $plan = $payment->subscription->plan;
 
-        // Ensure Plan exists on Razorpay
+        // Ensure Plan exists on Gateway
         if (!$plan->razorpay_plan_id) {
             try {
-                $this->razorpayService->createOrUpdateRazorpayPlan($plan);
+                // [AUDIT FIX] Use generic method name from interface
+                $this->gateway->createOrUpdatePlan($plan);
             } catch (Exception $e) {
-                Log::error("Razorpay Plan Creation Failed: " . $e->getMessage());
+                Log::error("Gateway Plan Creation Failed: " . $e->getMessage());
                 throw new Exception('Payment provider plan setup failed. Please try again.');
             }
         }
 
-        // Create Razorpay Subscription
+        // Create Gateway Subscription
         try {
-            $razorpaySub = $this->razorpayService->createRazorpaySubscription(
+            // [AUDIT FIX] Use generic method name from interface
+            $gatewaySub = $this->gateway->createSubscription(
                 $plan->razorpay_plan_id,
                 $user->email,
                 $plan->duration_months
             );
         } catch (Exception $e) {
-            Log::error("Razorpay Subscription Failed: " . $e->getMessage());
+            Log::error("Gateway Subscription Failed: " . $e->getMessage());
             throw new Exception('Mandate creation failed. Please try again.');
         }
 
         // Save Mandate ID locally
         $payment->subscription->update([
             'is_auto_debit' => true,
-            'razorpay_subscription_id' => $razorpaySub->id
+            'razorpay_subscription_id' => $gatewaySub->id
         ]);
         
-        // MODULE 8 NOTE: Unified Order ID
-        // For auto-debit, the 'gateway_order_id' is the Subscription ID (sub_...).
-        // This allows the frontend to use the correct 'subscription_id' param in Razorpay Checkout.
-        $payment->update(['gateway_order_id' => $razorpaySub->id]); 
+        // Unified Order ID logic
+        $payment->update(['gateway_order_id' => $gatewaySub->id]); 
 
         return [
             'type' => 'subscription',
-            'subscription_id' => $razorpaySub->id,
+            'subscription_id' => $gatewaySub->id,
             'razorpay_key' => setting('razorpay_key_id', env('RAZORPAY_KEY')),
             'name' => $plan->name . ' (Auto-Debit)',
             'description' => 'Setup recurring monthly payment',
@@ -99,17 +101,16 @@ class PaymentInitiationService
     protected function handleOneTimeFlow(User $user, Payment $payment): array
     {
         try {
-            $order = $this->razorpayService->createOrder(
+            // [AUDIT FIX] Use interface method
+            $order = $this->gateway->createOrder(
                 $payment->amount, 
                 'payment_' . $payment->id
             );
         } catch (Exception $e) {
-            Log::error("Razorpay Order Failed: " . $e->getMessage());
+            Log::error("Gateway Order Failed: " . $e->getMessage());
             throw new Exception('Payment gateway failed. Please try again.');
         }
         
-        // MODULE 8 NOTE: Unified Order ID
-        // For one-time payments, the 'gateway_order_id' is the standard Order ID (order_...).
         $payment->update(['gateway_order_id' => $order->id]);
 
         return [

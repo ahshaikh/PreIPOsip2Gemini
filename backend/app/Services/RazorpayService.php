@@ -1,67 +1,20 @@
 <?php
-// V-FINAL-1730-336 (Full Features & Testable) | V-FINAL-1730-570 (Mandate Engine)
+// V-FINAL-1730-336 (Full Features & Testable) | V-FINAL-1730-570 (Mandate Engine) | V-AUDIT-FIX-DECOUPLING
 
 namespace App\Services;
 
 use Razorpay\Api\Api;
 use Illuminate\Support\Facades\Log;
 use Exception;
-use App\Models\Plan; // <-- IMPORT
-use InvalidArgumentException; // Added for specific exception type
+use App\Models\Plan;
+use InvalidArgumentException;
+use App\Contracts\PaymentGatewayInterface; // [AUDIT FIX]
 
 /**
  * RazorpayService - Payment Gateway Integration
- *
- * Provides a clean interface to Razorpay's payment gateway API for handling
- * one-time payments, subscriptions (mandates), and refunds.
- *
- * ## Configuration
- *
- * API credentials are loaded from database settings with env fallback:
- * - `razorpay_key_id` - Public API key
- * - `razorpay_key_secret` - Secret API key
- *
- * ## Payment Flow (One-Time)
- *
- * ```
- * 1. createOrder() → Razorpay Order ID
- * 2. Frontend: Razorpay Checkout with Order ID
- * 3. Webhook: payment.captured → handleSuccessfulPayment()
- * ```
- *
- * ## Subscription/Mandate Flow (Auto-Debit)
- *
- * ```
- * 1. createOrUpdateRazorpayPlan() → Sync Plan with Razorpay
- * 2. createRazorpaySubscription() → Create mandate
- * 3. Webhook: subscription.charged → handleSubscriptionCharged()
- * ```
- *
- * ## Key Methods
- *
- * | Method                      | Purpose                                    |
- * |-----------------------------|--------------------------------------------|
- * | createOrder()               | Create one-time payment order              |
- * | createOrUpdateRazorpayPlan()| Sync local Plan with Razorpay Plans        |
- * | createRazorpaySubscription()| Create recurring mandate for user          |
- * | verifySignature()           | Validate checkout callback signature       |
- * | verifyWebhookSignature()    | Validate webhook payload authenticity      |
- * | refundPayment()             | Process full or partial refund             |
- *
- * ## Amount Conversion
- *
- * Razorpay uses **paise** (smallest currency unit). All amounts are
- * converted: `amount * 100` before sending to Razorpay.
- *
- * ## Testability
- *
- * The `setApi()` method allows injecting a mock Api instance for unit tests.
- *
- * @package App\Services
- * @see \App\Services\PaymentWebhookService
- * @link https://razorpay.com/docs/api/
+ * Implements the standard PaymentGatewayInterface.
  */
-class RazorpayService
+class RazorpayService implements PaymentGatewayInterface
 {
     protected $api;
     protected $key;
@@ -69,8 +22,8 @@ class RazorpayService
 
     public function __construct()
     {
-        $this->key = setting('razorpay_key_id', env('RAZORPAY_KEY')); // Use DB setting
-        $this->secret = setting('razorpay_key_secret', env('RAZORPAY_SECRET')); // Use DB setting
+        $this->key = setting('razorpay_key_id', env('RAZORPAY_KEY')); 
+        $this->secret = setting('razorpay_key_secret', env('RAZORPAY_SECRET')); 
         
         if ($this->key && $this->secret) {
             $this->api = new Api($this->key, $this->secret);
@@ -81,15 +34,16 @@ class RazorpayService
     public function getApi() { return $this->api; }
 
     // --- ORDER MANAGEMENT ---
-    public function createOrder($amount, $receipt)
+    
+    // [AUDIT FIX] Implements interface method
+    public function createOrder(float $amount, string $receiptId)
     {
-        // SECURITY: Validate amount at service level to prevent bypass
         $this->validateAmount($amount);
 
-        $this->log("Creating Order: Amount={$amount}, Receipt={$receipt}");
+        $this->log("Creating Order: Amount={$amount}, Receipt={$receiptId}");
         try {
             $order = $this->api->order->create([
-                'receipt' => (string) $receipt,
+                'receipt' => (string) $receiptId,
                 'amount' => $amount * 100, // Paise
                 'currency' => 'INR',
                 'payment_capture' => 1
@@ -104,10 +58,7 @@ class RazorpayService
 
     // --- PAYMENT MANAGEMENT ---
 
-    /**
-     * Fetch payment details from Razorpay
-     */
-    public function fetchPayment($paymentId)
+    public function fetchPayment(string $paymentId)
     {
         $this->log("Fetching Payment: {$paymentId}");
         try {
@@ -120,30 +71,8 @@ class RazorpayService
         }
     }
 
-    // --- PAYMENT MANAGEMENT ---
-
-    /**
-     * Fetch payment details from Razorpay
-     */
-    public function fetchPayment($paymentId)
-    {
-        $this->log("Fetching Payment: {$paymentId}");
-        try {
-            $payment = $this->api->payment->fetch($paymentId);
-            $this->log("Payment Fetched: {$paymentId}");
-            return $payment;
-        } catch (Exception $e) {
-            $this->log("Payment Fetch Failed: " . $e->getMessage(), 'error');
-            throw $e;
-        }
-    }
-
-    /**
-     * Capture a payment (for manual capture mode)
-     */
     public function capturePayment($paymentId, $amount)
     {
-        // Validate capture amount if provided
         if ($amount) {
             $this->validateAmount($amount);
         }
@@ -151,7 +80,7 @@ class RazorpayService
         $this->log("Capturing Payment: {$paymentId}, Amount={$amount}");
         try {
             $payment = $this->api->payment->fetch($paymentId);
-            $captured = $payment->capture(['amount' => $amount * 100]); // Paise
+            $captured = $payment->capture(['amount' => $amount * 100]);
             $this->log("Payment Captured: {$paymentId}");
             return $captured;
         } catch (Exception $e) {
@@ -160,16 +89,14 @@ class RazorpayService
         }
     }
 
-    /**
-     * Refund a payment (full or partial)
-     */
-    public function refundPayment($paymentId, $amount = null)
+    // [AUDIT FIX] Implements interface method
+    public function refundPayment(string $paymentId, ?float $amount = null)
     {
         $this->log("Refunding Payment: {$paymentId}" . ($amount ? ", Amount={$amount}" : " (Full)"));
         try {
             $refundData = [];
             if ($amount !== null) {
-                $refundData['amount'] = $amount * 100; // Paise
+                $refundData['amount'] = $amount * 100;
             }
             $refund = $this->api->payment->fetch($paymentId)->refund($refundData);
             $this->log("Refund Processed: {$refund->id}");
@@ -180,10 +107,8 @@ class RazorpayService
         }
     }
 
-    /**
-     * Verify payment signature from Razorpay checkout
-     */
-    public function verifySignature($attributes)
+    // [AUDIT FIX] Implements interface method
+    public function verifySignature(array $attributes): bool
     {
         $this->log("Verifying Payment Signature");
         try {
@@ -196,9 +121,6 @@ class RazorpayService
         }
     }
 
-    /**
-     * Verify webhook signature for security
-     */
     public function verifyWebhookSignature($payload, $signature, $secret)
     {
         $this->log("Verifying Webhook Signature");
@@ -219,16 +141,15 @@ class RazorpayService
         }
     }
 
-    // --- NEW: SUBSCRIPTION / MANDATE ENGINE (FSD-PAY-103) ---
+    // --- SUBSCRIPTION / MANDATE ENGINE ---
 
     /**
-     * Create or Update a Plan on Razorpay's servers.
+     * [AUDIT FIX] Renamed to match interface: createOrUpdateRazorpayPlan -> createOrUpdatePlan
      */
-    public function createOrUpdateRazorpayPlan(Plan $plan)
+    public function createOrUpdatePlan(Plan $plan)
     {
         $this->log("Syncing Plan #{$plan->id} with Razorpay...");
         
-        // Validate plan amount
         $this->validateAmount($plan->monthly_amount);
 
         $planData = [
@@ -236,7 +157,7 @@ class RazorpayService
             'interval' => 1,
             'item' => [
                 'name' => $plan->name,
-                'amount' => $plan->monthly_amount * 100, // Paise
+                'amount' => $plan->monthly_amount * 100,
                 'currency' => 'INR',
                 'description' => $plan->description ?? 'Monthly SIP'
             ]
@@ -244,8 +165,6 @@ class RazorpayService
 
         try {
             if ($plan->razorpay_plan_id) {
-                // We cannot update a plan, we must create a new one.
-                // This is a complex V3.0 task. For V1/V2, we assume we don't.
                 $this->log("Plan {$plan->razorpay_plan_id} already exists. Skipping update.");
                 return $plan->razorpay_plan_id;
             }
@@ -263,17 +182,17 @@ class RazorpayService
     }
 
     /**
-     * Create a new Razorpay Subscription (Mandate) for a user.
+     * [AUDIT FIX] Renamed to match interface: createRazorpaySubscription -> createSubscription
      */
-    public function createRazorpaySubscription(string $razorpayPlanId, string $customerEmail, int $durationMonths)
+    public function createSubscription(string $gatewayPlanId, string $customerEmail, int $totalCount)
     {
-        $this->log("Creating Subscription for Plan {$razorpayPlanId}");
+        $this->log("Creating Subscription for Plan {$gatewayPlanId}");
         
         try {
             $subscription = $this->api->subscription->create([
-                'plan_id' => $razorpayPlanId,
-                'customer_notify' => 1, // Let Razorpay handle notifications
-                'total_count' => $durationMonths,
+                'plan_id' => $gatewayPlanId,
+                'customer_notify' => 1,
+                'total_count' => $totalCount,
                 'notes' => [
                     'email' => $customerEmail
                 ]
@@ -288,10 +207,6 @@ class RazorpayService
         }
     }
 
-    /**
-     * Internal Validation Helper
-     * Prevents bypassing amount limits via Service calls
-     */
     protected function validateAmount($amount)
     {
         if (!is_numeric($amount) || $amount <= 0) {
@@ -306,7 +221,6 @@ class RazorpayService
         }
     }
 
-    // --- HELPER ---
     private function log($message, $level = 'info')
     {
         Log::$level("[RazorpayService] " . $message);

@@ -13,6 +13,22 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class BackupController extends Controller
 {
+    // [AUDIT FIX] Helper to create a secure temp auth file for mysqldump
+    // This prevents the password from appearing in the process list (ps aux)
+    private function createDbAuthFile()
+    {
+        $content = "[client]\n" .
+                   "user=\"" . env('DB_USERNAME') . "\"\n" .
+                   "password=\"" . env('DB_PASSWORD') . "\"\n" .
+                   "host=\"" . env('DB_HOST') . "\"\n";
+                   
+        $filename = 'backup_auth_' . uniqid() . '.cnf';
+        $path = storage_path('app/' . $filename);
+        file_put_contents($path, $content);
+        chmod($path, 0600); // Restrict permissions to owner only
+        return $path;
+    }
+
     /**
      * Get backup configuration
      * GET /api/v1/admin/system/backup/config
@@ -107,6 +123,8 @@ class BackupController extends Controller
             'include_files' => 'sometimes|boolean',
         ]);
 
+        $authFilePath = null; // [AUDIT FIX] Initialize variable for cleanup
+
         try {
             // Create backup directory if it doesn't exist
             Storage::disk('local')->makeDirectory('backups');
@@ -118,20 +136,18 @@ class BackupController extends Controller
 
             /*
              * DELETED: The PHP looping logic (Critical Failure)
-             * $tables = DB::select('SHOW TABLES');
-             * foreach ($tables as $table) { 
-             * $rows = DB::table($table->...)->get(); // <--- Loads entire table into RAM
-             * }
-             * REASON: This causes Fatal Error: Allowed memory size exhausted on large tables (e.g. activity_logs).
+             * REASON: This causes Fatal Error: Allowed memory size exhausted on large tables.
              */
 
-            // ADDED: Use system mysqldump command
+            // [AUDIT FIX] Create secure auth file
+            $authFilePath = $this->createDbAuthFile();
+
+            // ADDED: Use system mysqldump command with defaults-extra-file
             // This runs outside PHP memory space and streams the backup efficiently.
+            // [AUDIT FIX] Password is no longer exposed in CLI arguments
             $command = sprintf(
-                'mysqldump --user=%s --password=%s --host=%s %s > %s',
-                escapeshellarg(env('DB_USERNAME')),
-                escapeshellarg(env('DB_PASSWORD')),
-                escapeshellarg(env('DB_HOST')),
+                'mysqldump --defaults-extra-file=%s %s > %s',
+                escapeshellarg($authFilePath),
                 escapeshellarg($dbName),
                 escapeshellarg($fullPath)
             );
@@ -155,6 +171,11 @@ class BackupController extends Controller
                 'error' => 'Backup failed',
                 'message' => $e->getMessage(),
             ], 500);
+        } finally {
+            // [AUDIT FIX] Always delete the temp auth file
+            if ($authFilePath && file_exists($authFilePath)) {
+                unlink($authFilePath);
+            }
         }
     }
 
@@ -214,22 +235,33 @@ class BackupController extends Controller
         // Streams the output of mysqldump directly to the browser output buffer.
         // PHP memory usage stays near zero regardless of DB size.
         return new StreamedResponse(function() {
-            $handle = fopen('php://output', 'w');
-            
-             $command = sprintf(
-                'mysqldump --user=%s --password=%s --host=%s %s',
-                escapeshellarg(env('DB_USERNAME')),
-                escapeshellarg(env('DB_PASSWORD')),
-                escapeshellarg(env('DB_HOST')),
-                escapeshellarg(env('DB_DATABASE'))
-            );
-            
-            $proc = popen($command, 'r');
-            while (!feof($proc)) {
-                fwrite($handle, fread($proc, 4096)); // Buffer size 4KB
+            $authFilePath = null; // [AUDIT FIX] Initialize for cleanup
+
+            try {
+                // [AUDIT FIX] Create secure auth file
+                $authFilePath = $this->createDbAuthFile();
+
+                $command = sprintf(
+                    'mysqldump --defaults-extra-file=%s %s',
+                    escapeshellarg($authFilePath),
+                    escapeshellarg(env('DB_DATABASE'))
+                );
+                
+                $handle = fopen('php://output', 'w');
+                $proc = popen($command, 'r');
+                while (!feof($proc)) {
+                    fwrite($handle, fread($proc, 4096)); // Buffer size 4KB
+                }
+                pclose($proc);
+                fclose($handle);
+            } catch (\Exception $e) {
+                // Log error if needed
+            } finally {
+                // [AUDIT FIX] Cleanup temp file
+                if ($authFilePath && file_exists($authFilePath)) {
+                    unlink($authFilePath);
+                }
             }
-            pclose($proc);
-            fclose($handle);
         }, 200, $headers);
     }
 }

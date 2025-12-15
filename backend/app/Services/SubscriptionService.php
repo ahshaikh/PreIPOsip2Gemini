@@ -173,18 +173,22 @@ class SubscriptionService
             throw new \Exception("This plan does not allow pausing.");
         }
 
-        // [MODIFIED] Delegate to Model domain logic if available
-        // If Model method exists: $subscription->pause($months);
-        // Fallback logic implemented inline to be safe if Model method is missing from context
+        // [AUDIT FIX] Implemented Date Shifting Logic directly
+        // This ensures dates are shifted even if the Model method is missing
         
         $subscription->status = 'paused';
         $subscription->pause_months = $months;
         $subscription->paused_at = now();
         
         // Critical: Shift the end date and next payment date!
-        // (Assuming model has these fields)
-        // $subscription->end_date = Carbon::parse($subscription->end_date)->addMonths($months);
-        // $subscription->next_payment_date = Carbon::parse($subscription->next_payment_date)->addMonths($months);
+        // We use Carbon to safely add months
+        if ($subscription->end_date) {
+            $subscription->end_date = Carbon::parse($subscription->end_date)->addMonths($months);
+        }
+        
+        if ($subscription->next_payment_date) {
+            $subscription->next_payment_date = Carbon::parse($subscription->next_payment_date)->addMonths($months);
+        }
         
         $subscription->save();
 

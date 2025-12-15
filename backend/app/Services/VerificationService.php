@@ -83,25 +83,60 @@ class VerificationService
         }
 
         // 4. Parse XML (This is complex)
-        // $xml = simplexml_load_string($dataResponse->body());
-        // $nameOnCard = (string) $xml->KycRes->UidData->Poi['name'];
-        // $dobOnCard = (string) $xml->KycRes->UidData->Poi['dob'];
-        // $addrOnCard = (string) $xml->KycRes->UidData->Poa['co'];
+        // [AUDIT FIX] Replaced mock logic with actual XML parsing
+        $xmlContent = $dataResponse->body();
+        if (empty($xmlContent)) {
+            throw new \Exception("Empty response from DigiLocker.");
+        }
+
+        // Use internal errors to handle XML parsing issues gracefully
+        libxml_use_internal_errors(true);
+        $xml = simplexml_load_string($xmlContent);
         
-        // --- MOCK PARSING for V1 ---
-        $nameOnCard = $kyc->user->profile->first_name . ' ' . $kyc->user->profile->last_name;
+        if ($xml === false) {
+            Log::error("DigiLocker XML Parse Error", ['errors' => libxml_get_errors()]);
+            libxml_clear_errors();
+            throw new \Exception("Failed to parse Aadhaar XML response.");
+        }
+
+        // Extract Data (DigiLocker XML usually has <UidData> with <Poi> and <Poa>)
+        // Adjust namespaces if required by the specific API version
+        $uidData = $xml->KycRes->UidData ?? null;
+        $poi = $uidData ? $uidData->Poi : null;
+
+        if (!$poi) {
+            throw new \Exception("Invalid XML structure: Identity data (Poi) missing.");
+        }
+
+        $nameOnCard = (string) $poi['name'];
+        // $dobOnCard = (string) $poi['dob'];
+        // $gender = (string) $poi['gender'];
+        
+        // --- DELETED MOCK PARSING for V1 ---
+        // $nameOnCard = $kyc->user->profile->first_name . ' ' . $kyc->user->profile->last_name;
         // -----------------------------
 
         // 5. Run Validation
         if (!$this->checkNameMatch($kyc->user->profile->first_name, $nameOnCard)) {
-            throw new \Exception("Aadhaar name does not match profile name.");
+            Log::warning("KYC Name Mismatch: Profile='{$kyc->user->profile->first_name}', Aadhaar='{$nameOnCard}'");
+            throw new \Exception("Aadhaar name ($nameOnCard) does not match profile name.");
         }
 
         // 6. Update KYC
         $kyc->aadhaar_number = 'DL-VERIFIED-' . $kyc->id;
+        // [AUDIT FIX] Auto-verify immediately as source is trusted
+        $kyc->status = 'verified'; 
+        $kyc->verified_at = now();
+
         $kyc->documents()->updateOrCreate(
             ['user_kyc_id' => $kyc->id, 'doc_type' => 'aadhaar_front'],
-            ['processing_status' => 'verified', 'file_name' => 'DigiLocker e-Aadhaar']
+            [
+                'processing_status' => 'verified', 
+                'file_name' => 'DigiLocker e-Aadhaar',
+                // We don't save the full XML to disk for security/privacy, just flag it
+                'file_path' => 'virtual/digilocker', 
+                'mime_type' => 'application/xml'
+            ]
         );
         $kyc->save();
 
@@ -113,6 +148,11 @@ class VerificationService
     public function verifyPan(string $pan, string $name, string $dob = null) { /* ... */ }
     public function verifyBank(string $account, string $ifsc, string $name) { /* ... */ }
     private function processPanResponse($data, $pan, $inputName, $inputDob) { /* ... */ }
-    private function checkNameMatch($inputName, $apiName) { /* ... */ }
+    
+    private function checkNameMatch($inputName, $apiName) { 
+        // Simple fuzzy match or string containment for robustness
+        return Str::contains(strtolower($apiName), strtolower($inputName));
+    }
+    
     public function parseDocumentWithOcr(KycDocument $doc) { /* ... */ }
 }

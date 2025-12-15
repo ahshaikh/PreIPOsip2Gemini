@@ -1,4 +1,5 @@
-// V-FINAL-1730-633 (Created) | V-SECURITY-TOKEN-ENCRYPTION | V-TYPES-FIX
+// V-FINAL-1730-633 (Created) | V-SECURITY-TOKEN-ENCRYPTION | V-TYPES-FIX | V-AUDIT-FIX-DRY
+
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
@@ -35,8 +36,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const token = secureStorage.getItem('auth_token');
     if (token) {
-      // Token exists, set it in our API helper
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      // [AUDIT FIX] Removed redundant header setting. 
+      // The interceptor in api.ts handles this for every request.
+      
       // Fetch the user's profile to confirm the token is valid
       fetchProfile();
     } else {
@@ -66,7 +68,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = (token: string, userData: any) => {
     // 1. Store token and user data (encrypted)
     secureStorage.setItem('auth_token', token);
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    
+    // [AUDIT FIX] Removed redundant header setting.
+    // api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    
     setUser(userData);
 
     // 2. Determine user role and appropriate dashboard
@@ -101,7 +106,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    */
   const logout = () => {
     secureStorage.removeItem('auth_token');
-    delete api.defaults.headers.common['Authorization'];
+    // [AUDIT FIX] Header deletion is technically redundant but harmless here, 
+    // removing for consistency with DRY principle.
+    // delete api.defaults.headers.common['Authorization'];
+    
     setUser(null);
     queryClient.clear(); // Clear all cached data
     router.push('/login');
