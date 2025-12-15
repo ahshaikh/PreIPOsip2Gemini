@@ -54,7 +54,6 @@ class SocialLoginController extends Controller
             return redirect(env('FRONTEND_URL') . '/login?error=google_failed');
         }
 
-<<<<<<< HEAD
         // Extract referral code from state parameter
         $referralCode = null;
         if ($request->has('state')) {
@@ -63,16 +62,6 @@ class SocialLoginController extends Controller
                 $referralCode = $stateData['referral_code'] ?? null;
             } catch (\Exception $e) {
                 Log::warning('Failed to decode referral state', ['error' => $e->getMessage()]);
-=======
-        // Extract referral code from state if present
-        $referralCode = null;
-        if ($request->filled('state')) {
-            try {
-                $stateData = json_decode(base64_decode($request->state), true);
-                $referralCode = $stateData['referral_code'] ?? null;
-            } catch (\Exception $e) {
-                // Invalid state format, continue without referral
->>>>>>> 5a046271830c8a9f8526dde5fea7b414a73819b6
             }
         }
 
@@ -123,7 +112,6 @@ class SocialLoginController extends Controller
 
         // Process referral code if provided
         if ($referralCode) {
-<<<<<<< HEAD
             $this->processReferralCode($user, $referralCode);
         }
     }
@@ -168,16 +156,6 @@ class SocialLoginController extends Controller
                 'referral_code' => $referralCode,
                 'error' => $e->getMessage()
             ]);
-=======
-            $referrer = User::where('referral_code', $referralCode)->first();
-            if ($referrer) {
-                $user->update(['referred_by' => $referrer->id]);
-
-                // Use ReferralService to process the referral
-                $referralService = app(\App\Services\ReferralService::class);
-                $referralService->processReferral($user->id, $referrer->id);
-            }
->>>>>>> 5a046271830c8a9f8526dde5fea7b414a73819b6
         }
     }
 }
