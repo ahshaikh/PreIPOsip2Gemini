@@ -78,10 +78,7 @@ class NotificationService
         $this->dispatchNotification($user, $templateSlug, $variables);
     }
 
-    /**
-     * Test: test_send_notification_batches_bulk_sends
-     */
-    public function sendBatch(array $userIds, string $templateSlug, array $variables = [])
+       public function sendBatch(array $userIds, string $templateSlug, array $variables = [])
     {
         $users = User::whereIn('id', $userIds)->get();
         foreach ($users as $user) {
@@ -92,11 +89,31 @@ class NotificationService
 
     private function dispatchNotification(User $user, string $templateSlug, array $variables)
     {
-        // 1. Get Channel Priorities (FSD-SYS-118)
-        // For now, we assume standard: Email first, SMS second (for critical)
-        $channels = ['email'];
-        if (str_contains($templateSlug, 'otp') || str_contains($templateSlug, 'failed')) {
+        // FIX: Module 16 - Database-Driven Channels (Low)
+        // Removed hardcoded str_contains($slug, 'otp') logic.
+        // Instead, we check if specific templates exist for the slug to determine channels.
+        // In the future, this can be replaced by a 'channels' column in a NotificationTemplate table.
+        
+        $channels = [];
+
+        // 1. Check Email
+        if (EmailTemplate::where('slug', $templateSlug)->exists()) {
+            $channels[] = 'email';
+        }
+
+        // 2. Check SMS (OTP, Alerts)
+        if (SmsTemplate::where('slug', $templateSlug)->exists()) {
             $channels[] = 'sms';
+        }
+
+        // Fallback for critical system messages if no template found but slug implies urgency
+        // (Maintaining slight backward compatibility during migration)
+        if (empty($channels)) {
+            if (str_contains($templateSlug, 'otp') || str_contains($templateSlug, 'failed')) {
+                $channels = ['email', 'sms'];
+            } else {
+                $channels = ['email'];
+            }
         }
 
         foreach ($channels as $channel) {
@@ -112,6 +129,7 @@ class NotificationService
                 ->onQueue('notifications'); // Use a dedicated queue
 
             // 4. Respect Priority (Test: test_send_notification_respects_priority)
+            // Critical items go to high_priority queue
             if (str_contains($templateSlug, 'otp') || str_contains($templateSlug, 'failed')) {
                 $job->onQueue('high_priority');
             }

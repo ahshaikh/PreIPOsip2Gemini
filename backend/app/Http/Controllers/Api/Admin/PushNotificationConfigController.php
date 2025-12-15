@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\PushLog;
 use App\Models\User;
+use App\Jobs\SendPushCampaignJob; // FIX: Use the Job
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Bus; // FIX: Use Batching
 
 class PushNotificationConfigController extends Controller
 {
@@ -73,6 +75,7 @@ class PushNotificationConfigController extends Controller
 
     /**
      * Send manual push notification
+     * FIX: Module 16 - Fix Bulk Push Timeout (High)
      */
     public function sendManual(Request $request)
     {
@@ -90,77 +93,34 @@ class PushNotificationConfigController extends Controller
             'badge_count' => 'nullable|integer',
         ]);
 
-        $provider = setting('push_provider', 'fcm');
-        $recipients = $this->getRecipients($validated);
+        // Retrieve users query builder
+        $query = $this->getRecipientsQuery($validated);
 
-        if (empty($recipients)) {
+        if ($query->count() === 0) {
             return response()->json([
                 'message' => 'No recipients found for the specified target',
             ], 422);
         }
 
-        $sent = 0;
-        $failed = 0;
-        $errors = [];
+        // FIX: Use Job Batching instead of foreach loop to prevent timeout
+        $batch = [];
+        
+        // Chunk users into groups of 100
+        $query->chunkById(100, function ($users) use ($validated, &$batch) {
+            $batch[] = new SendPushCampaignJob($users, $validated);
+        });
 
-        foreach ($recipients as $user) {
-            // Get user's device tokens (would need a user_devices table)
-            // For now, we'll create a placeholder
-            $deviceToken = $this->getUserDeviceToken($user);
-
-            if (!$deviceToken) {
-                $failed++;
-                continue;
-            }
-
-            try {
-                $result = $this->sendPushNotification($provider, $deviceToken, [
-                    'title' => $validated['title'],
-                    'body' => $validated['body'],
-                    'data' => $validated['data'] ?? [],
-                    'image_url' => $validated['image_url'] ?? null,
-                    'action_url' => $validated['action_url'] ?? null,
-                    'priority' => $validated['priority'] ?? 'normal',
-                    'badge_count' => $validated['badge_count'] ?? null,
-                ]);
-
-                if ($result['success']) {
-                    $sent++;
-
-                    // Log the push notification
-                    PushLog::create([
-                        'user_id' => $user->id,
-                        'device_token' => $deviceToken,
-                        'device_type' => 'unknown',
-                        'title' => $validated['title'],
-                        'body' => $validated['body'],
-                        'data' => $validated['data'] ?? null,
-                        'status' => PushLog::STATUS_SENT,
-                        'provider' => $provider,
-                        'provider_message_id' => $result['message_id'] ?? null,
-                        'provider_response' => $result['response'] ?? null,
-                        'sent_at' => now(),
-                        'priority' => $validated['priority'] ?? 'normal',
-                        'image_url' => $validated['image_url'] ?? null,
-                        'action_url' => $validated['action_url'] ?? null,
-                        'badge_count' => $validated['badge_count'] ?? null,
-                    ]);
-                } else {
-                    $failed++;
-                    $errors[] = $result['error'];
-                }
-            } catch (\Exception $e) {
-                $failed++;
-                $errors[] = $e->getMessage();
-            }
+        // Dispatch batch
+        if (!empty($batch)) {
+            Bus::batch($batch)
+                ->name('Push Manual: ' . $validated['title'])
+                ->onQueue('notifications')
+                ->dispatch();
         }
 
         return response()->json([
-            'message' => 'Push notifications sent',
-            'sent' => $sent,
-            'failed' => $failed,
-            'total_recipients' => count($recipients),
-            'errors' => array_unique($errors),
+            'message' => 'Push notifications queued for processing',
+            'total_recipients_approx' => $query->count(),
         ]);
     }
 
@@ -169,6 +129,7 @@ class PushNotificationConfigController extends Controller
      */
     public function testConfig(Request $request)
     {
+        // Keep this synchronous for immediate feedback during config test
         $validated = $request->validate([
             'provider' => 'required|in:fcm,onesignal',
             'test_token' => 'required|string',
@@ -177,8 +138,17 @@ class PushNotificationConfigController extends Controller
         $provider = $validated['provider'];
         $testToken = $validated['test_token'];
 
+        // Instantiate a temporary job just to use its logic methods, or refactor helper methods to a Service
+        // For now, simpler to replicate the single send logic or instantiate the job logic.
+        // Let's manually call the helper logic (which we should move to a service ideally).
+        // Since we refactored the bulk send to a job, we need to bring the low-level send logic back here or into a Trait/Service.
+        // To avoid code duplication, assume we move sendPushNotification to a static helper or Service.
+        // For this fix, I will implement a basic version here for testing.
+        
         try {
-            $result = $this->sendPushNotification($provider, $testToken, [
+            // Using a job instance method (public static) would be best, but let's implement inline for the fix request
+            $job = new SendPushCampaignJob(collect([]), []); 
+            $result = $job->sendPushNotification($provider, $testToken, [
                 'title' => 'Test Notification',
                 'body' => 'This is a test notification from ' . config('app.name'),
                 'data' => ['test' => true],
@@ -243,160 +213,27 @@ class PushNotificationConfigController extends Controller
     }
 
     /**
-     * Helper: Get recipients based on target type
+     * Helper: Get recipients query based on target type
+     * Changed to return Builder instead of Collection for chunking
      */
-    private function getRecipients($validated)
+    private function getRecipientsQuery($validated)
     {
         switch ($validated['target_type']) {
             case 'all':
-                return User::where('status', 'active')->get();
+                return User::where('status', 'active');
 
             case 'user':
-                return User::where('id', $validated['user_id'])->get();
+                return User::where('id', $validated['user_id']);
 
             case 'users':
-                return User::whereIn('id', $validated['user_ids'])->get();
+                return User::whereIn('id', $validated['user_ids']);
 
             case 'segment':
-                // Implement segment logic here
-                return collect([]);
+                // Placeholder for segment logic
+                return User::whereRaw('0 = 1'); 
 
             default:
-                return collect([]);
-        }
-    }
-
-    /**
-     * Helper: Get user device token
-     * This is a placeholder - you would need a user_devices table
-     */
-    private function getUserDeviceToken($user)
-    {
-        // TODO: Implement actual device token retrieval
-        // For now, return a placeholder
-        return 'placeholder_device_token_' . $user->id;
-    }
-
-    /**
-     * Helper: Send push notification via provider
-     */
-    private function sendPushNotification($provider, $deviceToken, $payload)
-    {
-        if ($provider === 'fcm') {
-            return $this->sendViaFcm($deviceToken, $payload);
-        } elseif ($provider === 'onesignal') {
-            return $this->sendViaOneSignal($deviceToken, $payload);
-        }
-
-        return [
-            'success' => false,
-            'error' => 'Invalid provider',
-        ];
-    }
-
-    /**
-     * Helper: Send via Firebase Cloud Messaging
-     */
-    private function sendViaFcm($deviceToken, $payload)
-    {
-        $serverKey = setting('fcm_server_key');
-
-        if (empty($serverKey)) {
-            return [
-                'success' => false,
-                'error' => 'FCM server key not configured',
-            ];
-        }
-
-        try {
-            $response = Http::withHeaders([
-                'Authorization' => 'key=' . $serverKey,
-                'Content-Type' => 'application/json',
-            ])->post('https://fcm.googleapis.com/fcm/send', [
-                'to' => $deviceToken,
-                'notification' => [
-                    'title' => $payload['title'],
-                    'body' => $payload['body'],
-                    'icon' => $payload['image_url'] ?? setting('push_default_icon'),
-                    'sound' => setting('push_sound', 'default'),
-                ],
-                'data' => $payload['data'] ?? [],
-                'priority' => $payload['priority'] ?? 'high',
-                'time_to_live' => setting('push_ttl', 86400),
-            ]);
-
-            if ($response->successful()) {
-                $data = $response->json();
-                return [
-                    'success' => true,
-                    'message_id' => $data['results'][0]['message_id'] ?? null,
-                    'response' => $data,
-                ];
-            } else {
-                return [
-                    'success' => false,
-                    'error' => $response->body(),
-                    'response' => $response->json(),
-                ];
-            }
-        } catch (\Exception $e) {
-            return [
-                'success' => false,
-                'error' => $e->getMessage(),
-            ];
-        }
-    }
-
-    /**
-     * Helper: Send via OneSignal
-     */
-    private function sendViaOneSignal($deviceToken, $payload)
-    {
-        $appId = setting('onesignal_app_id');
-        $apiKey = setting('onesignal_api_key');
-
-        if (empty($appId) || empty($apiKey)) {
-            return [
-                'success' => false,
-                'error' => 'OneSignal not configured',
-            ];
-        }
-
-        try {
-            $response = Http::withHeaders([
-                'Authorization' => 'Basic ' . $apiKey,
-                'Content-Type' => 'application/json',
-            ])->post('https://onesignal.com/api/v1/notifications', [
-                'app_id' => $appId,
-                'include_player_ids' => [$deviceToken],
-                'headings' => ['en' => $payload['title']],
-                'contents' => ['en' => $payload['body']],
-                'data' => $payload['data'] ?? [],
-                'big_picture' => $payload['image_url'] ?? null,
-                'url' => $payload['action_url'] ?? null,
-                'priority' => $payload['priority'] === 'high' ? 10 : 5,
-                'ttl' => setting('push_ttl', 86400),
-            ]);
-
-            if ($response->successful()) {
-                $data = $response->json();
-                return [
-                    'success' => true,
-                    'message_id' => $data['id'] ?? null,
-                    'response' => $data,
-                ];
-            } else {
-                return [
-                    'success' => false,
-                    'error' => $response->body(),
-                    'response' => $response->json(),
-                ];
-            }
-        } catch (\Exception $e) {
-            return [
-                'success' => false,
-                'error' => $e->getMessage(),
-            ];
+                return User::whereRaw('0 = 1');
         }
     }
 }

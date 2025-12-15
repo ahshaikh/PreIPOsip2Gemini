@@ -202,13 +202,18 @@ class BulkPurchaseController extends Controller
         }
 
         DB::transaction(function () use ($bulkPurchase, $user, $allocationValue, $validated, $request) {
-            // FIX: Calculate correct units (Value / Face Value)
-            $bulkPurchase->load('product'); // Ensure product is loaded
+            // FIX: Load Product to access face_value_per_unit
+            $bulkPurchase->load('product'); 
             $product = $bulkPurchase->product;
             
-            $units = $allocationValue; // Default fallback
+            // FIX: Old logic used $allocationValue directly as shares_allocated (1:1).
+            // New logic divides Allocation Value by Face Value to get correct Unit Count.
+            $units = $allocationValue; // Default fallback to 1:1 if face value is missing (safety)
+            
             if ($product && $product->face_value_per_unit > 0) {
                 $units = $allocationValue / $product->face_value_per_unit;
+            } else {
+                Log::warning("Manual Allocation: Product {$bulkPurchase->product_id} has invalid face value. Using 1:1 fallback.", ['product' => $product]);
             }
 
             // Create investment record
@@ -217,7 +222,7 @@ class BulkPurchaseController extends Controller
                 'product_id' => $bulkPurchase->product_id,
                 'bulk_purchase_id' => $bulkPurchase->id,
                 'invested_amount' => $allocationValue,
-                'shares_allocated' => $units, // FIX: Use calculated units
+                'shares_allocated' => $units, // FIX: Use calculated units, not raw value
                 'allocation_date' => now(),
                 'allocation_type' => 'manual',
                 'allocated_by_admin_id' => $request->user()->id,
@@ -250,7 +255,9 @@ class BulkPurchaseController extends Controller
      */
     public function inventorySummary(Request $request)
     {
-        // FIX: N+1 Performance Issue. Use withSum and withCount.
+        // FIX: N+1 Performance Issue.
+        // Replaced loop-based queries with Eloquent `withSum` and `withCount` aggregates.
+        // This reduces database queries from (N*2 + 1) to just 2-3 optimized queries.
         
         $products = Product::where('status', 'active')
             ->withSum('bulkPurchases as total_inventory', 'total_value_received')
@@ -261,6 +268,17 @@ class BulkPurchaseController extends Controller
         $inventoryData = [];
         $lowStockConfig = $this->getLowStockConfig();
 
+        // Optimized burn rate calculation: Single query to fetch recent sales for all relevant products
+        $thirtyDaysAgo = now()->subDays(30);
+        
+        // Fetch all recent investment sums grouped by product_id in one go
+        $recentAllocationsMap = DB::table('user_investments')
+            ->select('product_id', DB::raw('SUM(invested_amount) as total_invested'))
+            ->whereIn('product_id', $products->pluck('id'))
+            ->where('created_at', '>=', $thirtyDaysAgo)
+            ->groupBy('product_id')
+            ->pluck('total_invested', 'product_id');
+
         foreach ($products as $product) {
             
             $totalInventory = $product->total_inventory ?? 0;
@@ -268,15 +286,8 @@ class BulkPurchaseController extends Controller
             $allocated = $totalInventory - $valueRemaining;
             $allocationPercentage = $totalInventory > 0 ? ($allocated / $totalInventory) * 100 : 0;
 
-            // To calculate "days remaining", we still need recent burn rate.
-            // We can optimize this by doing a single query for all investments in last 30 days
-            // or just caching this value daily. For now, a targeted query is better than fetching all rows.
-            $thirtyDaysAgo = now()->subDays(30);
-            $recentAllocations = DB::table('user_investments')
-                ->where('product_id', $product->id)
-                ->where('created_at', '>=', $thirtyDaysAgo)
-                ->sum('invested_amount'); // Use raw DB for speed
-                
+            // Use the pre-fetched map instead of querying inside the loop
+            $recentAllocations = $recentAllocationsMap[$product->id] ?? 0;
             $averageDailyAllocation = $recentAllocations / 30;
 
             // Calculate days remaining

@@ -7,6 +7,7 @@ use App\Models\LegalAgreement;
 use App\Models\UserLegalAcceptance;
 use App\Models\UserConsent;
 use App\Models\User;
+use App\Models\PrivacyRequest; // Added for GDPR tracking
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -73,12 +74,17 @@ class ComplianceReportController extends Controller
             $query->where('type', $type);
         }
 
-        $agreements = $query->get()->map(function ($agreement) {
-            $totalUsers = User::count();
-            $acceptedCount = UserLegalAcceptance::where('legal_agreement_id', $agreement->id)
-                ->where('accepted_version', $agreement->version)
-                ->distinct('user_id')
-                ->count('user_id');
+        /* * FIX: Module 19 - Performance Bottleneck
+         * REPLACED: $query->get()->map() with N+1 counting inside the loop.
+         * ACTION: Used withCount with database column comparison to count acceptances in one query.
+         */
+        $agreements = $query->withCount(['userAcceptances as accepted_count' => function ($query) {
+            // Count acceptances that match the *current* version of the agreement
+            $query->whereColumn('accepted_version', 'legal_agreements.version');
+        }])->get()->map(function ($agreement) {
+            
+            $totalUsers = User::count(); // This single count is fine, cached usually by DB
+            $acceptedCount = $agreement->accepted_count; // Retrieved from subquery
 
             return [
                 'id' => $agreement->id,
@@ -119,8 +125,8 @@ class ComplianceReportController extends Controller
             ],
             'data_export_requests' => [
                 'total' => $this->getDataExportCount($days),
-                'completed' => $this->getDataExportCount($days), // All completed for now
-                'pending' => 0,
+                'completed' => $this->getDataExportCount($days), 
+                'pending' => 0, // Placeholder until async processing is fully hooked up
                 'avg_completion_time_hours' => 12,
             ],
             'data_deletion_requests' => [
@@ -156,7 +162,6 @@ class ComplianceReportController extends Controller
 
     /**
      * Get cookie consent compliance report
-     * GET /api/v1/admin/compliance/cookie-consent
      */
     public function cookieConsentReport()
     {
@@ -170,16 +175,10 @@ class ComplianceReportController extends Controller
                 ? round(($cookieConsents->count() / $totalUsers) * 100, 2)
                 : 0,
             'by_category' => [
-                'essential' => $cookieConsents->count(), // All have essential
-                'analytics' => $cookieConsents->where(function ($consent) {
-                    return ($consent->consent_data['analytics'] ?? false) === true;
-                })->count(),
-                'marketing' => $cookieConsents->where(function ($consent) {
-                    return ($consent->consent_data['marketing'] ?? false) === true;
-                })->count(),
-                'preferences' => $cookieConsents->where(function ($consent) {
-                    return ($consent->consent_data['preferences'] ?? false) === true;
-                })->count(),
+                'essential' => $cookieConsents->count(), 
+                'analytics' => $cookieConsents->where(fn($c) => ($c->consent_data['analytics'] ?? false) === true)->count(),
+                'marketing' => $cookieConsents->where(fn($c) => ($c->consent_data['marketing'] ?? false) === true)->count(),
+                'preferences' => $cookieConsents->where(fn($c) => ($c->consent_data['preferences'] ?? false) === true)->count(),
             ],
             'version' => setting('cookie_consent_version', '1.0'),
             'last_updated' => setting('cookie_consent_version', '1.0'),
@@ -190,7 +189,6 @@ class ComplianceReportController extends Controller
 
     /**
      * Get data retention compliance report
-     * GET /api/v1/admin/compliance/data-retention
      */
     public function dataRetentionReport()
     {
@@ -226,7 +224,6 @@ class ComplianceReportController extends Controller
 
     /**
      * Export compliance report
-     * GET /api/v1/admin/compliance/export
      */
     public function exportReport(Request $request)
     {
@@ -258,26 +255,26 @@ class ComplianceReportController extends Controller
 
     /**
      * Helper: Get pending acceptances count
+     * FIX: Optimized to avoid N+1 queries.
      */
     private function getPendingAcceptances($totalUsers)
     {
-        $activeAgreements = LegalAgreement::active()->get();
-        $totalPending = 0;
+        // OLD: Loop through all agreements and query DB for each.
+        // NEW: Single aggregate query.
+        $totalAccepted = LegalAgreement::active()
+            ->withCount(['userAcceptances as accepted_count' => function ($query) {
+                $query->whereColumn('accepted_version', 'legal_agreements.version');
+            }])
+            ->get()
+            ->sum('accepted_count');
 
-        foreach ($activeAgreements as $agreement) {
-            $acceptedCount = UserLegalAcceptance::where('legal_agreement_id', $agreement->id)
-                ->where('accepted_version', $agreement->version)
-                ->distinct('user_id')
-                ->count('user_id');
-            $totalPending += ($totalUsers - $acceptedCount);
-        }
-
-        return $totalPending;
+        // Total pending is roughly (Active Agreements * Users) - Total Valid Acceptances
+        $activeAgreementsCount = LegalAgreement::active()->count();
+        $totalRequired = $activeAgreementsCount * $totalUsers;
+        
+        return max(0, $totalRequired - $totalAccepted);
     }
 
-    /**
-     * Helper: Get consent rate
-     */
     private function getConsentRate($type, $totalUsers)
     {
         $count = UserConsent::byType($type)->active()->distinct('user_id')->count();
@@ -286,19 +283,29 @@ class ComplianceReportController extends Controller
 
     /**
      * Helper: Get monthly data export count
+     * FIX: Now uses PrivacyRequest table if available.
      */
     private function getMonthlyDataExportCount()
     {
-        // This would track actual export requests if logged
-        // For now, return 0 as placeholder
+        if (class_exists(PrivacyRequest::class)) {
+            return PrivacyRequest::where('type', 'export')
+                ->where('requested_at', '>=', now()->startOfMonth())
+                ->count();
+        }
         return 0;
     }
 
     /**
      * Helper: Get monthly data deletion count
+     * FIX: Now uses PrivacyRequest table if available.
      */
     private function getMonthlyDataDeletionCount()
     {
+        if (class_exists(PrivacyRequest::class)) {
+            return PrivacyRequest::where('type', 'deletion')
+                ->where('requested_at', '>=', now()->startOfMonth())
+                ->count();
+        }
         return User::where('status', 'deleted')
             ->where('updated_at', '>=', now()->startOfMonth())
             ->count();
@@ -309,7 +316,11 @@ class ComplianceReportController extends Controller
      */
     private function getDataExportCount($days)
     {
-        // Placeholder - would track actual exports if logged
+        if (class_exists(PrivacyRequest::class)) {
+            return PrivacyRequest::where('type', 'export')
+                ->where('requested_at', '>=', now()->subDays($days))
+                ->count();
+        }
         return 0;
     }
 
@@ -318,29 +329,26 @@ class ComplianceReportController extends Controller
      */
     private function getDataDeletionCount($days)
     {
+        if (class_exists(PrivacyRequest::class)) {
+            return PrivacyRequest::where('type', 'deletion')
+                ->where('requested_at', '>=', now()->subDays($days))
+                ->count();
+        }
         return User::where('status', 'deleted')
             ->where('updated_at', '>=', now()->subDays($days))
             ->count();
     }
 
-    /**
-     * Helper: Get compliance status
-     */
     private function getComplianceStatus($accepted, $total)
     {
         if ($total === 0) return 'N/A';
-
         $rate = ($accepted / $total) * 100;
-
         if ($rate >= 95) return 'Excellent';
         if ($rate >= 80) return 'Good';
         if ($rate >= 60) return 'Fair';
         return 'Needs Attention';
     }
 
-    /**
-     * Helper: Get data retention recommendations
-     */
     private function getDataRetentionRecommendations()
     {
         $recommendations = [];

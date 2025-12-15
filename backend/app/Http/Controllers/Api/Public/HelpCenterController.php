@@ -7,6 +7,7 @@ use App\Models\KbCategory;
 use App\Models\KbArticle;
 use App\Models\ArticleFeedback;
 use App\Models\KbArticleView;
+use App\Jobs\ProcessKbView; // Import the Job for async tracking
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -39,16 +40,18 @@ class HelpCenterController extends Controller
             ->with('category')
             ->firstOrFail();
 
-        // 1. Log the View (Async-like)
-        KbArticleView::create([
-            'kb_article_id' => $article->id,
-            'user_id'       => $request->user('sanctum')?->id, // Detects logged-in user
-            'ip_address'    => $request->ip(),
-            'user_agent'    => $request->userAgent(),
-        ]);
-
-        // 2. Increment cached counter for sorting
-        $article->increment('views');
+        // FIX: Performance Bottleneck (Synchronous Writes)
+        // Replaced direct synchronous creation with Queueable Job.
+        // This prevents table locking during high traffic.
+        
+        $userId = $request->user('sanctum')?->id;
+        
+        ProcessKbView::dispatch(
+            $article->id, 
+            $request->ip(), 
+            $request->userAgent(), 
+            $userId
+        )->afterResponse(); // Dispatch after response is sent to user for max speed
 
         return response()->json($article);
     }

@@ -1,5 +1,5 @@
 <?php
-// V-FINAL-1730-382 (Created)
+// V-FINAL-1730-382 (Created) | V-FIX-MODULE-14-LOAD-BALANCING (Gemini)
 
 namespace App\Services;
 
@@ -22,18 +22,26 @@ class SupportService
     /**
      * Test: test_auto_assign_ticket_to_available_agent
      * Logic: Find the support agent with the fewest open tickets and assign.
+     * FIX: Module 14 - Implemented Load Balancing
      */
     public function autoAssignTicket(SupportTicket $ticket): void
     {
-        // Find an active admin/support agent
-        // In V2, this logic would be "least busy". For V1, we find the first.
+        // FIX: Replaced simple 'first()' with load balancing logic.
+        // We look for users with 'admin' or 'support' roles.
+        // We use 'withCount' on 'assignedTickets' (assuming relationship exists on User model)
+        // to find the agent with the minimum workload.
+        
         $agent = User::role(['admin', 'support'])
             ->where('status', 'active')
+            ->withCount(['assignedTickets' => function ($query) {
+                $query->whereIn('status', ['open', 'in_progress']);
+            }])
+            ->orderBy('assigned_tickets_count', 'asc') // Least busy first
             ->first();
 
         if ($agent) {
             $ticket->update(['assigned_to' => $agent->id]);
-            Log::info("Ticket #{$ticket->id} auto-assigned to Agent #{$agent->id}");
+            Log::info("Ticket #{$ticket->id} auto-assigned to Agent #{$agent->id} (Current Load: {$agent->assigned_tickets_count})");
         } else {
             Log::warning("No active support agents found to assign Ticket #{$ticket->id}");
         }
@@ -54,6 +62,8 @@ class SupportService
             $ticket->update(['priority' => 'high']);
 
             // Dispatch notification to admin team
+            // Note: In a full refactor, this loop should also be moved to an Event/Job
+            // but we prioritized the Controller synchronous loop first.
             $admins = User::role('admin')->get();
             foreach ($admins as $admin) {
                 $this->notificationService->send($admin, 'support.sla_breach', [

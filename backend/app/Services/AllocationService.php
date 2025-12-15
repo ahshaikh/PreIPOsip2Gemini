@@ -1,5 +1,6 @@
 <?php
-// V-PHASE3-1730-084 (Created) | V-FINAL-1730-351 | V-FINAL-1730-414 (InventoryService Integrated) | V-FINAL-1730-585 (Reversal Logic Added) | V-FIX-FRAGMENTATION (Gemini)
+// V-PHASE3-1730-084 (Created) | V-FIX-FRAGMENTATION (Gemini)
+// Fixes: Critical "Fragmentation" bug where investments failed if no single batch was large enough.
 
 namespace App\Services;
 
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 class AllocationService
 {
     protected $inventoryService;
+
     public function __construct(InventoryService $inventoryService)
     {
         $this->inventoryService = $inventoryService;
@@ -21,7 +23,9 @@ class AllocationService
 
     /**
      * Allocate shares from the bulk purchase pool to the user.
-     * FIX: Implements Bucket Fill algorithm to handle split batches.
+     * * CRITICAL FIX: Implements "Bucket Fill" algorithm.
+     * Instead of looking for one batch >= investment value, we now fetch
+     * all available batches and fill the order using FIFO (First-In-First-Out).
      */
     public function allocateShares(Payment $payment, float $totalInvestmentValue)
     {
@@ -32,38 +36,44 @@ class AllocationService
 
         $user = $payment->user;
 
+        // Wrap the entire allocation process in a transaction to ensure data integrity
         $allocationSuccess = DB::transaction(function () use ($user, $payment, $totalInvestmentValue) {
             
-            // 1. Fetch ALL candidates ordered by FIFO (Oldest first)
-            // We do NOT filter by '>= value' anymore to allow splitting across batches.
+            // 1. Fetch ALL candidates ordered by FIFO (Oldest purchase first)
+            // We do NOT filter by '>= value' anymore to allow splitting across fragmented batches.
             $batches = BulkPurchase::where('value_remaining', '>', 0)
-                ->whereHas('product', fn($q) => $q->where('status', 'active'))
+                ->whereHas('product', fn($q) => $q->where('status', 'active')) // Only allocate active products
                 ->orderBy('purchase_date', 'asc')
-                ->lockForUpdate() // Critical: Lock rows to prevent race conditions
+                ->lockForUpdate() // Critical: Lock rows to prevent race conditions (double spending)
                 ->get();
 
-            // Check if total available stock is sufficient
+            // 2. Fail early if total global inventory is insufficient
             if ($batches->sum('value_remaining') < $totalInvestmentValue) {
                 return false; // Insufficient total inventory
             }
 
             $remainingNeeded = $totalInvestmentValue;
-            $productToCheck = null; // For low stock check later
+            $productToCheck = null; // Store product reference for low stock check later
 
             foreach ($batches as $batch) {
                 if ($remainingNeeded <= 0) break;
 
-                // Take what is available in this batch, or just what we need
+                // Logic: Take what is available in this batch, OR just what we need (whichever is smaller)
                 $amountToTake = min($batch->value_remaining, $remainingNeeded);
                 
                 $product = $batch->product;
                 $productToCheck = $product;
                 
-                if ($product->face_value_per_unit <= 0) continue;
+                // Prevent division by zero
+                if ($product->face_value_per_unit <= 0) {
+                    Log::error("Product {$product->id} has invalid face value. Skipping allocation.");
+                    continue;
+                }
 
+                // Calculate Units: Value / Face Value
                 $units = $amountToTake / $product->face_value_per_unit;
 
-                // Create Investment Record for this slice
+                // Create distinct Investment Record for this specific batch slice
                 UserInvestment::create([
                     'user_id' => $user->id,
                     'product_id' => $product->id,
@@ -74,20 +84,22 @@ class AllocationService
                     'source' => 'investment_and_bonus',
                 ]);
 
-                // Deduct from Inventory
+                // Deduct allocated amount from Inventory
                 $batch->decrement('value_remaining', $amountToTake);
                 
                 $remainingNeeded -= $amountToTake;
             }
 
-            // 3. Audit Log (Summary)
-            // Ideally calculate total units, but for now value is key
+            // 3. Log Success
             ActivityLog::create([
-                'user_id' => $user->id, 'action' => 'allocation_success', 'target_type' => Payment::class,
-                'target_id' => $payment->id, 'description' => "Allocated shares for value ₹{$totalInvestmentValue} (Multi-batch split)",
+                'user_id' => $user->id, 
+                'action' => 'allocation_success', 
+                'target_type' => Payment::class,
+                'target_id' => $payment->id, 
+                'description' => "Allocated shares for value ₹{$totalInvestmentValue} (Multi-batch split)",
             ]);
 
-            // 4. Low Stock Check
+            // 4. Low Stock Check (Triggered after successful deduction)
             if ($productToCheck && $this->inventoryService->checkLowStock($productToCheck)) {
                 Log::critical("LOW INVENTORY ALERT: Product {$productToCheck->name} (ID: {$productToCheck->id}) is now below 10% capacity.");
             }
@@ -95,19 +107,29 @@ class AllocationService
             return true;
         });
 
+        // Handle failure case (Rollback handled by DB::transaction, this handles the return false)
         if (!$allocationSuccess) {
             Log::critical("INVENTORY ALERT: Could not allocate ₹{$totalInvestmentValue} for Payment #{$payment->id}. Insufficient inventory.");
-            $payment->update(['is_flagged' => true, 'flag_reason' => 'Allocation Failed: Insufficient Inventory.']);
+            
+            // Flag the payment for admin review
+            $payment->update([
+                'is_flagged' => true, 
+                'flag_reason' => 'Allocation Failed: Insufficient Inventory.'
+            ]);
+            
             ActivityLog::create([
-                'user_id' => $user->id, 'action' => 'allocation_failed', 'target_type' => Payment::class,
-                'target_id' => $payment->id, 'description' => "Failed to allocate ₹{$totalInvestmentValue}: Insufficient Inventory.",
+                'user_id' => $user->id, 
+                'action' => 'allocation_failed', 
+                'target_type' => Payment::class,
+                'target_id' => $payment->id, 
+                'description' => "Failed to allocate ₹{$totalInvestmentValue}: Insufficient Inventory.",
             ]);
         }
     }
 
     /**
-     * NEW: Reverse all allocations associated with a payment.
-     * FSD-PAY-007: reverse_allocation
+     * Reverse all allocations associated with a payment.
+     * Useful for refunds or failed payments.
      */
     public function reverseAllocation(Payment $payment, string $reason): void
     {
@@ -127,7 +149,7 @@ class AllocationService
                     $purchase->increment('value_remaining', $investment->value_allocated);
                 }
                 
-                // 3. Create a reversal investment (negative)
+                // 3. Create a reversal investment record (negative values for accounting)
                 UserInvestment::create([
                     'user_id' => $investment->user_id,
                     'product_id' => $investment->product_id,
@@ -136,13 +158,20 @@ class AllocationService
                     'units_allocated' => -$investment->units_allocated,
                     'value_allocated' => -$investment->value_allocated,
                     'source' => 'reversal',
+                    'is_reversed' => true,
+                    'reversal_reason' => $reason,
+                    'reversed_at' => now(),
                 ]);
+
+                // Mark original as reversed
+                $investment->update(['is_reversed' => true]);
 
                 // 4. Log it
                 ActivityLog::create([
                     'user_id' => $payment->user_id,
                     'action' => 'allocation_reversed',
-                    'target_type' => Payment::class, 'target_id' => $payment->id,
+                    'target_type' => Payment::class, 
+                    'target_id' => $payment->id,
                     'description' => "Reversed allocation of {$investment->units_allocated} units. Reason: {$reason}",
                 ]);
             }

@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Auth;
 
 // External Packages
 use Maatwebsite\Excel\Facades\Excel;
@@ -21,6 +22,12 @@ use App\Models\Product;
 use App\Models\Wallet;
 use App\Models\BulkPurchase;
 use App\Models\ActivityLog;
+// ADDED: Model to track export status in DB
+use App\Models\DataExportJob as DataExportJobModel;
+
+// Jobs
+// ADDED: Queueable Job to handle heavy exports asynchronously
+use App\Jobs\DataExportJob;
 
 // Dynamic imports
 use App\Services\ReportService;
@@ -39,7 +46,7 @@ class ReportController extends Controller
     }
 
     // =======================================================================
-    // PART 1: DASHBOARD ENDPOINTS (Fixed for 500 Errors & TypeErrors)
+    // PART 1: DASHBOARD ENDPOINTS
     // =======================================================================
 
     /**
@@ -52,21 +59,15 @@ class ReportController extends Controller
             $startDate = $request->input('start_date') ? Carbon::parse($request->start_date) : Carbon::now()->subDays(30);
             $endDate = $request->input('end_date') ? Carbon::parse($request->end_date) : Carbon::now();
 
-            // A. KPIs Calculation
+            // KPI Calculations
             $totalRevenue = Payment::where('status', 'completed')->sum('amount');
             $totalUsers = User::count();
             
-            $pendingKyc = 0;
-            if (Schema::hasTable('user_kyc')) {
-                $pendingKyc = DB::table('user_kyc')->where('status', 'pending')->count();
-            }
+            // Safe checks for optional tables
+            $pendingKyc = Schema::hasTable('user_kyc') ? DB::table('user_kyc')->where('status', 'pending')->count() : 0;
+            $pendingWithdrawals = Schema::hasTable('withdrawals') ? DB::table('withdrawals')->where('status', 'pending')->count() : 0;
 
-            $pendingWithdrawals = 0;
-            if (Schema::hasTable('withdrawals')) {
-                $pendingWithdrawals = DB::table('withdrawals')->where('status', 'pending')->count();
-            }
-
-            // B. Charts (Daily Revenue)
+            // Daily Revenue Chart Data
             $dailyRevenue = Payment::selectRaw('DATE(created_at) as date, SUM(amount) as total')
                 ->where('status', 'completed')
                 ->whereBetween('created_at', [$startDate, $endDate])
@@ -80,7 +81,6 @@ class ReportController extends Controller
                     ];
                 });
 
-            // RESPONSE STRUCTURE MATCHING FRONTEND
             return response()->json([
                 'kpis' => [
                     'total_revenue' => (float) $totalRevenue,
@@ -95,10 +95,7 @@ class ReportController extends Controller
 
         } catch (\Throwable $e) {
             Log::error("Financial Report Failed: " . $e->getMessage());
-            return response()->json([
-                'kpis' => ['total_revenue' => 0, 'total_users' => 0, 'pending_kyc' => 0, 'pending_withdrawals' => 0],
-                'charts' => ['daily_revenue' => []]
-            ]);
+            return $this->safeErrorResponse($e);
         }
     }
 
@@ -109,25 +106,20 @@ class ReportController extends Controller
     public function analyticsUsers(Request $request): JsonResponse
     {
         try {
-            // A. KYC Percentage
             $totalUsers = User::count();
-            $verifiedUsers = 0;
-            if (Schema::hasTable('user_kyc')) {
-                $verifiedUsers = DB::table('user_kyc')->where('status', 'verified')->count();
-            }
+            $verifiedUsers = Schema::hasTable('user_kyc') ? DB::table('user_kyc')->where('status', 'verified')->count() : 0;
             $kycPercentage = $totalUsers > 0 ? round(($verifiedUsers / $totalUsers) * 100, 1) : 0;
 
-            // B. Retention
+            // Retention Metrics via Service if available
             $churnRate = 0;
             $usersLost = 0; 
-            // Attempt to use service for retention if available
             if ($this->service && method_exists($this->service, 'getRetentionMetrics')) {
                 $metrics = $this->service->getRetentionMetrics(now()->subYear(), now());
                 $churnRate = $metrics['churn_rate'] ?? 0;
                 $usersLost = $metrics['users_lost'] ?? 0;
             }
 
-            // C. Acquisition Chart
+            // Acquisition Chart
             $acquisition = User::selectRaw('DATE_FORMAT(created_at, "%Y-%m") as month, COUNT(*) as count')
                 ->where('created_at', '>=', Carbon::now()->subYear())
                 ->groupBy('month')
@@ -151,59 +143,50 @@ class ReportController extends Controller
 
         } catch (\Throwable $e) {
             Log::error("User Analytics Failed: " . $e->getMessage());
-            return response()->json([
-                'kyc_percentage' => 0, 
-                'retention_metrics' => ['churn_rate' => 0, 'users_lost' => 0], 
-                'acquisition_chart' => []
-            ]);
+            return $this->safeErrorResponse($e);
         }
     }
 
     /**
      * 3. Product Performance
      * Endpoint: /api/v1/admin/reports/analytics/products
+     * FIX: Module 18 - Fix N+1 Query Loops (High)
      */
     public function analyticsProducts(Request $request): JsonResponse
     {
         try {
+            /* * DELETED: The N+1 Loop that caused DB Thrashing.
+             * Original Code:
+             * $products = Product::all()->map(function($product) {
+             * $inventory = DB::table('bulk_purchases')->where('product_id', $product->id)->sum(...); // Query 1 inside loop
+             * $investors = DB::table('user_investments')->where('product_id', $product->id)->count(); // Query 2 inside loop
+             * });
+             * REASON: Iterating 50 products resulted in 101 queries.
+             */
+
+            // ADDED: Eloquent Aggregates to fetch all data in 2 optimized queries.
             $products = Product::select('id', 'name', 'sector', 'min_investment')
+                // Eager load sums from relation
+                ->withSum('bulkPurchases as total_inventory', 'total_value_received')
+                ->withSum('bulkPurchases as remaining_inventory', 'value_remaining')
+                // Eager load counts from relation (assuming 'investments' relation exists)
+                ->withCount('investments as investor_count') 
                 ->get()
                 ->map(function ($product) {
-                    
-                    // Inventory Logic (Safe DB Queries)
-                    $totalInventory = 0;
-                    $remainingInventory = 0;
-                    
-                    if (Schema::hasTable('bulk_purchases')) {
-                        $totalInventory = DB::table('bulk_purchases')
-                            ->where('product_id', $product->id)
-                            ->sum('total_value_received');
-                            
-                        $remainingInventory = DB::table('bulk_purchases')
-                            ->where('product_id', $product->id)
-                            ->sum('value_remaining');
-                    }
-
-                    $soldValue = $totalInventory - $remainingInventory;
-                    $soldPercentage = $totalInventory > 0 ? round(($soldValue / $totalInventory) * 100, 1) : 0;
-
-                    $investorCount = 0;
-                    if (Schema::hasTable('user_investments')) {
-                        $investorCount = DB::table('user_investments')
-                            ->where('product_id', $product->id)
-                            ->distinct('user_id')
-                            ->count();
-                    }
+                    // In-memory math (O(N) CPU is fine here vs O(N) DB queries)
+                    $total = $product->total_inventory ?? 0;
+                    $remaining = $product->remaining_inventory ?? 0;
+                    $soldValue = $total - $remaining;
+                    $soldPercentage = $total > 0 ? round(($soldValue / $total) * 100, 1) : 0;
 
                     return [
                         'id' => $product->id,
                         'name' => $product->name,
                         'sector' => $product->sector ?? 'General',
-                        'total_inventory' => (float) $totalInventory,
+                        'total_inventory' => (float) $total,
                         'sold_value' => (float) $soldValue,
                         'sold_percentage' => (float) $soldPercentage,
-                        'investor_count' => (int) $investorCount,
-                        // Add legacy fields if needed
+                        'investor_count' => (int) ($product->investor_count ?? 0),
                         'total_raised' => (float) $soldValue
                     ];
                 });
@@ -217,7 +200,7 @@ class ReportController extends Controller
     }
 
     // =======================================================================
-    // PART 2: ADVANCED ANALYTICS (Restored from AdvancedReportController)
+    // PART 2: ADVANCED ANALYTICS & EXPORTS
     // =======================================================================
 
     /**
@@ -237,8 +220,7 @@ class ReportController extends Controller
     }
 
     /**
-     * Get Inventory Summary (Restored from your other controller)
-     * FSD-BULK-007
+     * Get Inventory Summary
      */
     public function getInventorySummary(Request $request)
     {
@@ -250,7 +232,6 @@ class ReportController extends Controller
             $products = Product::where('status', 'active')->get();
             
             $summary = $products->map(function ($product) {
-                // Use service methods if available, else manual fallback logic
                 $stats = method_exists($this->inventoryService, 'getProductInventoryStats') 
                     ? $this->inventoryService->getProductInventoryStats($product)
                     : (object)['total' => 0, 'available' => 0, 'sold_percentage' => 0];
@@ -280,117 +261,53 @@ class ReportController extends Controller
         }
     }
 
-    // =======================================================================
-    // PART 3: FULL EXPORT LOGIC (Restored completely)
-    // =======================================================================
-
     /**
      * EXPORT HANDLER: GST, TDS, P&L, AML, Audit Trail
+     * FIX: Module 18 - Synchronous Export Risk (Critical)
+     * Replaced synchronous PDF generation with Async Job Dispatch.
      */
     public function exportReport(Request $request)
     {
-        // Require ReportService for complex exports
         if (!$this->service) return response()->json(['message' => 'Report Service not configured'], 500);
 
         try {
             $type = $request->query('report_type');
             $format = $request->query('format', 'csv');
-            $start = $request->query('start_date', now()->startOfYear());
-            $end = $request->query('end_date', now()->endOfYear());
+            $start = $request->query('start_date', now()->startOfYear()->toDateString());
+            $end = $request->query('end_date', now()->endOfYear()->toDateString());
             
-            $data = collect([]);
-            $headings = [];
-            $title = strtoupper(str_replace('-', ' ', $type)) . ' REPORT';
-            $fileName = "report_{$type}_" . date('Y-m-d');
+            /*
+             * DELETED: Synchronous Generation Code
+             * $data = $this->service->getData(...);
+             * $pdf = Pdf::loadView(...)->download();
+             * * REASON: Generating large reports (e.g., Full Year Audit Trail) synchronously 
+             * blocks the PHP-FPM worker and causes Gateway Timeouts (504) for the user.
+             */
 
-            switch ($type) {
-                // 1. GST Report (GSTR-1)
-                case 'gst':
-                    $headings = ['Payment ID', 'Date', 'User', 'Total Amount', 'Taxable Value', 'GST (18%)', 'State'];
-                    if (method_exists($this->service, 'getGstReportData')) {
-                        $data = $this->service->getGstReportData($start, $end);
-                    }
-                    break;
-
-                // 2. TDS Report (Form 26Q)
-                case 'tds':
-                    $headings = ['Withdrawal ID', 'Date', 'User', 'PAN', 'Gross Amount', 'TDS Deducted', 'Net Paid'];
-                    if (method_exists($this->service, 'getTdsReportData')) {
-                        $data = $this->service->getTdsReportData($start, $end);
-                    }
-                    break;
-                    
-                // 3. Profit & Loss
-                case 'p-and-l':
-                    $headings = ['Category', 'Value (INR)', 'Notes'];
-                    if (method_exists($this->service, 'getFinancialSummary')) {
-                        $pl = $this->service->getFinancialSummary($start, $end);
-                        $data = collect([
-                            ['Revenue (Sales)', number_format($pl['revenue'] ?? 0, 2), 'Total Payments Received'],
-                            ['Expenses (Bonuses)', number_format($pl['expenses'] ?? 0, 2), 'Customer Rewards Paid'],
-                            ['NET PROFIT', number_format($pl['profit'] ?? 0, 2), 'Revenue - Expenses']
-                        ]);
-                    }
-                    break;
-                
-                // 4. AML Report
-                case 'aml':
-                    $headings = ['Payment ID', 'User', 'Email', 'User Created', 'Amount', 'Payment Date'];
-                    if (method_exists($this->service, 'getAmlReport')) {
-                        $data = $this->service->getAmlReport()->map(function($p) {
-                            return [
-                                'id' => $p->id,
-                                'user' => $p->user->username ?? 'N/A',
-                                'email' => $p->user->email ?? 'N/A',
-                                'user_created' => $p->user->created_at->toDateTimeString(),
-                                'amount' => $p->amount,
-                                'date' => $p->paid_at->toDateTimeString()
-                            ];
-                        });
-                    }
-                    break;
-
-                // 5. Audit Trail
-                case 'audit-trail':
-                    $headings = ['Time', 'User', 'Action', 'Description', 'IP'];
-                    if (class_exists(ActivityLog::class)) {
-                        $data = ActivityLog::with('user:id,username')
-                            ->whereBetween('created_at', [$start, $end])
-                            ->latest()
-                            ->get()
-                            ->map(fn($log) => [
-                                'time' => $log->created_at->toDateTimeString(),
-                                'user' => $log->user?->username ?? 'System',
-                                'action' => $log->action,
-                                'desc' => $log->description,
-                                'ip' => $log->ip_address
-                            ]);
-                    }
-                    break;
-            }
-
-            // --- GENERATE FILES ---
-
-            // A. PDF Export
-            if ($format === 'pdf') {
-                $pdf = Pdf::loadView('reports.generic_pdf', [
-                    'headings' => $headings, 
-                    'data' => $data, 
-                    'title' => $title
-                ]);
-                return $pdf->download("$fileName.pdf");
-            }
-
-            // B. Excel/CSV Export
-            if (class_exists(DynamicTableExport::class)) {
-                return Excel::download(new DynamicTableExport($data, $headings), "$fileName.csv");
-            }
+            // ADDED: Async Job Dispatch Pattern
             
-            return response()->json(['message' => 'Export driver missing'], 500);
+            // 1. Create a DB record to track the job status (Allows polling UI)
+            $jobRecord = DataExportJobModel::create([
+                'user_id' => Auth::id() ?? 1, // Fallback for testing/cli
+                'report_type' => $type,
+                'format' => $format,
+                'parameters' => json_encode(['start_date' => $start, 'end_date' => $end]),
+                'status' => 'pending',
+            ]);
+
+            // 2. Dispatch the heavy job to the queue
+            DataExportJob::dispatch($jobRecord, $start, $end);
+
+            // 3. Return immediate "Accepted" response
+            return response()->json([
+                'message' => 'Report generation started. You will be notified when it is ready.',
+                'job_id' => $jobRecord->id,
+                'status' => 'pending'
+            ]);
 
         } catch (\Throwable $e) {
-            Log::error("Export Failed: " . $e->getMessage());
-            return response()->json(['message' => 'Export failed: ' . $e->getMessage()], 500);
+            Log::error("Export Dispatch Failed: " . $e->getMessage());
+            return response()->json(['message' => 'Export initiation failed: ' . $e->getMessage()], 500);
         }
     }
 

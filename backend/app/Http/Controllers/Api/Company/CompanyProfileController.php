@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Company;
 
 use App\Http\Controllers\Controller;
+use App\Services\CompanyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
@@ -10,6 +11,13 @@ use Illuminate\Support\Str;
 
 class CompanyProfileController extends Controller
 {
+    protected $companyService;
+
+    public function __construct(CompanyService $companyService)
+    {
+        $this->companyService = $companyService;
+    }
+
     /**
      * Update company profile information
      */
@@ -57,15 +65,14 @@ class CompanyProfileController extends Controller
             'key_metrics', 'investors',
         ]);
 
-        // Update slug if name changed
-        if (isset($data['name'])) {
-            $data['slug'] = Str::slug($data['name']);
-        }
+        // Note: Slug generation is now handled automatically by the Model Observer
+        // if the name changes. We don't need to manually set it here anymore.
+        // However, we pass the name, and the Model will handle the rest.
 
         $company->update($data);
 
-        // Calculate profile completion percentage
-        $this->updateProfileCompletion($company);
+        // FIX: Calculate profile completion using Service
+        $this->companyService->updateProfileCompletion($company);
 
         return response()->json([
             'success' => true,
@@ -111,7 +118,8 @@ class CompanyProfileController extends Controller
 
             $company->update(['logo' => $path]);
 
-            $this->updateProfileCompletion($company);
+            // FIX: Update score using Service
+            $this->companyService->updateProfileCompletion($company);
 
             return response()->json([
                 'success' => true,
@@ -129,63 +137,10 @@ class CompanyProfileController extends Controller
         }
     }
 
-    /**
-     * Calculate and update profile completion percentage
+    /*
+     * REMOVED: private function updateProfileCompletion($company)
+     * REASON: Logic moved to App\Services\CompanyService to adhere to DRY and SRP.
      */
-    private function updateProfileCompletion($company)
-    {
-        $fields = [
-            'name' => 5,
-            'description' => 10,
-            'logo' => 10,
-            'website' => 5,
-            'sector' => 5,
-            'founded_year' => 5,
-            'headquarters' => 5,
-            'ceo_name' => 5,
-            'latest_valuation' => 10,
-            'funding_stage' => 5,
-            'total_funding' => 5,
-            'linkedin_url' => 3,
-            'twitter_url' => 2,
-            'facebook_url' => 2,
-        ];
-
-        $completionPercentage = 0;
-
-        foreach ($fields as $field => $weight) {
-            if (!empty($company->$field)) {
-                $completionPercentage += $weight;
-            }
-        }
-
-        // Add bonus for having team members
-        if ($company->teamMembers()->count() > 0) {
-            $completionPercentage += 10;
-        }
-
-        // Add bonus for having financial reports
-        if ($company->financialReports()->count() > 0) {
-            $completionPercentage += 10;
-        }
-
-        // Add bonus for having funding rounds
-        if ($company->fundingRounds()->count() > 0) {
-            $completionPercentage += 5;
-        }
-
-        // Add bonus for having documents
-        if ($company->documents()->count() > 0) {
-            $completionPercentage += 3;
-        }
-
-        $completionPercentage = min($completionPercentage, 100);
-
-        $company->update([
-            'profile_completion_percentage' => $completionPercentage,
-            'profile_completed' => $completionPercentage >= 80,
-        ]);
-    }
 
     /**
      * Get company dashboard statistics

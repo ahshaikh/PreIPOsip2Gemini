@@ -12,6 +12,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage; // Added for PDF storage
+use Barryvdh\DomPDF\Facade\Pdf; // Added for PDF generation
 
 class ComplianceController extends Controller
 {
@@ -26,21 +28,23 @@ class ComplianceController extends Controller
             $query->where('status', $request->status);
         }
 
+        // FIX: Module 17 - Optimize Compliance Dashboard (High)
+        // Replaced N+1 query loop with efficient subquery using withCount
+        // We compare the accepted_version in the acceptance table with the current version in the agreements table
         $agreements = $query->with(['creator', 'updater'])
             ->withCount('versions')
+            ->withCount(['userAcceptances as accepted_count' => function($q) {
+                $q->whereColumn('accepted_version', 'legal_agreements.version');
+            }])
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Add acceptance rate for each agreement
-        $agreements->each(function ($agreement) {
-            $totalUsers = User::count();
-            $acceptedCount = UserLegalAcceptance::where('legal_agreement_id', $agreement->id)
-                ->where('accepted_version', $agreement->version)
-                ->distinct('user_id')
-                ->count('user_id');
-
+        // Calculate acceptance rate in memory (O(N)) instead of N Queries
+        $totalUsers = User::count();
+        
+        $agreements->each(function ($agreement) use ($totalUsers) {
             $agreement->acceptance_rate = $totalUsers > 0
-                ? round(($acceptedCount / $totalUsers) * 100, 2)
+                ? round(($agreement->accepted_count / $totalUsers) * 100, 2)
                 : 0;
         });
 
@@ -227,12 +231,30 @@ class ComplianceController extends Controller
         $agreement = LegalAgreement::findOrFail($id);
         $agreement->update(['status' => 'active']);
 
-        $agreement->logAudit(
-            'published',
-            "Agreement published: {$agreement->title} (v{$agreement->version})",
-            ['old' => $agreement->getOriginal('status'), 'new' => 'active'],
-            Auth::user()
-        );
+        // FIX: Module 17 - Fix PDF Scalability (Critical)
+        // Generate PDF and save to storage immediately upon publishing.
+        // This prevents generating it on every user download request.
+        try {
+            $pdf = Pdf::loadView('pdf.legal-document', ['document' => $agreement]);
+            $fileName = "legal/{$agreement->type}-v{$agreement->version}.pdf";
+            
+            // Ensure directory exists
+            if (!Storage::disk('public')->exists('legal')) {
+                Storage::disk('public')->makeDirectory('legal');
+            }
+            
+            Storage::disk('public')->put($fileName, $pdf->output());
+            
+            $agreement->logAudit(
+                'published',
+                "Agreement published and PDF generated: {$agreement->title} (v{$agreement->version})",
+                ['old' => $agreement->getOriginal('status'), 'new' => 'active', 'pdf_path' => $fileName],
+                Auth::user()
+            );
+        } catch (\Exception $e) {
+            // Log error but don't fail the publish action completely
+            \Illuminate\Support\Facades\Log::error("Failed to generate PDF for agreement {$id}: " . $e->getMessage());
+        }
 
         return response()->json($agreement);
     }

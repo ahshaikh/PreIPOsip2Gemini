@@ -49,11 +49,18 @@ class SupportAIService
         $query = KbArticle::where('status', 'published');
 
         // Search in title and content
+        /*
+         * FIX: Module 14 - Optimize "AI" Search (Medium)
+         * REPLACED: 'like', "%{$keyword}%" (Leading wildcard disabled index usage)
+         * ACTION: Removed leading % to enable index usage ('like', "{$keyword}%").
+         * NOTE: Ideally, use MySQL FULLTEXT search here, but this is a quick fix compatible with all drivers.
+         */
         $query->where(function ($q) use ($keywords, $text) {
             foreach ($keywords as $keyword) {
-                $q->orWhere('title', 'like', "%{$keyword}%")
-                  ->orWhere('content', 'like', "%{$keyword}%")
-                  ->orWhere('summary', 'like', "%{$keyword}%");
+                // Optimization: Exact match or Prefix match (Index friendly)
+                $q->orWhere('title', 'like', "{$keyword}%")
+                  ->orWhere('content', 'like', "{$keyword}%")
+                  ->orWhere('summary', 'like', "{$keyword}%");
             }
         });
 

@@ -4,14 +4,21 @@ namespace App\Http\Controllers\Api\Company;
 
 use App\Http\Controllers\Controller;
 use App\Models\CompanyUser;
-use App\Models\Company;
+use App\Services\CompanyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
+    protected $companyService;
+
+    // FIX: Inject CompanyService to handle registration logic
+    public function __construct(CompanyService $companyService)
+    {
+        $this->companyService = $companyService;
+    }
+
     /**
      * Register a new company user
      */
@@ -36,29 +43,12 @@ class AuthController extends Controller
         }
 
         try {
-            // Create the company first
-            $company = Company::create([
-                'name' => $request->company_name,
-                'slug' => Str::slug($request->company_name),
-                'sector' => $request->sector,
-                'website' => $request->website,
-                'status' => 'inactive',
-                'is_verified' => false,
-                'profile_completed' => false,
-                'profile_completion_percentage' => 10, // Base percentage for registration
-            ]);
-
-            // Create the company user
-            $companyUser = CompanyUser::create([
-                'company_id' => $company->id,
-                'email' => $request->email,
-                'password' => Hash::make($request->password),
-                'contact_person_name' => $request->contact_person_name,
-                'contact_person_designation' => $request->contact_person_designation,
-                'phone' => $request->phone,
-                'status' => 'pending',
-                'is_verified' => false,
-            ]);
+            // FIX: Delegated logic to CompanyService.
+            // This removes logic leakage and ensures consistency.
+            $result = $this->companyService->registerCompany($request->all());
+            
+            $company = $result['company'];
+            $companyUser = $result['user'];
 
             return response()->json([
                 'success' => true,

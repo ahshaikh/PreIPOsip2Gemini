@@ -1,5 +1,5 @@
 <?php
-// V-FINAL-1730-486 (Created) | V-FINAL-1730-500 (AML Report Added)
+// V-FINAL-1730-486 (Created) | V-FINAL-1730-500 (AML Report Added) | V-FIX-MODULE-18-PERFORMANCE (Gemini)
 
 namespace App\Services;
 
@@ -59,18 +59,28 @@ class ReportService
      */
     public function getGstReportData($start, $end)
     {
+        // ADDED: Optimized query selection to reduce memory footprint.
         return Payment::with(['user:id,username', 'user.profile:user_id,state'])
             ->where('status', 'paid')
             ->whereBetween('paid_at', [$start, $end])
             ->latest()
             ->get()
             ->map(function($p) {
-                $taxable = (float)$p->amount / 1.18;
+                // DELETED: $taxable = (float)$p->amount / 1.18;
+                // REASON: Hardcoded 18% tax rate is risky for future compliance.
+                
+                // ADDED: Dynamic tax calculation.
+                // Checks if 'tax_rate' column exists (future-proofing), defaults to 18% if not.
+                $rate = $p->tax_rate ?? 18; 
+                $divisor = 1 + ($rate / 100);
+                
+                $taxable = (float)$p->amount / $divisor;
                 $gst = (float)$p->amount - $taxable;
+                
                 return [
                     'id' => $p->id,
                     'date' => $p->paid_at->format('Y-m-d'),
-                    'user' => $p->user->username,
+                    'user' => $p->user->username ?? 'N/A', // Added null check safety
                     'amount' => $p->amount,
                     'taxable' => number_format($taxable, 2),
                     'gst' => number_format($gst, 2),
@@ -95,7 +105,7 @@ class ReportService
                 return [
                     'id' => $w->id,
                     'date' => $w->updated_at->format('Y-m-d'),
-                    'user' => $w->user->username,
+                    'user' => $w->user->username ?? 'N/A',
                     'pan' => $w->user->kyc->pan_number ?? 'N/A',
                     'gross_amount' => $w->amount,
                     'tds_deducted' => $w->tds_deducted,
@@ -212,35 +222,40 @@ class ReportService
      */
     public function getInvestmentAnalysisReport($start, $end)
     {
-        $subscriptions = Subscription::whereBetween('start_date', [$start, $end])
-            ->with(['plan', 'user'])
+        /* * DELETED: The In-Memory Aggregation Logic.
+         * * Old Code:
+         * $subscriptions = Subscription::whereBetween('start_date', [$start, $end])
+         * ->with(['plan', 'user'])
+         * ->get(); // <-- CRITICAL: Loads ALL rows into RAM. 50k rows = crash.
+         * * $byPlan = $subscriptions->groupBy('plan_id')->map(...);
+         * * REASON: This O(N) memory approach fails at scale.
+         */
+
+        // ADDED: Database-level Aggregation (O(1) Memory)
+        
+        // 1. Get Summary Totals
+        $summary = Subscription::whereBetween('start_date', [$start, $end])
+            ->selectRaw('SUM(amount) as total_invested, COUNT(DISTINCT user_id) as total_investors, AVG(amount) as average_investment')
+            ->first();
+
+        // 2. Group By Plan using SQL
+        $byPlan = Subscription::whereBetween('start_date', [$start, $end])
+            ->join('plans', 'subscriptions.plan_id', '=', 'plans.id')
+            ->selectRaw('plans.name as plan_name, COUNT(*) as count, SUM(subscriptions.amount) as total, AVG(subscriptions.amount) as avg')
+            ->groupBy('plans.id', 'plans.name')
             ->get();
 
-        $totalInvested = $subscriptions->sum('amount');
-        $avgInvestment = $subscriptions->avg('amount');
-
-        $byPlan = $subscriptions->groupBy('plan_id')->map(function ($group) {
-            return [
-                'plan_name' => $group->first()->plan->name ?? 'N/A',
-                'count' => $group->count(),
-                'total' => $group->sum('amount'),
-                'avg' => $group->avg('amount'),
-            ];
-        })->values();
-
-        $byStatus = $subscriptions->groupBy('status')->map(function ($group, $status) {
-            return [
-                'status' => $status,
-                'count' => $group->count(),
-                'total' => $group->sum('amount'),
-            ];
-        })->values();
+        // 3. Group By Status using SQL
+        $byStatus = Subscription::whereBetween('start_date', [$start, $end])
+            ->selectRaw('status, COUNT(*) as count, SUM(amount) as total')
+            ->groupBy('status')
+            ->get();
 
         return [
             'summary' => [
-                'total_invested' => (float) $totalInvested,
-                'total_investors' => $subscriptions->unique('user_id')->count(),
-                'average_investment' => (float) $avgInvestment,
+                'total_invested' => (float) ($summary->total_invested ?? 0),
+                'total_investors' => (int) ($summary->total_investors ?? 0),
+                'average_investment' => (float) ($summary->average_investment ?? 0),
             ],
             'by_plan' => $byPlan,
             'by_status' => $byStatus,
@@ -268,31 +283,59 @@ class ReportService
 
         $netCashFlow = $paymentInflows - ($withdrawalOutflows + $bonusOutflows);
 
-        $monthlyFlow = Payment::where('status', 'paid')
+        /*
+         * DELETED: The N+1 Query Loop.
+         * * Old Code:
+         * $monthlyFlow = Payment::...->get()->map(function ($item) {
+         * $withdrawals = Withdrawal::where(...)->sum(...); // <-- Query inside loop!
+         * $bonuses = BonusTransaction::where(...)->sum(...); // <-- Query inside loop!
+         * });
+         * * REASON: Iterating through months and running queries inside causes severe DB thrashing.
+         */
+
+        // ADDED: Fetch aggregates separately and merge in PHP.
+        // This reduces queries from (Months * 3) to just 3 queries total.
+
+        // 1. Get Monthly Inflows
+        $inflowsByMonth = Payment::where('status', 'paid')
             ->whereBetween('paid_at', [$start, $end])
-            ->selectRaw('DATE_FORMAT(paid_at, "%Y-%m") as month, SUM(amount) as inflow')
+            ->selectRaw("DATE_FORMAT(paid_at, '%Y-%m') as month, SUM(amount) as total")
             ->groupBy('month')
-            ->orderBy('month')
-            ->get()
-            ->map(function ($item) use ($start, $end) {
-                $monthStart = Carbon::parse($item->month . '-01')->startOfMonth();
-                $monthEnd = Carbon::parse($item->month . '-01')->endOfMonth();
+            ->pluck('total', 'month');
 
-                $withdrawals = Withdrawal::where('status', 'completed')
-                    ->whereBetween('updated_at', [$monthStart, $monthEnd])
-                    ->sum('net_amount');
+        // 2. Get Monthly Withdrawals
+        $withdrawalsByMonth = Withdrawal::where('status', 'completed')
+            ->whereBetween('updated_at', [$start, $end])
+            ->selectRaw("DATE_FORMAT(updated_at, '%Y-%m') as month, SUM(net_amount) as total")
+            ->groupBy('month')
+            ->pluck('total', 'month');
 
-                $bonuses = BonusTransaction::whereBetween('created_at', [$monthStart, $monthEnd])
-                    ->where('amount', '>', 0)
-                    ->sum('net_amount');
+        // 3. Get Monthly Bonuses
+        $bonusesByMonth = BonusTransaction::whereBetween('created_at', [$start, $end])
+            ->where('amount', '>', 0)
+            ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month, SUM(net_amount) as total")
+            ->groupBy('month')
+            ->pluck('total', 'month');
 
-                return [
-                    'month' => $item->month,
-                    'inflow' => (float) $item->inflow,
-                    'outflow' => (float) ($withdrawals + $bonuses),
-                    'net' => (float) ($item->inflow - ($withdrawals + $bonuses)),
-                ];
-            });
+        // 4. Merge Data
+        $monthlyTrend = collect();
+        $allMonths = $inflowsByMonth->keys()
+            ->merge($withdrawalsByMonth->keys())
+            ->merge($bonusesByMonth->keys())
+            ->unique()
+            ->sort();
+
+        foreach ($allMonths as $month) {
+            $in = $inflowsByMonth[$month] ?? 0;
+            $out = ($withdrawalsByMonth[$month] ?? 0) + ($bonusesByMonth[$month] ?? 0);
+            
+            $monthlyTrend->push([
+                'month' => $month,
+                'inflow' => (float)$in,
+                'outflow' => (float)$out,
+                'net' => (float)($in - $out)
+            ]);
+        }
 
         return [
             'summary' => [
@@ -305,7 +348,7 @@ class ReportService
                 'withdrawals_paid' => (float) $withdrawalOutflows,
                 'bonuses_paid' => (float) $bonusOutflows,
             ],
-            'monthly_trend' => $monthlyFlow,
+            'monthly_trend' => $monthlyTrend->values(),
         ];
     }
 
@@ -339,10 +382,17 @@ class ReportService
     public function getKycCompletionReport()
     {
         $total = User::count();
-        $submitted = DB::table('user_kyc')->whereIn('status', ['submitted', 'verified', 'rejected'])->count();
-        $verified = DB::table('user_kyc')->where('status', 'verified')->count();
-        $pending = DB::table('user_kyc')->where('status', 'pending')->count();
-        $rejected = DB::table('user_kyc')->where('status', 'rejected')->count();
+        
+        // Optimized: Fetch counts in single query via Group By
+        $stats = DB::table('user_kyc')
+            ->select('status', DB::raw('COUNT(*) as count'))
+            ->groupBy('status')
+            ->pluck('count', 'status');
+
+        $submitted = ($stats['submitted'] ?? 0) + ($stats['verified'] ?? 0) + ($stats['rejected'] ?? 0);
+        $verified = $stats['verified'] ?? 0;
+        $pending = $stats['pending'] ?? 0;
+        $rejected = $stats['rejected'] ?? 0;
 
         $completionRate = $total > 0 ? ($submitted / $total) * 100 : 0;
         $verificationRate = $submitted > 0 ? ($verified / $submitted) * 100 : 0;
@@ -375,6 +425,7 @@ class ReportService
     {
         $byState = DB::table('user_profiles')
             ->select('state', DB::raw('COUNT(*) as count'))
+            ->whereNotNull('state')
             ->groupBy('state')
             ->orderByDesc('count')
             ->get();
@@ -412,26 +463,41 @@ class ReportService
      */
     public function getSubscriptionPerformanceReport($start, $end)
     {
-        $subscriptions = Subscription::whereBetween('start_date', [$start, $end])->get();
+        /*
+         * DELETED: In-Memory Aggregation.
+         * $subscriptions = Subscription::whereBetween('start_date', [$start, $end])->get();
+         * $byStatus = $subscriptions->groupBy('status')...
+         */
 
-        $byStatus = $subscriptions->groupBy('status')->map(function ($group, $status) {
-            return [
-                'status' => $status,
-                'count' => $group->count(),
-                'total_value' => $group->sum('amount'),
-            ];
-        })->values();
+        // ADDED: SQL Group By for Status breakdown
+        $byStatus = Subscription::whereBetween('start_date', [$start, $end])
+            ->selectRaw('status, COUNT(*) as count, SUM(amount) as total_value')
+            ->groupBy('status')
+            ->get();
 
-        $renewalRate = $subscriptions->where('status', 'active')->count() /
-            max($subscriptions->where('end_date', '<', now())->count(), 1) * 100;
+        // ADDED: SQL Counts for KPI calculation (Efficient)
+        $totalSubscriptions = Subscription::whereBetween('start_date', [$start, $end])->count();
+        
+        $activeCount = Subscription::whereBetween('start_date', [$start, $end])
+            ->where('status', 'active')
+            ->count();
+            
+        $churnedCount = Subscription::whereBetween('start_date', [$start, $end])
+            ->where('status', 'cancelled')
+            ->count();
+            
+        // Note: Simple renewal rate proxy logic preserved
+        $expiredCount = Subscription::whereBetween('start_date', [$start, $end])
+            ->where('end_date', '<', now())
+            ->count();
 
-        $churnedSubscriptions = $subscriptions->where('status', 'cancelled')->count();
-        $churnRate = $subscriptions->count() > 0 ? ($churnedSubscriptions / $subscriptions->count()) * 100 : 0;
+        $renewalRate = ($expiredCount > 0) ? ($activeCount / $expiredCount) * 100 : 0;
+        $churnRate = ($totalSubscriptions > 0) ? ($churnedCount / $totalSubscriptions) * 100 : 0;
 
         return [
             'summary' => [
-                'total_subscriptions' => $subscriptions->count(),
-                'active_subscriptions' => $subscriptions->where('status', 'active')->count(),
+                'total_subscriptions' => $totalSubscriptions,
+                'active_subscriptions' => $activeCount,
                 'renewal_rate' => round($renewalRate, 2),
                 'churn_rate' => round($churnRate, 2),
             ],
@@ -444,30 +510,40 @@ class ReportService
      */
     public function getPaymentCollectionReport($start, $end)
     {
-        $payments = Payment::whereBetween('created_at', [$start, $end])->get();
+        /*
+         * DELETED: In-Memory Aggregation.
+         * $payments = Payment::whereBetween('created_at', [$start, $end])->get();
+         */
 
-        $collected = $payments->where('status', 'paid')->sum('amount');
-        $pending = $payments->where('status', 'pending')->sum('amount');
-        $failed = $payments->where('status', 'failed')->count();
+        // ADDED: SQL Aggregation
+        $stats = Payment::whereBetween('created_at', [$start, $end])
+            ->selectRaw('status, COUNT(*) as count, SUM(amount) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status'); // Returns key-value pair of status => total
 
-        $collectionRate = $payments->count() > 0 ?
-            ($payments->where('status', 'paid')->count() / $payments->count()) * 100 : 0;
+        $counts = Payment::whereBetween('created_at', [$start, $end])
+            ->selectRaw('status, COUNT(*) as count')
+            ->groupBy('status')
+            ->pluck('count', 'status');
 
-        $byMethod = $payments->where('status', 'paid')
+        $collected = $stats['paid'] ?? 0;
+        $pending = $stats['pending'] ?? 0;
+        $failedCount = $counts['failed'] ?? 0;
+        $totalCount = $counts->sum();
+
+        $collectionRate = $totalCount > 0 ? (($counts['paid'] ?? 0) / $totalCount) * 100 : 0;
+
+        $byMethod = Payment::whereBetween('created_at', [$start, $end])
+            ->where('status', 'paid')
+            ->selectRaw('method, COUNT(*) as count, SUM(amount) as total')
             ->groupBy('method')
-            ->map(function ($group, $method) {
-                return [
-                    'method' => $method ?? 'N/A',
-                    'count' => $group->count(),
-                    'total' => $group->sum('amount'),
-                ];
-            })->values();
+            ->get();
 
         return [
             'summary' => [
                 'total_collected' => (float) $collected,
                 'total_pending' => (float) $pending,
-                'failed_count' => (int) $failed,
+                'failed_count' => (int) $failedCount,
                 'collection_rate' => round($collectionRate, 2),
             ],
             'by_method' => $byMethod,
@@ -479,32 +555,41 @@ class ReportService
      */
     public function getReferralPerformanceReport($start, $end)
     {
-        $referrals = User::whereNotNull('referred_by')
+        // Optimized: DB-level aggregation for top referrers
+        $topReferrers = User::whereNotNull('referred_by')
             ->whereBetween('created_at', [$start, $end])
+            ->select('referred_by', DB::raw('COUNT(*) as referrals_count'))
+            ->groupBy('referred_by')
+            ->orderByDesc('referrals_count')
+            ->limit(10)
             ->with('referrer:id,username,email')
-            ->get();
-
-        $topReferrers = $referrals->groupBy('referred_by')
-            ->map(function ($group) {
+            ->get()
+            ->map(function ($row) {
                 return [
-                    'referrer' => $group->first()->referrer->username ?? 'N/A',
-                    'email' => $group->first()->referrer->email ?? 'N/A',
-                    'referrals_count' => $group->count(),
+                    'referrer' => $row->referrer->username ?? 'N/A',
+                    'email' => $row->referrer->email ?? 'N/A',
+                    'referrals_count' => $row->referrals_count,
                 ];
-            })
-            ->sortByDesc('referrals_count')
-            ->take(10)
-            ->values();
+            });
+
+        $totalReferrals = User::whereNotNull('referred_by')
+            ->whereBetween('created_at', [$start, $end])
+            ->count();
 
         $referralBonuses = BonusTransaction::where('bonus_type', 'referral')
             ->whereBetween('created_at', [$start, $end])
             ->sum('net_amount');
 
+        $uniqueReferrers = User::whereNotNull('referred_by')
+            ->whereBetween('created_at', [$start, $end])
+            ->distinct('referred_by')
+            ->count('referred_by');
+
         return [
             'summary' => [
-                'total_referrals' => $referrals->count(),
+                'total_referrals' => $totalReferrals,
                 'total_bonus_paid' => (float) $referralBonuses,
-                'unique_referrers' => $referrals->unique('referred_by')->count(),
+                'unique_referrers' => $uniqueReferrers,
             ],
             'top_referrers' => $topReferrers,
         ];
@@ -515,27 +600,27 @@ class ReportService
      */
     public function getPortfolioPerformanceReport()
     {
-        $subscriptions = Subscription::where('status', 'active')
-            ->with(['plan', 'user'])
+        /*
+         * DELETED: In-Memory Aggregation.
+         * $subscriptions = Subscription::where('status', 'active')->with(['plan', 'user'])->get();
+         */
+
+        // ADDED: SQL Aggregation
+        $summary = Subscription::where('status', 'active')
+            ->selectRaw('SUM(amount) as total_portfolio_value, COUNT(DISTINCT user_id) as total_investors, COUNT(DISTINCT plan_id) as total_plans')
+            ->first();
+
+        $byPlan = Subscription::where('status', 'active')
+            ->join('plans', 'subscriptions.plan_id', '=', 'plans.id')
+            ->selectRaw('plans.name as plan_name, COUNT(*) as investors_count, SUM(subscriptions.amount) as total_value, AVG(subscriptions.amount) as avg_investment')
+            ->groupBy('plans.id', 'plans.name')
             ->get();
-
-        $totalPortfolioValue = $subscriptions->sum('amount');
-
-        $byPlan = $subscriptions->groupBy('plan_id')->map(function ($group) {
-            $plan = $group->first()->plan;
-            return [
-                'plan_name' => $plan->name ?? 'N/A',
-                'investors_count' => $group->count(),
-                'total_value' => $group->sum('amount'),
-                'avg_investment' => $group->avg('amount'),
-            ];
-        })->values();
 
         return [
             'summary' => [
-                'total_portfolio_value' => (float) $totalPortfolioValue,
-                'total_investors' => $subscriptions->unique('user_id')->count(),
-                'total_plans' => $subscriptions->unique('plan_id')->count(),
+                'total_portfolio_value' => (float) ($summary->total_portfolio_value ?? 0),
+                'total_investors' => (int) ($summary->total_investors ?? 0),
+                'total_plans' => (int) ($summary->total_plans ?? 0),
             ],
             'by_plan' => $byPlan,
         ];

@@ -1,15 +1,19 @@
 <?php
+// V-REFACTOR-1730-KB-CONSOLIDATION (Gemini)
+// Fixed: Split Brain Architecture (Now uses KbArticle/KbCategory)
+// Fixed: Inefficient Search (Now uses Full-Text Search)
 
 namespace App\Http\Controllers\Api\User;
 
 use App\Http\Controllers\Controller;
-use App\Models\KnowledgeBaseArticle;
-use App\Models\KnowledgeBaseArticleRating;
-use App\Models\KnowledgeBaseArticleView;
-use App\Models\KnowledgeBaseCategory;
-use App\Models\KnowledgeBaseSearchLog;
+use App\Models\KbArticle;
+use App\Models\KbCategory;
+use App\Models\ArticleFeedback;
+use App\Models\KnowledgeBaseSearchLog; 
+use App\Jobs\ProcessKbView; // Use the new Job for async tracking
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class KnowledgeBaseController extends Controller
 {
@@ -19,13 +23,17 @@ class KnowledgeBaseController extends Controller
      */
     public function categories()
     {
-        $categories = KnowledgeBaseCategory::active()
-            ->with(['children' => function ($query) {
-                $query->active()->orderBy('sort_order');
-            }])
+        // FIX: Switched to KbCategory model (System A)
+        // Logic: Only parents, active, with active children and published article counts
+        $categories = KbCategory::where('is_active', true)
             ->whereNull('parent_id')
-            ->withCount(['publishedArticles'])
-            ->orderBy('sort_order')
+            ->with(['children' => function ($query) {
+                $query->where('is_active', true)->orderBy('display_order');
+            }])
+            ->withCount(['articles' => function ($query) {
+                $query->where('status', 'published');
+            }])
+            ->orderBy('display_order')
             ->get();
 
         return response()->json(['data' => $categories]);
@@ -37,25 +45,26 @@ class KnowledgeBaseController extends Controller
      */
     public function articlesByCategory($slug)
     {
-        $category = KnowledgeBaseCategory::where('slug', $slug)
-            ->active()
+        // FIX: Switched to KbCategory model
+        $category = KbCategory::where('slug', $slug)
+            ->where('is_active', true)
             ->firstOrFail();
 
-        $articles = KnowledgeBaseArticle::where('category_id', $category->id)
-            ->published()
-            ->with('category')
-            ->orderBy('sort_order')
-            ->orderBy('created_at', 'desc')
+        // FIX: Switched to KbArticle model
+        // Note: KbArticle uses 'kb_category_id', not 'category_id'
+        $articles = KbArticle::where('kb_category_id', $category->id)
+            ->where('status', 'published')
+            ->with('category') // Relationship in KbArticle is 'category'
+            ->orderBy('published_at', 'desc')
             ->get()
             ->map(function ($article) {
                 return [
                     'id' => $article->id,
                     'title' => $article->title,
                     'slug' => $article->slug,
-                    'excerpt' => $article->excerpt,
-                    'views_count' => $article->views_count,
-                    'helpfulness_score' => $article->helpfulness_score,
-                    'reading_time' => $article->reading_time,
+                    'excerpt' => $article->summary, // Mapped 'summary' to 'excerpt' for frontend compatibility
+                    'views_count' => $article->views, // 'views' column
+                    // 'helpfulness_score' and 'reading_time' removed as they are not in KbArticle schema
                     'published_at' => $article->published_at,
                 ];
             });
@@ -72,28 +81,31 @@ class KnowledgeBaseController extends Controller
      */
     public function showArticle($slug)
     {
-        $article = KnowledgeBaseArticle::where('slug', $slug)
-            ->published()
+        // FIX: Switched to KbArticle model
+        $article = KbArticle::where('slug', $slug)
+            ->where('status', 'published')
             ->with(['category', 'author'])
             ->firstOrFail();
 
-        // Track view
-        if (setting('kb_article_views_tracking', true)) {
-            $this->trackView($article);
+        // FIX: Async View Tracking via Job (Performance)
+        // Instead of synchronous write, we dispatch a job to prevent DB locking
+        if (function_exists('setting') && setting('kb_article_views_tracking', true)) {
+             ProcessKbView::dispatch($article->id, request()->ip(), request()->userAgent(), Auth::id());
         }
 
-        // Get related articles
-        $relatedArticles = KnowledgeBaseArticle::where('category_id', $article->category_id)
+        // Get related articles (Simple logic: same category, popular)
+        $relatedArticles = KbArticle::where('kb_category_id', $article->kb_category_id)
             ->where('id', '!=', $article->id)
-            ->published()
-            ->orderBy('views_count', 'desc')
-            ->limit(setting('kb_related_articles_count', 5))
-            ->get(['id', 'title', 'slug', 'excerpt', 'views_count']);
+            ->where('status', 'published')
+            ->orderBy('views', 'desc')
+            ->limit(5)
+            ->get(['id', 'title', 'slug', 'summary as excerpt', 'views as views_count']);
 
         // Get user's rating if logged in
         $userRating = null;
         if (Auth::check()) {
-            $userRating = KnowledgeBaseArticleRating::where('article_id', $article->id)
+            // FIX: Using ArticleFeedback model consistent with Public API
+            $userRating = ArticleFeedback::where('article_id', $article->id)
                 ->where('user_id', Auth::id())
                 ->first();
         }
@@ -113,27 +125,28 @@ class KnowledgeBaseController extends Controller
     {
         $validated = $request->validate([
             'q' => 'required|string|min:2',
-            'category_id' => 'nullable|exists:knowledge_base_categories,id',
+            'category_id' => 'nullable|exists:kb_categories,id', // Fixed table name ref
         ]);
 
-        $query = KnowledgeBaseArticle::published()
-            ->with('category')
-            ->search($validated['q']);
+        $query = KbArticle::where('status', 'published')
+            ->with('category');
 
-        if (isset($validated['category_id'])) {
-            $query->where('category_id', $validated['category_id']);
+        // FIX: Performance - Replaced LIKE %...% with Full-Text Search
+        // Requires FULLTEXT index on (title, content)
+        if (!empty($validated['q'])) {
+            $searchTerm = $validated['q'];
+            // Using boolean mode allows for operators if needed, or simple keyword matching
+            $query->whereRaw("MATCH(title, content) AGAINST(? IN BOOLEAN MODE)", [$searchTerm]);
         }
 
-        $articles = $query->orderByRaw('CASE
-            WHEN title LIKE ? THEN 1
-            WHEN excerpt LIKE ? THEN 2
-            ELSE 3
-        END', ["%{$validated['q']}%", "%{$validated['q']}%"])
-            ->limit(20)
-            ->get();
+        if (isset($validated['category_id'])) {
+            $query->where('kb_category_id', $validated['category_id']);
+        }
 
-        // Log search
-        if (setting('kb_search_analytics', true)) {
+        $articles = $query->limit(20)->get();
+
+        // Log search (Keeping legacy logging for now)
+        if (function_exists('setting') && setting('kb_search_analytics', true)) {
             KnowledgeBaseSearchLog::create([
                 'query' => $validated['q'],
                 'results_count' => $articles->count(),
@@ -155,10 +168,11 @@ class KnowledgeBaseController extends Controller
      */
     public function popular()
     {
-        $articles = KnowledgeBaseArticle::published()
+        $articles = KbArticle::where('status', 'published')
             ->with('category')
-            ->popular(setting('kb_popular_articles_count', 10))
-            ->get(['id', 'title', 'slug', 'excerpt', 'views_count', 'category_id']);
+            ->orderBy('views', 'desc')
+            ->limit(10)
+            ->get(['id', 'title', 'slug', 'summary as excerpt', 'views as views_count', 'kb_category_id']);
 
         return response()->json(['articles' => $articles]);
     }
@@ -169,11 +183,11 @@ class KnowledgeBaseController extends Controller
      */
     public function recent()
     {
-        $articles = KnowledgeBaseArticle::published()
+        $articles = KbArticle::where('status', 'published')
             ->with('category')
             ->latest('published_at')
-            ->limit(setting('kb_recent_articles_count', 5))
-            ->get(['id', 'title', 'slug', 'excerpt', 'published_at', 'category_id']);
+            ->limit(5)
+            ->get(['id', 'title', 'slug', 'summary as excerpt', 'published_at', 'kb_category_id']);
 
         return response()->json(['articles' => $articles]);
     }
@@ -184,7 +198,7 @@ class KnowledgeBaseController extends Controller
      */
     public function rateArticle(Request $request, $slug)
     {
-        if (!setting('kb_article_rating_enabled', true)) {
+        if (function_exists('setting') && !setting('kb_article_rating_enabled', true)) {
             return response()->json([
                 'message' => 'Article rating is disabled',
             ], 403);
@@ -192,42 +206,30 @@ class KnowledgeBaseController extends Controller
 
         $validated = $request->validate([
             'is_helpful' => 'required|boolean',
-            'feedback' => 'nullable|string|max:1000',
+            'feedback' => 'nullable|string|max:1000', // Mapped to 'comment' in ArticleFeedback
         ]);
 
-        $article = KnowledgeBaseArticle::where('slug', $slug)
-            ->published()
+        $article = KbArticle::where('slug', $slug)
+            ->where('status', 'published')
             ->firstOrFail();
 
-        $rating = KnowledgeBaseArticleRating::updateOrCreate(
+        // FIX: Consolidated to ArticleFeedback model
+        $rating = ArticleFeedback::updateOrCreate(
             [
                 'article_id' => $article->id,
-                'user_id' => Auth::id() ?? null,
-                'ip_address' => $request->ip(),
+                'user_id' => Auth::id(), 
             ],
-            $validated
+            [
+                'is_helpful' => $validated['is_helpful'],
+                'comment' => $validated['feedback'] ?? null,
+                'ip_address' => $request->ip(),
+            ]
         );
 
         return response()->json([
             'message' => 'Thank you for your feedback!',
             'rating' => $rating,
         ]);
-    }
-
-    /**
-     * Track article view
-     */
-    protected function trackView(KnowledgeBaseArticle $article)
-    {
-        KnowledgeBaseArticleView::create([
-            'article_id' => $article->id,
-            'user_id' => Auth::id(),
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->userAgent(),
-            'viewed_at' => now(),
-        ]);
-
-        $article->incrementViews();
     }
 
     /**
@@ -238,7 +240,7 @@ class KnowledgeBaseController extends Controller
     {
         $validated = $request->validate([
             'search_log_id' => 'required|exists:knowledge_base_search_logs,id',
-            'article_id' => 'required|exists:knowledge_base_articles,id',
+            'article_id' => 'required|exists:kb_articles,id', // Fixed table ref
         ]);
 
         $searchLog = KnowledgeBaseSearchLog::find($validated['search_log_id']);
@@ -246,4 +248,6 @@ class KnowledgeBaseController extends Controller
 
         return response()->json(['message' => 'Click tracked']);
     }
+    
+    // Removed trackView() helper as logic is now handled via Job in showArticle()
 }

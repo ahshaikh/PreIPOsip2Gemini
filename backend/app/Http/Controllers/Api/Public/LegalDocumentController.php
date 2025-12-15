@@ -7,6 +7,7 @@ use App\Models\LegalAgreement;
 use App\Models\UserLegalAcceptance;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage; // Added
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class LegalDocumentController extends Controller
@@ -156,7 +157,15 @@ class LegalDocumentController extends Controller
             $user
         );
 
-        // Generate PDF
+        // FIX: Module 17 - Fix PDF Scalability (Critical)
+        // Try to serve pre-generated PDF from storage first to save CPU
+        $fileName = "legal/{$document->type}-v{$document->version}.pdf";
+        
+        if (Storage::disk('public')->exists($fileName)) {
+            return Storage::disk('public')->download($fileName);
+        }
+
+        // Fallback: Generate on the fly if not found (e.g. for older docs or generation failures)
         $pdf = Pdf::loadView('pdf.legal-document', [
             'document' => $document,
         ]);

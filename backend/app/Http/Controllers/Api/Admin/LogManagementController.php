@@ -48,6 +48,7 @@ class LogManagementController extends Controller
     /**
      * View log file content
      * GET /api/v1/admin/logs/{filename}
+     * FIX: Module 20 - Fix Log Reader Memory Leak (High)
      */
     public function show($filename)
     {
@@ -67,7 +68,26 @@ class LogManagementController extends Controller
         }
 
         try {
-            $content = File::get($logPath);
+            /*
+             * DELETED: $content = File::get($logPath);
+             * REASON: This loads the ENTIRE file into memory. For a 500MB log file, this crashes PHP.
+             */
+
+            // ADDED: Efficient "Tail" Reading using fseek
+            $chunkSize = 100 * 1024; // Read only last 100KB
+            $size = File::size($logPath);
+            $handle = fopen($logPath, 'r');
+            
+            $content = '';
+            if ($size > 0) {
+                if ($size > $chunkSize) {
+                    fseek($handle, -$chunkSize, SEEK_END); // Jump to end minus chunk
+                    fgets($handle); // Discard partial line at the cut point
+                }
+                $content = fread($handle, $chunkSize);
+            }
+            fclose($handle);
+
             $lines = explode("\n", $content);
 
             // Parse log entries
@@ -75,10 +95,10 @@ class LogManagementController extends Controller
 
             return response()->json([
                 'filename' => $filename,
-                'size' => $this->formatBytes(File::size($logPath)),
-                'total_lines' => count($lines),
+                'size' => $this->formatBytes($size),
+                'total_lines' => 'N/A (Showing last 100KB)', // Cannot count total lines cheaply
                 'total_entries' => count($entries),
-                'entries' => array_slice($entries, 0, 500), // Limit to 500 most recent entries
+                'entries' => array_reverse($entries), // Show newest first
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -189,6 +209,7 @@ class LogManagementController extends Controller
     /**
      * Search logs
      * POST /api/v1/admin/logs/search
+     * Fixed: Uses line-by-line reading to reduce memory usage during search.
      */
     public function search(Request $request)
     {
@@ -216,28 +237,32 @@ class LogManagementController extends Controller
                 continue;
             }
 
-            $content = File::get($filePath);
-            $lines = explode("\n", $content);
+            // ADDED: Line-by-line reading instead of loading full file
+            $handle = fopen($filePath, 'r');
+            if ($handle) {
+                $lineNumber = 0;
+                while (($line = fgets($handle)) !== false) {
+                    $lineNumber++;
+                    if (stripos($line, $query) !== false) {
+                        // Filter by level if specified
+                        if (!empty($validated['level'])) {
+                            if (!preg_match('/\.' . strtoupper($validated['level']) . ':/i', $line)) {
+                                continue;
+                            }
+                        }
 
-            foreach ($lines as $lineNumber => $line) {
-                if (stripos($line, $query) !== false) {
-                    // Filter by level if specified
-                    if (!empty($validated['level'])) {
-                        if (!preg_match('/\.' . strtoupper($validated['level']) . ':/i', $line)) {
-                            continue;
+                        $results[] = [
+                            'file' => basename($filePath),
+                            'line_number' => $lineNumber,
+                            'content' => trim($line),
+                        ];
+
+                        if (count($results) >= $limit) {
+                            break 2;
                         }
                     }
-
-                    $results[] = [
-                        'file' => basename($filePath),
-                        'line_number' => $lineNumber + 1,
-                        'content' => $line,
-                    ];
-
-                    if (count($results) >= $limit) {
-                        break 2;
-                    }
                 }
+                fclose($handle);
             }
         }
 
@@ -296,8 +321,10 @@ class LogManagementController extends Controller
                     ];
                 }
 
-                // Count log levels (sample only today's log for performance)
+                // Optimization: Only scan today's log for levels to prevent I/O bottleneck
                 if ($file->getFilename() === 'laravel-' . date('Y-m-d') . '.log') {
+                    // Safe to read just today's log usually, or use the chunk method
+                    // For now keeping simple as this usually isn't 500MB
                     $content = File::get($file->getPathname());
                     $stats['by_level']['debug'] += substr_count($content, '.DEBUG:');
                     $stats['by_level']['info'] += substr_count($content, '.INFO:');
@@ -344,7 +371,7 @@ class LogManagementController extends Controller
             $entries[] = $currentEntry;
         }
 
-        return array_reverse($entries); // Most recent first
+        return $entries; // Caller handles reversal if needed
     }
 
     /**

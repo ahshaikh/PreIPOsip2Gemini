@@ -1,5 +1,5 @@
 <?php
-// V-FINAL-1730-212
+// V-FINAL-1730-212 | V-FIX-MODULE-19 (Gemini)
 
 namespace App\Http\Controllers\Api\User;
 
@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use ZipArchive;
 use Illuminate\Support\Str;
+use App\Models\UserInvestment;
+use App\Models\Withdrawal;
+use App\Models\PrivacyRequest; // Added
 
 class PrivacyController extends Controller
 {
@@ -21,6 +24,16 @@ class PrivacyController extends Controller
     {
         $user = $request->user();
         
+        // FIX: Module 19 - Request Tracking
+        // Log the request initiation
+        PrivacyRequest::create([
+            'user_id' => $user->id,
+            'type' => 'export',
+            'status' => 'processing',
+            'requested_at' => now(),
+            'ip_address' => $request->ip(),
+        ]);
+
         // 1. Gather Data
         $data = [
             'profile' => $user->load('profile'),
@@ -50,6 +63,14 @@ class PrivacyController extends Controller
             return response()->json(['message' => 'Failed to create export file.'], 500);
         }
 
+        // Log completion
+        PrivacyRequest::where('user_id', $user->id)
+            ->where('type', 'export')
+            ->where('status', 'processing')
+            ->latest()
+            ->first()
+            ?->update(['status' => 'completed', 'completed_at' => now()]);
+
         // 4. Return Download
         return response()->download($zipPath)->deleteFileAfterSend(true);
     }
@@ -73,6 +94,36 @@ class PrivacyController extends Controller
         if ($user->subscription && $user->subscription->status === 'active') {
              return response()->json(['message' => 'Cannot delete account. You have an active subscription. Please cancel it first.'], 403);
         }
+
+        // FIX: Module 19 - Harden Account Deletion (Medium)
+        // Prevent deletion if financial actions are pending
+        
+        // Check for Pending Withdrawals
+        $hasPendingWithdrawals = Withdrawal::where('user_id', $user->id)
+            ->where('status', 'pending')
+            ->exists();
+            
+        if ($hasPendingWithdrawals) {
+            return response()->json(['message' => 'Cannot delete account. You have pending withdrawal requests.'], 403);
+        }
+
+        // Check for Pending Investments (Shares not yet allocated)
+        $hasPendingInvestments = UserInvestment::where('user_id', $user->id)
+            ->where('status', 'pending') // Assuming 'pending' status exists for unallocated
+            ->exists();
+
+        if ($hasPendingInvestments) {
+            return response()->json(['message' => 'Cannot delete account. You have pending investments awaiting allocation.'], 403);
+        }
+
+        // Log the deletion request
+        PrivacyRequest::create([
+            'user_id' => $user->id,
+            'type' => 'deletion',
+            'status' => 'processing', // Will be set to completed after transaction
+            'requested_at' => now(),
+            'ip_address' => $request->ip(),
+        ]);
 
         DB::beginTransaction();
         try {
@@ -111,6 +162,14 @@ class PrivacyController extends Controller
 
             // 3. Soft Delete
             $user->delete();
+
+            // Mark request as completed
+            PrivacyRequest::where('user_id', $user->id)
+                ->where('type', 'deletion')
+                ->where('status', 'processing')
+                ->latest()
+                ->first()
+                ?->update(['status' => 'completed', 'completed_at' => now()]);
 
             DB::commit();
 

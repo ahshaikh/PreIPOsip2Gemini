@@ -1,5 +1,5 @@
 <?php
-// V-PHASE2-1730-059 (Created) | V-FINAL-1730-369 (Block Editor) | V-FINAL-1730-528 (SEO Analyzer) | V-FINAL-1730-559 (Versioning)
+// V-PHASE2-1730-059 (Created) | V-FINAL-1730-369 (Block Editor) | V-FINAL-1730-528 (SEO Analyzer) | V-FINAL-1730-559 (Versioning) | V-FIX-MODULE-17 (Gemini)
 
 namespace App\Http\Controllers\Api\Admin;
 
@@ -9,6 +9,7 @@ use App\Services\SeoAnalyzerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use App\Models\UserLegalAcceptance; // Ensure this is imported
 
 class PageController extends Controller
 {
@@ -89,10 +90,12 @@ class PageController extends Controller
                 'require_user_acceptance' => $validated['require_user_acceptance'] ?? $page->require_user_acceptance,
             ]);
 
-            // 3. If acceptance is required, all users must re-accept
+            // FIX: Module 17 - Fix Destructive Page Logic (Medium)
+            // REMOVED: UserLegalAcceptance::where('page_id', $page->id)->delete();
+            // Reason: Deleting acceptances destroys the audit trail. 
+            // The system should check if (user_last_accepted_version < current_page_version) to prompt re-acceptance.
             if ($page->require_user_acceptance) {
-                // This is a heavy operation, should be a queued job in V2
-                UserLegalAcceptance::where('page_id', $page->id)->delete();
+                // Logic is now purely version comparison on read, no destructive write needed here.
             }
         });
         

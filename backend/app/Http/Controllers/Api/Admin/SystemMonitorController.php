@@ -35,6 +35,10 @@ class SystemMonitorController extends Controller
             'current_checks' => $checks,
             'recent_checks' => $recent,
             'last_checked' => now()->toIso8601String(),
+            // ADDED: Server time (Merged from SystemHealthController)
+            'server_time' => now()->toDateTimeString(),
+            // DELETED: php_version
+            // REASON: Security - Preventing information leakage about infrastructure
         ]);
     }
 

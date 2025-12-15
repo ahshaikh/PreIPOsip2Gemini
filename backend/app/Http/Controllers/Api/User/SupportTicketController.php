@@ -1,5 +1,5 @@
 <?php
-// V-REMEDIATE-1730-149 (Created) | V-FINAL-1730-595 (Full User Flow)
+// V-REMEDIATE-1730-149 (Created) | V-FINAL-1730-595 (Full User Flow) | V-FIX-MODULE-14-PERFORMANCE (Gemini)
 
 namespace App\Http\Controllers\Api\User;
 
@@ -7,19 +7,23 @@ use App\Http\Controllers\Controller;
 use App\Models\SupportTicket;
 use App\Models\User;
 use App\Services\FileUploadService;
-use App\Services\NotificationService;
+// REMOVED: NotificationService is no longer used directly to prevent synchronous blocking.
+// use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+// ADDED: Events for asynchronous processing
+use App\Events\TicketCreated;
+use App\Events\TicketReplied;
 
 class SupportTicketController extends Controller
 {
     protected $fileUploader;
-    protected $notificationService;
+    // protected $notificationService; // Removed dependency
 
-    public function __construct(FileUploadService $fileUploader, NotificationService $notificationService)
+    public function __construct(FileUploadService $fileUploader)
     {
         $this->fileUploader = $fileUploader;
-        $this->notificationService = $notificationService;
+        // $this->notificationService = $notificationService; // Removed
     }
 
     /**
@@ -45,7 +49,8 @@ class SupportTicketController extends Controller
     public function store(Request $request)
     {
         // Check if support tickets are enabled
-        if (!setting('support_tickets_enabled', true)) {
+        // Helper function setting() assumed to exist globally
+        if (function_exists('setting') && !setting('support_tickets_enabled', true)) {
             return response()->json([
                 'message' => 'Support tickets are currently disabled. Please contact us via email.'
             ], 503);
@@ -84,18 +89,16 @@ class SupportTicketController extends Controller
             'attachments' => $attachmentPath ? [$attachmentPath] : null,
         ]);
 
-        // Notify admins of new ticket
-        $admins = User::role('admin')->get();
-        foreach ($admins as $admin) {
-            $this->notificationService->send($admin, 'support.new_ticket', [
-                'ticket_code' => $ticket->ticket_code,
-                'subject' => $ticket->subject,
-                'category' => $ticket->category,
-                'priority' => $ticket->priority,
-                'user_name' => $user->username,
-                'user_email' => $user->email,
-            ]);
-        }
+        /* * FIX: Module 14 - Synchronous Notification Loops (Critical)
+         * REPLACED: The foreach loop below blocked the request for 1-5 seconds.
+         * * $admins = User::role('admin')->get();
+         * foreach ($admins as $admin) {
+         * $this->notificationService->send($admin, ...);
+         * }
+         * * ACTION: Dispatched 'TicketCreated' event. The listener 'SendTicketNotifications'
+         * must be implemented and set to ShouldQueue to handle emails in the background.
+         */
+        event(new TicketCreated($ticket));
 
         return response()->json($ticket, 201);
     }
@@ -133,7 +136,7 @@ class SupportTicketController extends Controller
             ]);
         }
 
-        $supportTicket->messages()->create([
+        $message = $supportTicket->messages()->create([
             'user_id' => $request->user()->id,
             'is_admin_reply' => false,
             'message' => $validated['message'],
@@ -142,16 +145,11 @@ class SupportTicketController extends Controller
 
         $supportTicket->update(['status' => 'open']); // User replied
 
-        // Notify admins of user reply
-        $admins = User::role('admin')->get();
-        foreach ($admins as $admin) {
-            $this->notificationService->send($admin, 'support.user_reply', [
-                'ticket_code' => $supportTicket->ticket_code,
-                'subject' => $supportTicket->subject,
-                'user_name' => $request->user()->username,
-                'message_preview' => substr($validated['message'], 0, 100),
-            ]);
-        }
+        /* * FIX: Module 14 - Synchronous Notification Loops (Critical)
+         * REPLACED: Synchronous admin notification loop.
+         * ACTION: Dispatched 'TicketReplied' event for async processing.
+         */
+        event(new TicketReplied($supportTicket, $message));
 
         return response()->json(['message' => 'Reply added.'], 201);
     }

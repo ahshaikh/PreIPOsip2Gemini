@@ -1,5 +1,5 @@
 <?php
-// V-FINAL-1730-226 | V-SYSTEM-CONFIG-001 (Enhanced)
+// V-FINAL-1730-226 | V-SYSTEM-CONFIG-001 (Enhanced) | V-FIX-MODULE-20-BACKUP (Gemini)
 
 namespace App\Http\Controllers\Api\Admin;
 
@@ -99,6 +99,7 @@ class BackupController extends Controller
     /**
      * Create manual backup
      * POST /api/v1/admin/system/backup/create
+     * FIX: Module 20 - Rewrite Backup Logic (Critical)
      */
     public function createBackup(Request $request)
     {
@@ -115,8 +116,17 @@ class BackupController extends Controller
             $filePath = 'backups/' . $fileName;
             $fullPath = storage_path('app/' . $filePath);
 
-            // FIX: Use system mysqldump instead of PHP looping
-            // The previous implementation loaded all rows into memory, causing crashes.
+            /*
+             * DELETED: The PHP looping logic (Critical Failure)
+             * $tables = DB::select('SHOW TABLES');
+             * foreach ($tables as $table) { 
+             * $rows = DB::table($table->...)->get(); // <--- Loads entire table into RAM
+             * }
+             * REASON: This causes Fatal Error: Allowed memory size exhausted on large tables (e.g. activity_logs).
+             */
+
+            // ADDED: Use system mysqldump command
+            // This runs outside PHP memory space and streams the backup efficiently.
             $command = sprintf(
                 'mysqldump --user=%s --password=%s --host=%s %s > %s',
                 escapeshellarg(env('DB_USERNAME')),
@@ -132,7 +142,7 @@ class BackupController extends Controller
             exec($command, $output, $returnVar);
 
             if ($returnVar !== 0) {
-                 throw new \Exception("Backup failed with error code $returnVar");
+                 throw new \Exception("Backup failed with error code $returnVar. Check mysqldump availability.");
             }
 
             return response()->json([
@@ -184,10 +194,13 @@ class BackupController extends Controller
      * Stream a full database dump to the browser (legacy method)
      * GET /api/v1/admin/system/backup/db
      */
-public function downloadDbDump()
+    public function downloadDbDump()
     {
-        // FIX: Removed legacy memory-heavy implementation.
-        // Instead, triggering a file creation and download.
+        /*
+         * DELETED: Legacy Memory-Hog Implementation
+         * Logic that built the SQL string in a PHP variable.
+         * REASON: Will crash server on production data volume.
+         */
         
         $dbName = env('DB_DATABASE');
         $fileName = 'backup_' . $dbName . '_' . date('Y-m-d_H-i-s') . '.sql';
@@ -197,10 +210,12 @@ public function downloadDbDump()
             'Content-Disposition' => "attachment; filename=\"{$fileName}\"",
         ];
 
+        // ADDED: Streamed Response using popen (Pipe Open)
+        // Streams the output of mysqldump directly to the browser output buffer.
+        // PHP memory usage stays near zero regardless of DB size.
         return new StreamedResponse(function() {
             $handle = fopen('php://output', 'w');
             
-            // Streaming mysqldump output directly to browser
              $command = sprintf(
                 'mysqldump --user=%s --password=%s --host=%s %s',
                 escapeshellarg(env('DB_USERNAME')),
@@ -211,7 +226,7 @@ public function downloadDbDump()
             
             $proc = popen($command, 'r');
             while (!feof($proc)) {
-                fwrite($handle, fread($proc, 4096));
+                fwrite($handle, fread($proc, 4096)); // Buffer size 4KB
             }
             pclose($proc);
             fclose($handle);

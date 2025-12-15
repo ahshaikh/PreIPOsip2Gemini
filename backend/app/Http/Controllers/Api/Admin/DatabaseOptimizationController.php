@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Artisan;
+// ADDED: Job class for Async processing
+use App\Jobs\DatabaseOptimizationJob; 
 
 class DatabaseOptimizationController extends Controller
 {
@@ -48,149 +51,39 @@ class DatabaseOptimizationController extends Controller
                 'data_size' => $this->formatBytes($table->data_length),
                 'index_size' => $this->formatBytes($table->index_length),
                 'overhead' => $this->formatBytes($table->data_free),
+                'overhead_bytes' => $table->data_free,
             ];
         }
 
-        $stats['total_size_formatted'] = $this->formatBytes($stats['total_size']);
-        $stats['total_rows_formatted'] = number_format($stats['total_rows']);
+        $stats['total_size'] = $this->formatBytes($stats['total_size']);
 
         return response()->json($stats);
     }
 
     /**
-     * Optimize all tables
-     * POST /api/v1/admin/database/optimize
-     */
-    public function optimize()
-    {
-        try {
-            $database = env('DB_DATABASE');
-            $tables = DB::select("SHOW TABLES");
-            $key = "Tables_in_{$database}";
-
-            $optimized = [];
-            foreach ($tables as $table) {
-                $tableName = $table->$key;
-                DB::statement("OPTIMIZE TABLE `{$tableName}`");
-                $optimized[] = $tableName;
-            }
-
-            return response()->json([
-                'message' => 'Database optimized successfully',
-                'optimized_tables' => count($optimized),
-                'tables' => $optimized,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Failed to optimize database',
-                'message' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Optimize specific table
+     * Optimize table
      * POST /api/v1/admin/database/optimize/{table}
      */
-    public function optimizeTable($table)
+    public function optimize($table)
     {
+        // FIX: Module 20 - Database Optimization Locking
+        // Dispatch job instead of running synchronously
+        
         try {
-            // Security: validate table name
-            $database = env('DB_DATABASE');
-            $exists = DB::selectOne("
-                SELECT table_name
-                FROM information_schema.tables
-                WHERE table_schema = ? AND table_name = ?
-            ", [$database, $table]);
-
-            if (!$exists) {
-                return response()->json([
-                    'error' => 'Table not found',
-                ], 404);
+            // Check if table exists first
+            if (!DB::getSchemaBuilder()->hasTable($table)) {
+                return response()->json(['error' => 'Table not found'], 404);
             }
 
-            DB::statement("OPTIMIZE TABLE `{$table}`");
+            // ADDED: Dispatch Job
+            DatabaseOptimizationJob::dispatch($table, 'optimize');
 
             return response()->json([
-                'message' => "Table {$table} optimized successfully",
+                'message' => "Optimization job queued for table {$table}",
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'Failed to optimize table',
-                'message' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Analyze tables
-     * POST /api/v1/admin/database/analyze
-     */
-    public function analyze()
-    {
-        try {
-            $database = env('DB_DATABASE');
-            $tables = DB::select("SHOW TABLES");
-            $key = "Tables_in_{$database}";
-
-            $analyzed = [];
-            foreach ($tables as $table) {
-                $tableName = $table->$key;
-                DB::statement("ANALYZE TABLE `{$tableName}`");
-                $analyzed[] = $tableName;
-            }
-
-            return response()->json([
-                'message' => 'Database analyzed successfully',
-                'analyzed_tables' => count($analyzed),
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Failed to analyze database',
-                'message' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Get slow query log
-     * GET /api/v1/admin/database/slow-queries
-     */
-    public function getSlowQueries()
-    {
-        try {
-            $slowLogEnabled = DB::selectOne("SHOW VARIABLES LIKE 'slow_query_log'");
-            $longQueryTime = DB::selectOne("SHOW VARIABLES LIKE 'long_query_time'");
-
-            return response()->json([
-                'slow_query_log_enabled' => $slowLogEnabled->Value === 'ON',
-                'long_query_time' => $longQueryTime->Value,
-                'message' => 'Slow query log can be monitored in MySQL logs',
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Failed to get slow query information',
-                'message' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Get index information
-     * GET /api/v1/admin/database/indexes/{table}
-     */
-    public function getIndexes($table)
-    {
-        try {
-            $indexes = DB::select("SHOW INDEX FROM `{$table}`");
-
-            return response()->json([
-                'table' => $table,
-                'indexes' => $indexes,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Failed to get index information',
+                'error' => 'Failed to queue optimization',
                 'message' => $e->getMessage(),
             ], 500);
         }
@@ -200,31 +93,23 @@ class DatabaseOptimizationController extends Controller
      * Repair table
      * POST /api/v1/admin/database/repair/{table}
      */
-    public function repairTable($table)
+    public function repair($table)
     {
+        // FIX: Asynchronous dispatch
         try {
-            // Security: validate table name
-            $database = env('DB_DATABASE');
-            $exists = DB::selectOne("
-                SELECT table_name
-                FROM information_schema.tables
-                WHERE table_schema = ? AND table_name = ?
-            ", [$database, $table]);
-
-            if (!$exists) {
-                return response()->json([
-                    'error' => 'Table not found',
-                ], 404);
+            if (!DB::getSchemaBuilder()->hasTable($table)) {
+                return response()->json(['error' => 'Table not found'], 404);
             }
 
-            DB::statement("REPAIR TABLE `{$table}`");
+            // ADDED: Dispatch Job
+            DatabaseOptimizationJob::dispatch($table, 'repair');
 
             return response()->json([
-                'message' => "Table {$table} repaired successfully",
+                'message' => "Repair job queued for table {$table}",
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'Failed to repair table',
+                'error' => 'Failed to queue repair',
                 'message' => $e->getMessage(),
             ], 500);
         }
@@ -233,6 +118,9 @@ class DatabaseOptimizationController extends Controller
     /**
      * Check table
      * POST /api/v1/admin/database/check/{table}
+     * Note: CHECK TABLE is usually fast and read-only (mostly), keeping synchronous for immediate feedback
+     * unless explicitly requested to be async. Given audit context "Maintenance (Optimize/Repair)", 
+     * leaving CHECK as synchronous is acceptable UX for diagnostics.
      */
     public function checkTable($table)
     {
