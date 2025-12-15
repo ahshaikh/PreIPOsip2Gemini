@@ -1,4 +1,4 @@
-// V-PHASE5-1730-122 | V-ENHANCED-WALLET
+// V-PHASE5-1730-122 | V-ENHANCED-WALLET | V-AUDIT-FIX-MODULE7
 'use client';
 
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import api from "@/lib/api";
@@ -18,7 +17,7 @@ import { useState } from "react";
 import {
   Wallet, ArrowUpRight, ArrowDownRight, Plus, Minus, Clock,
   Download, Filter, Search, Calendar, CreditCard, Building2,
-  IndianRupee, TrendingUp, History, RefreshCw, AlertCircle, CheckCircle
+  IndianRupee, TrendingUp, History, FileText
 } from "lucide-react";
 
 // Transaction type filters
@@ -50,6 +49,12 @@ export default function WalletPage() {
   const [addAmount, setAddAmount] = useState('');
   const [isAddMoneyOpen, setIsAddMoneyOpen] = useState(false);
 
+  // Statement Download state
+  const [isStatementOpen, setIsStatementOpen] = useState(false);
+  const [statementStart, setStatementStart] = useState('');
+  const [statementEnd, setStatementEnd] = useState('');
+  const [isDownloading, setIsDownloading] = useState(false);
+
   const { data, isLoading } = useQuery({
     queryKey: ['wallet'],
     queryFn: async () => (await api.get('/user/wallet')).data,
@@ -80,7 +85,6 @@ export default function WalletPage() {
   const addMoneyMutation = useMutation({
     mutationFn: (amount: number) => api.post('/user/wallet/add-money', { amount }),
     onSuccess: (response) => {
-      // Handle payment gateway redirect if needed
       if (response.data.payment_url) {
         window.location.href = response.data.payment_url;
       } else {
@@ -132,20 +136,34 @@ export default function WalletPage() {
   };
 
   const handleDownloadStatement = async () => {
+    if (!statementStart || !statementEnd) {
+      toast.error("Date Required", { description: "Please select both start and end dates." });
+      return;
+    }
+
+    setIsDownloading(true);
     try {
+      // MODULE 7 FIX: Send date range to backend
       const response = await api.get('/user/wallet/statement', {
+        params: {
+          start_date: statementStart,
+          end_date: statementEnd
+        },
         responseType: 'blob'
       });
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `wallet-statement-${new Date().toISOString().split('T')[0]}.pdf`);
+      link.setAttribute('download', `wallet-statement-${statementStart}-to-${statementEnd}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
       toast.success("Statement Downloaded", { description: "Your wallet statement has been downloaded" });
+      setIsStatementOpen(false);
     } catch (error: any) {
       toast.error("Download Failed", { description: error.response?.data?.message || "Unable to download statement" });
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -153,6 +171,10 @@ export default function WalletPage() {
 
   const balance = parseFloat(data?.wallet?.balance || 0);
   const lockedBalance = parseFloat(data?.wallet?.locked_balance || 0);
+  // MODULE 7 FIX: Use backend calculated totals for accuracy
+  const totalCredits = parseFloat(data?.wallet?.total_deposited || 0);
+  const totalDebits = parseFloat(data?.wallet?.total_withdrawn || 0);
+  
   const transactions = data?.transactions?.data || [];
 
   // Filter transactions
@@ -165,10 +187,6 @@ export default function WalletPage() {
       tx.description?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesType && matchesSearch;
   });
-
-  // Calculate total credits and debits
-  const totalCredits = transactions.filter((tx: any) => tx.amount > 0).reduce((acc: number, tx: any) => acc + parseFloat(tx.amount), 0);
-  const totalDebits = transactions.filter((tx: any) => tx.amount < 0).reduce((acc: number, tx: any) => acc + Math.abs(parseFloat(tx.amount)), 0);
 
   return (
     <div className="space-y-6">
@@ -342,9 +360,84 @@ export default function WalletPage() {
           </DialogContent>
         </Dialog>
 
-        <Button variant="outline" size="icon" onClick={handleDownloadStatement}>
-          <Download className="h-4 w-4" />
-        </Button>
+        {/* Statement Download Dialog (Module 7 Fix) */}
+        <Dialog open={isStatementOpen} onOpenChange={setIsStatementOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="icon">
+              <FileText className="h-4 w-4" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Download Statement</DialogTitle>
+              <DialogDescription>
+                Select a date range to download your wallet transaction history. 
+                (Max 1 Year)
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Start Date</Label>
+                  <Input 
+                    type="date" 
+                    value={statementStart} 
+                    onChange={(e) => setStatementStart(e.target.value)} 
+                    max={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>End Date</Label>
+                  <Input 
+                    type="date" 
+                    value={statementEnd} 
+                    onChange={(e) => setStatementEnd(e.target.value)} 
+                    max={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex-1"
+                  onClick={() => {
+                    const end = new Date();
+                    const start = new Date();
+                    start.setDate(end.getDate() - 30);
+                    setStatementStart(start.toISOString().split('T')[0]);
+                    setStatementEnd(end.toISOString().split('T')[0]);
+                  }}
+                >
+                  Last 30 Days
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex-1"
+                  onClick={() => {
+                    const end = new Date();
+                    const start = new Date();
+                    start.setMonth(end.getMonth() - 6);
+                    setStatementStart(start.toISOString().split('T')[0]);
+                    setStatementEnd(end.toISOString().split('T')[0]);
+                  }}
+                >
+                  Last 6 Months
+                </Button>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={handleDownloadStatement} disabled={isDownloading}>
+                {isDownloading ? (
+                  <>Downloading...</>
+                ) : (
+                  <><Download className="mr-2 h-4 w-4" /> Download PDF</>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Tabs */}

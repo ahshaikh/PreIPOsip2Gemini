@@ -30,7 +30,7 @@ class OtpService
         }
 
         // 2. Generate
-        $code = (string) rand(100000, 999999);
+        $code = (string) random_int(100000, 999999);
         
         // Invalidate old OTPs
         Otp::where('user_id', $user->id)->where('type', $type)->delete();

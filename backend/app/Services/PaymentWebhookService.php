@@ -1,105 +1,59 @@
 <?php
-// V-PHASE3-1730-081 (Created) | V-FINAL-1730-338 | V-FINAL-1730-454 (Idempotent & WalletService)
+// V-PHASE3-1730-081 (Created) | V-FINAL-1730-338 | V-FINAL-1730-454 (Idempotent) | V-AUDIT-FIX-MODULE8 (Race Condition Fix)
 
 namespace App\Services;
 
 use App\Models\Payment;
 use App\Models\Subscription;
-use App\Models\Transaction;
 use App\Jobs\ProcessSuccessfulPaymentJob;
 use App\Jobs\SendPaymentFailedEmailJob;
 use App\Notifications\PaymentFailed;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache; // Added for Atomic Locks
 
 /**
- * PaymentWebhookService - Razorpay Webhook Event Handler
+ * PaymentWebhookService - Razorpay Webhook Event Handler & Fulfillment Core
  *
- * Processes incoming webhook events from Razorpay to update payment statuses,
- * activate subscriptions, and trigger downstream processes (bonuses, allocations).
+ * Processes incoming webhook events from Razorpay AND handles payment verification
+ * from the Controller to ensure a single source of truth for payment fulfillment.
  *
- * ## Webhook Events Handled
+ * ## CRITICAL SECURITY FIX: Race Condition Prevention
+ * previously, the Controller (verify) and Webhook (payment.captured) could run
+ * simultaneously. If verify finished first, the webhook would see the payment as
+ * 'paid' and skip the fulfillment logic (dispatching jobs), resulting in missing investments.
  *
- * | Event                    | Handler Method              | Description                    |
- * |--------------------------|-----------------------------|---------------------------------|
- * | payment.captured         | handleSuccessfulPayment()   | One-time payment success        |
- * | subscription.charged     | handleSubscriptionCharged() | Recurring auto-debit success    |
- * | payment.failed           | handleFailedPayment()       | Payment failure                 |
- * | refund.processed         | handleRefundProcessed()     | Refund confirmation             |
- *
- * ## Idempotency (SEC-8 Security Fix)
- *
- * All handlers check for duplicate `gateway_payment_id` before processing
- * to prevent double-crediting from webhook retries:
- * ```php
- * if (Payment::where('gateway_payment_id', $paymentId)->exists()) {
- *     return; // Already processed
- * }
- * ```
- *
- * ## Payment Fulfillment Flow
- *
- * ```
- * Webhook → Handler → fulfillPayment() → [
- *   1. Update Payment status to 'paid'
- *   2. Activate subscription if pending
- *   3. Update next_payment_date
- *   4. Track consecutive_payments_count
- *   5. Dispatch ProcessSuccessfulPaymentJob (bonuses, allocation)
- * ]
- * ```
- *
- * ## On-Time Payment Detection
- *
- * Payments are considered "on time" if received within the grace period:
- * ```
- * isOnTime = now() <= next_payment_date + grace_period_days (default: 2)
- * ```
- *
- * On-time payments increment `consecutive_payments_count` for consistency bonuses.
- * Late payments reset the counter to 0.
- *
- * ## Usage
- *
- * Called from WebhookController after signature verification:
- * ```php
- * $webhookService->handleSuccessfulPayment($payload);
- * ```
+ * **The Fix:**
+ * 1. `fulfillPayment` is now PUBLIC and used by both Controller and Webhook.
+ * 2. It uses `Cache::lock` to ensure atomic execution.
+ * 3. It checks `status !== 'paid'` *inside* the lock.
  *
  * @package App\Services
- * @see \App\Http\Controllers\Api\WebhookController
- * @see \App\Jobs\ProcessSuccessfulPaymentJob
  */
 class PaymentWebhookService
 {
     protected $walletService;
+
     public function __construct(WalletService $walletService)
     {
         $this->walletService = $walletService;
     }
 
     /**
-     * Handle a standard one-time payment success.
+     * Handle a standard one-time payment success via Webhook.
      */
     public function handleSuccessfulPayment(array $payload)
     {
         $orderId = $payload['order_id'] ?? null;
         $paymentId = $payload['id'] ?? null;
 
-        // --- IDEMPOTENCY FIX (SEC-8) ---
-        // Check if we already processed this exact payment_id
-        if (Payment::where('gateway_payment_id', $paymentId)->exists()) {
-            Log::info("Duplicate webhook: Payment $paymentId already processed. Skipping.");
-            return;
-        }
-        // -----------------------------
+        // Note: We don't return early here based on simple existence check anymore.
+        // We let fulfillPayment handle the idempotency safely with locks.
 
-        $payment = Payment::where('gateway_order_id', $orderId)
-                          ->where('status', 'pending')
-                          ->first();
+        $payment = Payment::where('gateway_order_id', $orderId)->first();
 
         if ($payment) {
+            // MODULE 8 FIX: Call the shared, locked fulfillment method
             $this->fulfillPayment($payment, $paymentId);
         } else {
             Log::warning("Payment record not found for order: $orderId");
@@ -107,7 +61,7 @@ class PaymentWebhookService
     }
 
     /**
-     * Handle a Recurring Subscription Charge (Auto-Debit).
+     * Handle a Recurring Subscription Charge (Auto-Debit) via Webhook.
      */
     public function handleSubscriptionCharged(array $payload)
     {
@@ -115,12 +69,11 @@ class PaymentWebhookService
         $paymentId = $payload['payment_id'];
         $amount = $payload['amount'] / 100;
 
-        // --- IDEMPOTENCY FIX (SEC-8) ---
+        // Check for duplicate processing based on Gateway Payment ID
         if (Payment::where('gateway_payment_id', $paymentId)->exists()) {
             Log::info("Duplicate subscription.charged webhook: $paymentId already processed. Skipping.");
             return;
         }
-        // -----------------------------
 
         $subscription = Subscription::where('razorpay_subscription_id', $subscriptionId)->first();
         if (!$subscription) {
@@ -128,11 +81,12 @@ class PaymentWebhookService
             return;
         }
 
+        // Create the payment record for this new charge
         $payment = Payment::create([
             'user_id' => $subscription->user_id,
             'subscription_id' => $subscription->id,
             'amount' => $amount,
-            'status' => 'pending', // Will be set to 'paid' by fulfillPayment
+            'status' => 'pending', 
             'gateway' => 'razorpay_auto',
             'gateway_payment_id' => $paymentId,
             'gateway_order_id' => $subscriptionId,
@@ -140,6 +94,7 @@ class PaymentWebhookService
             'is_on_time' => true,
         ]);
 
+        // MODULE 8 FIX: Fulfill securely
         $this->fulfillPayment($payment, $paymentId);
     }
 
@@ -156,7 +111,9 @@ class PaymentWebhookService
             if ($payment && $payment->status === 'pending') {
                 $payment->update(['status' => 'failed']);
                 SendPaymentFailedEmailJob::dispatch($payment, $description);
-                $payment->user->notify(new PaymentFailed($payment->amount, $description));
+                if ($payment->user) {
+                    $payment->user->notify(new PaymentFailed($payment->amount, $description));
+                }
                 Log::info("Payment {$payment->id} marked as failed: $description");
             }
         }
@@ -164,8 +121,6 @@ class PaymentWebhookService
     
     /**
      * Handle Refund Processed
-     * This is tricky, as it might credit the user, or just be an external refund.
-     * For now, we just log it.
      */
     public function handleRefundProcessed(array $payload)
     {
@@ -174,43 +129,80 @@ class PaymentWebhookService
 
         if ($payment && $payment->status !== 'refunded') {
             $payment->update(['status' => 'refunded']);
-            
-            // NOTE: We do *not* credit the wallet here.
-            // Our *Admin* refund logic credits the wallet. This webhook just
-            // confirms that the *Gateway* processed it.
             Log::info("Payment {$payment->id} marked as refunded via webhook.");
         }
     }
 
-    private function fulfillPayment(Payment $payment, string $gatewayPaymentId)
+    /**
+     * Fulfill a successful payment.
+     * * MODULE 8 FIX: This method is now public and concurrency-safe.
+     * It uses an atomic lock to prevent race conditions between the 
+     * Controller (user verification) and Webhook (server verification).
+     *
+     * @param Payment $payment
+     * @param string $gatewayPaymentId
+     * @return bool True if fulfilled, False if already fulfilled
+     */
+    public function fulfillPayment(Payment $payment, string $gatewayPaymentId): bool
     {
-        DB::transaction(function () use ($payment, $gatewayPaymentId) {
-            $payment->update([
-                'status' => 'paid',
-                'gateway_payment_id' => $gatewayPaymentId,
-                'paid_at' => now(),
-                'is_on_time' => $this->checkIfOnTime($payment->subscription),
-            ]);
+        // 1. Acquire Atomic Lock (10 seconds)
+        // This prevents the Controller and Webhook from running this logic simultaneously
+        $lock = Cache::lock("payment_fulfillment_{$payment->id}", 10);
 
-            $sub = $payment->subscription;
+        try {
+            // Blocking wait for 5 seconds to acquire lock
+            if ($lock->block(5)) {
+                
+                // 2. Re-check Status INSIDE the lock
+                // If the other process finished, status will now be 'paid'.
+                $payment->refresh();
+                if ($payment->status === 'paid') {
+                    Log::info("Payment {$payment->id} already fulfilled. Skipping.");
+                    return false;
+                }
 
-            // V-SECURITY-FIX: Activate pending subscription after first payment
-            if ($sub->status === 'pending') {
-                $sub->status = 'active';
-                Log::info("Subscription #{$sub->id} activated after first payment");
-            }
+                // 3. Perform Fulfillment Transaction
+                DB::transaction(function () use ($payment, $gatewayPaymentId) {
+                    $payment->update([
+                        'status' => 'paid',
+                        'gateway_payment_id' => $gatewayPaymentId,
+                        'paid_at' => now(),
+                        'is_on_time' => $this->checkIfOnTime($payment->subscription),
+                    ]);
 
-            $sub->next_payment_date = $sub->next_payment_date->addMonth();
-            if ($payment->is_on_time) {
-                $sub->increment('consecutive_payments_count');
+                    $sub = $payment->subscription;
+
+                    if ($sub->status === 'pending') {
+                        $sub->status = 'active';
+                        Log::info("Subscription #{$sub->id} activated after first payment");
+                    }
+
+                    // Update Next Payment Date Logic
+                    $sub->next_payment_date = $sub->next_payment_date->addMonth();
+                    if ($payment->is_on_time) {
+                        $sub->increment('consecutive_payments_count');
+                    } else {
+                        $sub->consecutive_payments_count = 0;
+                    }
+                    $sub->save();
+
+                    // 4. Dispatch Critical Business Logic
+                    // (Allocating shares, calculating bonuses)
+                    ProcessSuccessfulPaymentJob::dispatch($payment);
+                });
+
+                Log::info("Payment {$payment->id} fulfilled successfully.");
+                return true;
             } else {
-                $sub->consecutive_payments_count = 0;
+                Log::warning("Could not acquire lock for payment {$payment->id}");
+                return false;
             }
-            $sub->save();
-
-            // Dispatch job for bonuses, allocation, etc.
-            ProcessSuccessfulPaymentJob::dispatch($payment);
-        });
+        } catch (\Exception $e) {
+            Log::error("Fulfillment Error Payment {$payment->id}: " . $e->getMessage());
+            throw $e;
+        } finally {
+            $lock->release();
+        }
     }
 
     private function checkIfOnTime(Subscription $subscription): bool

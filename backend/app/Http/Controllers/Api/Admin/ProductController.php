@@ -1,5 +1,5 @@
 <?php
-// V-PHASE2-1730-056 (Created) | V-REMEDIATE-1730-288 | V-FINAL-1730-506 (Save Relations) | V-FINAL-1730-510 (Save Risks) | V-FINAL-1730-514 (Compliance Save)
+// V-PHASE2-1730-056 (Created) | V-REMEDIATE-1730-288 | V-FINAL-1730-506 (Save Relations) | V-FINAL-1730-510 (Save Risks) | V-FINAL-1730-514 (Compliance Save) | V-FIX-NON-DESTRUCTIVE (Gemini)
 
 namespace App\Http\Controllers\Api\Admin;
 
@@ -21,11 +21,13 @@ class ProductController extends Controller
                 'highlights', 'founders', 'fundingRounds', 'keyMetrics', 'riskDisclosures'
             ]));
         }
-        return $query->latest()->get();
+        // FIX: Use pagination instead of loading all records
+        return $query->latest()->paginate(20);
     }
 
     public function store(Request $request)
     {
+        // Ideally, this validation should match 'update' complexity, but sticking to audit scope fixes.
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'slug' => 'required|string|unique:products,slug',
@@ -73,10 +75,11 @@ class ProductController extends Controller
         DB::transaction(function () use ($product, $validated, $request) {
             
             // --- Price History Logic ---
-            $newPrice = $validated['current_market_price'] ?? $validated['face_value_per_unit'];
+            $newPrice = $validated['current_market_price'] ?? $validated['face_value_per_unit'] ?? null;
             $oldPrice = $product->current_market_price ?? $product->face_value_per_unit;
             
-            if (isset($validated['face_value_per_unit']) && $newPrice != $oldPrice) {
+            // Only update history if price is provided and changed
+            if ($newPrice !== null && $newPrice != $oldPrice) {
                 ProductPriceHistory::updateOrCreate(
                     ['product_id' => $product->id, 'recorded_at' => today()->subDay()],
                     ['price' => $oldPrice]
@@ -91,26 +94,39 @@ class ProductController extends Controller
             // 1. Update the main product table
             $product->update($validated);
 
-            // 2. Sync Relational Data
+            // 2. Sync Relational Data (Non-Destructive)
+            // Helper closure to handle sync: Delete missing, Update existing, Create new
+            $syncRelation = function($relationName, $items) use ($product) {
+                if ($items === null) return; // Null means "do not change", empty array means "delete all"
+
+                $existingIds = collect($items)->pluck('id')->filter()->toArray();
+                
+                // Delete items not present in the new list
+                $product->{$relationName}()->whereNotIn('id', $existingIds)->delete();
+
+                foreach ($items as $item) {
+                    $product->{$relationName}()->updateOrCreate(
+                        ['id' => $item['id'] ?? null],
+                        $item
+                    );
+                }
+            };
+
+            // Apply sync to all relations
             if ($request->has('highlights')) {
-                $product->highlights()->delete();
-                $product->highlights()->createMany($validated['highlights']);
+                $syncRelation('highlights', $validated['highlights']);
             }
             if ($request->has('founders')) {
-                $product->founders()->delete();
-                $product->founders()->createMany($validated['founders']);
+                $syncRelation('founders', $validated['founders']);
             }
             if ($request->has('funding_rounds')) {
-                $product->fundingRounds()->delete();
-                $product->fundingRounds()->createMany($validated['funding_rounds']);
+                $syncRelation('fundingRounds', $validated['funding_rounds']);
             }
             if ($request->has('key_metrics')) {
-                $product->keyMetrics()->delete();
-                $product->keyMetrics()->createMany($validated['key_metrics']);
+                $syncRelation('keyMetrics', $validated['key_metrics']);
             }
             if ($request->has('risk_disclosures')) {
-                $product->riskDisclosures()->delete();
-                $product->riskDisclosures()->createMany($validated['risk_disclosures']);
+                $syncRelation('riskDisclosures', $validated['risk_disclosures']);
             }
         });
 

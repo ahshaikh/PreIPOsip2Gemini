@@ -130,17 +130,17 @@ class PlanEligibilityService
     {
         $errors = [];
 
-        // Get user's country
-        $userCountry = $user->country ?? null;
+        // Get user's country and normalize
+        $userCountry = strtoupper($user->country ?? '');
 
-        if (!$userCountry) {
+        if (empty($userCountry)) {
             // If no country configured and rules exist, require it
             if (!empty($config['countries_allowed']) || !empty($config['countries_blocked'])) {
                 $errors[] = 'Country information is required. Please complete your profile.';
             }
             return $errors;
         }
-
+        
         // Check whitelist
         if (isset($config['countries_allowed']) && is_array($config['countries_allowed']) && !empty($config['countries_allowed'])) {
             if (!in_array($userCountry, $config['countries_allowed'])) {

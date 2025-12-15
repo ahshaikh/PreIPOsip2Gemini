@@ -1,5 +1,5 @@
 <?php
-// V-PHASE3-1730-076 (Created) | V-FINAL-1730-356 (Upgraded) | V-SEC-1730-604 (Unsafe Methods Removed)
+// V-PHASE3-1730-076 (Created) | V-FINAL-1730-356 (Upgraded) | V-SEC-1730-604 (Unsafe Methods Removed) | V-AUDIT-FIX-MODULE7 (Performance Optimization)
 
 namespace App\Models;
 
@@ -53,41 +53,18 @@ class Wallet extends Model
         return Attribute::make(get: fn () => $this->balance);
     }
 
-    /**
-     * Get total deposited amount.
-     * N+1 SAFE: Uses eager-loaded transactions if available, falls back to query.
-     */
-    protected function totalDeposited(): Attribute
-    {
-        return Attribute::make(
-            get: function () {
-                if ($this->relationLoaded('transactions')) {
-                    return $this->transactions
-                        ->whereIn('type', ['deposit', 'admin_adjustment', 'bonus_credit', 'refund'])
-                        ->where('amount', '>', 0)
-                        ->sum('amount');
-                }
-                return $this->transactions()
-                    ->whereIn('type', ['deposit', 'admin_adjustment', 'bonus_credit', 'refund'])
-                    ->where('amount', '>', 0)
-                    ->sum('amount');
-            }
-        );
-    }
+    /*
+    |--------------------------------------------------------------------------
+    | DEPRECATED ACCESSORS - MODULE 7 AUDIT FIX
+    |--------------------------------------------------------------------------
+    | The following accessors were removed to prevent "Memory Exhaustion" and N+1 issues.
+    | Previously, calling $wallet->total_deposited would load ALL transactions into PHP memory
+    | to calculate the sum. For a user with 5,000 transactions, this crashes the app.
+    |
+    | REPLACEMENT: Use withSum() in Controllers.
+    | Example: Wallet::withSum('transactions as total_deposited', 'amount')->get();
+    */
 
-    /**
-     * Get total withdrawn amount.
-     * N+1 SAFE: Uses eager-loaded transactions if available, falls back to query.
-     */
-    protected function totalWithdrawn(): Attribute
-    {
-        return Attribute::make(
-            get: function () {
-                if ($this->relationLoaded('transactions')) {
-                    return abs($this->transactions->where('type', 'withdrawal')->sum('amount'));
-                }
-                return abs($this->transactions()->where('type', 'withdrawal')->sum('amount'));
-            }
-        );
-    }
+    // removed totalDeposited(): Attribute
+    // removed totalWithdrawn(): Attribute
 }

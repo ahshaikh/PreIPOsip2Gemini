@@ -1,5 +1,5 @@
 <?php
-// V-PHASE2-1730-057 | V-BULK-PURCHASE-ENHANCEMENT-005
+// V-PHASE2-1730-057 | V-BULK-PURCHASE-ENHANCEMENT-005 | V-FIX-UNITS-AND-N1 (Gemini)
 // Enhanced with full CRUD, allocation history, inventory dashboard, and low stock management
 
 namespace App\Http\Controllers\Api\Admin;
@@ -14,6 +14,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+
+// Library Imports for Exports
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class BulkPurchaseController extends Controller
 {
@@ -72,7 +77,7 @@ class BulkPurchaseController extends Controller
     {
         $validated = $request->validate([
             'product_id' => 'required|exists:products,id',
-            'face_value_purchased' => 'required|numeric|min:0',
+            'face_value_purchased' => 'required|numeric|min:0.01', // Changed from min:0 to prevent division by zero
             'actual_cost_paid' => 'required|numeric|min:0',
             'extra_allocation_percentage' => 'required|numeric|min:0',
             'seller_name' => 'nullable|string|max:255',
@@ -123,7 +128,7 @@ class BulkPurchaseController extends Controller
 
         $validated = $request->validate([
             'product_id' => 'sometimes|exists:products,id',
-            'face_value_purchased' => 'sometimes|numeric|min:0',
+            'face_value_purchased' => 'sometimes|numeric|min:0.01',
             'actual_cost_paid' => 'sometimes|numeric|min:0',
             'extra_allocation_percentage' => 'sometimes|numeric|min:0',
             'seller_name' => 'nullable|string|max:255',
@@ -197,13 +202,22 @@ class BulkPurchaseController extends Controller
         }
 
         DB::transaction(function () use ($bulkPurchase, $user, $allocationValue, $validated, $request) {
+            // FIX: Calculate correct units (Value / Face Value)
+            $bulkPurchase->load('product'); // Ensure product is loaded
+            $product = $bulkPurchase->product;
+            
+            $units = $allocationValue; // Default fallback
+            if ($product && $product->face_value_per_unit > 0) {
+                $units = $allocationValue / $product->face_value_per_unit;
+            }
+
             // Create investment record
             $investment = UserInvestment::create([
                 'user_id' => $user->id,
                 'product_id' => $bulkPurchase->product_id,
                 'bulk_purchase_id' => $bulkPurchase->id,
                 'invested_amount' => $allocationValue,
-                'shares_allocated' => $allocationValue, // 1:1 for face value
+                'shares_allocated' => $units, // FIX: Use calculated units
                 'allocation_date' => now(),
                 'allocation_type' => 'manual',
                 'allocated_by_admin_id' => $request->user()->id,
@@ -219,6 +233,7 @@ class BulkPurchaseController extends Controller
                 'user_id' => $user->id,
                 'bulk_purchase_id' => $bulkPurchase->id,
                 'allocation_value' => $allocationValue,
+                'units' => $units,
                 'admin_id' => $request->user()->id,
             ]);
         });
@@ -235,29 +250,39 @@ class BulkPurchaseController extends Controller
      */
     public function inventorySummary(Request $request)
     {
-        $products = Product::where('status', 'active')->get();
+        // FIX: N+1 Performance Issue. Use withSum and withCount.
+        
+        $products = Product::where('status', 'active')
+            ->withSum('bulkPurchases as total_inventory', 'total_value_received')
+            ->withSum('bulkPurchases as remaining_inventory', 'value_remaining')
+            ->withCount('bulkPurchases as purchase_count')
+            ->get();
+
         $inventoryData = [];
+        $lowStockConfig = $this->getLowStockConfig();
 
         foreach ($products as $product) {
-            $purchases = BulkPurchase::where('product_id', $product->id)->get();
-
-            $totalInventory = $purchases->sum('total_value_received');
-            $valueRemaining = $purchases->sum('value_remaining');
+            
+            $totalInventory = $product->total_inventory ?? 0;
+            $valueRemaining = $product->remaining_inventory ?? 0;
             $allocated = $totalInventory - $valueRemaining;
             $allocationPercentage = $totalInventory > 0 ? ($allocated / $totalInventory) * 100 : 0;
 
-            // Calculate average daily allocation (last 30 days)
+            // To calculate "days remaining", we still need recent burn rate.
+            // We can optimize this by doing a single query for all investments in last 30 days
+            // or just caching this value daily. For now, a targeted query is better than fetching all rows.
             $thirtyDaysAgo = now()->subDays(30);
-            $recentAllocations = UserInvestment::where('product_id', $product->id)
-                ->where('allocation_date', '>=', $thirtyDaysAgo)
-                ->sum('invested_amount');
+            $recentAllocations = DB::table('user_investments')
+                ->where('product_id', $product->id)
+                ->where('created_at', '>=', $thirtyDaysAgo)
+                ->sum('invested_amount'); // Use raw DB for speed
+                
             $averageDailyAllocation = $recentAllocations / 30;
 
             // Calculate days remaining
             $daysRemaining = $averageDailyAllocation > 0 ? $valueRemaining / $averageDailyAllocation : 999;
 
             // Low stock alert
-            $lowStockConfig = $this->getLowStockConfig();
             $lowStockAlert = ($allocationPercentage >= $lowStockConfig['threshold_percentage']) ||
                              ($daysRemaining <= $lowStockConfig['days_remaining_threshold']);
 
@@ -271,7 +296,7 @@ class BulkPurchaseController extends Controller
                 'allocated' => number_format($allocated, 2, '.', ''),
                 'available' => number_format($valueRemaining, 2, '.', ''),
                 'allocation_percentage' => round($allocationPercentage, 2),
-                'purchase_count' => $purchases->count(),
+                'purchase_count' => $product->purchase_count,
                 'average_daily_allocation' => number_format($averageDailyAllocation, 2, '.', ''),
                 'days_remaining' => (int) $daysRemaining,
                 'reorder_suggestion' => $reorderSuggestion,
@@ -293,20 +318,25 @@ class BulkPurchaseController extends Controller
         $startDate = now()->subDays($days)->startOfDay();
         $trends = [];
 
+        // Optimizing this loop to use a single aggregation query
+        $data = UserInvestment::select(
+                DB::raw('DATE(allocation_date) as date'),
+                DB::raw('SUM(invested_amount) as total')
+            )
+            ->where('allocation_date', '>=', $startDate)
+            ->when($productId, function($q) use ($productId) {
+                return $q->where('product_id', $productId);
+            })
+            ->groupBy('date')
+            ->orderBy('date')
+            ->pluck('total', 'date')
+            ->toArray();
+
         for ($i = $days - 1; $i >= 0; $i--) {
-            $date = now()->subDays($i)->startOfDay();
-
-            $query = UserInvestment::whereDate('allocation_date', $date);
-
-            if ($productId) {
-                $query->where('product_id', $productId);
-            }
-
-            $dailyAllocation = $query->sum('invested_amount');
-
+            $dateStr = now()->subDays($i)->format('Y-m-d');
             $trends[] = [
-                'date' => $date->format('Y-m-d'),
-                'allocation' => number_format($dailyAllocation, 2, '.', ''),
+                'date' => $dateStr,
+                'allocation' => number_format($data[$dateStr] ?? 0, 2, '.', ''),
             ];
         }
 
@@ -361,14 +391,15 @@ class BulkPurchaseController extends Controller
         }
 
         // Get summary statistics
-        $allInvestments = UserInvestment::all();
+        // Optimization: Use a separate summary endpoint or cache this if it's too heavy
+        // For now, keeping it but using SQL aggregates
         $summary = [
-            'total_allocations' => $allInvestments->count(),
-            'total_value_allocated' => number_format($allInvestments->sum('invested_amount'), 2, '.', ''),
-            'active_allocations' => $allInvestments->where('is_reversed', false)->count(),
-            'reversed_allocations' => $allInvestments->where('is_reversed', true)->count(),
-            'automatic_allocations' => $allInvestments->where('allocation_type', 'automatic')->count(),
-            'manual_allocations' => $allInvestments->where('allocation_type', 'manual')->count(),
+            'total_allocations' => UserInvestment::count(),
+            'total_value_allocated' => UserInvestment::sum('invested_amount'),
+            'active_allocations' => UserInvestment::where('is_reversed', false)->count(),
+            'reversed_allocations' => UserInvestment::where('is_reversed', true)->count(),
+            'automatic_allocations' => UserInvestment::where('allocation_type', 'automatic')->count(),
+            'manual_allocations' => UserInvestment::where('allocation_type', 'manual')->count(),
         ];
 
         $records = $query->paginate(50)->through(function ($investment) {
@@ -570,7 +601,7 @@ class BulkPurchaseController extends Controller
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ];
 
-        $callback = function () use ($records) {
+        return response()->stream(function () use ($records) {
             $file = fopen('php://output', 'w');
 
             // Headers
@@ -592,27 +623,95 @@ class BulkPurchaseController extends Controller
             }
 
             fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        }, 200, $headers);
     }
 
     /**
-     * Export records as Excel (using CSV format for simplicity)
+     * Export records as Excel (.xlsx) using PhpSpreadsheet)
      */
     private function exportAsExcel($records)
     {
-        // For now, use CSV format with .xlsx extension
-        // In production, use a library like PhpSpreadsheet
-        return $this->exportAsCsv($records);
+        // FIX: Implemented real .xlsx export
+        $filename = 'allocation-history-' . date('Y-m-d') . '.xlsx';
+        
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        // Set Header Row
+        $sheet->setCellValue('A1', 'ID');
+        $sheet->setCellValue('B1', 'Date');
+        $sheet->setCellValue('C1', 'User');
+        $sheet->setCellValue('D1', 'Email');
+        $sheet->setCellValue('E1', 'Product');
+        $sheet->setCellValue('F1', 'Amount');
+        $sheet->setCellValue('G1', 'Type');
+        $sheet->setCellValue('H1', 'Status');
+        $sheet->setCellValue('I1', 'Allocated By');
+        
+        // Style Header
+        $sheet->getStyle('A1:I1')->getFont()->setBold(true);
+
+        // Populate Data
+        $row = 2;
+        foreach ($records as $record) {
+            $sheet->setCellValue('A' . $row, $record->id);
+            $sheet->setCellValue('B' . $row, $record->created_at->format('Y-m-d H:i:s'));
+            $sheet->setCellValue('C' . $row, $record->user->name ?? 'N/A');
+            $sheet->setCellValue('D' . $row, $record->user->email ?? 'N/A');
+            $sheet->setCellValue('E' . $row, $record->product->name ?? 'N/A');
+            $sheet->setCellValue('F' . $row, $record->invested_amount);
+            $sheet->setCellValue('G' . $row, $record->allocation_type ?? 'automatic');
+            $sheet->setCellValue('H' . $row, $record->is_reversed ? 'Reversed' : 'Active');
+            $sheet->setCellValue('I' . $row, $record->allocatedByAdmin->name ?? 'System');
+            $row++;
+        }
+
+        // Auto-size columns
+        foreach (range('A', 'I') as $columnID) {
+            $sheet->getColumnDimension($columnID)->setAutoSize(true);
+        }
+
+        $writer = new Xlsx($spreadsheet);
+        
+        return response()->stream(function() use ($writer) {
+            $writer->save('php://output');
+        }, 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
     }
 
     /**
-     * Export records as PDF (placeholder)
+     * Export as PDF using DomPDF
      */
+    
     private function exportAsPdf($records)
     {
-        // Placeholder - implement with a PDF library like TCPDF or DomPDF
-        return response()->json(['error' => 'PDF export not yet implemented'], 501);
+        // FIX: Implemented real PDF export
+        $filename = 'allocation-history-' . date('Y-m-d') . '.pdf';
+        
+        // Simple HTML table for PDF
+        $html = '<h1>Allocation History</h1>';
+        $html .= '<p>Generated on: ' . date('Y-m-d H:i:s') . '</p>';
+        $html .= '<table border="1" cellspacing="0" cellpadding="5" width="100%">';
+        $html .= '<thead><tr style="background-color: #f2f2f2;">
+                    <th>ID</th><th>Date</th><th>User</th><th>Product</th><th>Amount</th><th>Status</th>
+                  </tr></thead><tbody>';
+        
+        foreach ($records as $record) {
+            $statusColor = $record->is_reversed ? '#ffebee' : '#ffffff';
+            $html .= "<tr style='background-color: {$statusColor};'>
+                        <td>{$record->id}</td>
+                        <td>{$record->created_at->format('Y-m-d')}</td>
+                        <td>" . ($record->user->name ?? 'N/A') . "</td>
+                        <td>" . ($record->product->name ?? 'N/A') . "</td>
+                        <td>{$record->invested_amount}</td>
+                        <td>" . ($record->is_reversed ? 'Reversed' : 'Active') . "</td>
+                      </tr>";
+        }
+        $html .= '</tbody></table>';
+
+        $pdf = Pdf::loadHTML($html);
+        return $pdf->download($filename);
     }
 }

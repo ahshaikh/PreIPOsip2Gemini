@@ -1,12 +1,13 @@
 <?php
-// V-PHASE3-1730-090 (Created) | V-FINAL-1730-426 (Request Validated) | V-REFACTOR-1730-601 (Fat Service Implemented)
+// V-PHASE3-1730-090 (Created) | V-FINAL-1730-426 (Request Validated) | V-REFACTOR-1730-601 (Fat Service) | V-AUDIT-FIX-MODULE8 (Race Condition)
 
 namespace App\Http\Controllers\Api\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Services\RazorpayService;
-use App\Services\PaymentInitiationService; // <-- NEW SERVICE
+use App\Services\PaymentInitiationService;
+use App\Services\PaymentWebhookService; // <-- Added
 use App\Http\Requests\InitiatePaymentRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -15,7 +16,8 @@ class PaymentController extends Controller
 {
     public function __construct(
         protected RazorpayService $razorpayService,
-        protected PaymentInitiationService $paymentInitiationService
+        protected PaymentInitiationService $paymentInitiationService,
+        protected PaymentWebhookService $paymentWebhookService // <-- Injected
     ) {}
 
     /**
@@ -26,7 +28,7 @@ class PaymentController extends Controller
         $validated = $request->validated();
         $payment = Payment::with('subscription.plan')->findOrFail($validated['payment_id']);
         
-        // Ownership Check (Double check strictly for security)
+        // Ownership Check
         if ($payment->user_id !== $request->user()->id) {
             return response()->json(['message' => 'Unauthorized payment access.'], 403);
         }
@@ -43,7 +45,6 @@ class PaymentController extends Controller
         } catch (\InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 400);
         } catch (\Exception $e) {
-            // Log is already handled in service for critical errors
             return response()->json(['message' => $e->getMessage()], 500);
         }
     }
@@ -70,7 +71,6 @@ class PaymentController extends Controller
             return response()->json(['message' => 'Payment is not in pending state.'], 400);
         }
 
-        // Limit Check (Redundant but safe to keep or move to service if desired)
         $min = setting('min_payment_amount', 1);
         $max = setting('max_payment_amount', 1000000);
         if ($payment->amount < $min || $payment->amount > $max) {
@@ -78,6 +78,11 @@ class PaymentController extends Controller
         }
 
         $path = $request->file('payment_proof')->store("payment_proofs/{$user->id}", 'public');
+
+        // MODULE 8 FIX: Ensure upload was successful
+        if (!$path) {
+            return response()->json(['message' => 'Failed to upload payment proof. Please try again.'], 500);
+        }
 
         $payment->update([
             'status' => 'pending_approval',
@@ -92,6 +97,7 @@ class PaymentController extends Controller
     
     /**
      * Verify a Razorpay payment after completion.
+     * MODULE 8 FIX: Uses PaymentWebhookService to fulfill payment safely.
      */
     public function verify(Request $request)
     {
@@ -104,17 +110,18 @@ class PaymentController extends Controller
         ]);
 
         $payment = Payment::with('subscription')->findOrFail($validated['payment_id']);
-        $user = $request->user();
-
-        if ($payment->user_id !== $user->id) {
+        
+        if ($payment->user_id !== $request->user()->id) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
+        // If already paid, return success immediately
         if ($payment->status === 'paid') {
             return response()->json(['message' => 'Payment already verified.', 'status' => 'paid']);
         }
 
         try {
+            // 1. Verify Signature locally
             $isSubscription = !empty($validated['razorpay_subscription_id']);
             $attributes = [
                 'razorpay_payment_id' => $validated['razorpay_payment_id'],
@@ -129,15 +136,12 @@ class PaymentController extends Controller
 
             $this->razorpayService->getApi()->utility->verifyPaymentSignature($attributes);
 
-            $payment->update([
-                'status' => 'paid',
-                'gateway_payment_id' => $validated['razorpay_payment_id'],
-                'paid_at' => now(),
-            ]);
-
-            if ($payment->subscription && $payment->subscription->status === 'pending') {
-                $payment->subscription->update(['status' => 'active']);
-            }
+            // 2. Fulfill Payment using Service (Handles Race Condition & Logic)
+            // This is the critical fix from Module 8.
+            $this->paymentWebhookService->fulfillPayment(
+                $payment, 
+                $validated['razorpay_payment_id']
+            );
 
             return response()->json([
                 'message' => 'Payment verified successfully.',
@@ -149,6 +153,7 @@ class PaymentController extends Controller
             $payment->update(['status' => 'failed']);
             return response()->json(['message' => 'Payment verification failed. Invalid signature.', 'status' => 'failed'], 400);
         } catch (\Exception $e) {
+            Log::error("Payment Verification Error: " . $e->getMessage());
             return response()->json(['message' => 'Payment verification error.', 'status' => 'error'], 500);
         }
     }

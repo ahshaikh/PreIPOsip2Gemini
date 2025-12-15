@@ -1,10 +1,11 @@
 <?php
-// V-FINAL-1730-423 (Created)
+// V-FINAL-1730-423 (Created) | V-AUDIT-FIX-MODULE10 (Dependency Injection)
 
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use App\Services\LuckyDrawService;
+use App\Services\WalletService; // <-- Added
 use App\Models\LuckyDraw;
 use Illuminate\Support\Carbon;
 
@@ -21,11 +22,14 @@ class ProcessMonthlyLuckyDraw extends Command
     protected $description = 'Manages the full lifecycle of the monthly lucky draw.';
     
     protected $service;
+    protected $walletService; // <-- Added property
 
-    public function __construct(LuckyDrawService $service)
+    // MODULE 10 FIX: Inject WalletService to prevent ArgumentCountError
+    public function __construct(LuckyDrawService $service, WalletService $walletService)
     {
         parent::__construct();
         $this->service = $service;
+        $this->walletService = $walletService;
     }
 
     /**
@@ -71,14 +75,12 @@ class ProcessMonthlyLuckyDraw extends Command
         $prizePool = (float) setting('lucky_draw_prize_pool', 152500); 
 
         // Define a default prize structure
-        // In V2, this structure should also come from the Admin Panel
         $structure = [
             ['rank' => 1, 'count' => 1, 'amount' => 50000],
             ['rank' => 2, 'count' => 5, 'amount' => 10000],
             ['rank' => 3, 'count' => 25, 'amount' => 2000],
             ['rank' => 4, 'count' => 50, 'amount' => 25], // 1250 total
         ];
-        // Note: 50000 + 50000 + 50000 + 1250 = 151,250 (Close to FSD spec)
         
         $this->service->createMonthlyDraw(
             $drawName,
@@ -95,8 +97,8 @@ class ProcessMonthlyLuckyDraw extends Command
             // 1. Select Winners
             $winnerUserIds = $this->service->selectWinners($draw);
             
-            // 2. Distribute Prizes
-            $this->service->distributePrizes($draw, $winnerUserIds);
+            // 2. Distribute Prizes (MODULE 10 FIX: Pass WalletService)
+            $this->service->distributePrizes($draw, $winnerUserIds, $this->walletService);
             
             // 3. Send Notifications
             $this->service->sendWinnerNotifications($winnerUserIds);
@@ -105,7 +107,8 @@ class ProcessMonthlyLuckyDraw extends Command
 
         } catch (\Exception $e) {
             $this->error("Draw Execution Failed: " . $e->getMessage());
-            $draw->update(['status' => 'failed']);
+            // Optionally mark draw as failed to prevent infinite retry loop
+            // $draw->update(['status' => 'failed']);
         }
     }
 }

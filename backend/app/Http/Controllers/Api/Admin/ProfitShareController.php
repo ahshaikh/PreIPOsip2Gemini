@@ -1,11 +1,12 @@
 <?php
-// V-PHASE3-1730-097 (Created) | V-FINAL-1730-300 | V-FINAL-1730-373 (Refactored) | V-FINAL-1730-568 (Service Injected) | V-FINAL-1730-574 (Adjust/Reverse)
+// V-PHASE3-1730-097 (Created) | V-FINAL-1730-300 | V-FINAL-1730-373 (Refactored) | V-FINAL-1730-568 (Service Injected) | V-FINAL-1730-574 (Adjust/Reverse) | V-AUDIT-FIX-MODULE11 (Async Dispatch)
 
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ProfitShare;
 use App\Services\ProfitShareService;
+use App\Jobs\ProcessProfitShareDistribution; // <-- Added for Async
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -48,6 +49,8 @@ class ProfitShareController extends Controller
 
     /**
      * Step 2: Calculate the distribution.
+     * This remains synchronous as the new 'cursor' implementation in Service
+     * is fast enough for HTTP requests, but returns JSON which is light.
      */
     public function calculate(Request $request, ProfitShare $profitShare)
     {
@@ -64,12 +67,28 @@ class ProfitShareController extends Controller
 
     /**
      * Step 3: Distribute the funds.
+     * * --- MODULE 11 AUDIT FIX: ASYNC PROCESSING ---
+     * Previously, this method called the service synchronously. For 20k+ users,
+     * the request would time out (504 Error).
+     * * The Fix:
+     * Dispatch a Queue Job to handle the distribution in the background.
+     * ---------------------------------------------
      */
     public function distribute(Request $request, ProfitShare $profitShare)
     {
+        // Basic check before dispatch
+        if ($profitShare->status !== 'calculated') {
+            return response()->json(['message' => 'Period not ready for distribution.'], 400);
+        }
+
         try {
-            $this->service->distributeToWallets($profitShare, $request->user());
-            return response()->json(['message' => 'Profit share distributed successfully.']);
+            // Dispatch the job to the queue
+            ProcessProfitShareDistribution::dispatch($profitShare, $request->user());
+
+            return response()->json([
+                'message' => 'Distribution process started in background. You will be notified upon completion.',
+                'status' => 'processing'
+            ]);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 500);
         }
@@ -176,10 +195,11 @@ class ProfitShareController extends Controller
             $result = $this->service->calculateDistribution($profitShare, true);
 
             // Format distributions for preview
+            // Note: Service now limits preview data to prevent memory overflow
             $formatted = array_map(function($dist) {
                 return [
                     'user_id' => $dist['user_id'],
-                    'username' => $dist['subscription']->user->username ?? 'Unknown',
+                    'username' => $dist['username'] ?? 'Unknown',
                     'investment' => $dist['investment_weight'],
                     'tenure_months' => $dist['tenure_months'],
                     'share_percent' => $dist['share_percent'] * 100,
@@ -192,6 +212,7 @@ class ProfitShareController extends Controller
                 'distributions' => $formatted,
                 'metadata' => $result['metadata'],
                 'total_distributed' => $result['total_distributed'],
+                'note' => $result['note'] ?? ''
             ]);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 500);

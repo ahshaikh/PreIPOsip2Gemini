@@ -1,5 +1,5 @@
 <?php
-// V-PHASE2-1730-055 (Created) | V-REMEDIATE-1730-189 (Auto-Debit Integrated)
+// V-PHASE2-1730-055 (Created) | V-REMEDIATE-1730-189 (Auto-Debit Integrated) | V-FIX-TRANSACTION (Gemini)
 
 namespace App\Http\Controllers\Api\Admin;
 
@@ -8,6 +8,7 @@ use App\Models\Plan;
 use App\Services\RazorpayService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB; // FIX: Import DB Facade
 
 class PlanController extends Controller
 {
@@ -49,23 +50,36 @@ class PlanController extends Controller
             'configs' => 'nullable|array',
         ]);
 
-        $plan = Plan::create($validated + ['slug' => Str::slug($validated['name'])]);
+        // FIX: Wrap in transaction to prevent "Ghost Plans" if Razorpay fails
+        try {
+            $plan = DB::transaction(function () use ($validated) {
+                $plan = Plan::create($validated + ['slug' => Str::slug($validated['name'])]);
 
-        if (!empty($validated['features'])) {
-            $plan->features()->createMany($validated['features']);
-        }
-        
-        if (!empty($validated['configs'])) {
-            foreach ($validated['configs'] as $key => $value) {
-                $plan->configs()->create(['config_key' => $key, 'value' => $value]);
-            }
-        }
+                if (!empty($validated['features'])) {
+                    $plan->features()->createMany($validated['features']);
+                }
+                
+                if (!empty($validated['configs'])) {
+                    foreach ($validated['configs'] as $key => $value) {
+                        $plan->configs()->create(['config_key' => $key, 'value' => $value]);
+                    }
+                }
 
-        // --- NEW: Sync with Razorpay ---
-        $this->razorpay->createPlan($plan);
-        // -------------------------------
-        
-        return response()->json($plan->load('configs', 'features'), 201);
+                // Sync with Razorpay inside transaction
+                // If this throws an exception, DB::transaction will rollback everything
+                $this->razorpay->createPlan($plan);
+
+                return $plan;
+            });
+
+            return response()->json($plan->load('configs', 'features'), 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to create plan. Payment gateway synchronization error.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function show(Plan $plan)
@@ -97,11 +111,19 @@ class PlanController extends Controller
             'configs' => 'nullable|array',
         ]);
 
-        $plan->update($validated);
+        // FIX: Critical check to prevent price/cycle changes on active plans
+        if ($plan->subscriptions()->exists()) {
+            if (
+                ($request->has('monthly_amount') && $request->monthly_amount != $plan->monthly_amount) ||
+                ($request->has('billing_cycle') && $request->billing_cycle != $plan->billing_cycle)
+            ) {
+                return response()->json([
+                    'message' => 'Cannot modify price or billing cycle for a plan with active subscriptions. Please archive this plan and create a new one.'
+                ], 409);
+            }
+        }
 
-        // If amount changed, we might need a new Razorpay plan ID, 
-        // but Razorpay doesn't allow editing plans. For V1, we won't re-sync on edit 
-        // to avoid breaking existing subscriptions.
+        $plan->update($validated);
 
         if ($request->has('configs')) {
             foreach ($request->input('configs') as $key => $value) {

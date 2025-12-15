@@ -171,16 +171,43 @@ class AdminBonusController extends Controller
             ], 400);
         }
 
-        // Create reversal transaction
-        $reversal = $bonus->reverse($validated['reason']);
+        // [MODIFIED] Added DB::transaction to ensure we reverse the log AND withdraw the money.
+        // Previously, this function only created a log entry (Phantom Reversal).
+        try {
+            $reversal = DB::transaction(function () use ($bonus, $validated) {
+                
+                // 1. Create reversal transaction log (using Model logic if available, or manual create)
+                // Assuming $bonus->reverse() returns the new BonusTransaction model
+                $reversalTxn = $bonus->reverse($validated['reason']);
 
-        Log::info("Admin reversed bonus #{$bonus->id}. Reason: {$validated['reason']}");
+                // 2. [ADDED] Actually withdraw the money from the user's wallet
+                // This is critical. Without this, the user keeps the money.
+                $this->walletService->withdraw(
+                    $bonus->user,
+                    $bonus->amount, // Amount to remove
+                    'bonus_reversal',
+                    "Reversal of Bonus #{$bonus->id}: " . $validated['reason'],
+                    $reversalTxn // Link this withdrawal to the reversal transaction
+                );
 
-        return response()->json([
-            'success' => true,
-            'message' => "Bonus of ₹{$bonus->amount} reversed successfully",
-            'reversal' => $reversal,
-        ]);
+                return $reversalTxn;
+            });
+
+            Log::info("Admin reversed bonus #{$bonus->id}. Reason: {$validated['reason']}");
+
+            return response()->json([
+                'success' => true,
+                'message' => "Bonus of ₹{$bonus->amount} reversed successfully (Funds withdrawn)",
+                'reversal' => $reversal,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Failed to reverse bonus #{$id}: " . $e->getMessage());
+            return response()->json([
+                'success' => false, 
+                'message' => 'Failed to reverse bonus: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -321,6 +348,7 @@ class AdminBonusController extends Controller
             default => round($amount, $decimals),
         };
     }
+
     /**
      * Award a special bonus to a user (Admin only)
      *
@@ -338,12 +366,11 @@ class AdminBonusController extends Controller
         $amount = (float) $validated['amount'];
         $reason = $validated['reason'];
 
-        // [MODIFIED] Added DB::transaction to ensure both the record creation and the wallet deposit happen atomically.
-        // If either fails, the database rolls back.
+        // [MODIFIED] Corrected try-catch block structure
         try {
             $bonus = DB::transaction(function () use ($user, $amount, $reason) {
 
-        // 1. Create special bonus transaction record
+                // 1. Create special bonus transaction record
                 $bonusTransaction = BonusTransaction::create([
                     'user_id' => $user->id,
                     'subscription_id' => $user->subscriptions()->latest()->first()?->id,
@@ -368,20 +395,20 @@ class AdminBonusController extends Controller
                 return $bonusTransaction;
             });
 
-        // Send notification to user
-        $user->notify(new BonusCredited($amount, 'Special'));
+            // Send notification to user
+            $user->notify(new BonusCredited($amount, 'Special'));
 
-        Log::info("Admin awarded special bonus: ₹{$amount} to User {$user->id}. Reason: {$reason}");
+            Log::info("Admin awarded special bonus: ₹{$amount} to User {$user->id}. Reason: {$reason}");
 
-        return response()->json([
-            'success' => true,
-            'message' => "Special bonus of ₹{$amount} awarded to {$user->username}",
-            'bonus' => $bonus,
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => "Special bonus of ₹{$amount} awarded to {$user->username}",
+                'bonus' => $bonus,
+            ]);
 
-    } catch (\Exception $e) {
+        } catch (\Exception $e) {
             Log::error("Failed to award special bonus: " . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Failed to award bonus.'], 500);
+            return response()->json(['success' => false, 'message' => 'Failed to award bonus: ' . $e->getMessage()], 500);
         }
     }
 

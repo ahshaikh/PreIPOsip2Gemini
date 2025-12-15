@@ -1,5 +1,5 @@
 <?php
-// V-PHASE3-1730-093 (Created) | V-FINAL-1730-464 
+// V-PHASE3-1730-093 (Created) | V-FINAL-1730-464 | V-AUDIT-FIX-MODULE9
 
 namespace App\Http\Controllers\Api\User;
 
@@ -37,7 +37,8 @@ class ReferralController extends Controller
                     ->count();
             }
 
-            // 2. Calculate Earnings
+            // 2. Calculate Earnings (Optimized: DB Sum)
+            // MODULE 9 FIX: Use DB facade to sum directly in SQL engine, avoiding model hydration overhead.
             if (Schema::hasTable('bonus_transactions')) {
                 $totalEarned = DB::table('bonus_transactions')
                     ->where('user_id', $user->id)
@@ -96,7 +97,6 @@ class ReferralController extends Controller
     /**
      * Get Referral Rewards History
      * Endpoint: /api/v1/user/referrals/rewards
-     * Fixes 404 Error
      */
     public function rewards(Request $request): JsonResponse
     {

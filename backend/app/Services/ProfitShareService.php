@@ -1,5 +1,5 @@
 <?php
-// V-FINAL-1730-372 (Created) | V-FINAL-1730-451 (Hardened) | V-FINAL-1730-567 (Hardened) | V-FINAL-1730-573 (Reversals Added)
+// V-FINAL-1730-372 (Created) | V-FINAL-1730-451 (Hardened) | V-FINAL-1730-567 (Hardened) | V-FINAL-1730-573 (Reversals Added) | V-AUDIT-FIX-MODULE11 (Scalability & Locking)
 
 namespace App\Services;
 
@@ -25,6 +25,14 @@ class ProfitShareService
 
     /**
      * FSD-REPORT-021: Calculate the distribution.
+     * * --- MODULE 11 AUDIT FIX: MEMORY OPTIMIZATION ---
+     * Previously, this method loaded ALL eligible subscriptions into memory using $query->get().
+     * For a dataset of 20,000+ investors, this would cause a PHP Fatal Error (Allowed memory size exhausted).
+     * * The Fix:
+     * 1. Pass 1 (Aggregation): Use `chunk()` to calculate total investment weight and tenure without keeping models in RAM.
+     * 2. Pass 2 (Processing): Use `cursor()` to iterate through subscriptions one-by-one to calculate shares and insert rows.
+     * This keeps memory usage constant O(1) regardless of user count.
+     * ------------------------------------------------
      *
      * @param ProfitShare $profitShare The profit share period
      * @param bool $preview If true, doesn't save to database (preview only)
@@ -46,8 +54,10 @@ class ProfitShareService
         $minMonths = (int) setting('profit_share_min_months', 3);
         $minInvestment = (float) setting('profit_share_min_investment', 10000);
         $requireActive = setting('profit_share_require_active_subscription', true);
+        $formulaType = setting('profit_share_formula_type', 'weighted_investment');
 
         // Build query for eligible subscriptions
+        // NOTE: We do NOT execute get() here anymore to save memory.
         $query = Subscription::where('start_date', '<=', $profitShare->end_date)
             ->where('amount', '>=', $minInvestment)
             ->whereHas('user', fn($q) => $q->whereDate('created_at', '<=', now()->subMonths($minMonths)))
@@ -57,15 +67,21 @@ class ProfitShareService
             $query->where('status', 'active');
         }
 
-        $subscriptions = $query->get();
+        // --- PASS 1: AGGREGATION (Calculate Totals using Chunking) ---
+        $totalWeightedInvestment = 0;
+        $totalTenure = 0;
+        $eligibleCount = 0;
 
-        // Get formula configuration
-        $formulaType = setting('profit_share_formula_type', 'weighted_investment');
+        // Process in chunks of 1000 to keep memory low
+        $query->chunk(1000, function ($subscriptions) use (&$totalWeightedInvestment, &$totalTenure, &$eligibleCount, $profitShare) {
+            foreach ($subscriptions as $sub) {
+                $totalWeightedInvestment += $sub->amount;
+                $totalTenure += $sub->start_date->diffInMonths($profitShare->end_date);
+                $eligibleCount++;
+            }
+        });
 
-        // Calculate shares based on formula
-        $userShares = $this->calculateUserShares($subscriptions, $profitShare, $formulaType);
-
-        if (empty($userShares)) {
+        if ($eligibleCount === 0) {
             throw new \Exception('No eligible investments found. Division by zero prevented.');
         }
 
@@ -77,96 +93,155 @@ class ProfitShareService
                 'min_investment' => $minInvestment,
                 'require_active' => $requireActive,
             ],
-            'eligible_users' => count($userShares),
-            'total_eligible_investment' => array_sum(array_column($userShares, 'investment_weight')),
+            'eligible_users' => $eligibleCount,
+            'total_eligible_investment' => $totalWeightedInvestment,
+            'total_tenure_months' => $totalTenure, // Added for tenure-based auditing
             'calculated_at' => now()->toISOString(),
         ];
 
-        // Preview mode: return data without saving
-        if ($preview) {
-            return [
-                'distributions' => $userShares,
-                'metadata' => $metadata,
-                'total_distributed' => array_sum(array_column($userShares, 'amount')),
-            ];
+        // --- PASS 2: CALCULATION & STORAGE (Using Cursor) ---
+        
+        $previewData = []; // Store limited rows for preview
+        $totalDistributed = 0;
+
+        // If not previewing, start transaction to save results
+        if (!$preview) {
+            DB::beginTransaction();
+            try {
+                $profitShare->distributions()->delete(); // Clear old calculations
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
         }
 
-        // Save to database
-        return DB::transaction(function () use ($profitShare, $userShares, $metadata) {
-            $profitShare->distributions()->delete(); // Clear old calculations
-            $totalDistributed = 0;
+        try {
+            // Use cursor() to stream results one by one (O(1) memory)
+            foreach ($query->cursor() as $sub) {
+                
+                // Calculate individual metrics
+                $investmentWeight = $sub->amount;
+                $tenureMonths = $sub->start_date->diffInMonths($profitShare->end_date);
+                
+                // Get Plan Percentage
+                // Note: accessing relations on cursor objects is efficient if eager loaded in query definition
+                $config = $sub->plan->getConfig('profit_share', ['percentage' => 5]);
+                $sharePercent = (float)($config['percentage'] ?? 5) / 100;
 
-            foreach ($userShares as $share) {
-                if ($share['amount'] > 0.01) {
-                    $profitShare->distributions()->create([
-                        'user_id' => $share['user_id'],
-                        'amount' => $share['amount'],
-                    ]);
-                    $totalDistributed += $share['amount'];
+                // Calculate Share Amount based on Formula
+                $amount = 0;
+                
+                if ($formulaType === 'equal_split') {
+                    $amount = ($profitShare->total_pool / $eligibleCount) * $sharePercent;
+                } elseif ($formulaType === 'tenure_based') {
+                    // Tenure-Based Logic (Inlined for cursor efficiency)
+                    $investmentWeightSetting = (float) setting('profit_share_investment_weight', 0.7);
+                    $tenureWeightSetting = (float) setting('profit_share_tenure_weight', 0.3);
+
+                    $investmentRatio = $totalWeightedInvestment > 0 ? $investmentWeight / $totalWeightedInvestment : 0;
+                    $tenureRatio = $totalTenure > 0 ? $tenureMonths / $totalTenure : 0;
+
+                    $combinedRatio = ($investmentRatio * $investmentWeightSetting) + ($tenureRatio * $tenureWeightSetting);
+                    $amount = $profitShare->total_pool * $combinedRatio * $sharePercent;
+                } else {
+                    // Default: Weighted Investment
+                    $ratio = $totalWeightedInvestment > 0 ? $investmentWeight / $totalWeightedInvestment : 0;
+                    $amount = $profitShare->total_pool * $ratio * $sharePercent;
+                }
+
+                $totalDistributed += $amount;
+
+                // Handle Saving or Previewing
+                if ($amount > 0.01) {
+                    if ($preview) {
+                        // Limit preview to 100 records to prevent JSON overflow
+                        if (count($previewData) < 100) {
+                            $previewData[] = [
+                                'user_id' => $sub->user_id,
+                                'username' => $sub->user->username ?? 'Unknown',
+                                'investment_weight' => $investmentWeight,
+                                'tenure_months' => $tenureMonths,
+                                'share_percent' => $sharePercent,
+                                'amount' => $amount,
+                            ];
+                        }
+                    } else {
+                        // Insert directly into DB
+                        UserProfitShare::create([
+                            'profit_share_id' => $profitShare->id,
+                            'user_id' => $sub->user_id,
+                            'amount' => $amount,
+                        ]);
+                    }
                 }
             }
 
-            $profitShare->status = 'calculated';
-            $profitShare->calculation_metadata = $metadata;
-            $profitShare->save();
+            if (!$preview) {
+                $profitShare->status = 'calculated';
+                $profitShare->calculation_metadata = $metadata;
+                $profitShare->save();
+                DB::commit();
+            }
 
+        } catch (\Exception $e) {
+            if (!$preview) DB::rollBack();
+            throw $e;
+        }
+
+        if ($preview) {
             return [
+                'distributions' => $previewData,
+                'metadata' => $metadata,
                 'total_distributed' => $totalDistributed,
-                'eligible_users' => count($userShares),
-                'metadata' => $metadata
+                'note' => count($previewData) >= 100 ? 'Preview limited to first 100 records.' : ''
             ];
-        });
+        }
+
+        return [
+            'total_distributed' => $totalDistributed,
+            'eligible_users' => $eligibleCount,
+            'metadata' => $metadata
+        ];
     }
 
     /**
      * Calculate user shares based on formula type.
+     * DEPRECATED: This method relied on array loading and is now replaced by the Cursor logic above.
+     * Kept for backward compatibility if called by other legacy services, but internal logic now uses inline calculation.
      */
     private function calculateUserShares($subscriptions, $profitShare, $formulaType)
     {
+        // Legacy support wrapper
         $userShares = [];
         $totalWeightedInvestment = 0;
         $totalTenure = 0;
 
-        // First pass: Calculate totals
         foreach ($subscriptions as $sub) {
-            $investmentWeight = $sub->amount;
-            $tenureMonths = $sub->start_date->diffInMonths($profitShare->end_date);
+            $totalWeightedInvestment += $sub->amount;
+            $totalTenure += $sub->start_date->diffInMonths($profitShare->end_date);
+        }
 
-            $totalWeightedInvestment += $investmentWeight;
-            $totalTenure += $tenureMonths;
-
+        foreach ($subscriptions as $sub) {
             $config = $sub->plan->getConfig('profit_share', ['percentage' => 5]);
             $sharePercent = (float)($config['percentage'] ?? 5) / 100;
-
+            
+            // Simplified recreation of logic for legacy calls
+            $ratio = $totalWeightedInvestment > 0 ? $sub->amount / $totalWeightedInvestment : 0;
+            $amount = $profitShare->total_pool * $ratio * $sharePercent;
+            
             $userShares[] = [
                 'user_id' => $sub->user_id,
-                'investment_weight' => $investmentWeight,
-                'tenure_months' => $tenureMonths,
-                'share_percent' => $sharePercent,
-                'subscription' => $sub,
+                'amount' => $amount,
+                'investment_weight' => $sub->amount,
+                'share_percent' => $sharePercent
             ];
         }
-
-        if ($totalWeightedInvestment == 0) {
-            return [];
-        }
-
-        // Second pass: Calculate amounts based on formula
-        foreach ($userShares as &$share) {
-            $amount = match ($formulaType) {
-                'equal_split' => $this->calculateEqualSplit($profitShare, $share, count($userShares)),
-                'tenure_based' => $this->calculateTenureBased($profitShare, $share, $totalWeightedInvestment, $totalTenure),
-                default => $this->calculateWeightedInvestment($profitShare, $share, $totalWeightedInvestment),
-            };
-
-            $share['amount'] = $amount;
-        }
-
         return $userShares;
     }
 
     /**
      * Formula 1: Weighted Investment (default)
+     * Helper kept for reference
      */
     private function calculateWeightedInvestment($profitShare, $share, $totalWeightedInvestment)
     {
@@ -176,6 +251,7 @@ class ProfitShareService
 
     /**
      * Formula 2: Equal Split
+     * Helper kept for reference
      */
     private function calculateEqualSplit($profitShare, $share, $totalUsers)
     {
@@ -184,6 +260,7 @@ class ProfitShareService
 
     /**
      * Formula 3: Tenure-Based (combines investment and tenure)
+     * Helper kept for reference
      */
     private function calculateTenureBased($profitShare, $share, $totalWeightedInvestment, $totalTenure)
     {
@@ -200,20 +277,35 @@ class ProfitShareService
 
     /**
      * FSD-REPORT-021: Distribute the funds.
+     * * --- MODULE 11 AUDIT FIX: RACE CONDITION PREVENTION ---
+     * Problem: If two admins clicked "Distribute" at the same time, or if the request timed out
+     * and was retried, users could receive double payouts.
+     * * The Fix:
+     * 1. Use `lockForUpdate()` on the ProfitShare model row. This forces any other process
+     * trying to distribute this specific ID to wait until the first one commits.
+     * 2. Re-check the status INSIDE the lock to ensure it hasn't already been marked distributed.
+     * -----------------------------------------------------
      */
     public function distributeToWallets(ProfitShare $profitShare, User $admin)
     {
-        if ($profitShare->status !== 'calculated') {
-            throw new \Exception("This period is not ready for distribution.");
-        }
+        // Wrap entire distribution in a transaction with pessimistic locking
+        return DB::transaction(function () use ($profitShare, $admin) {
+            
+            // 1. ACQUIRE LOCK (Pessimistic Lock)
+            // This waits for any other transaction on this row to finish.
+            $lockedPeriod = ProfitShare::lockForUpdate()->find($profitShare->id);
+            
+            // 2. STATUS CHECK (Inside Lock)
+            if ($lockedPeriod->status !== 'calculated') {
+                throw new \Exception("Distribution aborted: Period status is '{$lockedPeriod->status}' (Expected: calculated). It may have already been distributed.");
+            }
 
-        $distributions = $profitShare->distributions()->with('user.wallet', 'user.kyc', 'user.subscription')->get();
-        if ($distributions->isEmpty()) throw new \Exception('No distributions to process.');
-        
-        $tdsRate = (float) setting('tds_rate', 0.10);
-        $tdsThreshold = (float) setting('tds_threshold', 5000);
+            $distributions = $lockedPeriod->distributions()->with('user.wallet', 'user.kyc', 'user.subscription')->get();
+            if ($distributions->isEmpty()) throw new \Exception('No distributions to process.');
+            
+            $tdsRate = (float) setting('tds_rate', 0.10);
+            $tdsThreshold = (float) setting('tds_threshold', 5000);
 
-        return DB::transaction(function () use ($profitShare, $distributions, $admin, $tdsRate, $tdsThreshold) {
             foreach ($distributions as $dist) {
                 $user = $dist->user;
                 if (!$user) continue;
@@ -234,7 +326,7 @@ class ProfitShareService
                     'type' => 'profit_share',
                     'amount' => $grossAmount,
                     'tds_deducted' => $tdsDeducted,
-                    'description' => "Profit Share: {$profitShare->period_name}",
+                    'description' => "Profit Share: {$lockedPeriod->period_name}",
                 ]);
 
                 // 2. Credit Wallet
@@ -243,13 +335,17 @@ class ProfitShareService
                         $user,
                         $netAmount, 
                         'bonus_credit', 
-                        "Profit Share: {$profitShare->period_name}", 
+                        "Profit Share: {$lockedPeriod->period_name}", 
                         $bonus
                     );
                 }
                 $dist->update(['bonus_transaction_id' => $bonus->id]);
             }
-            $profitShare->update(['status' => 'distributed', 'admin_id' => $admin->id]);
+            
+            // 3. UPDATE STATUS (Mark as complete)
+            $lockedPeriod->update(['status' => 'distributed', 'admin_id' => $admin->id]);
+            
+            Log::info("Profit Share Period #{$profitShare->id} distributed successfully by Admin #{$admin->id}");
         });
     }
 

@@ -1,5 +1,5 @@
 <?php
-// V-PHASE3-1730-089 (Created) | V-FINAL-1730-451 | V-FINAL-1730-479 (Custom Amount) | V-FINAL-1730-579 (Refund Logic)
+// V-PHASE3-1730-089 (Created) | V-FINAL-1730-451 | V-FINAL-1730-479 (Custom Amount) | V-FINAL-1730-579 (Refund Logic) | V-FIX-MULTI-SUB (Gemini)
 
 namespace App\Http\Controllers\Api\User;
 
@@ -71,10 +71,21 @@ class SubscriptionController extends Controller
 
     public function changePlan(Request $request)
     {
-        $validated = $request->validate(['new_plan_id' => 'required|exists:plans,id']);
+        // [MODIFIED] Added subscription_id to validation to handle multiple subscriptions
+        $validated = $request->validate([
+            'new_plan_id' => 'required|exists:plans,id',
+            'subscription_id' => 'sometimes|exists:subscriptions,id'
+        ]);
+        
         $user = $request->user();
-        $sub = Subscription::where('user_id', $user->id)->where('status', 'active')->firstOrFail();
         $newPlan = Plan::findOrFail($validated['new_plan_id']);
+
+        // Find specific subscription or default to first active
+        $query = Subscription::where('user_id', $user->id)->where('status', 'active');
+        if (isset($validated['subscription_id'])) {
+            $query->where('id', $validated['subscription_id']);
+        }
+        $sub = $query->firstOrFail();
 
         // Check if same plan
         if ($newPlan->id === $sub->plan_id) {
@@ -103,9 +114,19 @@ class SubscriptionController extends Controller
 
     public function pause(Request $request)
     {
-        $validated = $request->validate(['months' => 'required|integer|min:1|max:3']);
+        // [MODIFIED] Added subscription_id requirement
+        $validated = $request->validate([
+            'months' => 'required|integer|min:1|max:3',
+            'subscription_id' => 'required|exists:subscriptions,id' // Fixed: Require ID
+        ]);
+        
         $user = $request->user();
-        $sub = Subscription::where('user_id', $user->id)->where('status', 'active')->firstOrFail();
+        
+        // Find specific subscription
+        $sub = Subscription::where('user_id', $user->id)
+            ->where('id', $validated['subscription_id'])
+            ->where('status', 'active')
+            ->firstOrFail();
 
         try {
             $this->service->pauseSubscription($sub, $validated['months']);
@@ -117,8 +138,18 @@ class SubscriptionController extends Controller
 
     public function resume(Request $request)
     {
+        // [MODIFIED] Added subscription_id requirement
+        $validated = $request->validate([
+            'subscription_id' => 'required|exists:subscriptions,id' // Fixed: Require ID
+        ]);
+
         $user = $request->user();
-        $sub = Subscription::where('user_id', $user->id)->where('status', 'paused')->firstOrFail();
+        
+        // Find specific subscription
+        $sub = Subscription::where('user_id', $user->id)
+            ->where('id', $validated['subscription_id'])
+            ->where('status', 'paused')
+            ->firstOrFail();
 
         try {
             $this->service->resumeSubscription($sub);
@@ -130,9 +161,18 @@ class SubscriptionController extends Controller
 
     public function cancel(Request $request)
     {
-        $validated = $request->validate(['reason' => 'required|string|max:255']);
+        // [MODIFIED] Added subscription_id requirement
+        $validated = $request->validate([
+            'reason' => 'required|string|max:255',
+            'subscription_id' => 'required|exists:subscriptions,id'
+        ]);
+        
         $user = $request->user();
-        $sub = Subscription::where('user_id', $user->id)->whereIn('status', ['active', 'paused'])->firstOrFail();
+        
+        $sub = Subscription::where('user_id', $user->id)
+            ->where('id', $validated['subscription_id'])
+            ->whereIn('status', ['active', 'paused'])
+            ->firstOrFail();
 
         try {
             $refundAmount = $this->service->cancelSubscription($sub, $validated['reason']);

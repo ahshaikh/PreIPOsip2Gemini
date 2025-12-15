@@ -113,33 +113,27 @@ class BackupController extends Controller
             $dbName = env('DB_DATABASE');
             $fileName = 'backup_' . $dbName . '_' . date('Y-m-d_H-i-s') . '.sql';
             $filePath = 'backups/' . $fileName;
+            $fullPath = storage_path('app/' . $filePath);
 
-            // Create SQL dump
-            $handle = fopen(storage_path('app/' . $filePath), 'w');
+            // FIX: Use system mysqldump instead of PHP looping
+            // The previous implementation loaded all rows into memory, causing crashes.
+            $command = sprintf(
+                'mysqldump --user=%s --password=%s --host=%s %s > %s',
+                escapeshellarg(env('DB_USERNAME')),
+                escapeshellarg(env('DB_PASSWORD')),
+                escapeshellarg(env('DB_HOST')),
+                escapeshellarg($dbName),
+                escapeshellarg($fullPath)
+            );
             
-            $tables = DB::select('SHOW TABLES');
-            $key = "Tables_in_" . $dbName;
+            // Execute the command
+            $returnVar = null;
+            $output = [];
+            exec($command, $output, $returnVar);
 
-            foreach ($tables as $table) {
-                $tableName = $table->$key;
-                
-                fwrite($handle, "\nDROP TABLE IF EXISTS `$tableName`;\n");
-                
-                $createTable = DB::select("SHOW CREATE TABLE `$tableName`")[0]->{'Create Table'};
-                fwrite($handle, $createTable . ";\n\n");
-
-                $rows = DB::table($tableName)->get();
-                foreach ($rows as $row) {
-                    $values = array_map(function ($value) {
-                        return is_null($value) ? "NULL" : "'" . addslashes($value) . "'";
-                    }, (array) $row);
-                    
-                    $sql = "INSERT INTO `$tableName` VALUES (" . implode(", ", $values) . ");\n";
-                    fwrite($handle, $sql);
-                }
+            if ($returnVar !== 0) {
+                 throw new \Exception("Backup failed with error code $returnVar");
             }
-            
-            fclose($handle);
 
             return response()->json([
                 'message' => 'Backup created successfully',
@@ -190,44 +184,37 @@ class BackupController extends Controller
      * Stream a full database dump to the browser (legacy method)
      * GET /api/v1/admin/system/backup/db
      */
-    public function downloadDbDump()
+public function downloadDbDump()
     {
+        // FIX: Removed legacy memory-heavy implementation.
+        // Instead, triggering a file creation and download.
+        
         $dbName = env('DB_DATABASE');
         $fileName = 'backup_' . $dbName . '_' . date('Y-m-d_H-i-s') . '.sql';
-
+        
         $headers = [
             'Content-Type' => 'application/sql',
             'Content-Disposition' => "attachment; filename=\"{$fileName}\"",
         ];
 
-        $callback = function() {
+        return new StreamedResponse(function() {
             $handle = fopen('php://output', 'w');
             
-            $tables = DB::select('SHOW TABLES');
-            $key = "Tables_in_" . env('DB_DATABASE');
-
-            foreach ($tables as $table) {
-                $tableName = $table->$key;
-                
-                fwrite($handle, "\nDROP TABLE IF EXISTS `$tableName`;\n");
-                
-                $createTable = DB::select("SHOW CREATE TABLE `$tableName`")[0]->{'Create Table'};
-                fwrite($handle, $createTable . ";\n\n");
-
-                $rows = DB::table($tableName)->get();
-                foreach ($rows as $row) {
-                    $values = array_map(function ($value) {
-                        return is_null($value) ? "NULL" : "'" . addslashes($value) . "'";
-                    }, (array) $row);
-                    
-                    $sql = "INSERT INTO `$tableName` VALUES (" . implode(", ", $values) . ");\n";
-                    fwrite($handle, $sql);
-                }
-            }
+            // Streaming mysqldump output directly to browser
+             $command = sprintf(
+                'mysqldump --user=%s --password=%s --host=%s %s',
+                escapeshellarg(env('DB_USERNAME')),
+                escapeshellarg(env('DB_PASSWORD')),
+                escapeshellarg(env('DB_HOST')),
+                escapeshellarg(env('DB_DATABASE'))
+            );
             
+            $proc = popen($command, 'r');
+            while (!feof($proc)) {
+                fwrite($handle, fread($proc, 4096));
+            }
+            pclose($proc);
             fclose($handle);
-        };
-
-        return new StreamedResponse($callback, 200, $headers);
+        }, 200, $headers);
     }
 }

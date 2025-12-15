@@ -1,5 +1,5 @@
 <?php
-// V-PHASE3-1730-094 (Created) | V-REMEDIATE-1730-257 (Auto-Withdrawal) | V-FINAL-1730-360 (Refactored) | V-FINAL-1730-429 (FormRequest) | V-FINAL-1730-447 (WalletService)
+// V-PHASE3-1730-094 (Created) | V-REMEDIATE-1730-257 (Auto-Withdrawal) | V-FINAL-1730-360 (Refactored) | V-FINAL-1730-429 (FormRequest) | V-FINAL-1730-447 (WalletService) | V-AUDIT-FIX-MODULE7 (Statement Optimization)
 
 namespace App\Http\Controllers\Api\User;
 
@@ -11,6 +11,7 @@ use App\Http\Requests\User\WithdrawalRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 
 class WalletController extends Controller
 {
@@ -25,8 +26,37 @@ class WalletController extends Controller
 
     public function show(Request $request)
     {
-        $wallet = Wallet::firstOrCreate(['user_id' => $request->user()->id]);
+        $userId = $request->user()->id;
+
+        // MODULE 7 FIX: Optimization for Wallet Totals
+        // Instead of using Model Accessors which load all transactions into memory,
+        // we use database-level aggregation (withSum). This is scalable for millions of rows.
+        
+        $wallet = Wallet::where('user_id', $userId)
+            ->withSum(['transactions as total_deposited' => function($query) {
+                // Sum only positive money-in types
+                $query->whereIn('type', ['deposit', 'admin_adjustment', 'bonus_credit', 'refund'])
+                      ->where('amount', '>', 0);
+            }], 'amount')
+            ->withSum(['transactions as total_withdrawn' => function($query) {
+                // Sum withdrawals (they are stored as negative numbers, will wrap in abs() below)
+                $query->where('type', 'withdrawal');
+            }], 'amount')
+            ->first();
+
+        // Handle case where wallet doesn't exist yet
+        if (!$wallet) {
+            $wallet = Wallet::create(['user_id' => $userId]);
+            $wallet->total_deposited = 0;
+            $wallet->total_withdrawn = 0;
+        } else {
+            // Ensure withdrawal total is positive for display
+            $wallet->total_withdrawn = abs($wallet->total_withdrawn ?? 0);
+            $wallet->total_deposited = $wallet->total_deposited ?? 0;
+        }
+
         $transactions = $wallet->transactions()->latest()->paginate(20);
+        
         return response()->json(['wallet' => $wallet, 'transactions' => $transactions]);
     }
 
@@ -99,9 +129,27 @@ class WalletController extends Controller
 
     /**
      * Download wallet statement as PDF
+     * MODULE 7 FIX: Enforce Date Ranges
      */
     public function downloadStatement(Request $request)
     {
+        // MODULE 7 FIX: "Statement of Death" Prevention
+        // We MUST validate a date range to prevent loading 5000+ transactions into RAM.
+        // If user doesn't provide dates, we default to the last 30 days.
+        
+        $request->validate([
+            'start_date' => 'nullable|date',
+            'end_date'   => 'nullable|date|after_or_equal:start_date',
+        ]);
+
+        $startDate = $request->start_date ? Carbon::parse($request->start_date)->startOfDay() : now()->subDays(30)->startOfDay();
+        $endDate   = $request->end_date ? Carbon::parse($request->end_date)->endOfDay() : now()->endOfDay();
+
+        // Hard limit: Max 1 year range to protect server memory
+        if ($startDate->diffInDays($endDate) > 365) {
+            return response()->json(['message' => 'Date range cannot exceed 1 year.'], 422);
+        }
+
         $user = $request->user();
         $wallet = Wallet::where('user_id', $user->id)->first();
 
@@ -109,9 +157,10 @@ class WalletController extends Controller
             return response()->json(['message' => 'Wallet not found'], 404);
         }
 
-        // Get all transactions
+        // Get transactions within the safe window
         $transactions = $wallet->transactions()
             ->with('reference')
+            ->whereBetween('created_at', [$startDate, $endDate])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -120,6 +169,7 @@ class WalletController extends Controller
             'user' => $user,
             'wallet' => $wallet,
             'transactions' => $transactions,
+            'period' => $startDate->format('d M Y') . ' to ' . $endDate->format('d M Y'),
             'generated_at' => now()->format('d M Y, h:i A'),
         ];
 
@@ -127,7 +177,7 @@ class WalletController extends Controller
         $pdf = Pdf::loadView('pdf.wallet-statement', $data);
 
         // Return PDF download
-        $filename = 'wallet-statement-' . $user->id . '-' . now()->format('Y-m-d') . '.pdf';
+        $filename = 'statement-' . $startDate->format('Ymd') . '-' . $endDate->format('Ymd') . '.pdf';
         return $pdf->download($filename);
     }
 }

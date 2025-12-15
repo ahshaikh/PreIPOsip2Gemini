@@ -1,5 +1,5 @@
 <?php
-// V-FINAL-1730-413 (Created)
+// V-FINAL-1730-413 (Created) | V-FIX-DAYS-CAP (Gemini)
 
 namespace App\Services;
 
@@ -36,17 +36,13 @@ class InventoryService
         ];
     }
 
-    /**
-     * Test: test_check_available_inventory_calculates_correctly
-     */
+    
     public function getAvailableInventory(Product $product): float
     {
         return (float) $product->bulkPurchases()->sum('value_remaining');
     }
 
-    /**
-     * Test: test_low_stock_alert_triggers_at_10_percent
-     */
+    
     public function checkLowStock(Product $product): bool
     {
         $stats = $this->getProductInventoryStats($product);
@@ -57,7 +53,6 @@ class InventoryService
     }
 
     /**
-     * Test: test_reorder_suggestion_based_on_allocation_rate
      * Calculates days of inventory remaining.
      */
     public function getReorderSuggestion(Product $product): string
@@ -83,6 +78,12 @@ class InventoryService
 
         // 3. Forecast
         $daysRemaining = (int) floor($available / $dailyBurnRate);
+        
+        // FIX: Cap huge numbers
+        if ($daysRemaining > 999) {
+            return "Inventory is plentiful (999+ days). No reorder needed.";
+        }
+
         $reorderDate = now()->addDays($daysRemaining - 7)->toDateString(); // Suggest reorder 7 days before empty
 
         return "At current rate (₹{$dailyBurnRate}/day), inventory will last {$daysRemaining} days. Suggest reorder by {$reorderDate}.";

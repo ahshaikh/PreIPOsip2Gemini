@@ -31,21 +31,43 @@ class SettingsController extends Controller
         $validated = $request->validate([
             'settings' => 'required|array',
             'settings.*.key' => 'required|string',
-            'settings.*.value' => 'nullable|string',
+            'settings.*.value' => 'nullable', // Value type checked manually below
         ]);
 
         $adminId = $request->user()->id;
 
         foreach ($validated['settings'] as $settingData) {
-            // Update or create setting if it doesn't exist
+            
+            // FIX: Fetch existing type to validate input
+            $existing = Setting::where('key', $settingData['key'])->first();
+            $type = $existing ? $existing->type : ($settingData['type'] ?? 'string');
+
+            $value = $settingData['value'];
+
+            // Type Validation Logic
+            if ($value !== null) {
+                if ($type === 'number' && !is_numeric($value)) {
+                    return response()->json(['error' => "Setting '{$settingData['key']}' must be a number."], 422);
+                }
+                if ($type === 'boolean' && !in_array($value, ['true', 'false', '1', '0', true, false], true)) {
+                    return response()->json(['error' => "Setting '{$settingData['key']}' must be a boolean."], 422);
+                }
+                if ($type === 'json') {
+                    json_decode($value);
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        return response()->json(['error' => "Setting '{$settingData['key']}' must be valid JSON."], 422);
+                    }
+                }
+            }
+
+            // Update or create setting
             Setting::updateOrCreate(
                 ['key' => $settingData['key']],
                 [
-                    'value' => $settingData['value'],
+                    'value' => (string) $value,
                     'updated_by' => $adminId,
-                    // Set default values for new settings
-                    'type' => $settingData['type'] ?? 'string',
-                    'group' => $settingData['group'] ?? 'system',
+                    'type' => $type,
+                    'group' => $existing ? $existing->group : ($settingData['group'] ?? 'system'),
                 ]
             );
 

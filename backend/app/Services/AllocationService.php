@@ -1,5 +1,5 @@
 <?php
-// V-PHASE3-1730-084 (Created) | V-FINAL-1730-351 | V-FINAL-1730-414 (InventoryService Integrated) | V-FINAL-1730-585 (Reversal Logic Added)
+// V-PHASE3-1730-084 (Created) | V-FINAL-1730-351 | V-FINAL-1730-414 (InventoryService Integrated) | V-FINAL-1730-585 (Reversal Logic Added) | V-FIX-FRAGMENTATION (Gemini)
 
 namespace App\Services;
 
@@ -21,6 +21,7 @@ class AllocationService
 
     /**
      * Allocate shares from the bulk purchase pool to the user.
+     * FIX: Implements Bucket Fill algorithm to handle split batches.
      */
     public function allocateShares(Payment $payment, float $totalInvestmentValue)
     {
@@ -33,44 +34,62 @@ class AllocationService
 
         $allocationSuccess = DB::transaction(function () use ($user, $payment, $totalInvestmentValue) {
             
-            $purchase = BulkPurchase::where('value_remaining', '>=', $totalInvestmentValue)
+            // 1. Fetch ALL candidates ordered by FIFO (Oldest first)
+            // We do NOT filter by '>= value' anymore to allow splitting across batches.
+            $batches = BulkPurchase::where('value_remaining', '>', 0)
                 ->whereHas('product', fn($q) => $q->where('status', 'active'))
                 ->orderBy('purchase_date', 'asc')
-                ->lockForUpdate() 
-                ->first();
+                ->lockForUpdate() // Critical: Lock rows to prevent race conditions
+                ->get();
 
-            if (!$purchase) {
-                return false; // Signal failure
+            // Check if total available stock is sufficient
+            if ($batches->sum('value_remaining') < $totalInvestmentValue) {
+                return false; // Insufficient total inventory
             }
 
-            $product = $purchase->product;
-            if ($product->face_value_per_unit <= 0) return false;
+            $remainingNeeded = $totalInvestmentValue;
+            $productToCheck = null; // For low stock check later
 
-            $units = $totalInvestmentValue / $product->face_value_per_unit;
+            foreach ($batches as $batch) {
+                if ($remainingNeeded <= 0) break;
 
-            // 1. Create User Investment Record
-            UserInvestment::create([
-                'user_id' => $user->id,
-                'product_id' => $product->id,
-                'payment_id' => $payment->id,
-                'bulk_purchase_id' => $purchase->id,
-                'units_allocated' => $units,
-                'value_allocated' => $totalInvestmentValue,
-                'source' => 'investment_and_bonus',
-            ]);
+                // Take what is available in this batch, or just what we need
+                $amountToTake = min($batch->value_remaining, $remainingNeeded);
+                
+                $product = $batch->product;
+                $productToCheck = $product;
+                
+                if ($product->face_value_per_unit <= 0) continue;
 
-            // 2. Deduct from Inventory
-            $purchase->decrement('value_remaining', $totalInvestmentValue);
-            
-            // 3. Audit Log
+                $units = $amountToTake / $product->face_value_per_unit;
+
+                // Create Investment Record for this slice
+                UserInvestment::create([
+                    'user_id' => $user->id,
+                    'product_id' => $product->id,
+                    'payment_id' => $payment->id,
+                    'bulk_purchase_id' => $batch->id,
+                    'units_allocated' => $units,
+                    'value_allocated' => $amountToTake,
+                    'source' => 'investment_and_bonus',
+                ]);
+
+                // Deduct from Inventory
+                $batch->decrement('value_remaining', $amountToTake);
+                
+                $remainingNeeded -= $amountToTake;
+            }
+
+            // 3. Audit Log (Summary)
+            // Ideally calculate total units, but for now value is key
             ActivityLog::create([
                 'user_id' => $user->id, 'action' => 'allocation_success', 'target_type' => Payment::class,
-                'target_id' => $payment->id, 'description' => "Allocated {$units} units of {$product->name} (₹{$totalInvestmentValue})",
+                'target_id' => $payment->id, 'description' => "Allocated shares for value ₹{$totalInvestmentValue} (Multi-batch split)",
             ]);
 
             // 4. Low Stock Check
-            if ($this->inventoryService->checkLowStock($product)) {
-                Log::critical("LOW INVENTORY ALERT: Product {$product->name} (ID: {$product->id}) is now below 10% capacity.");
+            if ($productToCheck && $this->inventoryService->checkLowStock($productToCheck)) {
+                Log::critical("LOW INVENTORY ALERT: Product {$productToCheck->name} (ID: {$productToCheck->id}) is now below 10% capacity.");
             }
             
             return true;

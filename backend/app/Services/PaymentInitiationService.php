@@ -78,7 +78,9 @@ class PaymentInitiationService
             'razorpay_subscription_id' => $razorpaySub->id
         ]);
         
-        // Use Sub ID as Order ID for tracking
+        // MODULE 8 NOTE: Unified Order ID
+        // For auto-debit, the 'gateway_order_id' is the Subscription ID (sub_...).
+        // This allows the frontend to use the correct 'subscription_id' param in Razorpay Checkout.
         $payment->update(['gateway_order_id' => $razorpaySub->id]); 
 
         return [
@@ -106,6 +108,8 @@ class PaymentInitiationService
             throw new Exception('Payment gateway failed. Please try again.');
         }
         
+        // MODULE 8 NOTE: Unified Order ID
+        // For one-time payments, the 'gateway_order_id' is the standard Order ID (order_...).
         $payment->update(['gateway_order_id' => $order->id]);
 
         return [

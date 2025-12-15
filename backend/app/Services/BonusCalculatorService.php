@@ -1,5 +1,5 @@
 <?php
-// V-PHASE3-1730-083 (Created) | V-FINAL-1730-343 (Advanced Progressive Logic) | V-FINAL-1730-496 | V-FINAL-1730-586 (Notifications Added)
+// V-PHASE3-1730-083 (Created) | V-FINAL-1730-343 (Advanced Progressive Logic) | V-FINAL-1730-496 | V-FINAL-1730-586 (Notifications Added) | V-FIX-PHANTOM-MONEY (Gemini)
 
 namespace App\Services;
 
@@ -8,6 +8,8 @@ use App\Models\BonusTransaction;
 use App\Models\PlanConfig;
 use App\Notifications\BonusCredited;
 use Illuminate\Support\Facades\Log;
+// FIX: Import WalletService
+use App\Services\WalletService;
 
 /**
  * BonusCalculatorService
@@ -16,17 +18,17 @@ use Illuminate\Support\Facades\Log;
  * It supports 7 different bonus types:
  *
  * 1. **Progressive Bonus**: Increases over time based on subscription tenure
- *    - Configured via `progressive_config` on Plan
- *    - Starts after `start_month` and grows by `rate`% per month
- *    - Supports monthly overrides and max percentage cap
+ * - Configured via `progressive_config` on Plan
+ * - Starts after `start_month` and grows by `rate`% per month
+ * - Supports monthly overrides and max percentage cap
  *
  * 2. **Milestone Bonus**: One-time bonus at specific payment milestones
- *    - Configured via `milestone_config` on Plan
- *    - Requires consecutive payments to qualify
+ * - Configured via `milestone_config` on Plan
+ * - Requires consecutive payments to qualify
  *
  * 3. **Consistency Bonus**: Rewards on-time payments
- *    - Configured via `consistency_config` on Plan
- *    - Supports streak multipliers for longer streaks
+ * - Configured via `consistency_config` on Plan
+ * - Supports streak multipliers for longer streaks
  *
  * 4. **Referral Bonus**: (Handled by ReferralService)
  * 5. **Celebration Bonus**: (Handled by CelebrationService)
@@ -45,6 +47,14 @@ class BonusCalculatorService
      * Can be overridden via settings: `max_bonus_multiplier`
      */
     private const MAX_MULTIPLIER_CAP = 10.0;
+
+    protected $walletService;
+
+    // FIX: Inject WalletService
+    public function __construct(WalletService $walletService)
+    {
+        $this->walletService = $walletService;
+    }
 
     /**
      * Calculate and award all eligible bonuses for a payment.
@@ -330,6 +340,7 @@ class BonusCalculatorService
             if ($applicableTier && isset($applicableTier['multiplier'])) {
                 $tierMultiplier = (float) $applicableTier['multiplier'];
                 $referralBonusAmount *= $tierMultiplier;
+                $referralBonusAmount = $this->applyRounding($referralBonusAmount); // Rounding
                 Log::info("Applied referral tier '{$applicableTier['name']}' ({$tierMultiplier}x) for {$successfulReferrals} successful referrals");
             }
         }
@@ -338,7 +349,7 @@ class BonusCalculatorService
         $referralBonusAmount = $this->applyRounding($referralBonusAmount);
 
         // Create bonus transaction for referrer
-        \App\Models\BonusTransaction::create([
+        $bonusTxn = \App\Models\BonusTransaction::create([
             'user_id' => $referrer->id,
             'subscription_id' => $payment->subscription_id,
             'payment_id' => $payment->id,
@@ -348,6 +359,15 @@ class BonusCalculatorService
             'base_amount' => $payment->amount,
             'description' => "Referral Bonus - {$referredUser->username} met completion criteria: {$criteria}"
         ]);
+
+        // FIX: Deposit Referral Bonus to Wallet
+        $this->walletService->deposit(
+            $referrer,
+            $referralBonusAmount,
+            'bonus_credit',
+            "Referral Bonus - Invited {$referredUser->username}",
+            $bonusTxn
+        );
 
         // Send notification to referrer
         $referrer->notify(new \App\Notifications\BonusCredited($referralBonusAmount, 'Referral'));
@@ -362,7 +382,7 @@ class BonusCalculatorService
      */
     private function createBonusTransaction(Payment $payment, string $type, float $amount, float $multiplier, string $description): void
     {
-        BonusTransaction::create([
+        $bonusTxn = BonusTransaction::create([
             'user_id' => $payment->user_id,
             'subscription_id' => $payment->subscription_id,
             'payment_id' => $payment->id,
@@ -372,5 +392,15 @@ class BonusCalculatorService
             'base_amount' => $payment->amount,
             'description' => $description
         ]);
+
+        // FIX: Deposit Bonus to Wallet
+        // This fixes the "Phantom Money" bug where bonuses were logged but not usable
+        $this->walletService->deposit(
+            $payment->user,
+            $amount,
+            'bonus_credit',
+            $description,
+            $bonusTxn
+        );
     }
 }

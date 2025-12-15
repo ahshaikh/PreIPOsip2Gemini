@@ -7,6 +7,9 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Event; // <-- Added Facade
+use App\Events\KycVerified; // <-- Added Event
+use App\Listeners\ProcessPendingReferralsOnKycVerify; // <-- Added Listener
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -32,6 +35,17 @@ class AppServiceProvider extends ServiceProvider
         } catch (\Throwable $e) {
             Log::error('AppServiceProvider: Helper load failed - ' . $e->getMessage());
         }
+
+        // =================================================================
+        // EVENT LISTENER REGISTRATION (Module 9 Fix)
+        // =================================================================
+        // Since EventServiceProvider doesn't exist in Laravel 11, we register here.
+        // This ensures pending referrals are processed immediately when KYC is verified.
+        
+        Event::listen(
+            KycVerified::class,
+            ProcessPendingReferralsOnKycVerify::class
+        );
 
         // =================================================================
         // RATE LIMITER DEFINITIONS (Matching routes/api.php)
