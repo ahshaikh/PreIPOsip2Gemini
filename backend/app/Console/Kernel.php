@@ -55,8 +55,12 @@ class Kernel extends ConsoleKernel
                  ->everyFiveMinutes()
                  ->withoutOverlapping();
 
-        // Prune old webhook logs weekly
-        $schedule->command('model:prune', ['--model' => 'App\\Models\\WebhookLog'])->weekly();
+        // V-AUDIT-MODULE4-007 (LOW) - Changed from weekly to daily for better performance
+        // Prune old webhook logs daily (logs older than 90 days as configured in WebhookLog model)
+        // Running daily prevents large bulk deletes and distributes the database load
+        $schedule->command('model:prune', ['--model' => 'App\\Models\\WebhookLog'])
+                 ->daily()
+                 ->withoutOverlapping();
     }
 
     /**

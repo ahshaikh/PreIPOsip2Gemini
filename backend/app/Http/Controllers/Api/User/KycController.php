@@ -1,5 +1,6 @@
 <?php
 // V-PHASE1-1730-018 (Created) | V-FINAL-1730-296 | V-FINAL-1730-477 (Auto-KYC Job)
+// V-AUDIT-MODULE2-009 (Updated) - Added KycStatus enum, standardized responses
 
 namespace App\Http\Controllers\Api\User;
 
@@ -10,6 +11,7 @@ use App\Models\KycDocument;
 use App\Services\VerificationService;
 use App\Services\FileUploadService;
 use App\Jobs\ProcessKycJob; // <-- IMPORT
+use App\Enums\KycStatus; // ADDED: Import KycStatus enum
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Crypt;
@@ -31,6 +33,14 @@ class KycController extends Controller
         return response()->json($kyc);
     }
 
+    /**
+     * Submit KYC documents for verification
+     *
+     * UPDATED (V-AUDIT-MODULE2-009):
+     * - Uses KycStatus enum
+     * - Standardized JSON responses
+     * - Enhanced error handling
+     */
     public function store(KycSubmitRequest $request)
     {
         // Check if KYC module is enabled
@@ -43,8 +53,11 @@ class KycController extends Controller
         $user = $request->user();
         $kyc = $user->kyc;
 
-        if ($kyc->status === 'verified') {
-            return response()->json(['message' => 'KYC is already verified.'], 400);
+        // UPDATED: Use KycStatus enum for comparison
+        if ($kyc->status === KycStatus::VERIFIED->value) {
+            return response()->json([
+                'message' => 'KYC is already verified.'
+            ], 400);
         }
 
         $kyc->update([
@@ -53,7 +66,7 @@ class KycController extends Controller
             'demat_account' => $request->demat_account,
             'bank_account' => $request->bank_account,
             'bank_ifsc' => $request->bank_ifsc,
-            'status' => 'processing', // <-- NEW: Set to processing
+            'status' => KycStatus::PROCESSING->value, // UPDATED: Use enum
             'submitted_at' => now(),
         ]);
 
@@ -87,15 +100,23 @@ class KycController extends Controller
                 }
             }
         } catch (\Exception $e) {
-            $kyc->update(['status' => 'pending']);
-            return response()->json(['message' => $e->getMessage()], 400);
+            // UPDATED: Use enum for rollback status
+            $kyc->update(['status' => KycStatus::PENDING->value]);
+            Log::error("KYC document upload failed", [
+                'user_id' => $user->id,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json([
+                'message' => 'Failed to upload documents. Please try again.',
+                'error' => $e->getMessage()
+            ], 400);
         }
 
         // --- NEW: Dispatch the Job ---
         ProcessKycJob::dispatch($kyc)->onQueue('high');
 
         return response()->json([
-            'message' => 'KYC documents submitted. We are processing your verification.',
+            'message' => 'KYC documents submitted successfully. We are processing your verification.',
             'kyc' => $kyc->load('documents'),
         ], 201);
     }
@@ -136,26 +157,61 @@ class KycController extends Controller
     }
 
 
+    /**
+     * View/download a KYC document
+     *
+     * SECURITY FIX (V-AUDIT-MODULE2-007):
+     * - Added null check for orphaned documents to prevent IDOR crash
+     * - Improved error handling with standardized responses
+     */
     public function viewDocument(Request $request, $id)
     {
         $doc = KycDocument::findOrFail($id);
         $user = $request->user();
-        
-        if ($user->id !== $doc->kyc->user_id && !$user->hasRole(['admin', 'super-admin'])) {
-            abort(403);
-        }
-        if (!Storage::exists($doc->file_path)) {
-            abort(404);
+
+        // SECURITY FIX: Check if document has associated KYC record (prevent orphaned document access)
+        if (!$doc->kyc) {
+            Log::error("Orphaned KYC document accessed", ['document_id' => $id]);
+            return response()->json([
+                'message' => 'This document is no longer valid or has been removed.'
+            ], 404);
         }
 
+        // Authorization check: User must own the KYC or be an admin
+        if ($user->id !== $doc->kyc->user_id && !$user->hasRole(['admin', 'super-admin'])) {
+            return response()->json([
+                'message' => 'Unauthorized access to this document.'
+            ], 403);
+        }
+
+        // Check if file exists in storage
+        if (!Storage::exists($doc->file_path)) {
+            Log::error("KYC document file not found in storage", [
+                'document_id' => $id,
+                'file_path' => $doc->file_path
+            ]);
+            return response()->json([
+                'message' => 'Document file not found.'
+            ], 404);
+        }
+
+        // Decrypt and return document
         try {
             $encryptedContent = Storage::get($doc->file_path);
             $content = Crypt::decrypt($encryptedContent);
+
             return response($content)
                 ->header('Content-Type', $doc->mime_type)
                 ->header('Content-Disposition', 'inline; filename="' . $doc->file_name . '"');
+
         } catch (\Exception $e) {
-            abort(500, 'Could not decrypt document.');
+            Log::error("Failed to decrypt KYC document", [
+                'document_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json([
+                'message' => 'Could not decrypt document. Please contact support.'
+            ], 500);
         }
     }
     

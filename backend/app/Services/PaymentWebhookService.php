@@ -8,6 +8,7 @@ use App\Models\Subscription;
 use App\Jobs\ProcessSuccessfulPaymentJob;
 use App\Jobs\SendPaymentFailedEmailJob;
 use App\Notifications\PaymentFailed;
+use App\Services\AllocationService; // V-AUDIT-MODULE4-003: For refund reversal
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache; // Added for Atomic Locks
@@ -62,6 +63,15 @@ class PaymentWebhookService
 
     /**
      * Handle a Recurring Subscription Charge (Auto-Debit) via Webhook.
+     *
+     * CRITICAL FIX (V-AUDIT-MODULE4-001): Fixed idempotency bug
+     * Previous bug: If payment record existed but fulfillment failed, webhook retry
+     * would skip processing entirely, leaving payment in 'pending' state forever.
+     *
+     * Fix: Check payment status before skipping:
+     * - If payment exists AND is 'paid', skip (already processed)
+     * - If payment exists but is 'pending', proceed with fulfillment (retry)
+     * - If payment doesn't exist, create and fulfill
      */
     public function handleSubscriptionCharged(array $payload)
     {
@@ -69,12 +79,29 @@ class PaymentWebhookService
         $paymentId = $payload['payment_id'];
         $amount = $payload['amount'] / 100;
 
-        // Check for duplicate processing based on Gateway Payment ID
-        if (Payment::where('gateway_payment_id', $paymentId)->exists()) {
-            Log::info("Duplicate subscription.charged webhook: $paymentId already processed. Skipping.");
+        // CRITICAL FIX: Check for existing payment and its status
+        $existingPayment = Payment::where('gateway_payment_id', $paymentId)->first();
+
+        if ($existingPayment) {
+            // If payment is already successfully processed, skip
+            if ($existingPayment->status === 'paid') {
+                Log::info("Duplicate subscription.charged webhook: Payment #{$existingPayment->id} already processed. Skipping.");
+                return;
+            }
+
+            // If payment exists but is pending (fulfillment failed before), retry fulfillment
+            if ($existingPayment->status === 'pending') {
+                Log::warning("Retrying fulfillment for pending payment #{$existingPayment->id} (previous attempt failed)");
+                $this->fulfillPayment($existingPayment, $paymentId);
+                return;
+            }
+
+            // If payment has any other status (failed, refunded, etc.), log and skip
+            Log::warning("Payment #{$existingPayment->id} has status '{$existingPayment->status}'. Skipping webhook processing.");
             return;
         }
 
+        // Payment doesn't exist yet - create it
         $subscription = Subscription::where('razorpay_subscription_id', $subscriptionId)->first();
         if (!$subscription) {
             Log::error("Recurring payment received for unknown subscription: $subscriptionId");
@@ -86,7 +113,7 @@ class PaymentWebhookService
             'user_id' => $subscription->user_id,
             'subscription_id' => $subscription->id,
             'amount' => $amount,
-            'status' => 'pending', 
+            'status' => 'pending',
             'gateway' => 'razorpay_auto',
             'gateway_payment_id' => $paymentId,
             'gateway_order_id' => $subscriptionId,
@@ -94,7 +121,9 @@ class PaymentWebhookService
             'is_on_time' => true,
         ]);
 
-        // MODULE 8 FIX: Fulfill securely
+        Log::info("Created new payment record #{$payment->id} for subscription {$subscriptionId}");
+
+        // MODULE 8 FIX: Fulfill securely with atomic lock
         $this->fulfillPayment($payment, $paymentId);
     }
 
@@ -121,16 +150,71 @@ class PaymentWebhookService
     
     /**
      * Handle Refund Processed
+     *
+     * V-AUDIT-MODULE4-003 (HIGH) - Implemented Chargeback/Refund Reversal Logic
+     * Previously only marked payment as refunded without reversing business operations.
+     *
+     * Now performs complete reversal:
+     * 1. Reverses share allocation (returns units to inventory pool)
+     * 2. Credits wallet with refunded amount
+     * 3. Resets subscription consecutive payment counter
+     * 4. Marks payment as refunded
+     *
+     * This ensures financial and inventory consistency after refunds/chargebacks.
      */
     public function handleRefundProcessed(array $payload)
     {
         $paymentId = $payload['payment_id'];
+        $refundAmount = ($payload['amount'] ?? 0) / 100; // Convert paise to rupees
+
         $payment = Payment::where('gateway_payment_id', $paymentId)->first();
 
-        if ($payment && $payment->status !== 'refunded') {
-            $payment->update(['status' => 'refunded']);
-            Log::info("Payment {$payment->id} marked as refunded via webhook.");
+        if (!$payment) {
+            Log::warning("Refund received for unknown payment: $paymentId");
+            return;
         }
+
+        // Skip if already refunded (idempotency)
+        if ($payment->status === 'refunded') {
+            Log::info("Payment {$payment->id} already refunded. Skipping.");
+            return;
+        }
+
+        // CRITICAL: Perform full reversal in a transaction
+        DB::transaction(function () use ($payment, $refundAmount) {
+
+            // 1. Reverse Share Allocation (returns units to inventory pool)
+            // This uses AllocationService::reverseAllocation() to undo the investment
+            $allocationService = app(AllocationService::class);
+            $allocationService->reverseAllocation($payment, 'Payment refunded via gateway');
+
+            // 2. Credit wallet with refunded amount (if amount available)
+            if ($refundAmount > 0 && $payment->user) {
+                $this->walletService->deposit(
+                    $payment->user,
+                    (string) $refundAmount, // Convert to string for precision
+                    'refund',
+                    "Refund for Payment #{$payment->id}",
+                    $payment
+                );
+
+                Log::info("Wallet credited ₹{$refundAmount} for refund on Payment {$payment->id}");
+            }
+
+            // 3. Reset subscription consecutive payment counter (if applicable)
+            if ($payment->subscription) {
+                $subscription = $payment->subscription;
+                $subscription->consecutive_payments_count = 0;
+                $subscription->save();
+
+                Log::info("Reset consecutive payment counter for Subscription #{$subscription->id}");
+            }
+
+            // 4. Mark payment as refunded
+            $payment->update(['status' => 'refunded']);
+
+            Log::info("Payment {$payment->id} fully reversed and marked as refunded.");
+        });
     }
 
     /**

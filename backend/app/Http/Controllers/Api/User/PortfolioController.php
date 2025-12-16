@@ -1,105 +1,135 @@
 <?php
-// V-PHASE3-1730-091 (Created) | V-FINAL-1730-462 
+// V-PHASE3-1730-091 (Created) | V-FINAL-1730-462 | V-AUDIT-MODULE5-004 (Performance Refactor)
 
 namespace App\Http\Controllers\Api\User;
 
 use App\Http\Controllers\Controller;
+use App\Services\ValuationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
+/**
+ * PortfolioController - User Investment Portfolio
+ *
+ * V-AUDIT-MODULE5-004 (HIGH) - Performance Optimization
+ * Refactored from in-memory PHP Collection processing to database-level aggregation.
+ *
+ * Previous Issue:
+ * - Loaded all user investments into memory (500+ records for 2-year SIP)
+ * - Caused OOM (Out of Memory) errors on high-traffic portfolios
+ * - Performed calculations in PHP instead of leveraging database
+ *
+ * Current Implementation:
+ * - Uses DB aggregation (selectRaw, SUM, GROUP BY)
+ * - Minimal memory footprint
+ * - Integrates ValuationService for consistent valuation logic
+ * - Returns proper HTTP 500 on errors (no more silent failures)
+ */
 class PortfolioController extends Controller
 {
+    protected $valuationService;
+
+    public function __construct(ValuationService $valuationService)
+    {
+        $this->valuationService = $valuationService;
+    }
+
     /**
      * Get User Portfolio Summary
      * Endpoint: /api/v1/user/portfolio
+     *
+     * V-AUDIT-MODULE5-005 (MEDIUM) - Fixed Error Swallowing
+     * Now returns proper HTTP 500 on system errors instead of silently returning empty response.
      */
     public function index(Request $request): JsonResponse
     {
         try {
             $user = $request->user();
-            
-            // 1. Get Investments with Product Relation
-            // Defensive: Check if relation exists on User model before calling
-            if (!method_exists($user, 'investments')) {
-                return $this->emptyResponse();
-            }
 
-            $investments = $user->investments()
-                ->where('status', 'active') // Only count active investments
-                ->with('product')
+            // V-AUDIT-MODULE5-004: Database-level aggregation (not in-memory PHP)
+            // Group investments by product and calculate sums at DB level
+            $holdings = DB::table('user_investments as ui')
+                ->join('products as p', 'ui.product_id', '=', 'p.id')
+                ->where('ui.user_id', $user->id)
+                ->where('ui.status', 'active')
+                ->where('ui.is_reversed', false)
+                ->select(
+                    'p.id as product_id',
+                    'p.name as product_name',
+                    'p.slug as product_slug',
+                    'p.sector',
+                    'p.current_market_price',
+                    'p.face_value_per_unit',
+                    DB::raw('SUM(ui.units_allocated) as total_units'),
+                    DB::raw('SUM(ui.value_allocated) as cost_basis')
+                )
+                ->groupBy('p.id', 'p.name', 'p.slug', 'p.sector', 'p.current_market_price', 'p.face_value_per_unit')
                 ->get();
 
-            if ($investments->isEmpty()) {
+            if ($holdings->isEmpty()) {
                 return $this->emptyResponse();
             }
 
-            // 2. Aggregate Data
-            $portfolio = $investments->map(function ($inv) {
-                // Safe access to product data
-                $product = $inv->product;
-                
-                $invested = (float) $inv->total_amount;
-                $units = (float) $inv->units_allocated;
-                
-                // Logic: Use product's CMP (Current Market Price) or fallback to purchase price
-                $currentPrice = (float) ($product->current_market_price ?? $inv->price_per_share ?? 0);
-                
-                // If price is 0 (missing), assume no change to avoid showing 100% loss
-                $currentValue = $currentPrice > 0 ? ($units * $currentPrice) : $invested;
+            // Calculate current values using ValuationService
+            $holdingsWithMetrics = $holdings->map(function ($holding) {
+                // V-AUDIT-MODULE5-003: Use centralized ValuationService
+                $currentPrice = (float) ($holding->current_market_price ?? $holding->face_value_per_unit ?? 0);
+                $units = (float) $holding->total_units;
+                $costBasis = (float) $holding->cost_basis;
+
+                // Calculate current value
+                $currentValue = $units * $currentPrice;
+
+                // Calculate P&L and ROI
+                $profitLoss = $this->valuationService->calculateProfitLoss($currentValue, $costBasis);
+                $roiPercent = $this->valuationService->calculateROI($profitLoss, $costBasis);
 
                 return [
-                    'product_name' => $product->name ?? 'Unknown Asset',
-                    'product_slug' => $product->slug ?? 'unknown',
-                    'sector' => $product->sector ?? 'General',
-                    'units' => $units,
-                    'invested' => $invested,
-                    'current_value' => $currentValue,
+                    'product_name' => $holding->product_name,
+                    'product_slug' => $holding->product_slug,
+                    'sector' => $holding->sector ?? 'General',
+                    'total_units' => round($units, 4),
+                    'current_value' => round($currentValue, 2),
+                    'cost_basis' => round($costBasis, 2),
+                    'unrealized_pl' => round($profitLoss, 2),
+                    'roi_percent' => round($roiPercent, 2),
                 ];
             });
 
-            // 3. Calculate KPIs
-            $totalInvested = $portfolio->sum('invested');
-            $currentValue = $portfolio->sum('current_value');
-            $totalPL = $currentValue - $totalInvested;
-            $totalRoiPercent = $totalInvested > 0 ? ($totalPL / $totalInvested) * 100 : 0;
-
-            // 4. Group Holdings (Consolidate multiple buys of same product)
-            $holdings = $portfolio->groupBy('product_name')->map(function ($group) {
-                $first = $group->first();
-                $grpInvested = $group->sum('invested');
-                $grpValue = $group->sum('current_value');
-                $grpPL = $grpValue - $grpInvested;
-
-                return [
-                    'product_name' => $first['product_name'],
-                    'product_slug' => $first['product_slug'],
-                    'sector' => $first['sector'],
-                    'total_units' => $group->sum('units'),
-                    'current_value' => $grpValue,
-                    'cost_basis' => $grpInvested,
-                    'unrealized_pl' => $grpPL,
-                    'roi_percent' => $grpInvested > 0 ? round(($grpPL / $grpInvested) * 100, 2) : 0,
-                ];
-            })->values();
+            // Calculate summary KPIs
+            $totalInvested = $holdingsWithMetrics->sum('cost_basis');
+            $currentValue = $holdingsWithMetrics->sum('current_value');
+            $totalPL = $this->valuationService->calculateProfitLoss($currentValue, $totalInvested);
+            $totalRoiPercent = $this->valuationService->calculateROI($totalPL, $totalInvested);
 
             return response()->json([
-                'summary' => [ // Structure matched to frontend requirements
-                    'total_invested' => $totalInvested,
-                    'current_value' => $currentValue,
-                    'total_returns' => $totalPL, // Changed key to match standard
+                'summary' => [
+                    'total_invested' => round($totalInvested, 2),
+                    'current_value' => round($currentValue, 2),
+                    'total_returns' => round($totalPL, 2),
                     'returns_percentage' => round($totalRoiPercent, 2),
                 ],
-                'holdings' => $holdings
+                'holdings' => $holdingsWithMetrics->values()
             ]);
 
         } catch (\Throwable $e) {
-            Log::error("Portfolio Error: " . $e->getMessage());
-            return $this->emptyResponse();
+            // V-AUDIT-MODULE5-005 (MEDIUM): Return proper HTTP 500 instead of swallowing errors
+            // This allows frontend to show error state and monitoring tools to track failures
+            Log::error("Portfolio Error: " . $e->getMessage(), [
+                'user_id' => $request->user()->id ?? null,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to load portfolio. Please try again later.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
         }
     }
 
-    private function emptyResponse()
+    private function emptyResponse(): JsonResponse
     {
         return response()->json([
             'summary' => [

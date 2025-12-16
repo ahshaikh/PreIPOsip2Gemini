@@ -1,5 +1,6 @@
 <?php
-// V-FINAL-1730-359 (Created) | V-FINAL-1730-460 (WalletService Refactor) | V-FINAL-1730-499 (TDS Logic) | V-FINAL-1730-582 (User Cancel Logic)
+// V-FINAL-1730-359 (Created) | V-FINAL-1730-460 (WalletService Refactor) | V-FINAL-1730-499 (TDS Logic)
+// V-FINAL-1730-582 (User Cancel Logic) | V-AUDIT-MODULE3-005 (Fixed float precision and added idempotency)
 
 namespace App\Services;
 
@@ -84,28 +85,55 @@ class WithdrawalService
     
     /**
      * Creates the Withdrawal Record and calculates TDS.
+     *
+     * AUDIT FIX (V-AUDIT-MODULE3-005):
+     * - Changed type hint from float to string for financial precision
+     * - Added idempotency_key parameter to prevent duplicate withdrawals
+     * - Uses bcmath functions for precise TDS calculations
+     *
+     * @param User $user
+     * @param string|float $amount - Amount as string for precision
+     * @param array $bankDetails - Bank account details
+     * @param string|null $idempotencyKey - Optional idempotency key for duplicate prevention
+     * @return Withdrawal
+     * @throws \Exception
      */
-    public function createWithdrawalRecord(User $user, float $amount, array $bankDetails): Withdrawal
+    public function createWithdrawalRecord(User $user, $amount, array $bankDetails, ?string $idempotencyKey = null): Withdrawal
     {
+        // CRITICAL: Convert to string for financial precision
+        $amount = (string) $amount;
+
         // 1. Validations (KYC, Min Amount, Balance)
         if ($user->kyc->status !== 'verified') throw new \Exception("KYC must be verified.");
-        $min = setting('min_withdrawal_amount', 1000);
-        if ($amount < $min) throw new \Exception("Minimum withdrawal is ₹{$min}.");
-        if ($user->wallet->balance < $amount) throw new \Exception("Insufficient funds.");
 
-        // 2. TDS Calculation
-        $fee = 0;
-        $tdsRate = (float) setting('tds_rate', 0.10);
-        $tdsThreshold = (float) setting('tds_threshold', 5000);
-        $tdsDeducted = 0;
-        if ($user->kyc?->pan_number && $amount > $tdsThreshold) {
-            $tdsDeducted = $amount * $tdsRate;
+        $min = (string) setting('min_withdrawal_amount', 1000);
+        // Use bccomp for safe string comparison
+        if (bccomp($amount, $min, 2) < 0) {
+            throw new \Exception("Minimum withdrawal is ₹{$min}.");
         }
-        $netAmount = $amount - $fee - $tdsDeducted;
+
+        if (bccomp($user->wallet->balance, $amount, 2) < 0) {
+            throw new \Exception("Insufficient funds.");
+        }
+
+        // 2. TDS Calculation using bcmath for precision
+        $fee = '0';
+        $tdsRate = (string) setting('tds_rate', 0.10);
+        $tdsThreshold = (string) setting('tds_threshold', 5000);
+        $tdsDeducted = '0';
+
+        // Calculate TDS if user has PAN and amount exceeds threshold
+        if ($user->kyc?->pan_number && bccomp($amount, $tdsThreshold, 2) > 0) {
+            // tdsDeducted = amount × tdsRate
+            $tdsDeducted = bcmul($amount, $tdsRate, 2);
+        }
+
+        // netAmount = amount - fee - tdsDeducted
+        $netAmount = bcsub(bcsub($amount, $fee, 2), $tdsDeducted, 2);
 
         // 3. Check Auto-Approval Rules
-        $autoApproveLimit = setting('auto_approval_max_amount', 5000);
-        $isSmallAmount = $amount <= $autoApproveLimit;
+        $autoApproveLimit = (string) setting('auto_approval_max_amount', 5000);
+        $isSmallAmount = bccomp($amount, $autoApproveLimit, 2) <= 0;
         $isTrustedUser = $user->payments()->where('status', 'paid')->count() >= 5;
         $initialStatus = ($isSmallAmount && $isTrustedUser) ? 'approved' : 'pending';
 
@@ -119,6 +147,7 @@ class WithdrawalService
             'net_amount' => $netAmount,
             'status' => $initialStatus,
             'bank_details' => $bankDetails,
+            'idempotency_key' => $idempotencyKey, // AUDIT FIX: Store idempotency key
         ]);
 
         // 5. --- NEW: Notify User (Gap 3 Fix) ---
