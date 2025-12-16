@@ -52,26 +52,32 @@ class ReferralController extends Controller
                 $pendingConversions = DB::table('referrals')->where('status', 'pending')->count();
             }
 
-            // E. Monthly Trend (PHP-side grouping to avoid SQL dialect issues)
+            // V-AUDIT-MODULE9-003 (HIGH): Optimize monthly trend with SQL aggregation
+            // Previous Issue:
+            // - Used get() to load all referrals from last 6 months into memory
+            // - With 50,000 referrals, this created a massive Collection object causing memory spikes
+            // - PHP-side groupBy was slow and inefficient
+            //
+            // Fix:
+            // - Use SQL-level aggregation with selectRaw and groupBy
+            // - Only returns aggregated counts, not full records
+            // - Scalable to millions of referrals
             $trend = [];
             if (Schema::hasTable('referrals')) {
-                $rawReferrals = DB::table('referrals')
-                    ->select('created_at')
+                $rawTrend = DB::table('referrals')
+                    ->selectRaw('DATE_FORMAT(created_at, "%Y-%m") as month, COUNT(*) as count')
                     ->where('created_at', '>=', Carbon::now()->subMonths(6))
+                    ->groupBy('month')
+                    ->orderBy('month', 'asc')
                     ->get();
 
-                // Group by YYYY-MM in PHP
-                $grouped = $rawReferrals->groupBy(function($item) {
-                    return Carbon::parse($item->created_at)->format('Y-m');
-                });
-
-                // Format for frontend
-                $trend = $grouped->map(function ($group, $month) {
+                // Format for frontend (only formatting, not grouping)
+                $trend = $rawTrend->map(function ($item) {
                     return [
-                        'month' => Carbon::parse($month . '-01')->format('M Y'),
-                        'count' => $group->count()
+                        'month' => Carbon::parse($item->month . '-01')->format('M Y'),
+                        'count' => (int) $item->count
                     ];
-                })->values()->all(); // Reset keys to array
+                })->all();
             }
 
             return response()->json([

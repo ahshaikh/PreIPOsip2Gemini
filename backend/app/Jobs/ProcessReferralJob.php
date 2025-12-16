@@ -57,22 +57,47 @@ class ProcessReferralJob implements ShouldQueue
         }
         // --- END KYC CHECK ---
 
+        // V-AUDIT-MODULE9-002 (HIGH): Check if campaign was already locked at signup.
+        // If referral_campaign_id is null, it means this is an old referral created before the fix.
+        // In that case, use the currently active campaign as a fallback.
         $activeCampaign = ReferralCampaign::running()->first();
 
         DB::transaction(function () use ($referral, $referrer, $referralService, $walletService, $activeCampaign) {
-            
+
+            // V-AUDIT-MODULE9-002: Determine which campaign to use for bonus calculation
+            // Priority: Use campaign locked at signup (if exists), fallback to current campaign
+            $campaignToUse = null;
+
+            if ($referral->referral_campaign_id) {
+                // Campaign was locked at signup - use that one (even if expired now)
+                $campaignToUse = ReferralCampaign::find($referral->referral_campaign_id);
+                Log::info("Using campaign locked at signup: {$campaignToUse?->name}");
+            } else {
+                // Old referral without locked campaign - use current active campaign
+                $campaignToUse = $activeCampaign;
+                Log::info("No locked campaign, using current active campaign: {$campaignToUse?->name}");
+            }
+
             // 1. Mark referral as completed
-            $referral->update([
+            // V-AUDIT-MODULE9-002: Only update campaign_id if it wasn't already set at signup
+            $updateData = [
                 'status' => 'completed',
                 'completed_at' => now(),
-                'referral_campaign_id' => $activeCampaign?->id
-            ]);
+            ];
+
+            // Only set campaign_id if it wasn't locked at signup
+            if (!$referral->referral_campaign_id && $activeCampaign) {
+                $updateData['referral_campaign_id'] = $activeCampaign->id;
+            }
+
+            $referral->update($updateData);
 
             // 2. Calculate One-Time Cash Bonus
-            $baseBonus = setting('referral_bonus_amount', 500);
-            $finalBonus = $baseBonus + ($activeCampaign?->bonus_amount ?? 0);
-            $description = "Referral Bonus: {$this->referredUser->username}";
-            if ($activeCampaign) $description .= " (Campaign: {$activeCampaign->name})";
+            // V-AUDIT-MODULE9-005 (LOW): Delegate bonus calculation to ReferralService
+            // This improves testability and follows separation of concerns principle
+            $bonusData = $referralService->calculateReferralBonus($this->referredUser, $campaignToUse);
+            $finalBonus = $bonusData['amount'];
+            $description = $bonusData['description'];
 
             // 3. Create Bonus Transaction
             $bonus = BonusTransaction::create([
@@ -82,7 +107,7 @@ class ProcessReferralJob implements ShouldQueue
                 'amount' => $finalBonus,
                 'description' => $description,
             ]);
-            
+
             // 4. Credit Wallet (Using Service)
             $walletService->deposit(
                 $referrer,
@@ -94,6 +119,12 @@ class ProcessReferralJob implements ShouldQueue
 
             // 5. Update Multiplier Tier (Using Service)
             $referralService->updateReferrerMultiplier($referrer);
+
+            Log::info("Referral processed successfully: Amount=₹{$finalBonus}", [
+                'referrer_id' => $referrer->id,
+                'referred_id' => $this->referredUser->id,
+                'campaign' => $campaignToUse?->name ?? 'None'
+            ]);
         });
         
         Log::info("Referral processed for {$this->referredUser->username}");
