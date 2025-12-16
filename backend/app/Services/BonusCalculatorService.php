@@ -178,6 +178,126 @@ class BonusCalculatorService
     }
 
     /**
+     * V-AUDIT-MODULE8-004 (HIGH): Calculate bonuses for testing without persisting.
+     *
+     * This method is used by AdminBonusController::calculateTest to preview bonuses
+     * without creating database records. Eliminates code duplication.
+     *
+     * @param array $params Test parameters
+     * @return array Breakdown of bonus calculations
+     */
+    public function calculateTestBonuses(array $params): array
+    {
+        $plan = \App\Models\Plan::with('configs')->findOrFail($params['plan_id']);
+        $amount = (float) $params['payment_amount'];
+        $month = (int) $params['payment_month'];
+        $multiplier = (float) ($params['bonus_multiplier'] ?? 1.0);
+        $consecutivePayments = (int) ($params['consecutive_payments'] ?? $month);
+        $isOnTime = (bool) $params['is_on_time'];
+
+        $bonuses = [];
+        $totalBonus = 0;
+
+        // Apply multiplier cap
+        $maxMultiplier = (float) setting('max_bonus_multiplier', 10.0);
+        $multiplier = min($multiplier, $maxMultiplier);
+
+        // 1. Progressive Bonus
+        if (setting('progressive_bonus_enabled', true)) {
+            $config = $plan->getConfig('progressive_config', [
+                'rate' => 0.5, 'start_month' => 4, 'max_percentage' => 20, 'overrides' => []
+            ]);
+
+            $startMonth = (int) $config['start_month'];
+
+            if ($month >= $startMonth) {
+                $overrides = $config['overrides'] ?? [];
+                $baseRate = 0;
+
+                if (isset($overrides[$month])) {
+                    $baseRate = (float) $overrides[$month];
+                } else {
+                    $growthFactor = $month - $startMonth + 1;
+                    $baseRate = $growthFactor * ((float) $config['rate']);
+                }
+
+                $maxPercent = $config['max_percentage'] ?? 100;
+                if ($baseRate > $maxPercent) $baseRate = $maxPercent;
+
+                $progressiveBonus = ($baseRate / 100) * $amount * $multiplier;
+                $progressiveBonus = $this->applyRounding($progressiveBonus);
+
+                if ($progressiveBonus > 0) {
+                    $bonuses[] = [
+                        'type' => 'progressive',
+                        'amount' => $progressiveBonus,
+                        'calculation' => "{$baseRate}% × ₹{$amount} × {$multiplier}x = ₹{$progressiveBonus}",
+                    ];
+                    $totalBonus += $progressiveBonus;
+                }
+            }
+        }
+
+        // 2. Milestone Bonus
+        if (setting('milestone_bonus_enabled', true)) {
+            $config = $plan->getConfig('milestone_config', []);
+
+            foreach ($config as $milestone) {
+                if ($month === (int)$milestone['month']) {
+                    if ($consecutivePayments >= $month) {
+                        $milestoneBonus = ((float)$milestone['amount']) * $multiplier;
+                        $milestoneBonus = $this->applyRounding($milestoneBonus);
+
+                        $bonuses[] = [
+                            'type' => 'milestone',
+                            'amount' => $milestoneBonus,
+                            'calculation' => "₹{$milestone['amount']} × {$multiplier}x = ₹{$milestoneBonus}",
+                        ];
+                        $totalBonus += $milestoneBonus;
+                    }
+                }
+            }
+        }
+
+        // 3. Consistency Bonus
+        if (setting('consistency_bonus_enabled', true) && $isOnTime) {
+            $config = $plan->getConfig('consistency_config', ['amount_per_payment' => 0]);
+            $consistencyBonus = (float) $config['amount_per_payment'];
+
+            if (isset($config['streaks']) && is_array($config['streaks'])) {
+                foreach ($config['streaks'] as $streakRule) {
+                    if ($consecutivePayments === (int)$streakRule['months']) {
+                        $consistencyBonus *= (float)$streakRule['multiplier'];
+                        break;
+                    }
+                }
+            }
+
+            $consistencyBonus = $this->applyRounding($consistencyBonus);
+
+            if ($consistencyBonus > 0) {
+                $bonuses[] = [
+                    'type' => 'consistency',
+                    'amount' => $consistencyBonus,
+                    'calculation' => "₹{$config['amount_per_payment']} (with streak multiplier) = ₹{$consistencyBonus}",
+                ];
+                $totalBonus += $consistencyBonus;
+            }
+        }
+
+        return [
+            'total_bonus' => $totalBonus,
+            'bonuses' => $bonuses,
+            'settings' => [
+                'multiplier_applied' => $multiplier,
+                'max_multiplier_cap' => $maxMultiplier,
+                'rounding_decimals' => setting('bonus_rounding_decimals', 2),
+                'rounding_mode' => setting('bonus_rounding_mode', 'round'),
+            ],
+        ];
+    }
+
+    /**
      * 1. Calculates Progressive Bonus with Advanced Rules
      */
     private function calculateProgressive(Payment $payment, $plan, $multiplier): float
