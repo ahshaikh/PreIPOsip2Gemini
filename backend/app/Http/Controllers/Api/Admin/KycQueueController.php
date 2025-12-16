@@ -1,6 +1,7 @@
 <?php
 // V-PHASE2-1730-054 (Created) | V-FINAL-1730-319 | V-FINAL-1730-462 (N+1 Optimized)
 // V-KYC-ENHANCEMENT-005 | Enhanced with statistics, notes, and resubmission
+// V-AUDIT-MODULE2-008 (Fixed) - Added caching, fixed N+1 queries, added KycStatus enum
 
 namespace App\Http\Controllers\Api\Admin;
 
@@ -9,8 +10,10 @@ use App\Models\UserKyc;
 use App\Models\KycDocument;
 use App\Models\KycRejectionTemplate;
 use App\Notifications\KycVerified;
+use App\Enums\KycStatus; // ADDED: Import KycStatus enum
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache; // ADDED: Import Cache facade for statistics caching
 
 class KycQueueController extends Controller
 {
@@ -46,13 +49,17 @@ class KycQueueController extends Controller
 
         $kycSubmissions = $query->latest('submitted_at')->paginate(25);
 
-        // Calculate statistics
-        $stats = [
-            'total' => UserKyc::count(),
-            'pending' => UserKyc::where('status', 'submitted')->count(),
-            'verified' => UserKyc::where('status', 'verified')->count(),
-            'rejected' => UserKyc::where('status', 'rejected')->count(),
-        ];
+        // PERFORMANCE FIX: Cache statistics for 5 minutes to reduce DB load
+        // These counts can be expensive as the table grows
+        $stats = Cache::remember('kyc_queue_stats', 300, function () {
+            return [
+                'total' => UserKyc::count(),
+                'pending' => UserKyc::where('status', KycStatus::SUBMITTED->value)->count(),
+                'verified' => UserKyc::where('status', KycStatus::VERIFIED->value)->count(),
+                'rejected' => UserKyc::where('status', KycStatus::REJECTED->value)->count(),
+                'processing' => UserKyc::where('status', KycStatus::PROCESSING->value)->count(), // ADDED
+            ];
+        });
 
         return response()->json([
             'data' => $kycSubmissions->items(),
@@ -77,6 +84,10 @@ class KycQueueController extends Controller
 
     /**
      * Approve KYC with verification checklist
+     *
+     * UPDATED (V-AUDIT-MODULE2-008):
+     * - Uses KycStatus enum
+     * - Invalidates statistics cache on approval
      */
     public function approve(Request $request, $id)
     {
@@ -88,13 +99,14 @@ class KycQueueController extends Controller
         $kyc = UserKyc::with('user')->findOrFail($id);
         $admin = $request->user();
 
-        if ($kyc->status !== 'submitted') {
+        // UPDATED: Use KycStatus enum for comparison
+        if ($kyc->status !== KycStatus::SUBMITTED->value) {
             return response()->json(['message' => 'This submission is not pending approval.'], 400);
         }
 
         DB::transaction(function () use ($kyc, $admin, $request) {
             $kyc->update([
-                'status' => 'verified',
+                'status' => KycStatus::VERIFIED->value, // UPDATED: Use enum
                 'verified_at' => now(),
                 'verified_by' => $admin->id,
                 'rejection_reason' => null,
@@ -115,11 +127,18 @@ class KycQueueController extends Controller
 
         $kyc->user->notify(new KycVerified());
 
+        // ADDED: Invalidate statistics cache after approval
+        $this->invalidateStatisticsCache();
+
         return response()->json(['message' => 'KYC approved successfully.']);
     }
 
     /**
      * Reject KYC with reason and checklist
+     *
+     * UPDATED (V-AUDIT-MODULE2-008):
+     * - Uses KycStatus enum
+     * - Invalidates statistics cache on rejection
      */
     public function reject(Request $request, $id)
     {
@@ -131,13 +150,14 @@ class KycQueueController extends Controller
         $kyc = UserKyc::findOrFail($id);
         $admin = $request->user();
 
-        if ($kyc->status !== 'submitted') {
+        // UPDATED: Use KycStatus enum for comparison
+        if ($kyc->status !== KycStatus::SUBMITTED->value) {
             return response()->json(['message' => 'This submission is not pending approval.'], 400);
         }
 
         DB::transaction(function () use ($kyc, $admin, $request) {
             $kyc->update([
-                'status' => 'rejected',
+                'status' => KycStatus::REJECTED->value, // UPDATED: Use enum
                 'rejection_reason' => $request->reason,
                 'verified_at' => null,
                 'verified_by' => $admin->id,
@@ -154,11 +174,18 @@ class KycQueueController extends Controller
         // TODO: Send rejection notification
         // $kyc->user->notify(new KycRejected($request->reason));
 
+        // ADDED: Invalidate statistics cache after rejection
+        $this->invalidateStatisticsCache();
+
         return response()->json(['message' => 'KYC rejected successfully.']);
     }
 
     /**
      * Request resubmission with instructions
+     *
+     * UPDATED (V-AUDIT-MODULE2-008):
+     * - Uses KycStatus enum
+     * - Invalidates statistics cache
      */
     public function requestResubmission(Request $request, $id)
     {
@@ -172,7 +199,7 @@ class KycQueueController extends Controller
 
         DB::transaction(function () use ($kyc, $admin, $request) {
             $kyc->update([
-                'status' => 'resubmission_required',
+                'status' => KycStatus::RESUBMISSION_REQUIRED->value, // UPDATED: Use enum
                 'resubmission_instructions' => $request->instructions,
             ]);
 
@@ -184,6 +211,9 @@ class KycQueueController extends Controller
 
         // TODO: Send resubmission notification
         // $kyc->user->notify(new KycResubmissionRequired($request->instructions));
+
+        // ADDED: Invalidate statistics cache
+        $this->invalidateStatisticsCache();
 
         return response()->json(['message' => 'Resubmission request sent successfully.']);
     }
@@ -213,35 +243,51 @@ class KycQueueController extends Controller
 
     /**
      * Get KYC statistics
+     *
+     * PERFORMANCE FIX (V-AUDIT-MODULE2-008):
+     * - Added caching to reduce expensive aggregation queries
+     * - Cache TTL: 10 minutes
+     * - Updated to use KycStatus enum
      */
     public function statistics(Request $request)
     {
         $days = $request->query('days', 30);
         $startDate = now()->subDays($days);
 
-        $stats = [
-            'total_submissions' => UserKyc::where('created_at', '>=', $startDate)->count(),
-            'pending' => UserKyc::where('status', 'submitted')->where('created_at', '>=', $startDate)->count(),
-            'verified' => UserKyc::where('status', 'verified')->where('created_at', '>=', $startDate)->count(),
-            'rejected' => UserKyc::where('status', 'rejected')->where('created_at', '>=', $startDate)->count(),
-            'avg_processing_time_hours' => UserKyc::where('verified_at', '>=', $startDate)
-                ->whereNotNull('verified_at')
-                ->selectRaw('AVG(TIMESTAMPDIFF(HOUR, submitted_at, verified_at)) as avg_hours')
-                ->value('avg_hours') ?? 0,
-            'sla_compliance_percentage' => $this->calculateSLACompliance($startDate),
-            'auto_verified_count' => UserKyc::where('status', 'verified')
-                ->where('created_at', '>=', $startDate)
-                ->whereHas('documents', function ($q) {
-                    $q->where('processing_status', 'verified');
-                })
-                ->count(),
-            'manual_verified_count' => UserKyc::where('status', 'verified')
-                ->where('created_at', '>=', $startDate)
-                ->whereDoesntHave('documents', function ($q) {
-                    $q->where('processing_status', 'verified');
-                })
-                ->count(),
-        ];
+        // PERFORMANCE FIX: Cache statistics for 10 minutes (600 seconds)
+        // Use dynamic cache key based on the time range requested
+        $cacheKey = "kyc_statistics_{$days}days";
+
+        $stats = Cache::remember($cacheKey, 600, function () use ($startDate) {
+            return [
+                'total_submissions' => UserKyc::where('created_at', '>=', $startDate)->count(),
+                'pending' => UserKyc::where('status', KycStatus::SUBMITTED->value)
+                    ->where('created_at', '>=', $startDate)->count(),
+                'verified' => UserKyc::where('status', KycStatus::VERIFIED->value)
+                    ->where('created_at', '>=', $startDate)->count(),
+                'rejected' => UserKyc::where('status', KycStatus::REJECTED->value)
+                    ->where('created_at', '>=', $startDate)->count(),
+                'processing' => UserKyc::where('status', KycStatus::PROCESSING->value)
+                    ->where('created_at', '>=', $startDate)->count(), // ADDED
+                'avg_processing_time_hours' => UserKyc::where('verified_at', '>=', $startDate)
+                    ->whereNotNull('verified_at')
+                    ->selectRaw('AVG(TIMESTAMPDIFF(HOUR, submitted_at, verified_at)) as avg_hours')
+                    ->value('avg_hours') ?? 0,
+                'sla_compliance_percentage' => $this->calculateSLACompliance($startDate),
+                'auto_verified_count' => UserKyc::where('status', KycStatus::VERIFIED->value)
+                    ->where('created_at', '>=', $startDate)
+                    ->whereHas('documents', function ($q) {
+                        $q->where('processing_status', 'verified');
+                    })
+                    ->count(),
+                'manual_verified_count' => UserKyc::where('status', KycStatus::VERIFIED->value)
+                    ->where('created_at', '>=', $startDate)
+                    ->whereDoesntHave('documents', function ($q) {
+                        $q->where('processing_status', 'verified');
+                    })
+                    ->count(),
+            ];
+        });
 
         return response()->json($stats);
     }
@@ -318,5 +364,25 @@ class KycQueueController extends Controller
             ->count();
 
         return ($withinSLA / $total) * 100;
+    }
+
+    /**
+     * ADDED (V-AUDIT-MODULE2-008): Invalidate all statistics caches
+     *
+     * This method should be called whenever KYC status changes (approve/reject/resubmit)
+     * to ensure fresh statistics on next request
+     *
+     * @return void
+     */
+    private function invalidateStatisticsCache(): void
+    {
+        // Clear queue stats cache
+        Cache::forget('kyc_queue_stats');
+
+        // Clear statistics cache for common time ranges
+        $commonRanges = [7, 30, 60, 90, 365];
+        foreach ($commonRanges as $days) {
+            Cache::forget("kyc_statistics_{$days}days");
+        }
     }
 }
