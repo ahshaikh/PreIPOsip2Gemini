@@ -112,21 +112,33 @@ class SubscriptionController extends Controller
         }
     }
 
+    /**
+     * V-AUDIT-MODULE7-005 (MEDIUM): Pause subscription with Plan-based validation.
+     *
+     * Configuration Fix:
+     * - Previous: Hardcoded pause limit of max:3 months for all plans
+     * - Problem: Different plans may have different pause policies
+     * - Solution: Use Plan's max_pause_duration_months configuration
+     */
     public function pause(Request $request)
     {
         // [MODIFIED] Added subscription_id requirement
+        $user = $request->user();
+
+        // V-AUDIT-MODULE7-005: Fetch subscription first to get Plan configuration
+        $sub = Subscription::where('user_id', $user->id)
+            ->where('id', $request->input('subscription_id'))
+            ->where('status', 'active')
+            ->with('plan') // Eager load plan for max_pause_duration_months
+            ->firstOrFail();
+
+        // V-AUDIT-MODULE7-005: Use Plan's max_pause_duration_months instead of hardcoded max:3
+        $maxPauseDuration = $sub->plan->max_pause_duration_months ?? 3; // Default to 3 if not set
+
         $validated = $request->validate([
-            'months' => 'required|integer|min:1|max:3',
+            'months' => "required|integer|min:1|max:{$maxPauseDuration}",
             'subscription_id' => 'required|exists:subscriptions,id' // Fixed: Require ID
         ]);
-        
-        $user = $request->user();
-        
-        // Find specific subscription
-        $sub = Subscription::where('user_id', $user->id)
-            ->where('id', $validated['subscription_id'])
-            ->where('status', 'active')
-            ->firstOrFail();
 
         try {
             $this->service->pauseSubscription($sub, $validated['months']);

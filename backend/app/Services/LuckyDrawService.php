@@ -119,23 +119,42 @@ class LuckyDrawService
 
         $winnerIds = [];
 
+        // V-AUDIT-MODULE11-002 (HIGH): Use cryptographically secure random_int instead of mt_rand
         // 3. Select Unique Winners based on Weight
         for ($i = 0; $i < $totalPrizes; $i++) {
             if ($candidates->isEmpty()) break;
 
             $totalWeight = $candidates->sum('weight');
-            $random = mt_rand(1, $totalWeight);
-            
+
+            // V-AUDIT-MODULE11-002 (HIGH): Cryptographic randomness for lottery integrity
+            //
+            // Previous Issue:
+            // - Used mt_rand() which is NOT cryptographically secure
+            // - mt_rand is susceptible to seed prediction attacks
+            // - For a financial lottery system, this compromises fairness/integrity audits
+            //
+            // Fix:
+            // - Use random_int() which generates cryptographic random integers
+            // - Suitable for financial/lottery applications requiring provable fairness
+            // - Complies with security audits and regulatory requirements
+            try {
+                $random = random_int(1, $totalWeight);
+            } catch (\Exception $e) {
+                // Fallback to secure source in case of failure (extremely rare)
+                Log::error("random_int failed in lucky draw selection: " . $e->getMessage());
+                throw new \Exception("Unable to generate secure random number for winner selection");
+            }
+
             $currentWeight = 0;
             foreach ($candidates as $key => $candidate) {
                 $currentWeight += $candidate['weight'];
-                
+
                 // Found the winner
                 if ($currentWeight >= $random) {
                     $winnerIds[] = $candidate['user_id'];
-                    
+
                     // Remove this user so they can't win again in the same draw
-                    $candidates->forget($key); 
+                    $candidates->forget($key);
                     break;
                 }
             }

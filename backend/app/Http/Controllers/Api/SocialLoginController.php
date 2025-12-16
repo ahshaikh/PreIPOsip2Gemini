@@ -117,7 +117,18 @@ class SocialLoginController extends Controller
     }
 
     /**
+     * V-AUDIT-MODULE9-002 (HIGH): Lock campaign at signup, not at payment completion.
+     *
      * Process referral code for new user.
+     *
+     * Previous Issue:
+     * - Campaign was assigned when referral completed (payment time)
+     * - If user signed up during "Double Bonus Week" but paid after it ended, they got standard bonus
+     * - "Bait and Switch" behavior caused user complaints
+     *
+     * Fix:
+     * - Lock the active campaign_id at signup time
+     * - This guarantees the user gets the campaign bonus they saw when they signed up
      */
     private function processReferralCode($user, $referralCode)
     {
@@ -138,17 +149,24 @@ class SocialLoginController extends Controller
             // Update user's referred_by field
             $user->update(['referred_by' => $referrer->id]);
 
-            // Create referral record
+            // V-AUDIT-MODULE9-002: Lock the active campaign at signup time
+            // This ensures the user gets the campaign bonus they saw when signing up,
+            // even if they complete payment after the campaign ends
+            $activeCampaign = \App\Models\ReferralCampaign::running()->first();
+
+            // Create referral record with locked campaign_id
             Referral::create([
                 'referrer_id' => $referrer->id,
                 'referred_id' => $user->id,
                 'status' => 'pending', // Will be completed when referred user makes first payment
+                'referral_campaign_id' => $activeCampaign?->id, // V-AUDIT-MODULE9-002: Lock campaign at signup
             ]);
 
             Log::info('Referral code processed successfully', [
                 'referrer_id' => $referrer->id,
                 'referred_id' => $user->id,
-                'referral_code' => $referralCode
+                'referral_code' => $referralCode,
+                'campaign_locked' => $activeCampaign?->name ?? 'None' // V-AUDIT-MODULE9-002: Log locked campaign
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to process referral code', [

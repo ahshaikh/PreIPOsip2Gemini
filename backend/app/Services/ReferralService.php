@@ -78,4 +78,50 @@ class ReferralService
             Log::info("ReferralService: User {$referrer->id} multiplier updated to {$newMultiplier}x (Referral Count: {$count})");
         }
     }
+
+    /**
+     * V-AUDIT-MODULE9-005 (LOW): Calculate referral bonus amount and description.
+     *
+     * Abstraction Fix:
+     * - Previous: Bonus calculation logic was hardcoded in ProcessReferralJob
+     * - Problem: Tight coupling, difficult to test, logic duplicated if needed elsewhere
+     * - Solution: Move calculation to ReferralService as a reusable method
+     *
+     * Benefits:
+     * - Single source of truth for referral bonus calculations
+     * - Easy to unit test bonus logic
+     * - Can be reused in other contexts (admin bonus preview, reports, etc.)
+     * - Clear separation of concerns (Job = orchestration, Service = business logic)
+     *
+     * @param User $referredUser The user who was referred
+     * @param ReferralCampaign|null $campaign The campaign to use for bonus calculation
+     * @return array ['amount' => float, 'description' => string]
+     */
+    public function calculateReferralBonus(User $referredUser, ?ReferralCampaign $campaign = null): array
+    {
+        // Base bonus from settings
+        $baseBonus = (float) setting('referral_bonus_amount', 500);
+
+        // Add campaign bonus if applicable
+        $campaignBonus = $campaign?->bonus_amount ?? 0;
+        $finalBonus = $baseBonus + $campaignBonus;
+
+        // Build description
+        $description = "Referral Bonus: {$referredUser->username}";
+        if ($campaign) {
+            $description .= " (Campaign: {$campaign->name})";
+        }
+
+        Log::debug("ReferralService: Calculated bonus for {$referredUser->username}", [
+            'base_bonus' => $baseBonus,
+            'campaign_bonus' => $campaignBonus,
+            'final_bonus' => $finalBonus,
+            'campaign' => $campaign?->name ?? 'None'
+        ]);
+
+        return [
+            'amount' => $finalBonus,
+            'description' => $description,
+        ];
+    }
 }

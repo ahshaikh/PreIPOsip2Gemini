@@ -6,12 +6,20 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\ProductPriceHistory;
+use App\Services\ProductService; // V-AUDIT-MODULE6-003: Service layer for business logic
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
+    // V-AUDIT-MODULE6-003: Inject ProductService for business logic handling
+    protected ProductService $productService;
+
+    public function __construct(ProductService $productService)
+    {
+        $this->productService = $productService;
+    }
     public function index(Request $request)
     {
         $query = Product::query();
@@ -46,6 +54,7 @@ class ProductController extends Controller
 
     public function update(Request $request, Product $product)
     {
+        // V-AUDIT-MODULE6-003: Simplified controller - business logic moved to ProductService
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
             'slug' => 'sometimes|required|string|unique:products,slug,'.$product->id,
@@ -57,14 +66,14 @@ class ProductController extends Controller
             'auto_update_price' => 'boolean',
             'price_api_endpoint' => 'nullable|string',
             'description' => 'nullable|string',
-            
+
             // Relational Data
             'highlights' => 'nullable|array',
             'founders' => 'nullable|array',
             'funding_rounds' => 'nullable|array',
             'key_metrics' => 'nullable|array',
             'risk_disclosures' => 'nullable|array',
-            
+
             // FSD-PROD-012: Compliance Fields
             'sebi_approval_number' => 'nullable|string|max:255',
             'sebi_approval_date' => 'nullable|date',
@@ -72,65 +81,19 @@ class ProductController extends Controller
             'regulatory_warnings' => 'nullable|string',
         ]);
 
-        DB::transaction(function () use ($product, $validated, $request) {
-            
-            // --- Price History Logic ---
-            $newPrice = $validated['current_market_price'] ?? $validated['face_value_per_unit'] ?? null;
-            $oldPrice = $product->current_market_price ?? $product->face_value_per_unit;
-            
-            // Only update history if price is provided and changed
-            if ($newPrice !== null && $newPrice != $oldPrice) {
-                ProductPriceHistory::updateOrCreate(
-                    ['product_id' => $product->id, 'recorded_at' => today()->subDay()],
-                    ['price' => $oldPrice]
-                );
-                ProductPriceHistory::updateOrCreate(
-                    ['product_id' => $product->id, 'recorded_at' => today()],
-                    ['price' => $newPrice]
-                );
-                $validated['last_price_update'] = now();
-            }
-            
-            // 1. Update the main product table
-            $product->update($validated);
+        // Separate product data from relationship data
+        $productData = array_diff_key($validated, array_flip([
+            'highlights', 'founders', 'funding_rounds', 'key_metrics', 'risk_disclosures'
+        ]));
 
-            // 2. Sync Relational Data (Non-Destructive)
-            // Helper closure to handle sync: Delete missing, Update existing, Create new
-            $syncRelation = function($relationName, $items) use ($product) {
-                if ($items === null) return; // Null means "do not change", empty array means "delete all"
+        $relationData = array_intersect_key($validated, array_flip([
+            'highlights', 'founders', 'funding_rounds', 'key_metrics', 'risk_disclosures'
+        ]));
 
-                $existingIds = collect($items)->pluck('id')->filter()->toArray();
-                
-                // Delete items not present in the new list
-                $product->{$relationName}()->whereNotIn('id', $existingIds)->delete();
+        // Delegate to ProductService for all business logic
+        $updatedProduct = $this->productService->updateProduct($product, $productData, $relationData);
 
-                foreach ($items as $item) {
-                    $product->{$relationName}()->updateOrCreate(
-                        ['id' => $item['id'] ?? null],
-                        $item
-                    );
-                }
-            };
-
-            // Apply sync to all relations
-            if ($request->has('highlights')) {
-                $syncRelation('highlights', $validated['highlights']);
-            }
-            if ($request->has('founders')) {
-                $syncRelation('founders', $validated['founders']);
-            }
-            if ($request->has('funding_rounds')) {
-                $syncRelation('fundingRounds', $validated['funding_rounds']);
-            }
-            if ($request->has('key_metrics')) {
-                $syncRelation('keyMetrics', $validated['key_metrics']);
-            }
-            if ($request->has('risk_disclosures')) {
-                $syncRelation('riskDisclosures', $validated['risk_disclosures']);
-            }
-        });
-
-        return response()->json($product->load('highlights', 'founders', 'fundingRounds', 'keyMetrics', 'riskDisclosures'));
+        return response()->json($updatedProduct);
     }
 
     public function destroy(Product $product)

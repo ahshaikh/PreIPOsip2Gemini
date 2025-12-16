@@ -35,11 +35,14 @@ class LuckyDrawController extends Controller
                         'name' => $rawDraw->name,
                         'draw_date' => Carbon::parse($rawDraw->draw_date)->format('d M Y'),
                         'status' => $rawDraw->status,
-                        
+
                         // FIX: Transform JSON Object -> Array for Frontend .reduce() compatibility
                         'prize_structure' => $this->transformPrizeStructure($rawDraw->prize_structure),
-                        
-                        'user_tickets' => $this->getUserTickets($rawDraw->id, $user->id)
+
+                        // V-AUDIT-MODULE11-001 (CRITICAL): Return array of entries, not integer count
+                        // Frontend expects my_entries array to map over, not user_tickets integer
+                        'my_entries' => $this->getUserEntries($rawDraw->id, $user->id),
+                        'total_tickets' => $this->getUserTicketCount($rawDraw->id, $user->id) // Keep count for display
                     ];
                 }
             }
@@ -117,14 +120,67 @@ class LuckyDrawController extends Controller
         return $list;
     }
 
-    private function getUserTickets($drawId, $userId)
+    /**
+     * V-AUDIT-MODULE11-001 (CRITICAL): Generate virtual entry codes for frontend display
+     *
+     * Previous Issue:
+     * - getUserTickets() returned integer count
+     * - Frontend tried to .map() over integer, causing crash
+     * - Frontend expected array of entries with entry_code property
+     *
+     * Fix:
+     * - Return array of entry objects with generated codes
+     * - Each entry gets a unique code like "LD-{drawId}-{userId}-{entryNum}"
+     * - Frontend can now safely map over entries
+     */
+    private function getUserEntries($drawId, $userId)
     {
-        if (Schema::hasTable('lucky_draw_entries')) {
-            return DB::table('lucky_draw_entries')
-                ->where('lucky_draw_id', $drawId)
-                ->where('user_id', $userId)
-                ->count();
+        if (!Schema::hasTable('lucky_draw_entries')) {
+            return [];
         }
-        return 0;
+
+        $entry = DB::table('lucky_draw_entries')
+            ->where('lucky_draw_id', $drawId)
+            ->where('user_id', $userId)
+            ->first();
+
+        if (!$entry) {
+            return [];
+        }
+
+        // Generate virtual entry codes based on base_entries + bonus_entries
+        $totalEntries = ($entry->base_entries ?? 0) + ($entry->bonus_entries ?? 0);
+        $entries = [];
+
+        for ($i = 1; $i <= $totalEntries; $i++) {
+            $entries[] = [
+                'entry_code' => sprintf('LD-%d-%d-%04d', $drawId, $userId, $i),
+                'type' => $i <= ($entry->base_entries ?? 0) ? 'base' : 'bonus',
+                'entry_number' => $i,
+            ];
+        }
+
+        return $entries;
+    }
+
+    /**
+     * V-AUDIT-MODULE11-001: Keep ticket count method for backward compatibility
+     */
+    private function getUserTicketCount($drawId, $userId)
+    {
+        if (!Schema::hasTable('lucky_draw_entries')) {
+            return 0;
+        }
+
+        $entry = DB::table('lucky_draw_entries')
+            ->where('lucky_draw_id', $drawId)
+            ->where('user_id', $userId)
+            ->first();
+
+        if (!$entry) {
+            return 0;
+        }
+
+        return ($entry->base_entries ?? 0) + ($entry->bonus_entries ?? 0);
     }
 }

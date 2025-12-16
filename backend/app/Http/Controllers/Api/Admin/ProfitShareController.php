@@ -6,7 +6,8 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ProfitShare;
 use App\Services\ProfitShareService;
-use App\Jobs\ProcessProfitShareDistribution; // <-- Added for Async
+use App\Jobs\ProcessProfitShareDistribution; // <-- Added for Async Distribution
+use App\Jobs\CalculateProfitShareJob; // V-AUDIT-MODULE10-001: Added for Async Calculation
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -49,16 +50,33 @@ class ProfitShareController extends Controller
 
     /**
      * Step 2: Calculate the distribution.
-     * This remains synchronous as the new 'cursor' implementation in Service
-     * is fast enough for HTTP requests, but returns JSON which is light.
+     *
+     * V-AUDIT-MODULE10-001 (HIGH): Async Calculation to Prevent HTTP Timeouts
+     *
+     * Previous Issue:
+     * - Calculation was synchronous, taking 30-60+ seconds for 50,000 investors
+     * - Even with cursor() optimization, HTTP requests would timeout at load balancer
+     * - Standard Nginx/AWS ALB timeout is 30-60 seconds
+     *
+     * Fix:
+     * - Dispatch CalculateProfitShareJob to background queue
+     * - Admin gets immediate response without waiting for calculation to complete
+     * - Queue workers can take hours if needed without HTTP timeout
      */
     public function calculate(Request $request, ProfitShare $profitShare)
     {
+        // Basic check before dispatch
+        if ($profitShare->status !== 'pending') {
+            return response()->json(['message' => 'Period not ready for calculation.'], 400);
+        }
+
         try {
-            $result = $this->service->calculateDistribution($profitShare);
+            // V-AUDIT-MODULE10-001: Dispatch calculation job to background queue
+            CalculateProfitShareJob::dispatch($profitShare, $request->user());
+
             return response()->json([
-                'message' => 'Calculation complete. Ready to distribute.',
-                'data' => $result
+                'message' => 'Calculation process started in background. You will be notified upon completion.',
+                'status' => 'calculating'
             ]);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 500);
@@ -120,6 +138,8 @@ class ProfitShareController extends Controller
 
     /**
      * NEW: Reverse an entire distribution.
+     *
+     * V-AUDIT-MODULE10-002 (HIGH): Now handles partial reversals gracefully
      */
     public function reverse(Request $request, ProfitShare $profitShare)
     {
@@ -128,8 +148,19 @@ class ProfitShareController extends Controller
         ]);
 
         try {
-            $this->service->reverseDistribution($profitShare, $validated['reason']);
-            return response()->json(['message' => 'Distribution reversed successfully.']);
+            // V-AUDIT-MODULE10-002: Service now returns detailed report of reversal results
+            $result = $this->service->reverseDistribution($profitShare, $validated['reason']);
+
+            // Return detailed report to admin
+            return response()->json([
+                'message' => $result['message'],
+                'status' => $result['status'],
+                'success_count' => $result['success_count'],
+                'failed_count' => $result['failed_count'],
+                'total_amount' => $result['total_amount'],
+                'reversed_amount' => $result['reversed_amount'],
+                'failed_reversals' => $result['failed_reversals'],
+            ]);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 500);
         }

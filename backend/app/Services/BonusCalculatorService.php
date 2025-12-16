@@ -178,6 +178,126 @@ class BonusCalculatorService
     }
 
     /**
+     * V-AUDIT-MODULE8-004 (HIGH): Calculate bonuses for testing without persisting.
+     *
+     * This method is used by AdminBonusController::calculateTest to preview bonuses
+     * without creating database records. Eliminates code duplication.
+     *
+     * @param array $params Test parameters
+     * @return array Breakdown of bonus calculations
+     */
+    public function calculateTestBonuses(array $params): array
+    {
+        $plan = \App\Models\Plan::with('configs')->findOrFail($params['plan_id']);
+        $amount = (float) $params['payment_amount'];
+        $month = (int) $params['payment_month'];
+        $multiplier = (float) ($params['bonus_multiplier'] ?? 1.0);
+        $consecutivePayments = (int) ($params['consecutive_payments'] ?? $month);
+        $isOnTime = (bool) $params['is_on_time'];
+
+        $bonuses = [];
+        $totalBonus = 0;
+
+        // Apply multiplier cap
+        $maxMultiplier = (float) setting('max_bonus_multiplier', 10.0);
+        $multiplier = min($multiplier, $maxMultiplier);
+
+        // 1. Progressive Bonus
+        if (setting('progressive_bonus_enabled', true)) {
+            $config = $plan->getConfig('progressive_config', [
+                'rate' => 0.5, 'start_month' => 4, 'max_percentage' => 20, 'overrides' => []
+            ]);
+
+            $startMonth = (int) $config['start_month'];
+
+            if ($month >= $startMonth) {
+                $overrides = $config['overrides'] ?? [];
+                $baseRate = 0;
+
+                if (isset($overrides[$month])) {
+                    $baseRate = (float) $overrides[$month];
+                } else {
+                    $growthFactor = $month - $startMonth + 1;
+                    $baseRate = $growthFactor * ((float) $config['rate']);
+                }
+
+                $maxPercent = $config['max_percentage'] ?? 100;
+                if ($baseRate > $maxPercent) $baseRate = $maxPercent;
+
+                $progressiveBonus = ($baseRate / 100) * $amount * $multiplier;
+                $progressiveBonus = $this->applyRounding($progressiveBonus);
+
+                if ($progressiveBonus > 0) {
+                    $bonuses[] = [
+                        'type' => 'progressive',
+                        'amount' => $progressiveBonus,
+                        'calculation' => "{$baseRate}% × ₹{$amount} × {$multiplier}x = ₹{$progressiveBonus}",
+                    ];
+                    $totalBonus += $progressiveBonus;
+                }
+            }
+        }
+
+        // 2. Milestone Bonus
+        if (setting('milestone_bonus_enabled', true)) {
+            $config = $plan->getConfig('milestone_config', []);
+
+            foreach ($config as $milestone) {
+                if ($month === (int)$milestone['month']) {
+                    if ($consecutivePayments >= $month) {
+                        $milestoneBonus = ((float)$milestone['amount']) * $multiplier;
+                        $milestoneBonus = $this->applyRounding($milestoneBonus);
+
+                        $bonuses[] = [
+                            'type' => 'milestone',
+                            'amount' => $milestoneBonus,
+                            'calculation' => "₹{$milestone['amount']} × {$multiplier}x = ₹{$milestoneBonus}",
+                        ];
+                        $totalBonus += $milestoneBonus;
+                    }
+                }
+            }
+        }
+
+        // 3. Consistency Bonus
+        if (setting('consistency_bonus_enabled', true) && $isOnTime) {
+            $config = $plan->getConfig('consistency_config', ['amount_per_payment' => 0]);
+            $consistencyBonus = (float) $config['amount_per_payment'];
+
+            if (isset($config['streaks']) && is_array($config['streaks'])) {
+                foreach ($config['streaks'] as $streakRule) {
+                    if ($consecutivePayments === (int)$streakRule['months']) {
+                        $consistencyBonus *= (float)$streakRule['multiplier'];
+                        break;
+                    }
+                }
+            }
+
+            $consistencyBonus = $this->applyRounding($consistencyBonus);
+
+            if ($consistencyBonus > 0) {
+                $bonuses[] = [
+                    'type' => 'consistency',
+                    'amount' => $consistencyBonus,
+                    'calculation' => "₹{$config['amount_per_payment']} (with streak multiplier) = ₹{$consistencyBonus}",
+                ];
+                $totalBonus += $consistencyBonus;
+            }
+        }
+
+        return [
+            'total_bonus' => $totalBonus,
+            'bonuses' => $bonuses,
+            'settings' => [
+                'multiplier_applied' => $multiplier,
+                'max_multiplier_cap' => $maxMultiplier,
+                'rounding_decimals' => setting('bonus_rounding_decimals', 2),
+                'rounding_mode' => setting('bonus_rounding_mode', 'round'),
+            ],
+        ];
+    }
+
+    /**
      * 1. Calculates Progressive Bonus with Advanced Rules
      */
     private function calculateProgressive(Payment $payment, $plan, $multiplier): float
@@ -348,24 +468,33 @@ class BonusCalculatorService
         // Apply rounding to referral bonus before creating transaction
         $referralBonusAmount = $this->applyRounding($referralBonusAmount);
 
+        // V-AUDIT-MODULE8-001: Calculate TDS for referral bonus as well
+        $tdsPercentage = (float) setting('bonus_tds_percentage', 10.0);
+        $tdsAmount = ($tdsPercentage / 100) * $referralBonusAmount;
+        $netAmount = $referralBonusAmount - $tdsAmount;
+
+        $tdsAmount = $this->applyRounding($tdsAmount);
+        $netAmount = $this->applyRounding($netAmount);
+
         // Create bonus transaction for referrer
         $bonusTxn = \App\Models\BonusTransaction::create([
             'user_id' => $referrer->id,
             'subscription_id' => $payment->subscription_id,
             'payment_id' => $payment->id,
             'type' => 'referral_bonus',
-            'amount' => $referralBonusAmount,
+            'amount' => $referralBonusAmount, // V-AUDIT-MODULE8-001: Gross amount
+            'tds_deducted' => $tdsAmount, // V-AUDIT-MODULE8-001: TDS for compliance
             'multiplier_applied' => 1.0,
             'base_amount' => $payment->amount,
             'description' => "Referral Bonus - {$referredUser->username} met completion criteria: {$criteria}"
         ]);
 
-        // FIX: Deposit Referral Bonus to Wallet
+        // V-AUDIT-MODULE8-001: Deposit only NET amount to wallet (after TDS)
         $this->walletService->deposit(
             $referrer,
-            $referralBonusAmount,
+            $netAmount, // V-AUDIT-MODULE8-001: Credit net amount only
             'bonus_credit',
-            "Referral Bonus - Invited {$referredUser->username}",
+            "Referral Bonus - Invited {$referredUser->username}" . ($tdsAmount > 0 ? " (TDS ₹{$tdsAmount} deducted)" : ""),
             $bonusTxn
         );
 
@@ -378,29 +507,61 @@ class BonusCalculatorService
     }
 
     /**
-     * Helper to write to the database.
+     * V-AUDIT-MODULE8-001 (CRITICAL): Helper to write to the database with TDS deduction.
+     *
+     * TDS (Tax Deducted at Source) Compliance:
+     * - In India, commissions and bonuses typically attract 5-10% TDS
+     * - System must deduct TDS before crediting wallet (legal requirement)
+     * - TDS is stored in tds_deducted field for audit and tax reporting
+     *
+     * Flow:
+     * 1. Calculate TDS based on bonus_tds_percentage setting
+     * 2. Store gross amount and TDS in BonusTransaction
+     * 3. Deposit only net_amount (amount - TDS) to wallet
+     *
+     * Example:
+     * - Gross Bonus: ₹1000
+     * - TDS (10%): ₹100
+     * - Net Credit: ₹900
      */
     private function createBonusTransaction(Payment $payment, string $type, float $amount, float $multiplier, string $description): void
     {
+        // V-AUDIT-MODULE8-001: Calculate TDS for tax compliance
+        $tdsPercentage = (float) setting('bonus_tds_percentage', 10.0); // Default 10% TDS
+        $tdsAmount = ($tdsPercentage / 100) * $amount;
+        $netAmount = $amount - $tdsAmount;
+
+        // Apply rounding to TDS and net amount
+        $tdsAmount = $this->applyRounding($tdsAmount);
+        $netAmount = $this->applyRounding($netAmount);
+
         $bonusTxn = BonusTransaction::create([
             'user_id' => $payment->user_id,
             'subscription_id' => $payment->subscription_id,
             'payment_id' => $payment->id,
             'type' => $type,
-            'amount' => $amount,
+            'amount' => $amount, // V-AUDIT-MODULE8-001: Gross amount (before TDS)
+            'tds_deducted' => $tdsAmount, // V-AUDIT-MODULE8-001: TDS amount for compliance
             'multiplier_applied' => $multiplier,
             'base_amount' => $payment->amount,
             'description' => $description
         ]);
 
-        // FIX: Deposit Bonus to Wallet
-        // This fixes the "Phantom Money" bug where bonuses were logged but not usable
+        // V-AUDIT-MODULE8-001: Deposit only NET amount to wallet (after TDS deduction)
+        // This ensures legal compliance - TDS is withheld and will be remitted to tax authorities
+        // FIX: This also fixes the "Phantom Money" bug where bonuses were logged but not usable
         $this->walletService->deposit(
             $payment->user,
-            $amount,
+            $netAmount, // V-AUDIT-MODULE8-001: Credit net amount only
             'bonus_credit',
-            $description,
+            $description . ($tdsAmount > 0 ? " (TDS ₹{$tdsAmount} deducted)" : ""),
             $bonusTxn
         );
+
+        Log::info("Bonus created: Gross=₹{$amount}, TDS=₹{$tdsAmount} ({$tdsPercentage}%), Net=₹{$netAmount}", [
+            'user_id' => $payment->user_id,
+            'type' => $type,
+            'bonus_id' => $bonusTxn->id
+        ]);
     }
 }

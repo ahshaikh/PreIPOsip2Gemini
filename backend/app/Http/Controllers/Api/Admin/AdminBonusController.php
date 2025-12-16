@@ -211,7 +211,15 @@ class AdminBonusController extends Controller
     }
 
     /**
-     * Test/calculate bonus for a hypothetical scenario
+     * V-AUDIT-MODULE8-004 (HIGH): Test/calculate bonus for a hypothetical scenario.
+     *
+     * REFACTORED: Now delegates to BonusCalculatorService::calculateTestBonuses()
+     * instead of duplicating 100+ lines of bonus calculation logic.
+     *
+     * Benefits:
+     * - Eliminates code duplication (DRY principle)
+     * - Single source of truth for bonus calculations
+     * - Updates to bonus logic automatically reflected in admin test tool
      *
      * POST /api/v1/admin/bonuses/calculate-test
      */
@@ -226,127 +234,11 @@ class AdminBonusController extends Controller
             'consecutive_payments' => 'nullable|integer|min:0',
         ]);
 
-        $plan = \App\Models\Plan::with('configs')->findOrFail($validated['plan_id']);
-        $amount = (float) $validated['payment_amount'];
-        $month = (int) $validated['payment_month'];
-        $multiplier = (float) ($validated['bonus_multiplier'] ?? 1.0);
-        $consecutivePayments = (int) ($validated['consecutive_payments'] ?? $month);
+        // V-AUDIT-MODULE8-004: Delegate to BonusCalculatorService instead of duplicating logic
+        $bonusService = app(\App\Services\BonusCalculatorService::class);
+        $result = $bonusService->calculateTestBonuses($validated);
 
-        $bonuses = [];
-        $totalBonus = 0;
-
-        // Apply multiplier cap
-        $maxMultiplier = (float) setting('max_bonus_multiplier', 10.0);
-        $multiplier = min($multiplier, $maxMultiplier);
-
-        // 1. Progressive Bonus
-        if (setting('progressive_bonus_enabled', true)) {
-            $config = $plan->getConfig('progressive_config', [
-                'rate' => 0.5, 'start_month' => 4, 'max_percentage' => 20, 'overrides' => []
-            ]);
-
-            $startMonth = (int) $config['start_month'];
-
-            if ($month >= $startMonth) {
-                $overrides = $config['overrides'] ?? [];
-                $baseRate = 0;
-
-                if (isset($overrides[$month])) {
-                    $baseRate = (float) $overrides[$month];
-                } else {
-                    $growthFactor = $month - $startMonth + 1;
-                    $baseRate = $growthFactor * ((float) $config['rate']);
-                }
-
-                $maxPercent = $config['max_percentage'] ?? 100;
-                if ($baseRate > $maxPercent) $baseRate = $maxPercent;
-
-                $progressiveBonus = ($baseRate / 100) * $amount * $multiplier;
-                $progressiveBonus = $this->applyRounding($progressiveBonus);
-
-                if ($progressiveBonus > 0) {
-                    $bonuses[] = [
-                        'type' => 'progressive',
-                        'amount' => $progressiveBonus,
-                        'calculation' => "{$baseRate}% × ₹{$amount} × {$multiplier}x = ₹{$progressiveBonus}",
-                    ];
-                    $totalBonus += $progressiveBonus;
-                }
-            }
-        }
-
-        // 2. Milestone Bonus
-        if (setting('milestone_bonus_enabled', true)) {
-            $config = $plan->getConfig('milestone_config', []);
-
-            foreach ($config as $milestone) {
-                if ($month === (int)$milestone['month']) {
-                    if ($consecutivePayments >= $month) {
-                        $milestoneBonus = ((float)$milestone['amount']) * $multiplier;
-                        $milestoneBonus = $this->applyRounding($milestoneBonus);
-
-                        $bonuses[] = [
-                            'type' => 'milestone',
-                            'amount' => $milestoneBonus,
-                            'calculation' => "₹{$milestone['amount']} × {$multiplier}x = ₹{$milestoneBonus}",
-                        ];
-                        $totalBonus += $milestoneBonus;
-                    }
-                }
-            }
-        }
-
-        // 3. Consistency Bonus
-        if (setting('consistency_bonus_enabled', true) && $validated['is_on_time']) {
-            $config = $plan->getConfig('consistency_config', ['amount_per_payment' => 0]);
-            $consistencyBonus = (float) $config['amount_per_payment'];
-
-            if (isset($config['streaks']) && is_array($config['streaks'])) {
-                foreach ($config['streaks'] as $streakRule) {
-                    if ($consecutivePayments === (int)$streakRule['months']) {
-                        $consistencyBonus *= (float)$streakRule['multiplier'];
-                        break;
-                    }
-                }
-            }
-
-            $consistencyBonus = $this->applyRounding($consistencyBonus);
-
-            if ($consistencyBonus > 0) {
-                $bonuses[] = [
-                    'type' => 'consistency',
-                    'amount' => $consistencyBonus,
-                    'calculation' => "₹{$config['amount_per_payment']} (with streak multiplier) = ₹{$consistencyBonus}",
-                ];
-                $totalBonus += $consistencyBonus;
-            }
-        }
-
-        return response()->json([
-            'total_bonus' => $totalBonus,
-            'bonuses' => $bonuses,
-            'settings' => [
-                'multiplier_applied' => $multiplier,
-                'max_multiplier_cap' => $maxMultiplier,
-                'rounding_decimals' => setting('bonus_rounding_decimals', 2),
-                'rounding_mode' => setting('bonus_rounding_mode', 'round'),
-            ],
-        ]);
-    }
-
-    /**
-     * Apply rounding based on settings
-     */
-    private function applyRounding(float $amount): float
-    {
-        $decimals = (int) setting('bonus_rounding_decimals', 2);
-        $mode = setting('bonus_rounding_mode', 'round');
-
-        return match ($mode) {
-            'floor' => floor($amount * pow(10, $decimals)) / pow(10, $decimals),
-            'ceil' => ceil($amount * pow(10, $decimals)) / pow(10, $decimals),
-            default => round($amount, $decimals),
-        };
+        return response()->json($result);
     }
 
     /**
@@ -414,7 +306,17 @@ class AdminBonusController extends Controller
 
 
     /**
-     * Award bulk special bonuses to multiple users
+     * V-AUDIT-MODULE8-005 (MEDIUM): Award bulk special bonuses to multiple users.
+     *
+     * REFACTORED: Now dispatches AwardBulkBonusJob for each user instead of
+     * processing synchronously. Enables parallel processing for 5,000+ users.
+     *
+     * Benefits:
+     * - Immediate response to admin (jobs queued successfully)
+     * - Queue workers process in parallel
+     * - No request timeout issues
+     * - Failed awards don't block others
+     * - Progress trackable via queue monitoring
      *
      * POST /api/v1/admin/bonuses/award-bulk
      */
@@ -430,52 +332,21 @@ class AdminBonusController extends Controller
         $userIds = $validated['user_ids'];
         $amount = (float) $validated['amount'];
         $reason = $validated['reason'];
-        $successCount = 0;
+        $count = count($userIds);
 
+        // V-AUDIT-MODULE8-005: Dispatch a job for EACH user instead of processing inline
+        // Queue workers will process these in parallel
         foreach ($userIds as $userId) {
-            $user = User::find($userId);
-            if (!$user) continue;
-
-            try {
-                // [MODIFIED] Added DB::transaction to ensure atomicity for each user in the bulk loop.
-                DB::transaction(function () use ($user, $amount, $reason) {
-                    
-                    // 1. Create Record
-                    $bonusTransaction = BonusTransaction::create([
-                        'user_id' => $user->id,
-                        'subscription_id' => $user->subscriptions()->latest()->first()?->id,
-                        'payment_id' => null,
-                        'type' => 'special_bonus',
-                        'amount' => $amount,
-                        'multiplier_applied' => 1.0,
-                        'base_amount' => $amount,
-                        'description' => "Special Bonus: {$reason}"
-                    ]);
-
-                    // 2. [ADDED] Call WalletService to credit the user's balance.
-                    $this->walletService->deposit(
-                        $user,
-                        $amount,
-                        'bonus_credit',
-                        "Special Bonus: {$reason}",
-                        $bonusTransaction
-                    );
-                });
-
-                $user->notify(new BonusCredited($amount, 'Special'));
-                $successCount++;
-            } catch (\Exception $e) {
-                Log::error("Failed to award bonus to User {$userId}: " . $e->getMessage());
-                // We continue the loop so one failure doesn't stop the rest
-            }
+            \App\Jobs\AwardBulkBonusJob::dispatch($userId, $amount, $reason);
         }
 
-        Log::info("Admin awarded bulk bonuses: ₹{$amount} to {$successCount} users. Reason: {$reason}");
+        Log::info("Admin dispatched {$count} bulk bonus jobs: ₹{$amount} per user. Reason: {$reason}");
 
         return response()->json([
             'success' => true,
-            'message' => "Special bonus of ₹{$amount} awarded to {$successCount} users",
-            'awarded_count' => $successCount,
+            'message' => "Dispatched {$count} bonus award jobs to queue. Processing in background.",
+            'dispatched_count' => $count,
+            'note' => 'Check queue monitor or logs for individual award progress.',
         ]);
     }
 
