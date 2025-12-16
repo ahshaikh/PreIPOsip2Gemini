@@ -348,24 +348,33 @@ class BonusCalculatorService
         // Apply rounding to referral bonus before creating transaction
         $referralBonusAmount = $this->applyRounding($referralBonusAmount);
 
+        // V-AUDIT-MODULE8-001: Calculate TDS for referral bonus as well
+        $tdsPercentage = (float) setting('bonus_tds_percentage', 10.0);
+        $tdsAmount = ($tdsPercentage / 100) * $referralBonusAmount;
+        $netAmount = $referralBonusAmount - $tdsAmount;
+
+        $tdsAmount = $this->applyRounding($tdsAmount);
+        $netAmount = $this->applyRounding($netAmount);
+
         // Create bonus transaction for referrer
         $bonusTxn = \App\Models\BonusTransaction::create([
             'user_id' => $referrer->id,
             'subscription_id' => $payment->subscription_id,
             'payment_id' => $payment->id,
             'type' => 'referral_bonus',
-            'amount' => $referralBonusAmount,
+            'amount' => $referralBonusAmount, // V-AUDIT-MODULE8-001: Gross amount
+            'tds_deducted' => $tdsAmount, // V-AUDIT-MODULE8-001: TDS for compliance
             'multiplier_applied' => 1.0,
             'base_amount' => $payment->amount,
             'description' => "Referral Bonus - {$referredUser->username} met completion criteria: {$criteria}"
         ]);
 
-        // FIX: Deposit Referral Bonus to Wallet
+        // V-AUDIT-MODULE8-001: Deposit only NET amount to wallet (after TDS)
         $this->walletService->deposit(
             $referrer,
-            $referralBonusAmount,
+            $netAmount, // V-AUDIT-MODULE8-001: Credit net amount only
             'bonus_credit',
-            "Referral Bonus - Invited {$referredUser->username}",
+            "Referral Bonus - Invited {$referredUser->username}" . ($tdsAmount > 0 ? " (TDS ₹{$tdsAmount} deducted)" : ""),
             $bonusTxn
         );
 
@@ -378,29 +387,61 @@ class BonusCalculatorService
     }
 
     /**
-     * Helper to write to the database.
+     * V-AUDIT-MODULE8-001 (CRITICAL): Helper to write to the database with TDS deduction.
+     *
+     * TDS (Tax Deducted at Source) Compliance:
+     * - In India, commissions and bonuses typically attract 5-10% TDS
+     * - System must deduct TDS before crediting wallet (legal requirement)
+     * - TDS is stored in tds_deducted field for audit and tax reporting
+     *
+     * Flow:
+     * 1. Calculate TDS based on bonus_tds_percentage setting
+     * 2. Store gross amount and TDS in BonusTransaction
+     * 3. Deposit only net_amount (amount - TDS) to wallet
+     *
+     * Example:
+     * - Gross Bonus: ₹1000
+     * - TDS (10%): ₹100
+     * - Net Credit: ₹900
      */
     private function createBonusTransaction(Payment $payment, string $type, float $amount, float $multiplier, string $description): void
     {
+        // V-AUDIT-MODULE8-001: Calculate TDS for tax compliance
+        $tdsPercentage = (float) setting('bonus_tds_percentage', 10.0); // Default 10% TDS
+        $tdsAmount = ($tdsPercentage / 100) * $amount;
+        $netAmount = $amount - $tdsAmount;
+
+        // Apply rounding to TDS and net amount
+        $tdsAmount = $this->applyRounding($tdsAmount);
+        $netAmount = $this->applyRounding($netAmount);
+
         $bonusTxn = BonusTransaction::create([
             'user_id' => $payment->user_id,
             'subscription_id' => $payment->subscription_id,
             'payment_id' => $payment->id,
             'type' => $type,
-            'amount' => $amount,
+            'amount' => $amount, // V-AUDIT-MODULE8-001: Gross amount (before TDS)
+            'tds_deducted' => $tdsAmount, // V-AUDIT-MODULE8-001: TDS amount for compliance
             'multiplier_applied' => $multiplier,
             'base_amount' => $payment->amount,
             'description' => $description
         ]);
 
-        // FIX: Deposit Bonus to Wallet
-        // This fixes the "Phantom Money" bug where bonuses were logged but not usable
+        // V-AUDIT-MODULE8-001: Deposit only NET amount to wallet (after TDS deduction)
+        // This ensures legal compliance - TDS is withheld and will be remitted to tax authorities
+        // FIX: This also fixes the "Phantom Money" bug where bonuses were logged but not usable
         $this->walletService->deposit(
             $payment->user,
-            $amount,
+            $netAmount, // V-AUDIT-MODULE8-001: Credit net amount only
             'bonus_credit',
-            $description,
+            $description . ($tdsAmount > 0 ? " (TDS ₹{$tdsAmount} deducted)" : ""),
             $bonusTxn
         );
+
+        Log::info("Bonus created: Gross=₹{$amount}, TDS=₹{$tdsAmount} ({$tdsPercentage}%), Net=₹{$netAmount}", [
+            'user_id' => $payment->user_id,
+            'type' => $type,
+            'bonus_id' => $bonusTxn->id
+        ]);
     }
 }
