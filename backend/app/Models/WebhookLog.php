@@ -135,10 +135,15 @@ class WebhookLog extends Model
 
     /**
      * Get the prunable model query.
-     * Prune webhook logs older than 30 days.
+     * V-AUDIT-MODULE4-007 (LOW) - Extended retention from 30 to 90 days
+     * Prune webhook logs older than 90 days for audit compliance.
+     * This balances forensic needs with database size management.
+     *
+     * To manually run: php artisan model:prune --model=WebhookLog
+     * Scheduled via Console/Kernel.php: $schedule->command('model:prune')->daily();
      */
     public function prunable()
     {
-        return static::where('created_at', '<=', now()->subDays(30));
+        return static::where('created_at', '<=', now()->subDays(90));
     }
 }

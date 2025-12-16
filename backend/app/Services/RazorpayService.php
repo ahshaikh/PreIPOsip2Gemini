@@ -22,9 +22,14 @@ class RazorpayService implements PaymentGatewayInterface
 
     public function __construct()
     {
-        $this->key = setting('razorpay_key_id', env('RAZORPAY_KEY')); 
-        $this->secret = setting('razorpay_key_secret', env('RAZORPAY_SECRET')); 
-        
+        // V-AUDIT-MODULE4-002 (HIGH) - Fixed Configuration Anti-Pattern
+        // CRITICAL FIX: Use config() instead of env() to avoid null values after config:cache
+        // In Laravel production, when 'php artisan config:cache' is run, all env() calls
+        // outside of config files return null. This caused payment failures in production.
+        // Now using config('services.razorpay.*') which properly loads cached values.
+        $this->key = setting('razorpay_key_id', config('services.razorpay.key'));
+        $this->secret = setting('razorpay_key_secret', config('services.razorpay.secret'));
+
         if ($this->key && $this->secret) {
             $this->api = new Api($this->key, $this->secret);
         }
@@ -42,10 +47,11 @@ class RazorpayService implements PaymentGatewayInterface
 
         $this->log("Creating Order: Amount={$amount}, Receipt={$receiptId}");
         try {
+            // V-AUDIT-MODULE4-006 (MEDIUM) - Use config for currency instead of hardcoded 'INR'
             $order = $this->api->order->create([
                 'receipt' => (string) $receiptId,
                 'amount' => $amount * 100, // Paise
-                'currency' => 'INR',
+                'currency' => config('app.currency', 'INR'), // Configurable currency
                 'payment_capture' => 1
             ]);
             $this->log("Order Created: {$order->id}");
@@ -121,25 +127,9 @@ class RazorpayService implements PaymentGatewayInterface
         }
     }
 
-    public function verifyWebhookSignature($payload, $signature, $secret)
-    {
-        $this->log("Verifying Webhook Signature");
-        try {
-            $expectedSignature = hash_hmac('sha256', $payload, $secret);
-            $isValid = hash_equals($expectedSignature, $signature);
-
-            if ($isValid) {
-                $this->log("Webhook Signature Verified");
-            } else {
-                $this->log("Webhook Signature Verification Failed", 'warning');
-            }
-
-            return $isValid;
-        } catch (Exception $e) {
-            $this->log("Webhook Verification Error: " . $e->getMessage(), 'error');
-            return false;
-        }
-    }
+    // V-AUDIT-MODULE4-004 (MEDIUM) - Removed unused verifyWebhookSignature() method
+    // This method was never called and duplicated logic already handled in WebhookController
+    // Webhook signature verification is properly done in the controller middleware
 
     // --- SUBSCRIPTION / MANDATE ENGINE ---
 
@@ -149,16 +139,17 @@ class RazorpayService implements PaymentGatewayInterface
     public function createOrUpdatePlan(Plan $plan)
     {
         $this->log("Syncing Plan #{$plan->id} with Razorpay...");
-        
+
         $this->validateAmount($plan->monthly_amount);
 
+        // V-AUDIT-MODULE4-006 (MEDIUM) - Use config for currency instead of hardcoded 'INR'
         $planData = [
             'period' => 'monthly',
             'interval' => 1,
             'item' => [
                 'name' => $plan->name,
                 'amount' => $plan->monthly_amount * 100,
-                'currency' => 'INR',
+                'currency' => config('app.currency', 'INR'), // Configurable currency
                 'description' => $plan->description ?? 'Monthly SIP'
             ]
         ];

@@ -51,13 +51,24 @@ class PaymentController extends Controller
 
     /**
      * Submit Manual Payment Proof (UTR + Screenshot)
+     *
+     * V-AUDIT-MODULE4-005 (MEDIUM) - Enhanced PDF/Image Upload Security
+     * Added proper MIME type validation and secure file handling to prevent:
+     * - Malicious file execution via crafted PDFs
+     * - MIME type spoofing attacks
+     * - Path traversal vulnerabilities
+     *
+     * IMPORTANT: When serving these files, always use:
+     * - Content-Disposition: attachment (force download)
+     * - Content-Type validation
+     * - Proper access control checks
      */
     public function submitManual(Request $request)
     {
         $validated = $request->validate([
             'payment_id' => 'required|exists:payments,id',
             'utr_number' => 'required|string|max:50',
-            'payment_proof' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'payment_proof' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120|mimetypes:image/jpeg,image/png,application/pdf',
         ]);
 
         $payment = Payment::findOrFail($validated['payment_id']);
@@ -77,7 +88,21 @@ class PaymentController extends Controller
             return response()->json(['message' => "Payment amount must be between ₹$min and ₹$max."], 400);
         }
 
-        $path = $request->file('payment_proof')->store("payment_proofs/{$user->id}", 'public');
+        // SECURITY FIX: Sanitize file upload with proper extension and MIME validation
+        $file = $request->file('payment_proof');
+
+        // Additional MIME type verification (defense in depth)
+        $allowedMimes = ['image/jpeg', 'image/png', 'application/pdf'];
+        if (!in_array($file->getMimeType(), $allowedMimes)) {
+            return response()->json(['message' => 'Invalid file type. Only JPG, PNG, and PDF files are allowed.'], 400);
+        }
+
+        // Generate a secure, random filename to prevent path traversal
+        $extension = $file->getClientOriginalExtension();
+        $filename = time() . '_' . uniqid() . '.' . $extension;
+
+        // Store with sanitized filename
+        $path = $file->storeAs("payment_proofs/{$user->id}", $filename, 'public');
 
         // MODULE 8 FIX: Ensure upload was successful
         if (!$path) {
