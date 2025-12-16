@@ -18,9 +18,69 @@ class ProfitShareService
 {
     protected $walletService;
 
+    /**
+     * V-AUDIT-MODULE10-003 (MEDIUM): BCMath precision scale
+     * Use 4 decimal places for all financial calculations to prevent float drift
+     */
+    private const BCMATH_SCALE = 4;
+
     public function __construct(WalletService $walletService)
     {
         $this->walletService = $walletService;
+    }
+
+    /**
+     * V-AUDIT-MODULE10-003 (MEDIUM): BCMath helpers for precise financial calculations
+     *
+     * Previous Issue:
+     * - PHP float arithmetic has precision drift (e.g., 0.1 + 0.2 ≠ 0.3)
+     * - For profit distribution: sum of distributed amounts could be ₹1,000,000.01 instead of ₹1,000,000.00
+     * - Floating point errors create reconciliation headaches
+     *
+     * Fix:
+     * - Use bcmath functions for all ledger-impacting calculations
+     * - bcmul for multiplication
+     * - bcdiv for division
+     * - bcadd for addition
+     * - bcsub for subtraction
+     *
+     * Benefits:
+     * - Exact decimal precision
+     * - Sum of distributed amounts = total pool (no drift)
+     * - Audit-ready financial records
+     */
+
+    /**
+     * Multiply two numbers with bcmath precision
+     */
+    private function bcMul($num1, $num2): string
+    {
+        return bcmul((string)$num1, (string)$num2, self::BCMATH_SCALE);
+    }
+
+    /**
+     * Divide two numbers with bcmath precision
+     */
+    private function bcDiv($num1, $num2): string
+    {
+        if ($num2 == 0) return '0';
+        return bcdiv((string)$num1, (string)$num2, self::BCMATH_SCALE);
+    }
+
+    /**
+     * Add two numbers with bcmath precision
+     */
+    private function bcAdd($num1, $num2): string
+    {
+        return bcadd((string)$num1, (string)$num2, self::BCMATH_SCALE);
+    }
+
+    /**
+     * Subtract two numbers with bcmath precision
+     */
+    private function bcSub($num1, $num2): string
+    {
+        return bcsub((string)$num1, (string)$num2, self::BCMATH_SCALE);
     }
 
     /**
@@ -303,7 +363,9 @@ class ProfitShareService
             $distributions = $lockedPeriod->distributions()->with('user.wallet', 'user.kyc', 'user.subscription')->get();
             if ($distributions->isEmpty()) throw new \Exception('No distributions to process.');
             
-            $tdsRate = (float) setting('tds_rate', 0.10);
+            // V-AUDIT-MODULE10-004 (MEDIUM): TDS Configuration
+            $tdsRate = (float) setting('tds_rate', 0.10); // Standard 10% TDS
+            $penalTdsRate = (float) setting('penal_tds_rate', 0.20); // V-AUDIT-MODULE10-004: 20% penal TDS for missing PAN
             $tdsThreshold = (float) setting('tds_threshold', 5000);
 
             foreach ($distributions as $dist) {
@@ -312,12 +374,36 @@ class ProfitShareService
 
                 $wallet = $user->wallet;
                 $grossAmount = $dist->amount;
-                
+
+                // V-AUDIT-MODULE10-004 (MEDIUM): Penal TDS for Missing PAN
+                //
+                // Previous Issue:
+                // - TDS was only deducted if PAN exists
+                // - Missing PAN = 0% TDS (non-compliant)
+                // - In India, missing PAN mandates higher "Penal TDS" rate (typically 20%)
+                //
+                // Fix:
+                // - Check if PAN exists
+                // - If PAN exists: Apply standard TDS (10%)
+                // - If PAN missing: Apply penal TDS (20%)
+                // - Only apply if amount exceeds threshold
+                // V-AUDIT-MODULE10-003 & MODULE10-004: Use bcmath for TDS calculation precision
                 $tdsDeducted = 0;
-                if ($user->kyc?->pan_number && $grossAmount > $tdsThreshold) {
-                    $tdsDeducted = $grossAmount * $tdsRate;
+                if ($grossAmount > $tdsThreshold) {
+                    if ($user->kyc?->pan_number) {
+                        // PAN exists: Apply standard TDS with bcmath precision
+                        $tdsDeducted = (float) $this->bcMul($grossAmount, $tdsRate);
+                    } else {
+                        // V-AUDIT-MODULE10-004: PAN missing: Apply penal TDS with bcmath precision
+                        $tdsDeducted = (float) $this->bcMul($grossAmount, $penalTdsRate);
+                        Log::warning("Penal TDS applied for User {$user->id}: Missing PAN. TDS={$tdsDeducted} (20%)");
+                    }
                 }
-                $netAmount = $grossAmount - $tdsDeducted;
+                // V-AUDIT-MODULE10-003: Use bcmath for precise net amount calculation
+                $netAmount = (float) $this->bcSub($grossAmount, $tdsDeducted);
+
+                // TODO V-AUDIT-MODULE10-003: Convert all amount calculations in calculateDistribution()
+                // to use bcmath helpers (lines 134-150, 194-204) for complete precision
 
                 // 1. Create Bonus Record
                 $bonus = BonusTransaction::create([
@@ -370,9 +456,28 @@ class ProfitShareService
     }
     
     /**
-     * Reverse Distribution
+     * V-AUDIT-MODULE10-002 (HIGH): Partial Reversal with Graceful Error Handling
+     *
+     * Reverse Distribution with "Skip-and-Report" Strategy
+     *
+     * Previous Issue:
+     * - All reversals were wrapped in a single DB transaction
+     * - If User #999 out of 1000 had insufficient balance, entire transaction rolled back
+     * - Admin couldn't reverse the 999 valid cases due to one failure
+     * - "All-or-Nothing" approach was a UX pitfall
+     *
+     * Fix:
+     * - Process each reversal individually in its own transaction
+     * - Track successes and failures separately
+     * - Log failed reversals for admin review
+     * - Mark profit share as 'partially_reversed' if some failed
+     * - Return detailed report of what succeeded and what failed
+     *
+     * @param ProfitShare $profitShare
+     * @param string $reason
+     * @return array Report with success/failure details
      */
-    public function reverseDistribution(ProfitShare $profitShare, string $reason)
+    public function reverseDistribution(ProfitShare $profitShare, string $reason): array
     {
         if ($profitShare->status !== 'distributed') {
             throw new \Exception("Only distributed periods can be reversed.");
@@ -380,30 +485,124 @@ class ProfitShareService
 
         $distributions = $profitShare->distributions()->with('user.wallet', 'bonusTransaction')->get();
 
-        return DB::transaction(function () use ($profitShare, $distributions, $reason) {
-            foreach ($distributions as $dist) {
-                if (!$dist->bonusTransaction) continue;
+        // Track results
+        $successCount = 0;
+        $failedReversals = [];
+        $totalAmount = 0;
+        $reversedAmount = 0;
 
-                $user = $dist->user;
-                $wallet = $user->wallet;
-                $bonus = $dist->bonusTransaction;
-                $netAmount = $bonus->amount - $bonus->tds_deducted;
-                
-                if ($wallet->balance < $netAmount) {
-                    Log::error("Reversal Failed: User {$user->id} has insufficient balance (₹{$wallet->balance}) to reverse ₹{$netAmount}");
-                    throw new \Exception("Reversal failed: User {$user->id} has insufficient funds.");
-                }
-
-                // 1. Debit from wallet
-                $this->walletService->withdraw($user, $netAmount, 'reversal', "Reversal: {$reason}", $dist);
-                
-                // 2. Create reversal bonus transaction
-                $bonus->update(['description' => $bonus->description . " [REVERSED]"]);
+        // V-AUDIT-MODULE10-002: Process each reversal individually (not in global transaction)
+        foreach ($distributions as $dist) {
+            if (!$dist->bonusTransaction) {
+                $failedReversals[] = [
+                    'user_id' => $dist->user_id,
+                    'username' => $dist->user->username ?? 'Unknown',
+                    'amount' => $dist->amount,
+                    'reason' => 'No bonus transaction found',
+                ];
+                continue;
             }
-            
-            $profitShare->update(['status' => 'reversed']);
-            Log::info("Profit Share {$profitShare->id} has been reversed.");
-        });
+
+            $user = $dist->user;
+            $wallet = $user->wallet;
+            $bonus = $dist->bonusTransaction;
+            $netAmount = $bonus->amount - $bonus->tds_deducted;
+            $totalAmount += $netAmount;
+
+            // Check wallet balance before attempting reversal
+            if ($wallet->balance < $netAmount) {
+                // V-AUDIT-MODULE10-002: Skip and log failure, don't throw exception
+                Log::warning("Reversal skipped: User {$user->id} has insufficient balance (₹{$wallet->balance}) to reverse ₹{$netAmount}");
+
+                $failedReversals[] = [
+                    'user_id' => $user->id,
+                    'username' => $user->username ?? 'Unknown',
+                    'amount' => $netAmount,
+                    'wallet_balance' => $wallet->balance,
+                    'reason' => 'Insufficient wallet balance',
+                ];
+                continue;
+            }
+
+            // Attempt reversal in individual transaction
+            try {
+                DB::transaction(function () use ($user, $netAmount, $reason, $dist, $bonus) {
+                    // 1. Debit from wallet
+                    $this->walletService->withdraw($user, $netAmount, 'reversal', "Reversal: {$reason}", $dist);
+
+                    // 2. Mark bonus transaction as reversed
+                    $bonus->update(['description' => $bonus->description . " [REVERSED]"]);
+                });
+
+                $successCount++;
+                $reversedAmount += $netAmount;
+
+                Log::info("Reversal successful for User {$user->id}: ₹{$netAmount}");
+
+            } catch (\Exception $e) {
+                // V-AUDIT-MODULE10-002: Catch and log error, continue processing others
+                Log::error("Reversal failed for User {$user->id}: " . $e->getMessage());
+
+                $failedReversals[] = [
+                    'user_id' => $user->id,
+                    'username' => $user->username ?? 'Unknown',
+                    'amount' => $netAmount,
+                    'reason' => 'Transaction error: ' . $e->getMessage(),
+                ];
+            }
+        }
+
+        // V-AUDIT-MODULE10-002: Determine final status based on results
+        $finalStatus = 'reversed';
+        if ($failedReversals) {
+            $finalStatus = $successCount > 0 ? 'partially_reversed' : 'reversal_failed';
+        }
+
+        // Update profit share status
+        $profitShare->update([
+            'status' => $finalStatus,
+            'reversal_metadata' => [
+                'reason' => $reason,
+                'reversed_at' => now()->toISOString(),
+                'success_count' => $successCount,
+                'failed_count' => count($failedReversals),
+                'total_amount' => $totalAmount,
+                'reversed_amount' => $reversedAmount,
+                'failed_reversals' => $failedReversals,
+            ],
+        ]);
+
+        Log::info("Profit Share {$profitShare->id} reversal completed: {$successCount} succeeded, " . count($failedReversals) . " failed");
+
+        // V-AUDIT-MODULE10-002: Return detailed report for admin
+        return [
+            'success' => $successCount > 0,
+            'status' => $finalStatus,
+            'success_count' => $successCount,
+            'failed_count' => count($failedReversals),
+            'total_amount' => $totalAmount,
+            'reversed_amount' => $reversedAmount,
+            'failed_reversals' => $failedReversals,
+            'message' => $this->buildReversalMessage($successCount, $failedReversals),
+        ];
+    }
+
+    /**
+     * V-AUDIT-MODULE10-002: Build human-readable reversal message
+     */
+    private function buildReversalMessage(int $successCount, array $failedReversals): string
+    {
+        $failedCount = count($failedReversals);
+
+        if ($failedCount === 0) {
+            return "All {$successCount} reversals completed successfully.";
+        }
+
+        if ($successCount === 0) {
+            return "All {$failedCount} reversals failed. Please review the error log.";
+        }
+
+        return "{$successCount} reversals succeeded, but {$failedCount} failed. Failed reversals logged for manual review.";
     }
 
     /**
