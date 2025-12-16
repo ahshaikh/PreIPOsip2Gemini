@@ -1,0 +1,103 @@
+PHASE 18: AUDIT - Company/Issuer Portal Module
+Focus Files:
+
+Backend: Api/Company/AuthController.php, Api/Company/OnboardingWizardController.php, Api/Admin/CompanyController.php, Services/CompanyService.php, Services/CompanyOnboardingService.php, Models/Company.php.
+
+Frontend: app/company/dashboard/page.tsx, components/company/OnboardingWizard.tsx.
+
+1. Purpose
+This module provides a dedicated portal for Issuers (Companies) to register, manage their profiles, team members, and upload financial documents. It features a structured Onboarding Wizard to guide companies through the profile completion process before they can list deals. It bridges the gap between raw data entry and a verified, investable asset.
+
+2. Architectural Flaws
+Slug Generation Inconsistency (Data Integrity):
+
+The Model (Company.php): Implements an incremental slug strategy (name-1, name-2) inside the booted method.
+
+The Admin Controller (Admin/CompanyController.php): Manually overrides this with a random string strategy: Str::slug($data['name']) . '-' . Str::random(6).
+
+Impact: This creates messy, unpredictable URLs (google-x9z8q2 vs google-1). The Admin controller should respect the Model's logic or use a centralized SlugService.
+
+N+1 Query Avalanche in Onboarding:
+
+CompanyOnboardingService::getOnboardingSteps calls 8 separate check methods (checkTeamMembers, checkFinancialReports, etc.).
+
+Each check performs a count() query on a relationship (e.g., $company->teamMembers()->count()).
+
+Impact: Every time the dashboard loads, it triggers 8+ extra queries. This should be optimized by eagerly loading counts (withCount) in the controller before passing the company to the service.
+
+3. Anti-Patterns
+"Business Logic Gap" in Skip:
+
+OnboardingWizardController::skipOnboarding allows marking the process as is_completed = true immediately.
+
+Issue: It does not check if mandatory steps (like "Profile" or "Verification") are actually done. A company could register, click "Skip", and effectively bypass the entire vetting funnel, appearing as "Onboarding Complete".
+
+Hardcoded Step Configuration:
+
+The steps are defined in a PHP array inside CompanyOnboardingService.
+
+Constraint: If you want to add a "Legal Disclosures" step for only Fintech companies, you have to modify the core service code with conditional logic. This configuration ideally belongs in a onboarding_steps database table or a flexible config file.
+
+4. Security Vulnerabilities
+Unprotected Mass Assignment (Admin):
+
+Admin/CompanyController::update takes $validator->validated() and passes it directly to update().
+
+Risk: While the validator filters fields, if the validator rules are ever loosened (e.g., using request()->all()), fields like is_verified could be manipulated. Explicitly setting sensitive flags like status and is_verified separate from the mass-assignment block is safer.
+
+Missing Authorization Checks:
+
+OnboardingWizardController assumes $request->user()->company is not null.
+
+Edge Case: If a CompanyUser is created but the Company creation fails (transaction rollback issue), accessing the dashboard will throw a 500 error (Trying to get property 'id' of non-object).
+
+5. Missing Tests / Weak Strategy
+Concurrency on Slugs: The while ($query->exists()) loop in Company::generateUniqueSlug is susceptible to race conditions. If two companies named "SpaceX" register at the exact same millisecond, they might both grab spacex-1 before the DB constraint kicks in.
+
+Wizard State State: No tests cover the scenario where a user completes step 3, then deletes the data required for step 3. Does the wizard regress? (Current logic calculates status dynamically, which is good, but untested).
+
+6. Performance Bottlenecks
+Dashboard Stats Calculation: CompanyDashboardPage (Frontend) implies fetching various counts. The backend implementation likely calculates these counts on the fly. For a mature platform, these stats should be cached or stored in a company_stats table updated via observers.
+
+7. Poor Abstractions
+Service vs Controller Responsibilities:
+
+CompanyService handles registration transaction logic (Good).
+
+CompanyOnboardingService mixes "Configuration" (defining steps) with "State Calculation" (checking counts). These are distinct responsibilities. A OnboardingConfig class should define what the steps are, and the Service should determine if they are met.
+
+8. Inconsistencies
+Naming Conventions:
+
+Frontend uses financial-reports (plural).
+
+Backend relationship is financialReports.
+
+Database table is likely company_financial_reports.
+
+API Endpoint is /company/financial-reports.
+
+Note: Consistency is mostly maintained here, which is a positive sign compared to other modules.
+
+Score: 8.0 / 10
+Priority Fix Roadmap (Phase 18)
+High (Architecture): Standardize Slug Generation. Remove the manual slug creation in Admin/CompanyController and rely on the Company model's booted method or a shared trait.
+
+High (Performance): Optimize OnboardingWizardController::getProgress. Eager load all relationship counts (withCount(['teamMembers', 'financialReports', ...])) on the $company object before passing it to the service to eliminate N+1 queries.
+
+Medium (Business Logic): Fix skipOnboarding. It MUST verify that critical/mandatory steps are completed before allowing a skip.
+
+Medium (Reliability): Add a null-check for $request->user()->company in all Company Controllers to handle orphaned users gracefully.
+
+Low (Refactor): Move Onboarding Steps configuration to a config file or database to allow sector-specific flows.
+
+Refactored Folder Structure Recommendation (Backend)
+app/
+├── Services/
+│   ├── Company/
+│   │   ├── CompanyLifecycleService.php  <-- (Registration, Profile)
+│   │   ├── Onboarding/
+│   │   │   ├── OnboardingManager.php    <-- (State Machine)
+│   │   │   └── StepValidator.php        <-- (Logic to check completion)
+Comprehensive Report
+The Company Portal module is well-structured with a clear separation of concerns using Services. The Onboarding Wizard is a strong feature implementation. However, the inconsistency in slug generation between Admin and User flows creates data hygiene issues. The "Skip" logic in onboarding is a loophole that compromises the verification process. Performance is generally okay but suffers from N+1 issues in the progress calculation.

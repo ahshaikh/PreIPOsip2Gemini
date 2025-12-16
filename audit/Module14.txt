@@ -1,0 +1,95 @@
+PHASE 14: AUDIT - Live Chat & AI Module
+Focus Files:
+
+Backend: User/LiveChatController.php, Admin/LiveChatController.php, SupportAIController.php, SupportAIService.php, LiveChatSession.php, LiveChatMessage.php.
+
+Frontend: components/shared/LiveChatWidget.tsx.
+
+1. Purpose
+This module aims to provide real-time assistance to users. The Backend implements a session-based chat system with agent availability tracking, routing, and AI-powered deflection (article suggestions, sentiment analysis). The Frontend provides a widget for users to interact with support.
+
+2. Architectural Flaws
+Frontend/Backend Disconnect (Critical):
+
+The Code: The Backend has a dedicated LiveChat architecture (LiveChatSession, LiveChatMessage, ChatAgentStatus) and specific controllers (Api/User/LiveChatController).
+
+The Reality: The Frontend LiveChatWidget.tsx ignores all of this. Instead of calling /api/v1/live-chat/..., it calls /user/support-tickets (Lines 37, 72, 75).
+
+Impact: The entire Backend Live Chat module (Controllers, Models, Routing logic) is Dead Code. The frontend is merely re-skinning the Support Ticket system as a "chat," bypassing agent availability checks, routing, and specialized chat features.
+
+Polling Architecture (Scalability):
+
+The Frontend uses refetchInterval: 5000 (5 seconds) to simulate real-time updates.
+
+Impact: For 1,000 online users, this generates 12,000 HTTP requests per minute to the server, regardless of whether messages are exchanged. This creates massive database load and network traffic.
+
+Fix: Implement WebSockets (using Laravel Reverb, Pusher, or Soketi) to push events (MessageSent, AgentAssigned) to the client efficiently.
+
+Synchronous AI Processing:
+
+SupportAIService::detectDuplicates performs similar_text (O(N*M) complexity) comparison on ticket bodies inside the request cycle.
+
+Impact: If a user has many past tickets with long descriptions, the "Detect Duplicates" API call will be extremely slow, degrading the user experience.
+
+3. Anti-Patterns
+Insecure Session Codes: LiveChatSession uses uniqid() to generate session_code.
+
+Risk: uniqid() is time-based and predictable. An attacker could enumerate session codes to spy on conversations if authorization checks are weak (though they seem present here, checking user_id).
+
+Fix: Use Str::uuid() or Str::random(32).
+
+Resource Intensive Search: SupportAIService::suggestArticles performs multiple OR LIKE queries.
+
+Issue: While prefix matching ({$keyword}%) uses indexes, constructing a query with 10-20 OR clauses (if many keywords are extracted) can still be slow.
+
+Fix: Use MySQL Full-Text Search (MATCH (...) AGAINST (...)) or a dedicated search engine (Meilisearch).
+
+4. Security Vulnerabilities
+Rate Limiting Missing: The sendMessage endpoint in User/LiveChatController creates database records. Without strict throttling (e.g., 60 messages/minute), a script could flood the database with millions of chat messages in minutes.
+
+Authorization Gap (Admin): Admin/LiveChatController::sessions allows filtering by agent_id. It does not explicitly check if the requesting admin has permission to view other agents' chats (Role-Based Access Control).
+
+5. Missing Tests / Weak Strategy
+Agent Routing: autoAssignAgent picks the "least busy" agent.
+
+Scenario: What if 2 agents have 0 chats? Does it pick randomly or always the first one (ID 1)? If always ID 1, one agent gets burned out.
+
+Test Needed: Verify round-robin or random assignment when loads are equal.
+
+Concurrent Chat Acceptance: Admin/LiveChatController::acceptSession checks availability.
+
+Race Condition: If two admins click "Accept" simultaneously on the same pending chat, both requests might pass the waiting() scope check before the first transaction commits. This needs lockForUpdate().
+
+6. Performance Bottlenecks
+N+1 in Admin Session List: Admin/LiveChatController::sessions eager loads user and agent. However, the frontend might request messages or unread counts which are not eager loaded, potentially causing N+1 issues during serialization if accessors are used.
+
+7. Poor Abstractions
+"Fake" AI: SupportAIService uses simple string matching and regex. While functional for a prototype, labeling it "AI" is a misnomer. It lacks semantic understanding (e.g., understanding that "bill" and "invoice" are related without explicit mapping).
+
+8. Inconsistencies
+Data Structure: The Backend returns office_hours in checkAvailability, but the Frontend widget never checks this endpoint, meaning users can try to chat when no agents are online (or rather, create tickets that look like chats).
+
+Score: 4.5 / 10
+Priority Fix Roadmap (Phase 14)
+Critical (Integration): Rewrite the Frontend Widget to consume the actual Live Chat Backend (/api/v1/live-chat/...) instead of the Support Ticket API. Or, delete the Live Chat backend if the business decision is to stick with ticket-based messaging.
+
+High (Architecture): Replace Polling with WebSockets (Laravel Broadcasting). This is non-negotiable for a "Live Chat" feature.
+
+High (Security): Implement Rate Limiting on sendMessage endpoints (e.g., throttle:30,1).
+
+Medium (Logic): Fix the Race Condition in acceptSession using lockForUpdate().
+
+Low (Enhancement): Upgrade SupportAIService to use Full-Text Search or an actual embedding-based search (e.g., OpenAI embeddings stored in pgvector) for better accuracy.
+
+Refactored Folder Structure Recommendation (Backend)
+app/
+├── Services/
+│   ├── Chat/
+│   │   ├── ChatRoutingService.php     <-- (Agent assignment)
+│   │   ├── ChatSessionManager.php     <-- (Lifecycle: Start/Close)
+│   │   └── RealTimeProvider.php       <-- (Broadcasting wrapper)
+│   ├── AI/
+│   │   ├── SemanticSearchService.php  <-- (Better than 'like' queries)
+│   │   └── SentimentAnalyzer.php
+Comprehensive Report
+The Live Chat module presents a confusing state: a fully developed Backend architecture that is completely ignored by the Frontend implementation. The Frontend creates a "Chat-like" experience using Support Tickets, which bypasses all the real-time features, routing logic, and agent availability controls built into the backend. Until the Frontend is connected to the correct API, the Live Chat backend is essentially dead code. Furthermore, the reliance on polling ensures the system will not scale.

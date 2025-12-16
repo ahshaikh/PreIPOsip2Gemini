@@ -1,0 +1,114 @@
+This is a massive undertaking. Based on the file structure and code provided, I have identified the following 20 Modules that effectively cover the entire application ecosystem.
+
+Repo Module Inventory
+Authentication & User Core (Auth, Profile, Sessions, 2FA, Roles)
+
+KYC & Verification (Identity Verification, DigiLocker, Admin Queue)
+
+Wallet & Ledger (Balance, Transactions, Deposits, Withdrawals, Freezing)
+
+Payments Infrastructure (Gateways, Webhooks, Invoices, Reconciliation)
+
+Investment Engine (Plans, User Investments, Portfolio Calculation, ROI)
+
+Pre-IPO Products (Product Management, Price History, Funding Rounds)
+
+Subscriptions (Recurring Billing, Plan Management, Status Handling)
+
+Bonuses & Rewards (Calculation Engine, Distribution, Reversals)
+
+Referral System (Campaigns, Tracking, Commission Payouts)
+
+Profit Sharing & Dividends (Pool Management, Distribution, Reports)
+
+Lucky Draws & Gamification (Entries, Selection Algorithms, Results)
+
+Content Management (CMS) (Pages, Blogs, SEO, Menus, Banners)
+
+Customer Support (Ticketing, SLA Tracking, Canned Responses)
+
+Live Chat & AI (Real-time Messaging, Bot Integration, Agent Console)
+
+Knowledge Base (Articles, Categories, Feedback, Analytics)
+
+Notifications System (Email, SMS, Push, Templates, Logs)
+
+Legal & Compliance (Agreements, User Consent, Audit Trails, AML)
+
+Company/Issuer Portal (B2B Dashboard, Fundraising, Analytics)
+
+Admin Core & Monitoring (Dashboard, System Health, Backups, Logs)
+
+Inventory & Bulk Purchasing (Stock Management, Allocations)
+
+PHASE 1: AUDIT - Authentication & User Core Module
+Focus Files:
+
+Backend: AuthController.php, LoginRequest.php, RegisterRequest.php, UserService.php, Authenticate.php, api.php (Routes), User.php (Model).
+
+Frontend: AuthContext.tsx, login/page.tsx, signup/page.tsx, Settings pages.
+
+1. Purpose
+This module serves as the gatekeeper of the application. It handles user registration, secure login (including 2FA), identity management, profile updates, and role-based access control (RBAC). It is the foundation upon which all other modules rely.
+
+2. Architectural Flaws
+Service Responsibility Leakage: UserService.php is becoming a "God Class". It contains logic for creating users, handling "Force Payments" (financial logic), and processing "Bulk Bonuses" (reward logic). This violates the Single Responsibility Principle (SRP). Financial transactions should strictly reside in PaymentService or WalletService.
+
+Coupled Settings Logic: In AuthController.php, the getSettingSafely method queries the database directly (Setting::where...) inside the controller. This bypasses the application's caching layer, causing unnecessary database hits on every login/register attempt.
+
+Frontend Logic Leakage: In AuthContext.tsx, there is specific business logic regarding "PENDING PLAN" stored in localStorage. This couples the authentication layer with the subscription purchase flow. If the purchase flow changes, the Auth Context breaks.
+
+3. Anti-Patterns
+Controller Bloat: AuthController is manually handling too many conditional checks (e.g., checking strict strings 'true'/'false' for settings) instead of relying on a dedicated SettingsService or Middleware.
+
+Direct Mutation in Context: The AuthContext directly manipulates headers (though commented out in the audit fix, the intent remains). Authentication state management should be purely reactive, not imperative.
+
+4. Security Vulnerabilities
+OTP Verification Risk: The verifyOtp method in AuthController accepts a user_id and otp code. While there is rate limiting on the route, logically, if an attacker guesses a user_id (sequential integer) and brute-forces the 6-digit code, they can verify someone else's account.
+
+Fix: Verify OTP against the currently authenticated user session or a signed temporary token, not just a raw user_id.
+
+Privilege Escalation Risk: UserService::updateUser allows updating the profile relation. If the $data array isn't strictly filtered in the Request class (e.g., preventing a user from updating is_admin or credit_limit fields if they exist in the profile), it allows mass-assignment vulnerabilities.
+
+5. Missing Tests / Weak Strategy
+Auth Flow Integration: While AuthTest.php exists, there is no evidence of testing the entire 2FA flow sequence (Login -> Receive 2FA Token -> Verify -> Issue JWT).
+
+Edge Case Testing: UserService::importUsersFromCsv has error handling but lacks tests for malformed CSVs, huge files (memory limits), or CSV injection attacks.
+
+6. Performance Bottlenecks
+Database Thrashing: The advancedSearch in UserService uses multiple OR LIKE %...% clauses. On a large user base (e.g., 100k users), this will result in full table scans and slow admin dashboards.
+
+Synchronous Operations: UserService::importUsersFromCsv processes imports synchronously within the transaction. For a large CSV, this will time out the HTTP request. It should be queued (ImportUsersJob).
+
+7. Poor Abstractions
+Verification Status: The AuthController manually checks strings like suspended, banned, pending. These should be encapsulated in the User model (e.g., $user->isActive(), $user->isBanned()) or a dedicated UserStatusPolicy.
+
+8. Inconsistencies
+Naming: Backend uses username, frontend sometimes refers to login.
+
+API Response: AuthController returns 201 Created for registration, but 200 OK for Login. Standardize response envelopes (e.g., always wrapping data in data: {}).
+
+Score: 7.5 / 10
+Priority Fix Roadmap (Phase 1)
+High (Security): Refactor AuthController::verifyOtp to ensure it cannot be abused to verify arbitrary user IDs. Use a signed URL or temporary session token for the verification step.
+
+High (Architecture): Extract "Force Payment" and "Bonus" logic out of UserService into PaymentService and BonusService.
+
+Medium (Performance): Convert UserService::importUsersFromCsv to a Queued Job.
+
+Medium (Performance): Implement caching for getSettingSafely in AuthController or use the global helper properly.
+
+Low (Refactor): Move "Pending Plan" logic from AuthContext to a dedicated OnboardingHook or PurchaseFlow component.
+
+Refactored Folder Structure Recommendation (Backend)
+app/
+├── Services/
+│   ├── Auth/
+│   │   ├── AuthenticationService.php  <-- (Login, Logout, 2FA)
+│   │   ├── RegistrationService.php    <-- (Register, OTP, Welcome Email)
+│   │   └── PasswordService.php
+│   ├── User/
+│   │   ├── UserManagementService.php  <-- (CRUD, Search, Status)
+│   │   └── UserImportService.php      <-- (CSV Handling)
+Comprehensive Report
+The Authentication module is functional and employs modern security practices like throttling and 2FA. However, the UserService acts as a dumping ground for unrelated administrative tasks, creating high coupling between User Management and Finance modules. The frontend authentication context is slightly polluted with purchase logic. Security is generally good, but the OTP verification mechanism needs tightening to prevent potential ID enumeration attacks.

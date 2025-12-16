@@ -1,0 +1,89 @@
+PHASE 2: AUDIT - KYC & Verification Module
+Focus Files:
+
+Backend: KycController.php, KycQueueController.php, VerificationService.php, ProcessKycJob.php, UserKyc.php, KycSubmitRequest.php.
+
+Frontend: app/(user)/kyc/page.tsx, admin/kyc-queue/page.tsx.
+
+1. Purpose
+This module manages User Identity Verification (KYC). It handles the collection of sensitive documents (PAN, Aadhaar, Bank Proof), integrates with DigiLocker for government-issued ID verification, provides an automated verification job, and offers an Admin Queue for manual review/approval of complex cases.
+
+2. Architectural Flaws
+Premature Global Verification (Critical Logic Bug): In VerificationService::handleDigiLockerCallback, a successful DigiLocker response sets the entire KYC record status to verified ($kyc->status = 'verified').
+
+Impact: This bypasses PAN and Bank Account verification. A user can verify Aadhaar via DigiLocker and instantly gain full investment access without a valid PAN or Bank Account.
+
+Conflicting State Machine: The KycController::store method sets status to processing, while DigiLocker sets it to verified. If a user completes DigiLocker after uploading manual docs (or vice versa), the states can overwrite each other unpredictably. There is no granular tracking (e.g., is_aadhaar_verified, is_pan_verified).
+
+Controller-Service Coupling: KycController is relatively clean, but it manually constructs the file paths and loops through uploads. This logic belongs in a KycDocumentService to keep the controller skinny.
+
+3. Anti-Patterns
+Synchronous File Uploads: KycController::store loops through 5 potential file uploads sequentially in the main request thread.
+
+Risk: On slow mobile connections, this request will time out, leading to partial uploads or failed submissions.
+
+Magic Strings: Statuses like 'verified', 'processing', 'rejected', 'submitted' are hardcoded across Controllers, Services, and Frontend components.
+
+Fix: Use a PHP Enum (KycStatus::VERIFIED) and a TypeScript Enum shared with the frontend.
+
+God-Service Tendency: VerificationService handles DigiLocker OAuth, XML parsing, database updates, and (likely) PAN/Bank API calls. It should be split into DigiLockerProvider, PanVerificationProvider, etc.
+
+4. Security Vulnerabilities
+XML External Entity (XXE) Risk: VerificationService::handleDigiLockerCallback uses simplexml_load_string($xmlContent).
+
+Vulnerability: While DigiLocker is a trusted source, if the connection is ever spoofed (MITM) or the API compromised, malicious XML could lead to Server-Side Request Forgery (SSRF) or file disclosure.
+
+Fix: Explicitly disable entity loading before parsing: libxml_disable_entity_loader(true); (for older PHP) or ensure the XML parser is configured to ignore external entities.
+
+IDOR in Document Viewing: KycController::viewDocument checks if $user->id !== $doc->kyc->user_id.
+
+Risk: Good check, but it relies on relationship traversal. If $doc->kyc is null (orphaned document), it might crash or behave unexpectedly.
+
+Mass Assignment Risk: KycSubmitRequest validates inputs, but UserKyc::update([...]) uses all() values implicitly in some patterns (though here it's explicit). Ensure fillable in the model is strictly guarded.
+
+5. Missing Tests / Weak Strategy
+DigiLocker Callback: There are no tests mocking the DigiLocker XML response. The logic assumes a specific XML structure (<KycRes><UidData>...). If DigiLocker changes their API version, this breaks silently.
+
+Race Conditions: No tests cover the scenario where a user submits manual docs and performs DigiLocker verification simultaneously.
+
+6. Performance Bottlenecks
+Admin Statistics: KycQueueController::statistics runs four separate count() queries and an aggregation query (AVG) on every page load.
+
+Impact: As the user_kyc table grows, the Admin Dashboard will become sluggish.
+
+Fix: Cache these stats for 5-10 minutes.
+
+N+1 Query: KycQueueController::index eagerly loads user, but show loads documents. The search functionality uses LIKE %...% on related user columns, which prevents index usage and causes full table scans.
+
+7. Poor Abstractions
+Frontend Hardcoding: kyc/page.tsx hardcodes 'Verified via DigiLocker' as a display string for the Aadhaar field. This is presentation logic masquerading as data. The API should return a structured verification_source: 'digilocker' field.
+
+8. Inconsistencies
+Naming: Backend uses aadhaar_front/aadhaar_back for document types, but DigiLocker logic treats it as a single verified entity.
+
+Error Handling: Some methods return 400 with JSON, others abort(403). Standardize on response()->json(..., code).
+
+Score: 6.0 / 10
+Priority Fix Roadmap (Phase 2)
+Critical (Logic): Rewrite VerificationService::handleDigiLockerCallback. It MUST NOT set $kyc->status = 'verified'. It should set a specific flag (e.g., aadhaar_verified_at) and call a KycStateEvaluator to check if all requirements (PAN + Bank + Aadhaar) are met before setting global verified.
+
+High (Security): Secure the XML parsing in VerificationService against XXE.
+
+Medium (Architecture): Refactor UserKyc model to track component-level verification (e.g., columns is_pan_verified, is_bank_verified, is_identity_verified).
+
+Medium (Performance): Cache the Admin KYC statistics.
+
+Low (Refactor): Create Enums for KYC Status and Document Types.
+
+Refactored Folder Structure Recommendation (Backend)
+app/
+├── Services/
+│   ├── Kyc/
+│   │   ├── KycOrchestrator.php      <-- (State machine: checks if all parts are done)
+│   │   ├── Providers/
+│   │   │   ├── DigiLockerProvider.php
+│   │   │   ├── PanVerifier.php
+│   │   │   └── BankVerifier.php
+│   │   └── KycDocumentService.php   <-- (Uploads, Encryption, Retrieval)
+Comprehensive Report
+The KYC module has a critical business logic flaw where DigiLocker verification bypasses other mandatory checks (PAN/Bank). The state management is fragile, relying on a single status string for a multi-part process. While the use of Jobs for processing is good, the synchronous file upload in the controller is a bottleneck. Security is fair but needs hardening around XML parsing.
