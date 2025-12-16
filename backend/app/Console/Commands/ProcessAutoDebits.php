@@ -1,36 +1,58 @@
 <?php
-// V-FINAL-1730-341 (Created) | V-FINAL-1730-480 (Custom Amount)
+// V-FINAL-1730-341 (Created) | V-FINAL-1730-480 (Custom Amount) | V-AUDIT-MODULE7-004 (Parallel Processing)
 
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use App\Services\AutoDebitService;
+use App\Jobs\ProcessSubscriptionChargeJob; // V-AUDIT-MODULE7-004: Dispatch jobs for parallel processing
 
 class ProcessAutoDebits extends Command
 {
     protected $signature = 'app:process-auto-debits';
     protected $description = 'Process automated SIP payments and retries.';
 
+    /**
+     * V-AUDIT-MODULE7-004 (HIGH): Process auto-debits with parallel job dispatching.
+     *
+     * Scalability Fix:
+     * - Previous: Processed subscriptions serially in a blocking loop
+     * - Problem: If one gateway call hangs for 30s, entire batch is delayed
+     * - Solution: Dispatch a job for EACH subscription, enabling parallel processing
+     *
+     * Benefits:
+     * - 1000 subscriptions can be processed concurrently by multiple queue workers
+     * - Command completes quickly, actual processing happens in background
+     * - Failed charges don't block other subscriptions
+     */
     public function handle(AutoDebitService $service)
     {
         $this->info('Starting auto-debit process...');
 
-        // 1. Process New Debits
+        // 1. Process New Debits - V-AUDIT-MODULE7-004: Dispatch jobs for parallel processing
         $dueSubs = $service->getDueSubscriptions();
-        $this->info("Found {$dueSubs->count()} subscriptions due.");
+        $count = $dueSubs->count();
+        $this->info("Found {$count} subscriptions due for payment.");
 
-        foreach ($dueSubs as $sub) {
-            // --- LOGIC CHANGE ---
-            // We pass the *subscription* (which has the amount)
-            // not the plan.
-            $service->attemptAutoDebit($sub);
-            // --------------------
+        if ($count === 0) {
+            $this->info("No subscriptions to process. Exiting.");
+            return 0;
         }
 
-        // 2. Send Reminders
+        // V-AUDIT-MODULE7-004: Dispatch a job for EACH subscription instead of processing inline
+        // Queue workers will process these in parallel, improving throughput significantly
+        foreach ($dueSubs as $sub) {
+            ProcessSubscriptionChargeJob::dispatch($sub);
+        }
+
+        $this->info("Dispatched {$count} subscription charge jobs to queue.");
+        $this->info("Queue workers will process charges in parallel.");
+
+        // 2. Send Reminders (still synchronous as these are lightweight email dispatches)
         $reminders = $service->sendReminders();
         $this->info("Sent {$reminders} payment reminders.");
-        
+
+        $this->info('Auto-debit process completed. Check queue for job progress.');
         return 0;
     }
 }
