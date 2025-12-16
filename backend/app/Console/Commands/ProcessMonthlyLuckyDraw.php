@@ -72,16 +72,47 @@ class ProcessMonthlyLuckyDraw extends Command
         $this->info("Creating draw for {$monthName}...");
 
         // FSD-DRAW-005: Prize pool from settings
-        $prizePool = (float) setting('lucky_draw_prize_pool', 152500); 
+        $prizePool = (float) setting('lucky_draw_prize_pool', 152500);
 
-        // Define a default prize structure
-        $structure = [
+        // V-AUDIT-MODULE11-003 (HIGH): Move prize structure to settings instead of hardcoding
+        //
+        // Previous Issue:
+        // - Prize structure was hardcoded in command
+        // - Changing monthly prize mix required code deployment
+        // - Admin couldn't adjust prizes without developer intervention
+        //
+        // Fix:
+        // - Read prize structure from settings table
+        // - Setting key: 'lucky_draw_default_structure'
+        // - Store as JSON array in database
+        // - Admin can now configure via settings panel
+        // - Fallback to sensible default if setting not found
+
+        $defaultStructure = [
             ['rank' => 1, 'count' => 1, 'amount' => 50000],
             ['rank' => 2, 'count' => 5, 'amount' => 10000],
             ['rank' => 3, 'count' => 25, 'amount' => 2000],
             ['rank' => 4, 'count' => 50, 'amount' => 25], // 1250 total
         ];
-        
+
+        // V-AUDIT-MODULE11-003: Read from settings with fallback to default
+        $structureJson = setting('lucky_draw_default_structure', null);
+
+        if ($structureJson) {
+            try {
+                $structure = json_decode($structureJson, true);
+                if (!is_array($structure) || empty($structure)) {
+                    $this->warn("Invalid prize structure in settings, using default.");
+                    $structure = $defaultStructure;
+                }
+            } catch (\Exception $e) {
+                $this->warn("Failed to parse prize structure from settings: " . $e->getMessage());
+                $structure = $defaultStructure;
+            }
+        } else {
+            $structure = $defaultStructure;
+        }
+
         $this->service->createMonthlyDraw(
             $drawName,
             now()->endOfMonth()->subDays(2), // Draw date = 28th/29th
