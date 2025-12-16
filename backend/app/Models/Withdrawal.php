@@ -1,5 +1,6 @@
 <?php
 // V-PHASE3-1730-078 (Created) | V-FINAL-1730-357 | V-FINAL-1730-497 (TDS Added)
+// V-AUDIT-MODULE3-006 (Updated) - Added idempotency_key for duplicate prevention
 
 namespace App\Models;
 
@@ -29,6 +30,7 @@ class Withdrawal extends Model
         'utr_number',
         'rejection_reason',
         'admin_notes',
+        'idempotency_key', // AUDIT FIX: For duplicate prevention
     ];
 
     protected $casts = [
