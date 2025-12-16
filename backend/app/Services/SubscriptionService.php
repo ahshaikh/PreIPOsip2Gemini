@@ -1,5 +1,6 @@
 <?php
 // V-FINAL-1730-334 (Created) | V-FINAL-1730-469 (WalletService Refactor) | V-FINAL-1730-578 (V2.0 Proration) | V-FIX-FREE-RIDE (Gemini)
+// V-AUDIT-MODULE5-008 (LOW) - Magic String Replacement
 
 namespace App\Services;
 
@@ -9,6 +10,7 @@ use App\Models\User;
 use App\Models\Payment;
 use App\Services\WalletService;
 use App\Services\PaymentInitiationService; // [ADDED]
+use App\Enums\PaymentType; // V-AUDIT-MODULE5-008: Replace magic strings
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
@@ -62,13 +64,14 @@ class SubscriptionService
                 'auto_renew' => true,
             ]);
 
+            // V-AUDIT-MODULE5-008: Use PaymentType enum instead of magic string
             $payment = Payment::create([
                 'user_id' => $user->id,
                 'subscription_id' => $subscription->id,
                 'amount' => $finalAmount,
                 'currency' => 'INR', // [ADDED] Default currency
                 'status' => 'pending',
-                'payment_type' => 'sip_installment', // or 'subscription_initial'
+                'payment_type' => PaymentType::SUBSCRIPTION_INITIAL->value,
                 'transaction_id' => 'TXN_' . uniqid(), // Temp ID
             ]);
 
@@ -102,13 +105,14 @@ class SubscriptionService
                 'amount' => $newAmount,
             ]);
 
+            // V-AUDIT-MODULE5-008: Use PaymentType enum instead of magic string
             if ($proratedAmount > 0) {
                 Payment::create([
                     'user_id' => $subscription->user_id,
                     'subscription_id' => $subscription->id,
                     'amount' => $proratedAmount,
                     'status' => 'pending',
-                    'payment_type' => 'upgrade_charge',
+                    'payment_type' => PaymentType::UPGRADE_CHARGE->value,
                     'description' => "Pro-rata charge",
                 ]);
             }
