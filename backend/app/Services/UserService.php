@@ -3,20 +3,22 @@
 namespace App\Services;
 
 use App\Models\User;
-use App\Models\UserProfile;
-use App\Models\UserKyc;
-use App\Models\Wallet;
 use App\Models\Payment;
 use App\Models\Subscription;
-use App\Models\BonusTransaction;
-use App\Jobs\SendOtpJob;
+use App\Domains\Identity\Actions\RegisterUserAction;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
+/**
+ * UserService (Legacy/Transition)
+ * * Refactoring Note:
+ * - Identity creation logic has been moved to App\Domains\Identity.
+ * - Admin/Finance methods (suspend, block, forcePayment) are RETAINED to prevent 
+ * breaking other modules (Module 19, Module 4) until they are refactored.
+ */
 class UserService
 {
     protected $walletService;
@@ -28,32 +30,22 @@ class UserService
         $this->allocationService = $allocationService;
     }
 
-    // --- USER CREATION & UPDATES ---
+    // --- IDENTITY PROXIES (Refactored) ---
 
+    /**
+     * @deprecated Use App\Domains\Identity\Actions\RegisterUserAction directly.
+     * Kept for backward compatibility with Seeders/Bulk Imports.
+     */
     public function createUser(array $data, string $role = 'user'): User
     {
-        return DB::transaction(function () use ($data, $role) {
-            $user = User::create([
-                'username' => $data['username'],
-                'email' => $data['email'],
-                'mobile' => $data['mobile'],
-                'password' => Hash::make($data['password']),
-                'status' => 'active',
-                'email_verified_at' => now(),
-                'mobile_verified_at' => now(),
-            ]);
-
-            UserProfile::create(['user_id' => $user->id]);
-            UserKyc::create(['user_id' => $user->id, 'status' => 'pending']);
-            Wallet::create(['user_id' => $user->id]);
-            $user->assignRole($role);
-            
-            return $user;
-        });
+        // Delegate to the new Domain Action
+        return app(RegisterUserAction::class)->execute($data);
     }
 
     public function updateUser(User $user, array $data): User
     {
+        // Logic specific to Admin updating a user profile.
+        // Pending move to Admin/UserManagement Domain.
         return DB::transaction(function () use ($user, $data) {
             $userFields = array_intersect_key($data, array_flip(['username', 'email', 'mobile', 'status']));
             
@@ -73,7 +65,7 @@ class UserService
         });
     }
 
-    // --- SEARCH & SEGMENTATION ---
+    // --- SEARCH & SEGMENTATION (Admin Domain - Retained) ---
 
     public function advancedSearch(array $filters, int $perPage = 50): LengthAwarePaginator
     {
@@ -159,7 +151,7 @@ class UserService
         return $query->latest()->paginate($perPage);
     }
 
-    // --- STATUS MANAGEMENT (BLOCK/SUSPEND) ---
+    // --- STATUS MANAGEMENT (Admin Domain - Retained) ---
 
     public function suspendUser(User $user, string $reason, User $admin)
     {
@@ -187,6 +179,7 @@ class UserService
 
     public function anonymizeAndDelete(User $user)
     {
+        // GDPR logic - Candidate for Compliance Domain
         return DB::transaction(function () use ($user) {
             $randomId = 'deleted_' . Str::random(10);
             $user->update(['username' => $randomId, 'email' => $randomId . '@deleted.local', 'mobile' => '0000000000', 'is_anonymized' => true, 'anonymized_at' => now(), 'status' => 'blocked']);
@@ -198,7 +191,7 @@ class UserService
         });
     }
 
-    // --- ACTIONS (BULK, NOTIFICATIONS, PAYMENTS) ---
+    // --- ACTIONS (Admin/Finance Domains - Retained) ---
 
     public function processBulkAction(array $userIds, string $action, ?array $data, User $admin): array
     {
@@ -209,6 +202,7 @@ class UserService
             $amount = $data['amount'] ?? 0;
             if ($amount <= 0) throw new \InvalidArgumentException('Invalid bonus amount');
             foreach ($users as $user) {
+                // Dependency on WalletService is maintained
                 $this->walletService->deposit($user, $amount, 'manual_bonus', 'Bulk Bonus Award', $admin);
             }
             return ['message' => "Bonus of $amount awarded to $count users."];
@@ -240,6 +234,7 @@ class UserService
 
     public function forcePayment(User $user, int $subscriptionId, float $amount, string $reason, User $admin)
     {
+        // This is Finance Domain logic - Retained for Admin Controller access
         $subscription = Subscription::findOrFail($subscriptionId);
         if ($subscription->user_id !== $user->id) throw new \Exception('Subscription does not belong to this user');
 
@@ -260,7 +255,7 @@ class UserService
         });
     }
 
-    // --- IMPORT / EXPORT ---
+    // --- IMPORT / EXPORT (Admin Domain - Retained) ---
 
     public function importUsersFromCsv(string $filePath): array
     {
@@ -288,12 +283,12 @@ class UserService
                     $errors[] = "Line $lineNumber: Duplicate"; $skipped++; continue;
                 }
 
+                // Proxy to Domain Action via the wrapper method or directly
                 $this->createUser([
                     'username' => $username, 'email' => $email, 'mobile' => $mobile,
                     'password' => Str::random(12)
                 ], 'user');
                 
-                // Password reset logic handled inside creation or separate call
                 $imported++;
             }
             DB::commit();
