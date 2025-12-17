@@ -1,4 +1,5 @@
 <?php
+// V-AUDIT-MODULE14-003 (LOW): Replaced insecure uniqid() with secure Str::random()
 
 namespace App\Models;
 
@@ -7,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class LiveChatSession extends Model
 {
@@ -43,6 +45,7 @@ class LiveChatSession extends Model
 
     /**
      * Boot the model
+     * V-AUDIT-MODULE14-003 (LOW): Use secure random string instead of predictable uniqid()
      */
     protected static function boot()
     {
@@ -50,7 +53,12 @@ class LiveChatSession extends Model
 
         static::creating(function ($session) {
             if (empty($session->session_code)) {
-                $session->session_code = 'CHAT-' . strtoupper(uniqid());
+                // V-AUDIT-MODULE14-003: Replace uniqid() with Str::random()
+                // Previous Issue: uniqid() is time-based and predictable. An attacker could
+                // enumerate session codes to spy on conversations if authorization is weak.
+                // Fix: Use Str::random(16) which generates cryptographically secure random strings.
+                // Benefits: Prevents session code enumeration attacks, enhances security.
+                $session->session_code = 'CHAT-' . strtoupper(Str::random(16));
             }
         });
     }

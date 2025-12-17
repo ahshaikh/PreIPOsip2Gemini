@@ -1,4 +1,5 @@
 <?php
+// V-AUDIT-MODULE14-002 (MEDIUM): Fixed race condition in acceptSession
 
 namespace App\Http\Controllers\Api\Admin;
 
@@ -8,6 +9,7 @@ use App\Models\LiveChatMessage;
 use App\Models\LiveChatSession;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class LiveChatController extends Controller
 {
@@ -73,38 +75,56 @@ class LiveChatController extends Controller
     /**
      * Accept and assign chat to current agent
      * POST /api/v1/admin/live-chat/sessions/{sessionCode}/accept
+     * V-AUDIT-MODULE14-002 (MEDIUM): Fixed race condition with lockForUpdate()
      */
     public function acceptSession($sessionCode)
     {
-        $session = LiveChatSession::where('session_code', $sessionCode)
-            ->waiting()
-            ->firstOrFail();
+        // V-AUDIT-MODULE14-002: Prevent race condition when multiple admins accept simultaneously
+        // Previous Issue: If two admins click "Accept" on the same pending chat simultaneously,
+        // both requests might pass the waiting() scope check before the first transaction commits,
+        // resulting in double-assignment or errors.
+        // Fix: Use lockForUpdate() to acquire an exclusive lock on the row during the transaction.
+        // Benefits: Ensures only one agent can accept a specific chat, prevents data corruption.
 
-        $agentStatus = ChatAgentStatus::where('agent_id', Auth::id())->first();
+        return DB::transaction(function () use ($sessionCode) {
+            // V-AUDIT-MODULE14-002: lockForUpdate() acquires exclusive row lock
+            $session = LiveChatSession::where('session_code', $sessionCode)
+                ->waiting()
+                ->lockForUpdate()
+                ->first();
 
-        if (!$agentStatus || !$agentStatus->isAvailable()) {
+            if (!$session) {
+                return response()->json([
+                    'message' => 'Chat not found or already accepted by another agent',
+                ], 422);
+            }
+
+            $agentStatus = ChatAgentStatus::where('agent_id', Auth::id())->first();
+
+            if (!$agentStatus || !$agentStatus->isAvailable()) {
+                return response()->json([
+                    'message' => 'You are not available to accept chats',
+                ], 422);
+            }
+
+            $session->assignAgent(Auth::id());
+            $agentStatus->increment('active_chats_count');
+            $agentStatus->updateActivity();
+
+            // Send system message
+            LiveChatMessage::create([
+                'session_id' => $session->id,
+                'sender_id' => Auth::id(),
+                'sender_type' => LiveChatMessage::SENDER_TYPE_SYSTEM,
+                'message' => Auth::user()->username . ' has joined the conversation',
+                'type' => LiveChatMessage::TYPE_SYSTEM,
+            ]);
+
             return response()->json([
-                'message' => 'You are not available to accept chats',
-            ], 422);
-        }
-
-        $session->assignAgent(Auth::id());
-        $agentStatus->increment('active_chats_count');
-        $agentStatus->updateActivity();
-
-        // Send system message
-        LiveChatMessage::create([
-            'session_id' => $session->id,
-            'sender_id' => Auth::id(),
-            'sender_type' => LiveChatMessage::SENDER_TYPE_SYSTEM,
-            'message' => Auth::user()->username . ' has joined the conversation',
-            'type' => LiveChatMessage::TYPE_SYSTEM,
-        ]);
-
-        return response()->json([
-            'message' => 'Chat accepted successfully',
-            'data' => $session->fresh(['user', 'agent']),
-        ]);
+                'message' => 'Chat accepted successfully',
+                'data' => $session->fresh(['user', 'agent']),
+            ]);
+        });
     }
 
     /**
