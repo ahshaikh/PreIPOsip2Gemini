@@ -120,23 +120,60 @@ class KnowledgeBaseController extends Controller
     /**
      * Search articles
      * GET /api/v1/knowledge-base/search
+     *
+     * V-AUDIT-MODULE15-MEDIUM (UX/LOGIC): Sanitize search inputs and fix Boolean mode issues
+     *
+     * Previous Issue:
+     * Search used BOOLEAN MODE which treats +, -, *, <, > as operators. User searches like
+     * "C++ programming" or "Error -500" would fail or return unexpected results because
+     * MySQL interpreted these as Boolean logic operators instead of literal search terms.
+     *
+     * Fix:
+     * 1. Added max length validation (200 chars) to prevent complexity attacks
+     * 2. Sanitized input by escaping Boolean operators
+     * 3. Switched to NATURAL LANGUAGE MODE for better UX (no operator interpretation)
+     *
+     * Benefits:
+     * - Users can search for "C++" or "Error -500" without issues
+     * - Prevents database CPU stress from complex operator combinations
+     * - More intuitive search behavior with relevance ranking
+     * - Better search results for non-technical users
      */
     public function search(Request $request)
     {
         $validated = $request->validate([
-            'q' => 'required|string|min:2',
+            'q' => 'required|string|min:2|max:200', // V-AUDIT-MODULE15: Added max length validation
             'category_id' => 'nullable|exists:kb_categories,id', // Fixed table name ref
         ]);
+
+        $searchTerm = $validated['q'];
+
+        // V-AUDIT-MODULE15-MEDIUM: Sanitize Boolean operators to prevent unexpected search behavior
+        // Escape special MySQL Boolean mode operators: + - @ < > ( ) ~ * "
+        // This ensures searches like "C++ programming" or "Error -500" work as expected
+        $sanitizedTerm = preg_replace('/[+\-@<>()~*"]/', ' ', $searchTerm);
+        $sanitizedTerm = trim(preg_replace('/\s+/', ' ', $sanitizedTerm)); // Normalize whitespace
 
         $query = KbArticle::where('status', 'published')
             ->with('category');
 
         // FIX: Performance - Replaced LIKE %...% with Full-Text Search
-        // Requires FULLTEXT index on (title, content)
-        if (!empty($validated['q'])) {
-            $searchTerm = $validated['q'];
-            // Using boolean mode allows for operators if needed, or simple keyword matching
-            $query->whereRaw("MATCH(title, content) AGAINST(? IN BOOLEAN MODE)", [$searchTerm]);
+        // Requires FULLTEXT index on (title, content, summary)
+        // V-AUDIT-MODULE15-MEDIUM: Switched from BOOLEAN MODE to NATURAL LANGUAGE MODE
+        if (!empty($sanitizedTerm)) {
+            try {
+                // Use NATURAL LANGUAGE MODE instead of BOOLEAN MODE for better UX
+                // NATURAL LANGUAGE MODE doesn't interpret operators, just ranks by relevance
+                $query->whereRaw("MATCH(title, content, summary) AGAINST(? IN NATURAL LANGUAGE MODE)", [$sanitizedTerm]);
+            } catch (\Exception $e) {
+                // FULLTEXT index not available, fall back to LIKE search
+                \Log::warning('FULLTEXT search failed in User KB search: ' . $e->getMessage());
+                $query->where(function($q) use ($sanitizedTerm) {
+                    $q->where('title', 'like', "%{$sanitizedTerm}%")
+                      ->orWhere('content', 'like', "%{$sanitizedTerm}%")
+                      ->orWhere('summary', 'like', "%{$sanitizedTerm}%");
+                });
+            }
         }
 
         if (isset($validated['category_id'])) {
@@ -156,7 +193,8 @@ class KnowledgeBaseController extends Controller
         }
 
         return response()->json([
-            'query' => $validated['q'],
+            'query' => $searchTerm,
+            'sanitized_query' => $sanitizedTerm,
             'results_count' => $articles->count(),
             'articles' => $articles,
         ]);

@@ -149,6 +149,8 @@ Route::prefix('v1')->group(function () {
     Route::get('/help-center/menu', [App\Http\Controllers\Api\Public\HelpCenterController::class, 'menu']);
     Route::get('/help-center/articles/{slug}', [App\Http\Controllers\Api\Public\HelpCenterController::class, 'show']);
     Route::post('/help-center/feedback', [App\Http\Controllers\Api\Public\HelpCenterController::class, 'storeFeedback']);
+    // V-AUDIT-MODULE15-HIGH: Server-side search endpoint for scalability
+    Route::get('/help-center/search', [App\Http\Controllers\Api\Public\HelpCenterController::class, 'search']);
 
     // --- Dashboard Widgets ---
     Route::get('/announcements/latest', [UserDashboardController::class, 'announcements']);
