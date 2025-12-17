@@ -220,6 +220,50 @@ class AdminUserControllerTest extends TestCase
             ->assertJsonValidationErrors(['username']);
     }
 
+    // [AUDIT FIX] Critical: Test creating user with existing email
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function store_validates_unique_email()
+    {
+        $userData = [
+            'username' => 'newusername123',
+            'email' => $this->user->email, // Existing email - SECURITY RISK if not validated
+            'mobile' => '9876543211',
+            'password' => 'SecurePass123!',
+            'role' => 'user'
+        ];
+
+        $response = $this->actingAs($this->admin)
+            ->postJson('/api/v1/admin/users', $userData);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['email']);
+
+        // Verify no duplicate user was created
+        $this->assertDatabaseMissing('users', [
+            'username' => 'newusername123',
+            'email' => $this->user->email
+        ]);
+    }
+
+    // [AUDIT FIX] Test creating user with existing mobile number
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function store_validates_unique_mobile()
+    {
+        $userData = [
+            'username' => 'newusername456',
+            'email' => 'newemail@test.com',
+            'mobile' => $this->user->mobile, // Existing mobile
+            'password' => 'SecurePass123!',
+            'role' => 'user'
+        ];
+
+        $response = $this->actingAs($this->admin)
+            ->postJson('/api/v1/admin/users', $userData);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['mobile']);
+    }
+
     #[\PHPUnit\Framework\Attributes\Test]
     public function store_validates_mobile_format()
     {
@@ -289,6 +333,53 @@ class AdminUserControllerTest extends TestCase
             ->assertJsonValidationErrors(['status']);
     }
 
+    // [AUDIT FIX] Critical: Test updating user profile data
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function admin_can_update_user_profile_fields()
+    {
+        $response = $this->actingAs($this->admin)
+            ->putJson("/api/v1/admin/users/{$this->user->id}", [
+                'profile' => [
+                    'first_name' => 'UpdatedFirst',
+                    'last_name' => 'UpdatedLast',
+                    'city' => 'UpdatedCity'
+                ]
+            ]);
+
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('user_profiles', [
+            'user_id' => $this->user->id,
+            'first_name' => 'UpdatedFirst',
+            'last_name' => 'UpdatedLast',
+            'city' => 'UpdatedCity'
+        ]);
+    }
+
+    // [AUDIT FIX] Test validation for updating with existing email
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function update_validates_unique_email_on_change()
+    {
+        // Create another user
+        $otherUser = User::factory()->create(['email' => 'existing@test.com']);
+        $otherUser->assignRole('user');
+
+        // Try to update current user with the other user's email
+        $response = $this->actingAs($this->admin)
+            ->putJson("/api/v1/admin/users/{$this->user->id}", [
+                'email' => 'existing@test.com' // This email already exists
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['email']);
+
+        // Verify user's email was not changed
+        $this->assertDatabaseHas('users', [
+            'id' => $this->user->id,
+            'email' => $this->user->email // Original email unchanged
+        ]);
+    }
+
     // ==================== SUSPEND TESTS ====================
     #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_suspend_user_with_reason()
@@ -328,6 +419,103 @@ class AdminUserControllerTest extends TestCase
             'user_id' => $this->user->id,
             'action' => 'admin_suspended'
         ]);
+    }
+
+    // ==================== COMPREHENSIVE AUDIT LOGGING TESTS ====================
+    // [AUDIT FIX] Verify all admin actions are properly logged for compliance
+
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function block_logs_activity_with_reason()
+    {
+        $response = $this->actingAs($this->admin)
+            ->postJson("/api/v1/admin/users/{$this->user->id}/block", [
+                'reason' => 'Fraudulent activity detected',
+                'blacklist' => true
+            ]);
+
+        $response->assertStatus(200);
+
+        // Verify activity was logged with complete details
+        $this->assertDatabaseHas('activity_logs', [
+            'user_id' => $this->user->id,
+            'action' => 'admin_blocked'
+        ]);
+
+        // Verify the log description contains the reason
+        $log = \App\Models\ActivityLog::where('user_id', $this->user->id)
+            ->where('action', 'admin_blocked')
+            ->first();
+
+        $this->assertStringContainsString('Fraudulent activity detected', $log->description);
+        $this->assertStringContainsString('Blacklisted: Yes', $log->description);
+    }
+
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function unblock_logs_activity()
+    {
+        // First block the user
+        $this->user->update(['status' => 'blocked']);
+
+        $response = $this->actingAs($this->admin)
+            ->postJson("/api/v1/admin/users/{$this->user->id}/unblock");
+
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('activity_logs', [
+            'user_id' => $this->user->id,
+            'action' => 'admin_unblocked'
+        ]);
+    }
+
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function unsuspend_logs_activity()
+    {
+        // First suspend the user
+        $this->user->update(['status' => 'suspended']);
+
+        $response = $this->actingAs($this->admin)
+            ->postJson("/api/v1/admin/users/{$this->user->id}/unsuspend");
+
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('activity_logs', [
+            'user_id' => $this->user->id,
+            'action' => 'admin_unsuspended'
+        ]);
+    }
+
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function force_payment_logs_activity()
+    {
+        // Create a plan and subscription for the user
+        $plan = Plan::factory()->create();
+        $subscription = Subscription::factory()->create([
+            'user_id' => $this->user->id,
+            'plan_id' => $plan->id
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->postJson("/api/v1/admin/users/{$this->user->id}/force-payment", [
+                'subscription_id' => $subscription->id,
+                'amount' => 5000,
+                'reason' => 'Waived payment for loyal customer'
+            ]);
+
+        $response->assertStatus(200);
+
+        // Verify activity was logged
+        $this->assertDatabaseHas('activity_logs', [
+            'user_id' => $this->user->id,
+            'action' => 'admin_force_payment'
+        ]);
+
+        // Verify log contains amount and reason
+        $log = \App\Models\ActivityLog::where('user_id', $this->user->id)
+            ->where('action', 'admin_force_payment')
+            ->first();
+
+        $this->assertStringContainsString('₹5000', $log->description);
+        $this->assertStringContainsString('Waived payment for loyal customer', $log->description);
     }
 
     // ==================== ADJUST BALANCE TESTS ====================
