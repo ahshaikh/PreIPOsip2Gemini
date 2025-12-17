@@ -172,6 +172,25 @@ class NotificationController extends Controller
 
     /**
      * Send Push Notification
+     *
+     * V-AUDIT-MODULE16-LOW (SECURITY): Sanitize action_url and image_url
+     *
+     * Previous Issue:
+     * Accepted action_url and image_url without strict sanitization. A compromised admin
+     * account could broadcast push notifications with malicious deep links like:
+     * - javascript:alert('XSS') - Execute JS if WebView handles insecurely
+     * - data:text/html,<script>...</script> - Inject malicious content
+     * - file:///etc/passwd - Access local files (if app allows)
+     *
+     * Security Risk:
+     * If mobile app's WebView doesn't properly validate URLs, users could be exploited
+     * via XSS, phishing, or malware distribution through push notifications
+     *
+     * Fix:
+     * 1. Validate URLs are proper HTTP/HTTPS only
+     * 2. Block javascript:, data:, file:, and other dangerous schemes
+     * 3. Ensure URLs point to trusted domains (optional whitelist)
+     *
      * FIX: Implemented logic to actually send via Job Batching
      */
     public function sendPush(Request $request): JsonResponse
@@ -182,9 +201,47 @@ class NotificationController extends Controller
             'user_ids' => 'required_if:target_type,users|array',
             'title' => 'required|string|max:255',
             'body' => 'required|string|max:500',
-            'image_url' => 'nullable|url',
+            'image_url' => 'nullable|url|regex:/^https?:\/\//i', // V-AUDIT-MODULE16: Only HTTP/HTTPS
+            'action_url' => 'nullable|url|regex:/^https?:\/\//i', // V-AUDIT-MODULE16: Only HTTP/HTTPS
             'priority' => 'nullable|in:high,normal',
         ]);
+
+        // V-AUDIT-MODULE16-LOW: Additional URL security validation
+        // Block dangerous URL schemes that could be used for XSS or phishing
+        $dangerousSchemes = ['javascript:', 'data:', 'file:', 'vbscript:', 'about:'];
+
+        if (isset($validated['image_url'])) {
+            foreach ($dangerousSchemes as $scheme) {
+                if (stripos($validated['image_url'], $scheme) === 0) {
+                    return response()->json([
+                        'message' => 'Invalid image_url: Dangerous URL scheme detected',
+                        'error' => 'image_url must be a valid HTTP or HTTPS URL'
+                    ], 422);
+                }
+            }
+        }
+
+        if (isset($validated['action_url'])) {
+            foreach ($dangerousSchemes as $scheme) {
+                if (stripos($validated['action_url'], $scheme) === 0) {
+                    return response()->json([
+                        'message' => 'Invalid action_url: Dangerous URL scheme detected',
+                        'error' => 'action_url must be a valid HTTP or HTTPS URL'
+                    ], 422);
+                }
+            }
+
+            // V-AUDIT-MODULE16-LOW: Optional domain whitelist check
+            // Uncomment and configure if you want to restrict to specific domains
+            // $allowedDomains = ['preiposip.com', 'app.preiposip.com'];
+            // $urlHost = parse_url($validated['action_url'], PHP_URL_HOST);
+            // if (!in_array($urlHost, $allowedDomains)) {
+            //     return response()->json([
+            //         'message' => 'Invalid action_url: Domain not whitelisted',
+            //         'allowed_domains' => $allowedDomains
+            //     ], 422);
+            // }
+        }
 
         // Logic similar to PushNotificationConfigController@getRecipients
         $query = User::where('status', 'active');
@@ -199,7 +256,7 @@ class NotificationController extends Controller
         // FIX: Chunking for Performance
         // Dispatch batch jobs instead of looping synchronously
         $batch = [];
-        
+
         $query->chunkById(100, function ($users) use ($validated, &$batch) {
             $batch[] = new SendPushCampaignJob($users, $validated);
         });
@@ -208,7 +265,7 @@ class NotificationController extends Controller
             Bus::batch($batch)
                 ->name('Push Campaign: ' . $validated['title'])
                 ->dispatch();
-                
+
             return response()->json(['message' => 'Notification campaign queued successfully.']);
         }
 
