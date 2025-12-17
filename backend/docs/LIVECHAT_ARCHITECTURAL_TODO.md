@@ -37,23 +37,12 @@ The Frontend `LiveChatWidget.tsx` completely ignores the dedicated Live Chat bac
 - `GET /api/v1/live-chat/active-session` - Get active session
 
 ### Required Fix
-**Option A: Connect Frontend to Live Chat Backend (Recommended)**
+### Connect Frontend to Live Chat Backend (Recommended)**
 1. Rewrite `LiveChatWidget.tsx` to consume `/api/v1/live-chat/...` endpoints
 2. Implement proper session management using `session_code`
 3. Add agent availability checking before starting chat
 4. Update UI to reflect actual chat features (agent assignment, online status)
 5. Test end-to-end flow: Start session → Agent accepts → Exchange messages → Close session
-
-**Option B: Remove Live Chat Backend (If Ticket-Based is Intentional)**
-1. Delete unused Live Chat backend code:
-   - `app/Http/Controllers/Api/User/LiveChatController.php`
-   - `app/Http/Controllers/Api/Admin/LiveChatController.php`
-   - `app/Models/LiveChatSession.php`
-   - `app/Models/LiveChatMessage.php`
-   - `app/Models/ChatAgentStatus.php`
-2. Update routes to remove `/api/v1/live-chat/...` endpoints
-3. Rename frontend component to `SupportTicketWidget.tsx` for clarity
-4. Update user-facing language to reflect ticket-based support (not "live chat")
 
 ### Priority
 **CRITICAL** - This must be resolved before launching the Live Chat feature to production.
