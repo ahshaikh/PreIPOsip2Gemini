@@ -1,4 +1,5 @@
 <?php
+// V-AUDIT-MODULE14-001 (HIGH): Added rate limiting to prevent message flooding
 
 namespace App\Http\Controllers\Api\User;
 
@@ -8,6 +9,7 @@ use App\Models\LiveChatMessage;
 use App\Models\LiveChatSession;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
 
 class LiveChatController extends Controller
 {
@@ -142,9 +144,34 @@ class LiveChatController extends Controller
     /**
      * Send message in chat
      * POST /api/v1/live-chat/sessions/{sessionCode}/messages
+     * V-AUDIT-MODULE14-001 (HIGH): Implemented rate limiting to prevent message flooding
      */
     public function sendMessage(Request $request, $sessionCode)
     {
+        // V-AUDIT-MODULE14-001: Rate limiting to prevent chat message flooding
+        // Previous Issue: No rate limiting on sendMessage endpoint. A script could flood the
+        // database with millions of chat messages in minutes, causing storage/performance issues.
+        // Fix: Limit to 30 messages per minute per user (configurable via settings).
+        // Benefits: Prevents abuse, protects database, maintains chat quality.
+        $user = Auth::user();
+        $maxMessagesPerMinute = (int) setting('live_chat_max_messages_per_minute', 30);
+
+        $rateLimitKey = 'send-chat-message:' . $user->id;
+        $executed = RateLimiter::attempt(
+            $rateLimitKey,
+            $maxMessagesPerMinute,
+            function() {}, // Empty callback, we just need the check
+            60 // 1 minute in seconds
+        );
+
+        if (!$executed) {
+            $availableIn = RateLimiter::availableIn($rateLimitKey);
+            return response()->json([
+                'message' => "Rate limit exceeded. You can send up to {$maxMessagesPerMinute} messages per minute. Please try again in {$availableIn} seconds.",
+                'retry_after' => $availableIn
+            ], 429);
+        }
+
         $session = LiveChatSession::where('session_code', $sessionCode)
             ->where('user_id', Auth::id())
             ->firstOrFail();

@@ -1,5 +1,5 @@
 <?php
-// V-FINAL-1730-242 (Created) | V-FINAL-1730-515 | V-FINAL-1730-518 (V2.0 Banners) | V-SECURITY-FIX (XSS Prevention)
+// V-FINAL-1730-242 (Created) | V-FINAL-1730-515 | V-FINAL-1730-518 (V2.0 Banners) | V-SECURITY-FIX (XSS Prevention) | V-AUDIT-MODULE12-002 (SafeUrl Rule)
 
 namespace App\Http\Controllers\Api\Admin;
 
@@ -8,6 +8,7 @@ use App\Models\Menu;
 use App\Models\MenuItem;
 use App\Models\Banner;
 use App\Models\Redirect;
+use App\Rules\SafeUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -16,23 +17,15 @@ class CmsController extends Controller
 {
     /**
      * Custom validation for safe URLs (blocks javascript: and data: protocols).
+     *
+     * V-AUDIT-MODULE12-002 (MEDIUM): Deprecated in favor of App\Rules\SafeUrl
+     * @deprecated This method is kept for backward compatibility but should be replaced with SafeUrl rule class
+     * @see App\Rules\SafeUrl
      */
     private function safeUrlRule(): array
     {
-        return ['nullable', 'string', 'max:2048', function ($attribute, $value, $fail) {
-            if (!$value) return;
-
-            // Only allow http, https, and relative paths
-            $parsed = parse_url($value);
-            if (isset($parsed['scheme']) && !in_array(strtolower($parsed['scheme']), ['http', 'https'])) {
-                $fail("The $attribute must use http or https protocol.");
-            }
-
-            // Block javascript: and data: even if parse_url doesn't catch them
-            if (preg_match('/^(javascript|data|vbscript):/i', $value)) {
-                $fail("The $attribute contains an invalid protocol.");
-            }
-        }];
+        // V-AUDIT-MODULE12-002: Use the new SafeUrl rule class instead
+        return ['nullable', 'string', 'max:2048', new SafeUrl()];
     }
     // --- MENU MANAGEMENT (FSD-FRONT-003) | V-CMS-ENHANCEMENT-009 (Multi-level support)
     public function getMenus()
@@ -41,6 +34,9 @@ class CmsController extends Controller
         return Menu::with(['items.children'])->get();
     }
 
+    /**
+     * V-AUDIT-MODULE12-003 (HIGH): Non-destructive menu sync to preserve item IDs
+     */
     public function updateMenu(Request $request, Menu $menu)
     {
         $validated = $request->validate([
@@ -53,17 +49,46 @@ class CmsController extends Controller
         ]);
 
         DB::transaction(function () use ($menu, $validated) {
-            // Delete all existing items (will be recreated with proper order and parent_id)
-            $menu->allItems()->delete();
+            // V-AUDIT-MODULE12-003: Non-destructive sync (Upsert strategy)
+            // Previous Issue: menu->allItems()->delete() caused ID churn on every save,
+            // breaking frontend references and fragmenting database indexes.
+            //
+            // Fix: Update existing items, create new ones, delete only missing ones.
 
-            // Create items with parent_id support
+            $submittedIds = collect($validated['items'])
+                ->pluck('id')
+                ->filter()
+                ->toArray();
+
+            // 1. Update or Create items
             foreach ($validated['items'] as $index => $item) {
-                $menu->items()->create([
+                $data = [
                     'label' => $item['label'],
                     'url' => $item['url'],
                     'parent_id' => $item['parent_id'] ?? null,
                     'display_order' => $item['display_order'] ?? $index,
-                ]);
+                ];
+
+                if (!empty($item['id'])) {
+                    // V-AUDIT-MODULE12-003: Update existing item (preserves ID)
+                    MenuItem::where('id', $item['id'])
+                        ->where('menu_id', $menu->id)
+                        ->update($data);
+                } else {
+                    // V-AUDIT-MODULE12-003: Create new item
+                    $menu->items()->create($data);
+                }
+            }
+
+            // 2. Delete items that were removed from the request
+            // V-AUDIT-MODULE12-003: Only delete items not present in submitted IDs
+            if (!empty($submittedIds)) {
+                $menu->allItems()
+                    ->whereNotIn('id', $submittedIds)
+                    ->delete();
+            } else {
+                // If no IDs submitted (all new items), delete all old items
+                $menu->allItems()->delete();
             }
         });
 
