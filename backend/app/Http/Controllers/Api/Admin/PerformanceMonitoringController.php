@@ -73,16 +73,32 @@ class PerformanceMonitoringController extends Controller
     }
 
     /**
+     * V-AUDIT-MODULE19-CRITICAL: Fixed Fake Observability
+     *
+     * PROBLEM: This method was returning random numbers (rand(10000, 50000)) instead of
+     * real query statistics. The "Performance Dashboard" was a PLACEBO - providing no
+     * actual insight into database load, making it DANGEROUS for diagnosing production issues.
+     *
+     * SOLUTION: Removed fake random data. Now returns null for metrics that aren't being
+     * tracked. Real implementation requires:
+     * 1. DB::listen() to log queries to Redis in a middleware/service provider
+     * 2. Increment counters in Redis for total queries
+     * 3. Store query times in Redis sorted sets for avg calculation
+     *
      * Get query statistics.
      */
     protected function getQueryStats($period)
     {
         $hours = $this->parsePeriod($period);
 
+        // V-AUDIT-MODULE19-CRITICAL: Return null instead of fake data for unimplemented metrics
+        // Admins should see that tracking is not enabled, not be misled by random numbers
         return [
-            'total_queries' => rand(10000, 50000), // TODO: Implement actual tracking
-            'avg_query_time' => rand(50, 200),
+            'total_queries' => null, // TODO: Implement via DB::listen() + Redis counter
+            'avg_query_time' => null, // TODO: Implement via DB::listen() + Redis sorted set
             'slow_query_count' => count($this->getSlowQueries($period)),
+            'tracking_enabled' => false, // V-AUDIT-MODULE19-CRITICAL: Indicator that metrics are not real
+            'message' => 'Query tracking not implemented. See comments for implementation guide.',
         ];
     }
 
@@ -300,12 +316,21 @@ class PerformanceMonitoringController extends Controller
     }
 
     /**
+     * V-AUDIT-MODULE19-CRITICAL: Fixed Fake RPS Metric
+     *
+     * PROBLEM: Returned random numbers (rand(10, 50)) instead of real RPS data.
+     *
+     * SOLUTION: Return null to indicate tracking not implemented. Real implementation
+     * requires middleware to increment Redis counter per request, then calculate RPS
+     * from counter diffs over time windows.
+     *
      * Get current requests per second (approximation).
      */
     protected function getCurrentRPS()
     {
-        // This would need to be implemented with actual request tracking
-        return rand(10, 50);
+        // V-AUDIT-MODULE19-CRITICAL: Return null instead of fake random data
+        // TODO: Implement via middleware + Redis INCR + sliding window calculation
+        return null;
     }
 
     /**

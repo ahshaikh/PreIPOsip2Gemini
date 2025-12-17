@@ -31,25 +31,60 @@ class AdminDashboardController extends Controller
             $pendingWithdrawals = Withdrawal::where('status', 'pending')->count();
 
             // --- 2. Charts (Test: testDashboardChartsLoadCorrectly) ---
-            $revenueChart = Payment::where('status', 'paid')
+
+            // V-AUDIT-MODULE19-LOW: Fixed Database Coupling (MySQL-Specific DATE() Function)
+            // PROBLEM: Using DB::raw('DATE(column)') and groupBy(DB::raw(...)) is MySQL-specific
+            // and breaks on PostgreSQL (use column::date) and may have issues on other databases.
+            // This creates vendor lock-in and makes database migration difficult.
+            //
+            // SOLUTION: Fetch records and group in PHP using Carbon (database-agnostic).
+            // Since this data is:
+            // 1. Cached for 10 minutes (not real-time)
+            // 2. Limited to 30 days (max ~1K-10K records)
+            // 3. Already filtered by date range
+            // Performance impact is negligible, and we gain full database portability.
+
+            // V-AUDIT-MODULE19-LOW: Revenue chart - fetch and group in PHP
+            $revenueData = Payment::where('status', 'paid')
                 ->where('paid_at', '>=', now()->subDays(30))
-                ->groupBy(DB::raw('DATE(paid_at)'))
-                ->orderBy('date', 'asc')
-                ->select(
-                    DB::raw('DATE(paid_at) as date'),
-                    DB::raw('SUM(amount) as total')
-                )
+                ->orderBy('paid_at', 'asc')
+                ->select('paid_at', 'amount')
                 ->get();
-            
-            $userGrowthChart = User::role('user')
+
+            $revenueChart = $revenueData
+                ->groupBy(function ($payment) {
+                    // Use Carbon to format date (works with any database)
+                    return $payment->paid_at->format('Y-m-d');
+                })
+                ->map(function ($group, $date) {
+                    return [
+                        'date' => $date,
+                        'total' => $group->sum('amount'),
+                    ];
+                })
+                ->sortBy('date')
+                ->values(); // Reset keys to 0, 1, 2... for JSON array
+
+            // V-AUDIT-MODULE19-LOW: User growth chart - fetch and group in PHP
+            $userData = User::role('user')
                 ->where('created_at', '>=', now()->subDays(30))
-                ->groupBy(DB::raw('DATE(created_at)'))
-                ->orderBy('date', 'asc')
-                ->select(
-                    DB::raw('DATE(created_at) as date'),
-                    DB::raw('COUNT(id) as count')
-                )
+                ->orderBy('created_at', 'asc')
+                ->select('id', 'created_at')
                 ->get();
+
+            $userGrowthChart = $userData
+                ->groupBy(function ($user) {
+                    // Use Carbon to format date (works with any database)
+                    return $user->created_at->format('Y-m-d');
+                })
+                ->map(function ($group, $date) {
+                    return [
+                        'date' => $date,
+                        'count' => $group->count(),
+                    ];
+                })
+                ->sortBy('date')
+                ->values(); // Reset keys to 0, 1, 2... for JSON array
 
             // --- 3. Activity (Test: testDashboardShowsRecentActivity) ---
             $recentActivity = ActivityLog::with('user:id,username')
