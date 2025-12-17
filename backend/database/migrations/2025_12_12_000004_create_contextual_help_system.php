@@ -49,6 +49,7 @@ return new class extends Migration
         });
 
         // Interactive tutorials (step-by-step guides)
+	if (!Schema::hasTable('tutorials')) {
         Schema::create('tutorials', function (Blueprint $table) {
             $table->id();
             $table->string('slug')->unique();
@@ -84,7 +85,7 @@ return new class extends Migration
             $table->index(['user_role', 'is_active']);
             $table->index('is_featured');
         });
-
+	}
         // Tutorial steps
         Schema::create('tutorial_steps', function (Blueprint $table) {
             $table->id();

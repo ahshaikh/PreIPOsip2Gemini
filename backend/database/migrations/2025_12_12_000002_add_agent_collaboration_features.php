@@ -28,9 +28,9 @@ return new class extends Migration
             $table->timestamps();
 
             // Indexes
-            $table->unique(['support_ticket_id', 'assigned_to_user_id', 'role']);
-            $table->index('assigned_to_user_id');
-            $table->index(['support_ticket_id', 'role']);
+            $table->unique(['support_ticket_id', 'assigned_to_user_id', 'role'], 'uniq_ticket_assign_role');
+            $table->index('assigned_to_user_id', 'idx_ticket_assign_user');
+            $table->index(['support_ticket_id', 'role'], 'idx_ticket_assign_ticket_role');
         });
 
         // Create ticket watchers table (for notifications)
@@ -43,8 +43,8 @@ return new class extends Migration
             $table->timestamps();
 
             // Indexes
-            $table->unique(['support_ticket_id', 'user_id']);
-            $table->index('user_id');
+            $table->unique(['support_ticket_id', 'user_id'], 'uniq_ticket_watcher');
+            $table->index('user_id', 'idx_ticket_watcher_user');
         });
 
         // Create agent activity tracking
@@ -65,9 +65,9 @@ return new class extends Migration
             $table->timestamp('activity_at')->useCurrent();
 
             // Indexes
-            $table->index(['support_ticket_id', 'activity_at']);
-            $table->index(['agent_id', 'activity_at']);
-            $table->index(['support_ticket_id', 'agent_id', 'activity_type']);
+            $table->index(['support_ticket_id', 'activity_at'], 'idx_ticket_activity_ticket_time');
+            $table->index(['agent_id', 'activity_at'], 'idx_ticket_activity_agent_time');
+            $table->index(['support_ticket_id', 'agent_id', 'activity_type'], 'idx_ticket_activity_composite');
         });
 
         // Add collision detection fields to support_tickets

@@ -1,22 +1,22 @@
 // V-FINAL-1730-197 (VISUAL UPGRADE)
 export default function Bonuses() {
   const items = [
-    { icon: "📈", title: "Progressive Monthly", desc: "Bonuses grow every month from 0.5% to 18%+" },
-    { icon: "🎯", title: "Milestone Rewards", desc: "₹500-14,000 at 12, 24 & 36 months" },
-    { icon: "💰", title: "Profit Sharing", desc: "5-20% of platform profits quarterly" },
-    { icon: "👥", title: "Referral Multiplier", desc: "2-3× all bonuses with referrals" },
-    { icon: "✅", title: "Consistency Bonus", desc: "₹7-175/month for on-time payments" },
-    { icon: "🎂", title: "Celebration Bonuses", desc: "Birthday, anniversary & festival rewards" },
-    { icon: "🎲", title: "Lucky Draw", desc: "Win up to ₹50,000 monthly!" },
-    { icon: "⚡", title: "Streak Bonuses", desc: "Extra rewards at 6 & 12 month streaks" },
+    { icon: "📈", title: "Consistency Rewards", desc: "Recognition for maintaining regular SIP participation over time." },
+    { icon: "🎯", title: "Participation Milestones", desc: "Eligibility for rewards at select long-term participation milestones." },
+    { icon: "⚡", title: "Streak Recognition", desc: "Additional recognition for maintaining uninterrupted SIP activity." },
+    { icon: "👥", title: "Referral Recognition", desc: "Additional incentives for users who invite others to the platform." },
+    { icon: "✅", title: "On-Time Contribution Recognition", desc: "Acknowledgement for timely and consistent SIP contributions." },
+    { icon: "🎂", title: "Occasional Engagement Rewards", desc: "Special acknowledgements during festivals or account milestones." },
+    { icon: "🎲", title: "Periodic Promotional Campaigns", desc: "Limited-time engagement initiatives run at the platform level." },
+    { icon: "💰", title: "Platform Growth Incentives", desc: "Select incentive programs linked to overall platform performance." },
   ];
 
   return (
     <section id= "features" className="py-20 gradient-primary text-white">
       <div className="max-w-6xl mx-auto px-4">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-black mb-4">7 Ways to <span className="text-yellow-300">Earn Bonuses</span></h2>
-          <p className="text-xl text-purple-100">Multiple bonus streams working for you 24/7!</p>
+          <h2 className="text-4xl font-black mb-4">Participation-Based <span className="text-yellow-300">Rewards & Incentives</span></h2>
+          <p className="text-xl text-purple-100">Optional programs designed to encourage consistency and engagement.</p>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -27,6 +27,15 @@ export default function Bonuses() {
               <p className="text-purple-100 text-sm">{it.desc}</p>
             </div>
           ))}
+        </div>
+                {/* Section-level Disclaimer */}
+        <div className="mt-8 flex justify-center">
+          <div className="max-w-3xl text-center bg-white/60 backdrop-blur rounded-lg px-4 py-3">
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Rewards & incentives are optional, subject to eligibility and program terms,
+and are not investment returns or guaranteed benefits.
+            </p>
+          </div>
         </div>
       </div>
     </section>

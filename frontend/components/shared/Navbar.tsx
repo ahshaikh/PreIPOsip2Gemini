@@ -237,8 +237,9 @@ export default function Navbar() {
               </div>
 
               <div className="hidden lg:flex items-center space-x-1 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded-full">
-                <Shield className="w-3 h-3" />
-                <span className="font-medium">SEBI Compliant</span>
+                {/* <Shield className="w-3 h-3" /> */}
+                <span className="inline-block w-2 h-2 bg-purple-600 dark:bg-green-400 rounded-full animate-pulse"></span>
+                <span className="font-medium">SEBI-aligned platform</span>
               </div>
             </Link>
 

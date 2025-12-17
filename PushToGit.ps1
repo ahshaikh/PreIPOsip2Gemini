@@ -8,7 +8,7 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "Fixed: Critical Errors Module 1"
+$CommitMessage = "Fixed: Landing Page"
 #----------------------
 
 function Get-GitCredential {

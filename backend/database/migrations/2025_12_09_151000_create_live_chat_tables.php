@@ -72,7 +72,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->string('user_type'); // user, agent
             $table->timestamp('started_at');
-            $table->timestamp('expires_at');
+            $table->timestamp('expires_at')->nullable();
 
             $table->unique(['session_id', 'user_id']);
             $table->index('expires_at');

@@ -6,17 +6,17 @@ export default function HowItWorks() {
     {
       number: "1",
       title: "Choose Your Plan",
-      description: "Select from ₹1,000 to ₹25,000 monthly SIP. All plans come with 5-20% guaranteed bonuses.",
+      description: "Select a monthly SIP amount between ₹1,000 and ₹25,000. All plans offer access to curated pre-IPO opportunities with transparent, zero-fee pricing.",
     },
     {
       number: "2",
       title: "Complete KYC",
-      description: "Quick 5-minute KYC with Aadhaar, PAN & Demat account. 100% secure & SEBI compliant.",
+      description: "Complete a quick KYC using Aadhaar, PAN, and your Demat account. The process is secure and follows applicable SEBI guidelines.",
     },
     {
       number: "3",
-      title: "Start Earning",
-      description: "Invest monthly, earn bonuses automatically, and watch your portfolio grow with India's future unicorns!",
+      title: "Start Investing",
+      description: "Invest regularly through a SIP-based approach and track your investments in selected pre-IPO opportunities from a single dashboard.",
     },
   ];
 
@@ -27,7 +27,7 @@ export default function HowItWorks() {
           <h2 className="text-4xl font-black text-gray-900 mb-4">
             How It <span className="text-gradient">Works</span>
           </h2>
-          <p className="text-xl text-gray-600">Start investing in 3 simple steps</p>
+          <p className="text-xl text-gray-600">Get started in 3 simple steps</p>
         </div>
 
         <div className="grid md:grid-cols-3 gap-8">

@@ -80,7 +80,7 @@ return new class extends Migration
 
             // Indexes
             $table->index('support_ticket_id');
-            $table->index(['response_sla_breached', 'resolution_sla_breached']);
+            $table->index(['response_sla_breached', 'resolution_sla_breached'], 'idx_sla_breach');
             $table->index('escalated');
             $table->index('response_due_at');
             $table->index('resolution_due_at');

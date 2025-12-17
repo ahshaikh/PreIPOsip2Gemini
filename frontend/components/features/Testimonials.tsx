@@ -3,21 +3,21 @@ export default function Testimonials() {
   const list = [
     {
       rating: "★★★★★",
-      text: "\"Finally, a platform that gives bonuses instead of taking fees! I've earned ₹12,000 in bonuses in just 12 months. Highly recommend!\"",
+      text: "\"Finally, a platform that focuses on transparency instead of hidden fees. The SIP-based approach makes it easy to stay disciplined, and everything is clearly explained.\"",
       initials: "RK",
       name: "Rajesh Kumar",
       plan: "Wealth Builder Plan",
     },
     {
       rating: "★★★★★",
-      text: "\"Zero fees is amazing! I saved ₹54,000 that other platforms would have charged. My portfolio is up 60% with Swiggy listing!\"",
+      text: "\“What stood out for me was the zero platform and exit fees. The experience feels clean, professional, and very different from traditional investment platforms.\"",
       initials: "PS",
       name: "Priya Sharma",
       plan: "Growth Accelerator",
     },
     {
       rating: "★★★★★",
-      text: "\"The referral multiplier is genius! I referred 5 friends and now get 2× all bonuses. Making ₹72,000 extra over 3 years!\"",
+      text: "\“I like how the platform rewards long-term participation and community referrals without overcomplicating things. The overall experience feels fair and transparent.\"",
       initials: "AM",
       name: "Amit Mehta",
       plan: "Wealth Builder Plan",
@@ -49,6 +49,15 @@ export default function Testimonials() {
               </div>
             </div>
           ))}
+        </div>
+                {/* Section-level Disclaimer */}
+        <div className="mt-8 flex justify-center">
+          <div className="max-w-3xl text-center bg-white/60 backdrop-blur rounded-lg px-4 py-3">
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Testimonials reflect individual user experiences and opinions.
+              They do not represent investment outcomes or guaranteed results.
+            </p>
+          </div>
         </div>
       </div>
     </section>

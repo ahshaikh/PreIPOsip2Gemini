@@ -26,17 +26,17 @@ export default function HeroSection() {
             </h1>
 
             <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 leading-relaxed">
-              Invest in tomorrow's unicorns today! Get{" "}
-              <strong className="text-purple-600 dark:text-purple-400">5-20% guaranteed bonuses</strong>{" "}
-              + portfolio gains. No platform fees. No exit fees. No hidden charges.
-            </p>
+              Access curated pre-IPO investment opportunities with a{" "}
+              <strong className="text-purple-600 dark:text-purple-400">SIP-based approach</strong>{" "}
+              — built for long-term investors who value transparency and control. No platform fees. No exit fees. No hidden charges —ever.
+               </p>
 
             {/* VALUE PROPS */}
             <div className="space-y-4 mb-8">
               {[
-                "Zero Platform Fees (Save ₹54,000)",
-                "Zero Exit Fees (Save ₹6,000)",
-                "20% Guaranteed Bonuses (Earn ₹36,000)",
+                "Zero Platform Fees (save up to ₹54,000 over time)",
+                "Zero Exit Fees — invest with flexibility",
+                "Transparent pricing with no hidden charges",
               ].map((text, i) => (
                 <div key={i} className="flex items-center space-x-3">
                   <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
@@ -73,9 +73,9 @@ export default function HeroSection() {
 
             {/* STATISTICS */}
             <div className="mt-8 flex items-center space-x-6 text-sm text-gray-600 dark:text-gray-400">
-              <div className="flex items-center space-x-2"><span className="text-2xl">🔒</span><span>SEBI Registered</span></div>
-              <div className="flex items-center space-x-2"><span className="text-2xl">✅</span><span>5,000+ Investors</span></div>
-              <div className="flex items-center space-x-2"><span className="text-2xl">⭐</span><span>4.9/5 Rating</span></div>
+              <div className="flex items-center space-x-2"><span className="text-2xl">🔒</span><span>SEBI-Aligned</span></div>
+              <div className="flex items-center space-x-2"><span className="text-2xl">✅</span><span>Growing Investors</span></div>
+              <div className="flex items-center space-x-2"><span className="text-2xl">⭐</span><span>Loved by early users</span></div>
             </div>
 
           </div>
@@ -84,33 +84,68 @@ export default function HeroSection() {
           <div className="relative animate-float">
             <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-8 border border-gray-100 dark:border-slate-700">
 
+              {/* Header */}
               <div className="text-center mb-6">
-                <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">Your Investment Journey</div>
-                <div className="text-4xl font-black text-gray-900 dark:text-white">₹1,80,000</div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Investment Over 3 Years</div>
-              </div>
-
-              <div className="space-y-4 mb-6">
-                <CardItem label="20% Bonuses" value="+₹36,000" bg="bg-green-50 dark:bg-green-900/30" text="text-green-600 dark:text-green-400" />
-                <CardItem label="Avg Pre-IPO Gains" value="+₹81,000" bg="bg-blue-50 dark:bg-blue-900/30" text="text-blue-600 dark:text-blue-400" />
-                <CardItem label="Platform Fees Saved" value="+₹60,000" bg="bg-purple-50 dark:bg-purple-900/30" text="text-purple-600 dark:text-purple-400" />
-              </div>
-
-              <div className="border-t-2 border-dashed border-gray-300 dark:border-slate-600 pt-6">
-                <div className="flex justify-between items-center">
-                  <span className="text-lg font-semibold text-gray-900 dark:text-white">Total Value</span>
-                  <div className="text-right">
-                    <div className="text-3xl font-black text-gradient">₹3,57,000</div>
-                    <div className="text-sm text-green-600 dark:text-green-400 font-semibold">98% Total Returns! 🚀</div>
-                  </div>
+                <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                  Illustrative Investment Scenario
+                </div>
+                <div className="text-4xl font-black text-gray-900 dark:text-white">
+                  ₹1,80,000
+                </div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  Total Amount Invested Over 3 Years
                 </div>
               </div>
 
-            </div>
+              {/* Breakdown */}
+              <div className="space-y-4 mb-6">
+                <CardItem
+                  label="Platform & Exit Fees Saved"
+                  value="+₹60,000"
+                  bg="bg-green-50 dark:bg-green-900/30"
+                  text="text-green-600 dark:text-green-400"
+                />
+
+                <CardItem
+                  label="SIP Advantage"
+                  value="Regular investing habit"
+                  bg="bg-blue-50 dark:bg-blue-900/30"
+                  text="text-blue-600 dark:text-blue-400"
+                />
+
+          <CardItem
+            label="Potential Rewards & Incentives*"
+            value="Up to ₹36,000"
+            bg="bg-purple-50 dark:bg-purple-900/30"
+            text="text-purple-600 dark:text-purple-400"
+          />
+        </div>
+
+        {/* What this illustrates (REPLACES Total Value / Returns) */}
+        <div className="border-t-2 border-dashed border-gray-300 dark:border-slate-600 pt-6 space-y-3">
+          <div className="text-lg font-semibold text-gray-900 dark:text-white">
+            What This Illustrates
           </div>
 
+          <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+            <li>• The impact of disciplined SIP-based investing</li>
+            <li>• How zero platform and exit fees reduce long-term costs</li>
+            <li>• Transparent pricing with no hidden charges</li>
+          </ul>
         </div>
+
+        {/* Disclaimer */}
+        <div className="mt-4 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+          Figures shown are illustrative examples only.
+          Investments in unlisted companies carry risk.
+          Returns are not guaranteed and depend on company performance.
+          Rewards and incentives are subject to program terms and eligibility.
+         </div>
+        </div>
+       </div>
+
       </div>
+     </div>
     </section>
   );
 }
