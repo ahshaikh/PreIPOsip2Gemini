@@ -100,6 +100,8 @@ class CompanyOnboardingService
     }
 
     /**
+     * V-AUDIT-MODULE18-HIGH: Updated to use eager-loaded counts
+     *
      * Generate dynamic recommendations based on company state.
      */
     public function getRecommendations(Company $company)
@@ -120,42 +122,45 @@ class CompanyOnboardingService
             ];
         }
 
-        if ($company->teamMembers()->count() === 0) {
+        // V-AUDIT-MODULE18-HIGH: Use eager-loaded counts (no additional queries)
+        if (($company->team_members_count ?? $company->teamMembers()->count()) === 0) {
             $recommendations[] = [
                 'type' => 'team', 'priority' => 'high', 'title' => 'Add your team members',
                 'description' => 'Showcase your leadership team to build credibility.', 'action' => '/company/team',
             ];
         }
 
-        if ($company->financialReports()->count() === 0) {
+        if (($company->financial_reports_count ?? $company->financialReports()->count()) === 0) {
             $recommendations[] = [
                 'type' => 'financials', 'priority' => 'high', 'title' => 'Upload financial reports',
                 'description' => 'Financial transparency is crucial for investor confidence.', 'action' => '/company/financial-reports',
             ];
         }
 
-        if ($company->documents()->count() === 0) {
+        if (($company->documents_count ?? $company->documents()->count()) === 0) {
             $recommendations[] = [
                 'type' => 'documents', 'priority' => 'medium', 'title' => 'Upload company documents',
                 'description' => 'Share important documents like pitch decks and business plans.', 'action' => '/company/documents',
             ];
         }
 
-        if ($company->fundingRounds()->count() === 0) {
+        if (($company->funding_rounds_count ?? $company->fundingRounds()->count()) === 0) {
             $recommendations[] = [
                 'type' => 'funding', 'priority' => 'medium', 'title' => 'Add funding round information',
                 'description' => 'Show your fundraising history and current valuation.', 'action' => '/company/funding',
             ];
         }
 
-        if ($company->updates()->count() === 0) {
+        if (($company->updates_count ?? $company->updates()->count()) === 0) {
             $recommendations[] = [
                 'type' => 'updates', 'priority' => 'low', 'title' => 'Post your first company update',
                 'description' => 'Keep investors informed about your progress and milestones.', 'action' => '/company/updates',
             ];
         }
 
-        if ($company->webinars()->upcoming()->count() === 0) {
+        // V-AUDIT-MODULE18-HIGH: For webinars, use preloaded webinars_count if available
+        // Note: If controller didn't eager load with upcoming filter, this will query
+        if (($company->webinars_count ?? $company->webinars()->upcoming()->count()) === 0) {
             $recommendations[] = [
                 'type' => 'engagement', 'priority' => 'low', 'title' => 'Schedule an investor webinar',
                 'description' => 'Engage with potential investors through live sessions.', 'action' => '/company/webinars',
@@ -166,14 +171,15 @@ class CompanyOnboardingService
     }
 
     // --- Private Checkers ---
+    // V-AUDIT-MODULE18-HIGH: Updated to use eager-loaded counts
 
     private function checkProfileBasic(Company $company)
     {
         return !empty($company->name) &&
                !empty($company->description) &&
                strlen($company->description) >= 100 &&
-               !empty($company->sector) &&
-               !empty($company->email); // Warning: Company model might not have email directly, usually on user or contact info
+               !empty($company->sector);
+               // Note: Company model doesn't have email directly (it's on CompanyUser)
     }
 
     private function checkProfileBranding(Company $company)
@@ -183,27 +189,34 @@ class CompanyOnboardingService
 
     private function checkTeamMembers(Company $company)
     {
-        return $company->teamMembers()->count() >= 1;
+        // V-AUDIT-MODULE18-HIGH: Use eager-loaded count instead of query
+        // If withCount was used, $company->team_members_count is already available (no query)
+        // Fallback to relationship count() if not eager-loaded (backward compatibility)
+        return ($company->team_members_count ?? $company->teamMembers()->count()) >= 1;
     }
 
     private function checkFinancialReports(Company $company)
     {
-        return $company->financialReports()->count() >= 1;
+        // V-AUDIT-MODULE18-HIGH: Use eager-loaded count (no additional query)
+        return ($company->financial_reports_count ?? $company->financialReports()->count()) >= 1;
     }
 
     private function checkDocuments(Company $company)
     {
-        return $company->documents()->count() >= 1;
+        // V-AUDIT-MODULE18-HIGH: Use eager-loaded count (no additional query)
+        return ($company->documents_count ?? $company->documents()->count()) >= 1;
     }
 
     private function checkFundingRounds(Company $company)
     {
-        return $company->fundingRounds()->count() >= 1;
+        // V-AUDIT-MODULE18-HIGH: Use eager-loaded count (no additional query)
+        return ($company->funding_rounds_count ?? $company->fundingRounds()->count()) >= 1;
     }
 
     private function checkCompanyUpdates(Company $company)
     {
-        return $company->updates()->count() >= 1;
+        // V-AUDIT-MODULE18-HIGH: Use eager-loaded count (no additional query)
+        return ($company->updates_count ?? $company->updates()->count()) >= 1;
     }
 
     private function checkVerification(Company $company)

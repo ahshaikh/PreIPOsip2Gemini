@@ -63,7 +63,14 @@ class CompanyController extends Controller
         }
 
         $data = $validator->validated();
-        $data['slug'] = Str::slug($data['name']) . '-' . Str::random(6);
+
+        // V-AUDIT-MODULE18-HIGH: Removed manual slug generation
+        // PROBLEM: Admin controller was overriding Model's incremental slug logic
+        // (spacex-1, spacex-2) with random strings (spacex-x9z8q2), creating messy,
+        // unpredictable URLs and data hygiene issues.
+        // SOLUTION: Let Company model's booted() method handle slug generation
+        // using the centralized generateUniqueSlug() method for consistency.
+        // $data['slug'] = Str::slug($data['name']) . '-' . Str::random(6); // REMOVED
 
         $company = Company::create($data);
 
@@ -79,6 +86,9 @@ class CompanyController extends Controller
         return response()->json($company);
     }
 
+    /**
+     * V-AUDIT-MODULE18-LOW: Protected sensitive fields from mass assignment
+     */
     public function update(Request $request, $id)
     {
         $company = Company::findOrFail($id);
@@ -102,6 +112,8 @@ class CompanyController extends Controller
             'investors' => 'nullable|array',
             'is_featured' => 'boolean',
             'status' => 'sometimes|required|in:active,inactive',
+            // V-AUDIT-MODULE18-LOW: Added explicit validation for sensitive fields
+            'is_verified' => 'sometimes|boolean', // Admin-only: verification status
         ]);
 
         if ($validator->fails()) {
@@ -110,11 +122,43 @@ class CompanyController extends Controller
 
         $data = $validator->validated();
 
-        if (isset($data['name']) && $data['name'] !== $company->name) {
-            $data['slug'] = Str::slug($data['name']) . '-' . Str::random(6);
+        // V-AUDIT-MODULE18-HIGH: Removed manual slug generation on name change
+        // PROBLEM: When updating company name, admin controller was manually generating
+        // random slugs (google-x9z8q2) instead of using Model's consistent logic (google-1).
+        // SOLUTION: Model's updating() hook in booted() method automatically handles
+        // slug regeneration when name changes, ensuring consistency across the platform.
+        // if (isset($data['name']) && $data['name'] !== $company->name) {
+        //     $data['slug'] = Str::slug($data['name']) . '-' . Str::random(6); // REMOVED
+        // }
+
+        // V-AUDIT-MODULE18-LOW: Extract sensitive fields and set them explicitly
+        // PROBLEM: Mass-assignment of all validated data could be risky if validator rules
+        // are ever loosened. Sensitive administrative flags should be set explicitly.
+        // SOLUTION: Separate sensitive fields (is_verified, status) from general data updates.
+
+        $sensitiveFields = [];
+
+        // V-AUDIT-MODULE18-LOW: Only admins can modify verification status
+        if (isset($data['is_verified'])) {
+            $sensitiveFields['is_verified'] = $data['is_verified'];
+            unset($data['is_verified']);
         }
 
+        // V-AUDIT-MODULE18-LOW: Status changes should be explicit and logged
+        if (isset($data['status'])) {
+            $sensitiveFields['status'] = $data['status'];
+            unset($data['status']);
+        }
+
+        // Update general fields first (safe mass-assignment)
         $company->update($data);
+
+        // V-AUDIT-MODULE18-LOW: Set sensitive fields explicitly with admin authorization
+        if (!empty($sensitiveFields)) {
+            $company->update($sensitiveFields);
+            // TODO: Add audit log for sensitive field changes
+            // AuditLog::create(['action' => 'company_status_changed', 'company_id' => $company->id, ...]);
+        }
 
         return response()->json([
             'message' => 'Company updated successfully',

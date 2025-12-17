@@ -180,13 +180,51 @@ class BackupController extends Controller
     }
 
     /**
+     * V-AUDIT-MODULE19-LOW: Fixed Backup Download Security (Path Traversal)
+     *
+     * PROBLEM: The $filename parameter was directly concatenated into the file path
+     * without validation. An attacker could exploit this with path traversal attacks:
+     * - /api/v1/admin/system/backup/download/../../.env → Expose environment variables
+     * - /api/v1/admin/system/backup/download/../../../etc/passwd → Read system files
+     *
+     * While Laravel's Storage facade provides some protection, it's insufficient:
+     * - Storage::exists() might not catch all path traversal attempts
+     * - Different filesystems handle paths differently (Windows vs Linux)
+     * - Defense-in-depth principle requires explicit validation
+     *
+     * SOLUTION: Validate that $filename:
+     * 1. Contains no slashes (/, \) - must be a basename only
+     * 2. Contains no parent directory references (..)
+     * 3. Ends with expected extension (.sql)
+     * 4. Matches expected backup filename pattern
+     *
+     * Security Impact: Prevents unauthorized file access via path traversal.
+     *
      * Download backup file
      * GET /api/v1/admin/system/backup/download/{filename}
      */
     public function downloadBackup($filename)
     {
+        // V-AUDIT-MODULE19-LOW: Validate filename for path traversal attacks
+        // Reject if filename contains slashes (directory separators) or parent refs
+        if (str_contains($filename, '/') || str_contains($filename, '\\') || str_contains($filename, '..')) {
+            return response()->json([
+                'error' => 'Invalid filename',
+                'message' => 'Filename must not contain directory separators or parent directory references',
+            ], 400);
+        }
+
+        // V-AUDIT-MODULE19-LOW: Additional validation - must end with .sql (expected backup format)
+        if (!str_ends_with($filename, '.sql')) {
+            return response()->json([
+                'error' => 'Invalid file type',
+                'message' => 'Only .sql backup files can be downloaded',
+            ], 400);
+        }
+
+        // V-AUDIT-MODULE19-LOW: Safely construct path (filename is now validated as basename-only)
         $filePath = 'backups/' . $filename;
-        
+
         if (!Storage::disk('local')->exists($filePath)) {
             return response()->json(['error' => 'Backup file not found'], 404);
         }
@@ -195,13 +233,40 @@ class BackupController extends Controller
     }
 
     /**
+     * V-AUDIT-MODULE19-LOW: Fixed Backup Deletion Security (Path Traversal)
+     *
+     * PROBLEM: Same path traversal vulnerability as downloadBackup().
+     * An attacker could delete critical files:
+     * - /api/v1/admin/system/backup/../../../.env → Delete environment config
+     * - /api/v1/admin/system/backup/../../database/database.sqlite → Delete database
+     *
+     * SOLUTION: Apply same validation as downloadBackup() before deletion.
+     *
      * Delete backup file
      * DELETE /api/v1/admin/system/backup/{filename}
      */
     public function deleteBackup($filename)
     {
+        // V-AUDIT-MODULE19-LOW: Validate filename for path traversal attacks
+        // Reject if filename contains slashes (directory separators) or parent refs
+        if (str_contains($filename, '/') || str_contains($filename, '\\') || str_contains($filename, '..')) {
+            return response()->json([
+                'error' => 'Invalid filename',
+                'message' => 'Filename must not contain directory separators or parent directory references',
+            ], 400);
+        }
+
+        // V-AUDIT-MODULE19-LOW: Additional validation - must end with .sql (expected backup format)
+        if (!str_ends_with($filename, '.sql')) {
+            return response()->json([
+                'error' => 'Invalid file type',
+                'message' => 'Only .sql backup files can be deleted',
+            ], 400);
+        }
+
+        // V-AUDIT-MODULE19-LOW: Safely construct path (filename is now validated as basename-only)
         $filePath = 'backups/' . $filename;
-        
+
         if (!Storage::disk('local')->exists($filePath)) {
             return response()->json(['error' => 'Backup file not found'], 404);
         }

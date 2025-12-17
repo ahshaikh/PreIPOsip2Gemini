@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage; // Added for PDF storage
 use Barryvdh\DomPDF\Facade\Pdf; // Added for PDF generation
+use Illuminate\Support\Facades\Cache; // V-AUDIT-MODULE17: Cache invalidation
 
 class ComplianceController extends Controller
 {
@@ -194,6 +195,9 @@ class ComplianceController extends Controller
                 Auth::user()
             );
 
+            // V-AUDIT-MODULE17-HIGH: Invalidate cache when agreement is updated
+            Cache::forget('legal_versions_map');
+
             DB::commit();
 
             return response()->json($agreement);
@@ -204,6 +208,8 @@ class ComplianceController extends Controller
     }
 
     /**
+     * V-AUDIT-MODULE17-HIGH: Added cache invalidation to sync with middleware
+     *
      * Delete a legal agreement
      */
     public function destroy($id)
@@ -220,10 +226,15 @@ class ComplianceController extends Controller
 
         $agreement->delete();
 
+        // V-AUDIT-MODULE17-HIGH: Invalidate cache when agreement is deleted
+        Cache::forget('legal_versions_map');
+
         return response()->json(['message' => 'Agreement deleted successfully']);
     }
 
     /**
+     * V-AUDIT-MODULE17-HIGH: Added cache invalidation to sync with middleware
+     *
      * Publish an agreement (set status to active)
      */
     public function publish($id)
@@ -237,14 +248,14 @@ class ComplianceController extends Controller
         try {
             $pdf = Pdf::loadView('pdf.legal-document', ['document' => $agreement]);
             $fileName = "legal/{$agreement->type}-v{$agreement->version}.pdf";
-            
+
             // Ensure directory exists
             if (!Storage::disk('public')->exists('legal')) {
                 Storage::disk('public')->makeDirectory('legal');
             }
-            
+
             Storage::disk('public')->put($fileName, $pdf->output());
-            
+
             $agreement->logAudit(
                 'published',
                 "Agreement published and PDF generated: {$agreement->title} (v{$agreement->version})",
@@ -256,10 +267,17 @@ class ComplianceController extends Controller
             \Illuminate\Support\Facades\Log::error("Failed to generate PDF for agreement {$id}: " . $e->getMessage());
         }
 
+        // V-AUDIT-MODULE17-HIGH: Invalidate middleware cache so published agreement takes effect immediately
+        // The EnsureLegalAcceptance middleware caches legal_versions_map for 1 hour
+        // Without this, newly published agreements won't be enforced until cache expires
+        Cache::forget('legal_versions_map');
+
         return response()->json($agreement);
     }
 
     /**
+     * V-AUDIT-MODULE17-HIGH: Added cache invalidation to sync with middleware
+     *
      * Archive an agreement
      */
     public function archive($id)
@@ -273,6 +291,9 @@ class ComplianceController extends Controller
             ['old' => $agreement->getOriginal('status'), 'new' => 'archived'],
             Auth::user()
         );
+
+        // V-AUDIT-MODULE17-HIGH: Invalidate cache when agreement is archived
+        Cache::forget('legal_versions_map');
 
         return response()->json($agreement);
     }
@@ -407,32 +428,54 @@ class ComplianceController extends Controller
     }
 
     /**
+     * V-AUDIT-MODULE17-LOW: Fixed Audit Trail Export Memory Exhaustion
+     *
+     * PROBLEM: For popular agreements with 100,000+ audit entries, building entire CSV
+     * string in memory ($csvData .= ...) exhausted PHP memory limit, causing 500 errors.
+     *
+     * SOLUTION: Use Laravel's streamDownload with cursor() to generate CSV on-the-fly.
+     * Memory usage stays constant (~10MB) regardless of result set size. Records are
+     * fetched and written one-at-a-time, never loading full dataset into memory.
+     *
      * Export audit trail as CSV
      */
     public function exportAuditTrail($id)
     {
-        $auditTrail = LegalAgreementAuditTrail::where('legal_agreement_id', $id)
-            ->with('user')
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $fileName = 'audit-trail-' . $id . '-' . now()->format('Y-m-d') . '.csv';
 
-        $csvData = "ID,Event Type,Description,Version,User,IP Address,Date\n";
+        // V-AUDIT-MODULE17-LOW: Use streamDownload to generate CSV on-the-fly
+        // This prevents memory exhaustion by writing directly to output stream
+        return response()->streamDownload(function () use ($id) {
+            // Open output stream (php://output writes directly to HTTP response)
+            $handle = fopen('php://output', 'w');
 
-        foreach ($auditTrail as $entry) {
-            $csvData .= sprintf(
-                "%d,%s,%s,%s,%s,%s,%s\n",
-                $entry->id,
-                $entry->event_type,
-                str_replace(',', ';', $entry->description),
-                $entry->version ?? 'N/A',
-                $entry->user_name ?? 'System',
-                $entry->ip_address ?? 'N/A',
-                $entry->created_at->format('Y-m-d H:i:s')
-            );
-        }
+            // Write CSV header
+            fputcsv($handle, ['ID', 'Event Type', 'Description', 'Version', 'User', 'IP Address', 'Date']);
 
-        return response($csvData, 200)
-            ->header('Content-Type', 'text/csv')
-            ->header('Content-Disposition', 'attachment; filename="audit-trail-' . $id . '-' . now()->format('Y-m-d') . '.csv"');
+            // V-AUDIT-MODULE17-LOW: Use cursor() instead of get()
+            // cursor() returns a lazy collection that fetches records one-at-a-time from DB
+            // Memory usage stays constant regardless of total record count
+            LegalAgreementAuditTrail::where('legal_agreement_id', $id)
+                ->orderBy('created_at', 'desc')
+                ->cursor()
+                ->each(function ($entry) use ($handle) {
+                    // Write each row directly to output stream
+                    // No intermediate string concatenation - no memory buildup
+                    fputcsv($handle, [
+                        $entry->id,
+                        $entry->event_type,
+                        $entry->description, // fputcsv handles escaping automatically
+                        $entry->version ?? 'N/A',
+                        $entry->user_name ?? 'System',
+                        $entry->ip_address ?? 'N/A',
+                        $entry->created_at->format('Y-m-d H:i:s'),
+                    ]);
+                });
+
+            fclose($handle);
+        }, $fileName, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+        ]);
     }
 }

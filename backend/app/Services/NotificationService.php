@@ -78,41 +78,104 @@ class NotificationService
         $this->dispatchNotification($user, $templateSlug, $variables);
     }
 
-       public function sendBatch(array $userIds, string $templateSlug, array $variables = [])
+    /**
+     * Send notifications to multiple users in batch.
+     *
+     * V-AUDIT-MODULE16-CRITICAL (PERFORMANCE): Fix N+1 Query Disaster
+     *
+     * Previous Issue:
+     * For every user in the batch, dispatchNotification() would query:
+     * - EmailTemplate::where('slug', $templateSlug)->exists() (Query 1)
+     * - SmsTemplate::where('slug', $templateSlug)->exists() (Query 2)
+     *
+     * Impact: 1,000 users = 2,000 database queries during batch send
+     * This crushed the database during high-volume events (e.g., "Market Open" alerts)
+     *
+     * Fix:
+     * 1. Query templates ONCE before the loop
+     * 2. Pre-determine enabled channels
+     * 3. Pass channels array to dispatchNotification to avoid per-user queries
+     *
+     * Performance Improvement:
+     * Before: 1,000 users = 2,000 template queries + 1 user query
+     * After: 1,000 users = 2 template queries + 1 user query
+     * Result: 99.9% reduction in database load for batch operations
+     */
+    public function sendBatch(array $userIds, string $templateSlug, array $variables = [])
     {
-        $users = User::whereIn('id', $userIds)->get();
-        foreach ($users as $user) {
-            // Queue up one job per user
-            $this->dispatchNotification($user, $templateSlug, $variables);
-        }
-    }
+        // V-AUDIT-MODULE16-CRITICAL: Query templates ONCE before the loop
+        // This eliminates 2 queries per user (N+1 query disaster)
+        $hasEmailTemplate = EmailTemplate::where('slug', $templateSlug)->exists();
+        $hasSmsTemplate = SmsTemplate::where('slug', $templateSlug)->exists();
 
-    private function dispatchNotification(User $user, string $templateSlug, array $variables)
-    {
-        // FIX: Module 16 - Database-Driven Channels (Low)
-        // Removed hardcoded str_contains($slug, 'otp') logic.
-        // Instead, we check if specific templates exist for the slug to determine channels.
-        // In the future, this can be replaced by a 'channels' column in a NotificationTemplate table.
-        
+        // Determine channels once for all users
         $channels = [];
-
-        // 1. Check Email
-        if (EmailTemplate::where('slug', $templateSlug)->exists()) {
+        if ($hasEmailTemplate) {
             $channels[] = 'email';
         }
-
-        // 2. Check SMS (OTP, Alerts)
-        if (SmsTemplate::where('slug', $templateSlug)->exists()) {
+        if ($hasSmsTemplate) {
             $channels[] = 'sms';
         }
 
-        // Fallback for critical system messages if no template found but slug implies urgency
-        // (Maintaining slight backward compatibility during migration)
+        // Fallback for critical system messages if no template found
         if (empty($channels)) {
             if (str_contains($templateSlug, 'otp') || str_contains($templateSlug, 'failed')) {
                 $channels = ['email', 'sms'];
             } else {
                 $channels = ['email'];
+            }
+        }
+
+        // Fetch users in a single query
+        $users = User::whereIn('id', $userIds)->get();
+
+        foreach ($users as $user) {
+            // Queue up one job per user, passing pre-determined channels
+            // V-AUDIT-MODULE16-CRITICAL: No more database queries inside this loop
+            $this->dispatchNotification($user, $templateSlug, $variables, $channels);
+        }
+    }
+
+    /**
+     * Dispatch notification for a single user.
+     *
+     * V-AUDIT-MODULE16-CRITICAL: Added $channels parameter to eliminate per-user template queries
+     *
+     * @param User $user The recipient
+     * @param string $templateSlug Template identifier
+     * @param array $variables Template variables
+     * @param array|null $channels Pre-determined channels (for batch optimization)
+     */
+    private function dispatchNotification(User $user, string $templateSlug, array $variables, array $channels = null)
+    {
+        // V-AUDIT-MODULE16-CRITICAL: Use pre-determined channels if provided (batch send)
+        // Otherwise query templates (single send)
+        if ($channels === null) {
+            // FIX: Module 16 - Database-Driven Channels (Low)
+            // Removed hardcoded str_contains($slug, 'otp') logic.
+            // Instead, we check if specific templates exist for the slug to determine channels.
+            // In the future, this can be replaced by a 'channels' column in a NotificationTemplate table.
+
+            $channels = [];
+
+            // 1. Check Email
+            if (EmailTemplate::where('slug', $templateSlug)->exists()) {
+                $channels[] = 'email';
+            }
+
+            // 2. Check SMS (OTP, Alerts)
+            if (SmsTemplate::where('slug', $templateSlug)->exists()) {
+                $channels[] = 'sms';
+            }
+
+            // Fallback for critical system messages if no template found but slug implies urgency
+            // (Maintaining slight backward compatibility during migration)
+            if (empty($channels)) {
+                if (str_contains($templateSlug, 'otp') || str_contains($templateSlug, 'failed')) {
+                    $channels = ['email', 'sms'];
+                } else {
+                    $channels = ['email'];
+                }
             }
         }
 
