@@ -773,9 +773,15 @@ Route::prefix('v1')->group(function () {
             Route::post('/bonuses/upload-csv', [App\Http\Controllers\Api\Admin\AdminBonusController::class, 'uploadCsv'])->middleware('permission:bonuses.manage_config');
 
             // Support
+            // V-AUDIT-MODULE14-RECOMMENDATIONS-D: Analytics endpoint must come before resource routes to avoid conflicts
+            Route::get('/support-tickets/analytics', [AdminSupportTicketController::class, 'analytics'])->middleware('permission:users.view');
+
             Route::apiResource('/support-tickets', AdminSupportTicketController::class)->names('admin.support-tickets')->middleware('permission:users.view');
             Route::post('/support-tickets/{supportTicket}/reply', [AdminSupportTicketController::class, 'reply'])->middleware('permission:users.edit');
             Route::put('/support-tickets/{supportTicket}/status', [AdminSupportTicketController::class, 'updateStatus'])->middleware('permission:users.edit');
+
+            // V-AUDIT-MODULE14-RECOMMENDATIONS-C: Export ticket transcript as PDF
+            Route::get('/support-tickets/{id}/export-transcript', [AdminSupportTicketController::class, 'exportTranscript'])->middleware('permission:users.view');
 
             // -------------------------------------------------------------
             // CONTENT MANAGEMENT SYSTEM
