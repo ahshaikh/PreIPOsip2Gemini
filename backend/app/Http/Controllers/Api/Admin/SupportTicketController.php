@@ -18,13 +18,17 @@ class SupportTicketController extends Controller
     /**
      * List Support Tickets
      * Endpoint: GET /api/v1/admin/support-tickets
+     * V-AUDIT-MODULE13-003 (HIGH): Restored eager loading to fix N+1 query issue
      */
     public function index(Request $request): JsonResponse
     {
         try {
             // 1. Start Query
-            // Use query() instead of with() to prevent crashes if relations are undefined in Model
-            $query = SupportTicket::query();
+            // V-AUDIT-MODULE13-003: Previous Issue - Removed with() to prevent crashes, causing N+1
+            // (10 tickets = 11 queries: 1 for tickets + 10 for users + 10 for assignees).
+            // Fix: Restore eager loading. Ensure SupportTicket model defines relationships properly.
+            // Benefits: Reduces queries from 21 to 3 (tickets, users, assignees), drastically improving performance.
+            $query = SupportTicket::with(['user.profile', 'assignedTo']);
 
             // 2. Filters
             if ($request->filled('status') && $request->status !== 'all') {
@@ -118,13 +122,16 @@ class SupportTicketController extends Controller
 
     /**
      * Show Single Ticket
+     * V-AUDIT-MODULE13-003 (HIGH): Restored eager loading to fix N+1 query issue
      */
     public function show($id): JsonResponse
     {
         try {
-            // REMOVED Eager Loading (with) to prevent "Call to undefined relationship" crashes
-            // If the SupportTicket model is missing 'messages' or 'user' methods, this prevents 500 error.
-            $ticket = SupportTicket::find($id);
+            // V-AUDIT-MODULE13-003: Previous Issue - Removed eager loading causing N+1 queries
+            // when loading ticket with messages (1 ticket + N messages + N message users).
+            // Fix: Restore with(['user.profile', 'messages.user']) to load all data in 3 queries.
+            // Benefits: Prevents N+1, improves response time significantly.
+            $ticket = SupportTicket::with(['user.profile', 'messages.user'])->find($id);
 
             if (!$ticket) {
                 return response()->json(['message' => 'Ticket not found'], 404);

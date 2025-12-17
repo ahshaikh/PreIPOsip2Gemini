@@ -1,5 +1,5 @@
 <?php
-// V-REMEDIATE-1730-149 (Created) | V-FINAL-1730-595 (Full User Flow) | V-FIX-MODULE-14-PERFORMANCE (Gemini)
+// V-REMEDIATE-1730-149 (Created) | V-FINAL-1730-595 (Full User Flow) | V-FIX-MODULE-14-PERFORMANCE (Gemini) | V-AUDIT-MODULE13-004 (Enum Validation)
 
 namespace App\Http\Controllers\Api\User;
 
@@ -7,10 +7,13 @@ use App\Http\Controllers\Controller;
 use App\Models\SupportTicket;
 use App\Models\User;
 use App\Services\FileUploadService;
+use App\Enums\TicketCategory;
 // REMOVED: NotificationService is no longer used directly to prevent synchronous blocking.
 // use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Validation\Rules\Enum;
 // ADDED: Events for asynchronous processing
 use App\Events\TicketCreated;
 use App\Events\TicketReplied;
@@ -45,9 +48,34 @@ class SupportTicketController extends Controller
      * Store a new support ticket.
      * Test: testUserCanCreateTicket
      * Test: testUserCanAttachFilesToTicket
+     * V-AUDIT-MODULE13-005 (LOW): Implemented rate limiting to prevent abuse
      */
     public function store(Request $request)
     {
+        // V-AUDIT-MODULE13-005: Rate limiting to prevent ticket flooding
+        // Previous Issue: No rate limiting on ticket creation endpoint. A malicious user could
+        // flood the system with tickets and attachments, filling storage and overwhelming support.
+        // Fix: Limit to 5 tickets per hour per user (configurable via settings).
+        // Benefits: Prevents abuse, protects storage, maintains support quality.
+        $user = $request->user();
+        $maxTicketsPerHour = (int) setting('support_max_tickets_per_hour', 5);
+
+        $rateLimitKey = 'create-ticket:' . $user->id;
+        $executed = RateLimiter::attempt(
+            $rateLimitKey,
+            $maxTicketsPerHour,
+            function() {}, // Empty callback, we just need the check
+            3600 // 1 hour in seconds
+        );
+
+        if (!$executed) {
+            $availableIn = RateLimiter::availableIn($rateLimitKey);
+            return response()->json([
+                'message' => "Rate limit exceeded. You can create up to {$maxTicketsPerHour} tickets per hour. Please try again in " . ceil($availableIn / 60) . " minutes.",
+                'retry_after' => $availableIn
+            ], 429);
+        }
+
         // Check if support tickets are enabled
         // Helper function setting() assumed to exist globally
         if (function_exists('setting') && !setting('support_tickets_enabled', true)) {
@@ -56,9 +84,14 @@ class SupportTicketController extends Controller
             ], 503);
         }
 
+        // V-AUDIT-MODULE13-004: Replace hardcoded category validation with Enum
+        // Previous Issue: Hardcoded 'in:technical,investment,payment,...' required manual updates
+        // when adding new categories, creating deployment dependencies.
+        // Fix: Use TicketCategory Enum for validation. New categories added to Enum are automatically valid.
+        // Benefits: Centralized category management, no controller changes needed for new categories.
         $validated = $request->validate([
             'subject' => 'required|string|max:255',
-            'category' => 'required|string|in:technical,investment,payment,kyc,withdrawal,bonus,account,subscription,general,other',
+            'category' => ['required', 'string', new Enum(TicketCategory::class)],
             'priority' => 'required|string|in:low,medium,high',
             'message' => 'required|string|min:20',
             'attachment' => 'nullable|file|mimes:jpg,jpeg,png,pdf,zip|max:10240', // 10MB
