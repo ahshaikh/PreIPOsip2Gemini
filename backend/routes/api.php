@@ -38,6 +38,7 @@ use App\Http\Controllers\Api\User\UserDashboardController;
 use App\Http\Controllers\Api\User\LiveChatController as UserLiveChatController;
 use App\Http\Controllers\Api\User\KnowledgeBaseController as UserKnowledgeBaseController;
 use App\Http\Controllers\Api\User\ReportsController as UserReportsController;
+use App\Http\Controllers\Api\User\LearningCenterController as UserLearningCenterController;
 use App\Http\Controllers\Api\SupportAIController;
 
 
@@ -360,6 +361,19 @@ Route::prefix('v1')->group(function () {
                 Route::get('/referral', [UserReportsController::class, 'referral']);
                 Route::get('/tax', [UserReportsController::class, 'tax']);
                 Route::post('/generate', [UserReportsController::class, 'generate']);
+            });
+
+            // [AUDIT FIX] Learning Center Module - High Priority #2
+            // V-AUDIT-FIX-LEARNING-CENTER (Complete CMS with progress tracking)
+            Route::prefix('learning-center')->group(function () {
+                Route::get('/categories', [UserLearningCenterController::class, 'categories']);
+                Route::get('/tutorials', [UserLearningCenterController::class, 'tutorials']);
+                Route::get('/tutorials/{id}', [UserLearningCenterController::class, 'show']);
+                Route::get('/progress', [UserLearningCenterController::class, 'progress']);
+                Route::post('/tutorials/{id}/start', [UserLearningCenterController::class, 'start']);
+                Route::post('/tutorials/{id}/complete-step', [UserLearningCenterController::class, 'completeStep']);
+                Route::post('/tutorials/{id}/complete', [UserLearningCenterController::class, 'complete']);
+                Route::get('/resources', [UserLearningCenterController::class, 'resources']);
             });
 
             // Legal Document Acceptance (Authenticated)
