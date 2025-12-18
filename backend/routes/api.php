@@ -37,6 +37,8 @@ use App\Http\Controllers\Api\User\NotificationController as UserNotificationCont
 use App\Http\Controllers\Api\User\UserDashboardController;
 use App\Http\Controllers\Api\User\LiveChatController as UserLiveChatController;
 use App\Http\Controllers\Api\User\KnowledgeBaseController as UserKnowledgeBaseController;
+use App\Http\Controllers\Api\User\ReportsController as UserReportsController;
+use App\Http\Controllers\Api\User\LearningCenterController as UserLearningCenterController;
 use App\Http\Controllers\Api\SupportAIController;
 
 
@@ -354,7 +356,33 @@ Route::prefix('v1')->group(function () {
             // Bonus Modules
             Route::get('/lucky-draws', [UserLuckyDrawController::class, 'index']);
             Route::get('/profit-sharing', [UserProfitShareController::class, 'index']);
-            
+
+            // [AUDIT FIX] User Reports Module - High Priority #1
+            // V-AUDIT-FIX-REPORTS (Connected frontend to Laravel backend)
+            Route::prefix('reports')->group(function () {
+                Route::get('/summary', [UserReportsController::class, 'summary']);
+                Route::get('/history', [UserReportsController::class, 'history']);
+                Route::get('/investment', [UserReportsController::class, 'investment']);
+                Route::get('/payment', [UserReportsController::class, 'payment']);
+                Route::get('/bonus', [UserReportsController::class, 'bonus']);
+                Route::get('/referral', [UserReportsController::class, 'referral']);
+                Route::get('/tax', [UserReportsController::class, 'tax']);
+                Route::post('/generate', [UserReportsController::class, 'generate']);
+            });
+
+            // [AUDIT FIX] Learning Center Module - High Priority #2
+            // V-AUDIT-FIX-LEARNING-CENTER (Complete CMS with progress tracking)
+            Route::prefix('learning-center')->group(function () {
+                Route::get('/categories', [UserLearningCenterController::class, 'categories']);
+                Route::get('/tutorials', [UserLearningCenterController::class, 'tutorials']);
+                Route::get('/tutorials/{id}', [UserLearningCenterController::class, 'show']);
+                Route::get('/progress', [UserLearningCenterController::class, 'progress']);
+                Route::post('/tutorials/{id}/start', [UserLearningCenterController::class, 'start']);
+                Route::post('/tutorials/{id}/complete-step', [UserLearningCenterController::class, 'completeStep']);
+                Route::post('/tutorials/{id}/complete', [UserLearningCenterController::class, 'complete']);
+                Route::get('/resources', [UserLearningCenterController::class, 'resources']);
+            });
+
             // Legal Document Acceptance (Authenticated)
             Route::get('/legal/documents/{type}/acceptance-status', [LegalDocumentController::class, 'acceptanceStatus']);
             Route::post('/legal/documents/{type}/accept', [LegalDocumentController::class, 'accept']);

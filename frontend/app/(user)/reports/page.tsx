@@ -1,3 +1,9 @@
+// [AUDIT FIX] Connected Reports Module to Laravel Backend
+// Issue: Reports were using mock data (/api routes), users cannot download real statements
+// Fix: Replaced all fetch() calls with Laravel API client (lib/api.ts)
+// Changed: /api/user/reports/* → /user/reports/* (Laravel backend)
+// Impact: Users can now download real financial statements and reports
+// Date: December 18, 2025
 "use client";
 
 import { useState } from "react";
@@ -97,106 +103,94 @@ export default function ReportsPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
 
-  // Fetch report summary
+  // Fetch report summary - [AUDIT FIX] Connected to Laravel backend
   const { data: reportSummary, isLoading: summaryLoading } = useQuery({
     queryKey: ["report-summary"],
     queryFn: async () => {
-      const response = await fetch("/api/user/reports/summary");
-      if (!response.ok) throw new Error("Failed to fetch report summary");
-      return response.json();
+      const response = await api.get("/user/reports/summary");
+      return response.data;
     }
   });
 
-  // Fetch generated reports history
+  // Fetch generated reports history - [AUDIT FIX] Connected to Laravel backend
   const { data: reportHistory, isLoading: historyLoading, refetch: refetchHistory } = useQuery({
     queryKey: ["report-history"],
     queryFn: async () => {
-      const response = await fetch("/api/user/reports/history");
-      if (!response.ok) throw new Error("Failed to fetch report history");
-      return response.json();
+      const response = await api.get("/user/reports/history");
+      return response.data;
     }
   });
 
-  // Fetch investment report data
+  // Fetch investment report data - [AUDIT FIX] Connected to Laravel backend
   const { data: investmentData, isLoading: investmentLoading } = useQuery({
     queryKey: ["investment-report", dateRange],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (dateRange.from) params.append("from", dateRange.from);
       if (dateRange.to) params.append("to", dateRange.to);
-      const response = await fetch(`/api/user/reports/investment?${params}`);
-      if (!response.ok) throw new Error("Failed to fetch investment report");
-      return response.json();
+      const response = await api.get(`/user/reports/investment?${params}`);
+      return response.data;
     },
     enabled: activeTab === "investment"
   });
 
-  // Fetch payment report data
+  // Fetch payment report data - [AUDIT FIX] Connected to Laravel backend
   const { data: paymentData, isLoading: paymentLoading } = useQuery({
     queryKey: ["payment-report", dateRange],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (dateRange.from) params.append("from", dateRange.from);
       if (dateRange.to) params.append("to", dateRange.to);
-      const response = await fetch(`/api/user/reports/payment?${params}`);
-      if (!response.ok) throw new Error("Failed to fetch payment report");
-      return response.json();
+      const response = await api.get(`/user/reports/payment?${params}`);
+      return response.data;
     },
     enabled: activeTab === "payment"
   });
 
-  // Fetch bonus report data
+  // Fetch bonus report data - [AUDIT FIX] Connected to Laravel backend
   const { data: bonusData, isLoading: bonusLoading } = useQuery({
     queryKey: ["bonus-report", dateRange],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (dateRange.from) params.append("from", dateRange.from);
       if (dateRange.to) params.append("to", dateRange.to);
-      const response = await fetch(`/api/user/reports/bonus?${params}`);
-      if (!response.ok) throw new Error("Failed to fetch bonus report");
-      return response.json();
+      const response = await api.get(`/user/reports/bonus?${params}`);
+      return response.data;
     },
     enabled: activeTab === "bonus"
   });
 
-  // Fetch referral report data
+  // Fetch referral report data - [AUDIT FIX] Connected to Laravel backend
   const { data: referralData, isLoading: referralLoading } = useQuery({
     queryKey: ["referral-report", dateRange],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (dateRange.from) params.append("from", dateRange.from);
       if (dateRange.to) params.append("to", dateRange.to);
-      const response = await fetch(`/api/user/reports/referral?${params}`);
-      if (!response.ok) throw new Error("Failed to fetch referral report");
-      return response.json();
+      const response = await api.get(`/user/reports/referral?${params}`);
+      return response.data;
     },
     enabled: activeTab === "referral"
   });
 
-  // Fetch tax report data
+  // Fetch tax report data - [AUDIT FIX] Connected to Laravel backend
   const { data: taxData, isLoading: taxLoading } = useQuery({
     queryKey: ["tax-report", dateRange],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (dateRange.from) params.append("from", dateRange.from);
       if (dateRange.to) params.append("to", dateRange.to);
-      const response = await fetch(`/api/user/reports/tax?${params}`);
-      if (!response.ok) throw new Error("Failed to fetch tax report");
-      return response.json();
+      const response = await api.get(`/user/reports/tax?${params}`);
+      return response.data;
     },
     enabled: activeTab === "tax"
   });
 
-  // Generate report mutation
+  // Generate report mutation - [AUDIT FIX] Connected to Laravel backend
   const generateReport = useMutation({
     mutationFn: async (params: { type: string; format: string; from: string; to: string }) => {
-      const response = await fetch("/api/user/reports/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(params)
-      });
-      if (!response.ok) throw new Error("Failed to generate report");
-      return response.json();
+      const response = await api.post("/user/reports/generate", params);
+      return response.data;
     },
     onSuccess: (data) => {
       toast.success("Report generated successfully!");
@@ -277,7 +271,9 @@ export default function ReportsPage() {
     });
   };
 
-  // Mock data for demonstration
+  // [DEPRECATED] Mock data for fallback/demo purposes only
+  // In production, data should come from Laravel backend endpoints
+  // These fallbacks activate only if backend API fails or returns null
   const mockSummary = {
     totalInvested: 500000,
     totalReturns: 75000,
