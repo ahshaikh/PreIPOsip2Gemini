@@ -10,7 +10,6 @@ import Footer from "@/components/shared/Footer";
 import ScrollToTop from "@/components/shared/ScrollToTop";
 import { Toaster } from '@/components/ui/sonner';
 import { CookieConsent } from '@/components/shared/CookieConsent';
-import { LiveChatWidget } from '@/components/shared/LiveChatWidget';
 import { Providers } from "@/components/shared/Providers";
 
 const inter = Inter({ subsets: ['latin'], weight: ['300', '400', '500', '600', '700', '800', '900'] });
@@ -40,7 +39,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <ScrollToTop />
           </div>
           <CookieConsent />
-          <LiveChatWidget />
           <Toaster richColors />
         </Providers>
       </body>

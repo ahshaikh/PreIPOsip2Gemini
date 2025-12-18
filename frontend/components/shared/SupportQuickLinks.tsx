@@ -2,9 +2,8 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { BookOpen, MessageCircle, HelpCircle, Ticket, ArrowRight } from 'lucide-react';
+import { BookOpen, HelpCircle, Ticket, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 
 interface QuickLink {
   title: string;
@@ -41,56 +40,30 @@ export default function SupportQuickLinks({ currentPage, className = '' }: Suppo
       href: '/support',
       icon: <Ticket className="w-5 h-5" />,
       color: 'text-orange-600 bg-orange-50 dark:bg-orange-900/20'
-    },
-    {
-      title: 'Live Chat',
-      description: 'Chat with our support team',
-      href: '#', // This will trigger the chat widget
-      icon: <MessageCircle className="w-5 h-5" />,
-      color: 'text-green-600 bg-green-50 dark:bg-green-900/20'
     }
   ];
 
-  const handleChatClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    // Trigger the Live Chat widget
-    const event = new CustomEvent('open-live-chat');
-    window.dispatchEvent(event);
-  };
-
   return (
-    <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 ${className}`}>
+    <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 ${className}`}>
       {links.map((link) => {
         const isCurrent = currentPage === link.href.replace('/', '');
 
         if (isCurrent) return null; // Don't show the current page link
 
-        const LinkCard = () => (
-          <Card className="group hover:shadow-lg transition-all duration-200 cursor-pointer border-2 hover:border-primary/50">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div className={`p-2 rounded-lg ${link.color}`}>
-                  {link.icon}
-                </div>
-                <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-transform" />
-              </div>
-              <CardTitle className="text-base mt-3">{link.title}</CardTitle>
-              <CardDescription className="text-sm">{link.description}</CardDescription>
-            </CardHeader>
-          </Card>
-        );
-
-        if (link.title === 'Live Chat') {
-          return (
-            <div key={link.title} onClick={handleChatClick}>
-              <LinkCard />
-            </div>
-          );
-        }
-
         return (
           <Link key={link.title} href={link.href}>
-            <LinkCard />
+            <Card className="group hover:shadow-lg transition-all duration-200 cursor-pointer border-2 hover:border-primary/50">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className={`p-2 rounded-lg ${link.color}`}>
+                    {link.icon}
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-transform" />
+                </div>
+                <CardTitle className="text-base mt-3">{link.title}</CardTitle>
+                <CardDescription className="text-sm">{link.description}</CardDescription>
+              </CardHeader>
+            </Card>
           </Link>
         );
       })}
@@ -103,15 +76,8 @@ export function SupportQuickLinksCompact({ currentPage, className = '' }: Suppor
   const links = [
     { title: 'Help Center', href: '/help-center', icon: <BookOpen className="w-4 h-4" /> },
     { title: 'FAQs', href: '/faq', icon: <HelpCircle className="w-4 h-4" /> },
-    { title: 'Support', href: '/support', icon: <Ticket className="w-4 h-4" /> },
-    { title: 'Live Chat', href: '#', icon: <MessageCircle className="w-4 h-4" /> }
+    { title: 'Support', href: '/support', icon: <Ticket className="w-4 h-4" /> }
   ];
-
-  const handleChatClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    const event = new CustomEvent('open-live-chat');
-    window.dispatchEvent(event);
-  };
 
   return (
     <div className={`space-y-2 ${className}`}>
@@ -119,19 +85,6 @@ export function SupportQuickLinksCompact({ currentPage, className = '' }: Suppor
       {links.map((link) => {
         const isCurrent = currentPage === link.href.replace('/', '');
         if (isCurrent) return null;
-
-        if (link.title === 'Live Chat') {
-          return (
-            <button
-              key={link.title}
-              onClick={handleChatClick}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left"
-            >
-              {link.icon}
-              {link.title}
-            </button>
-          );
-        }
 
         return (
           <Link
