@@ -39,6 +39,8 @@ use App\Http\Controllers\Api\User\KnowledgeBaseController as UserKnowledgeBaseCo
 use App\Http\Controllers\Api\User\ReportsController as UserReportsController;
 use App\Http\Controllers\Api\User\LearningCenterController as UserLearningCenterController;
 use App\Http\Controllers\Api\SupportAIController;
+use App\Http\Controllers\Api\ArticleController;
+use App\Http\Controllers\Api\CategoryController;
 
 
 // Admin Controllers
