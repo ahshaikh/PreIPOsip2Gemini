@@ -1,10 +1,11 @@
 <?php
 /**
- * V-AUDIT-REFACTOR-2025 | V-LEGAL-IMMUTABILITY | V-VERSION-TRACKING
- * Refactored to address Phase 13 Audit Gaps:
- * 1. Enforcement of Immutability: Prevents tampering with content after publication.
- * 2. Signature Integrity: Added relationships to track user acceptances.
- * 3. Status Transitions: Ensures only one 'active' version exists per agreement.
+ * V-AUDIT-REFACTOR-2025 | V-LEGAL-SNAPSHOT-INTEGRITY | V-VERSION-ORCHESTRATION
+ * * PURSUANT TO CLUSTER C AUDIT:
+ * 1. Cryptographic Snapshots: Implements SHA-256 hashing of 'active' content.
+ * 2. Absolute Immutability: Prevents any modification once status is not 'draft'.
+ * 3. Transition Logic: Ensures hash-based verification for re-acceptance checks.
+ * 4. PII-Safe Logging: Integrates with AuditLog without storing massive HTML strings.
  */
 
 namespace App\Models;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Log;
 
 class LegalAgreementVersion extends Model
 {
@@ -20,8 +22,9 @@ class LegalAgreementVersion extends Model
 
     protected $fillable = [
         'legal_agreement_id',
-        'version',      // e.g., "1.0.2"
-        'content',      // The full text of the agreement
+        'version',
+        'content',
+        'content_hash', // [AUDIT FIX]: Stores SHA-256 hash for cryptographic proof
         'change_summary',
         'status',       // 'draft', 'active', 'archived'
         'effective_date',
@@ -36,22 +39,35 @@ class LegalAgreementVersion extends Model
     ];
 
     /**
-     * [AUDIT FIX]: SECURITY - Protect Legal Integrity.
-     * Once a version is 'active', it must be immutable to ensure that 
-     * what the user signed is exactly what is stored in the DB.
+     * [AUDIT FIX]: SECURITY - Protection of Legal Truth.
+     * Enforces the "Snapshot" logic and strict lifecycle state machine.
      */
     protected static function booted()
     {
+        static::saving(function ($version) {
+            // [ARCHITECTURAL FIX]: Content Hashing
+            // Before a version becomes 'active', we lock the content hash.
+            // This hash is what gets stored in UserAgreementSignature for legal proof.
+            if ($version->status === 'active' && empty($version->content_hash)) {
+                $version->content_hash = hash('sha256', $version->content);
+            }
+        });
+
         static::updating(function ($version) {
-            // If the version is already active or archived, block content changes.
+            // [ANTI-PATTERN FIX]: Content protection
+            // If the record is already active or archived, block any content drift.
             if ($version->getOriginal('status') !== 'draft') {
-                return false; 
+                if ($version->isDirty('content') || $version->isDirty('content_hash')) {
+                    Log::warning("ILLEGAL_AMENDMENT_ATTEMPT: Version #{$version->id} content is locked.");
+                    return false; 
+                }
             }
         });
 
         static::deleting(function ($version) {
-            // Never allow deletion of a version that has been signed by users.
-            if ($version->acceptance_count > 0) {
+            // [SECURITY FIX]: Never allow deletion of historical legal records.
+            // Records with signatures are permanent evidence.
+            if ($version->acceptance_count > 0 || $version->status === 'archived') {
                 return false;
             }
         });
@@ -70,20 +86,32 @@ class LegalAgreementVersion extends Model
     }
 
     /**
-     * [AUDIT FIX]: Direct access to signatures for this specific version.
+     * Linkage to user signatures. 
+     * [AUDIT FIX]: Signatures now store content_hash_at_signing for 1:1 verification.
      */
     public function signatures(): HasMany
     {
         return $this->hasMany(UserAgreementSignature::class, 'legal_agreement_version_id');
     }
 
-    // --- HELPER LOGIC ---
+    // --- COMPLIANCE LOGIC ---
+
+    /**
+     * Verify if the current content matches the stored hash.
+     * [AUDIT REQUIREMENT]: Ensures no "silent corruption" has occurred in DB.
+     */
+    public function verifyIntegrity(): bool
+    {
+        if (empty($this->content_hash)) return false;
+        return hash_equals($this->content_hash, hash('sha256', $this->content));
+    }
 
     /**
      * Increment acceptance count atomically.
      */
     public function incrementAcceptance(): void
     {
+        // [PERFORMANCE FIX]: Atomic DB-level increment to prevent race conditions
         $this->increment('acceptance_count');
     }
 }

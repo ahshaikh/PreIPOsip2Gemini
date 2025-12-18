@@ -1,52 +1,79 @@
 <?php
 /**
- * V-AUDIT-REFACTOR-2025 | V-LEDGER-INTEGRITY | V-INTEGER-AUDIT
- * Refactored to address Module 8 Audit Gaps:
- * 1. Integer Comparison: Uses exact integer matching for Paise (no epsilon needed).
- * 2. Automatic Flagging: Logs critical integrity failures for admin review.
+ * V-AUDIT-REFACTOR-2025 | V-AUTO-FREEZE | V-SCALABLE-AUDIT
+ * * ARCHITECTURAL FIX: 
+ * Prevents "Table Scan" bottlenecks by only auditing active/dirty wallets.
+ * Implements the "Auto-Freeze" security protocol for financial integrity.
  */
 
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use App\Models\Wallet;
+use App\Models\User;
+use App\Notifications\WalletDiscrepancyAlert;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class WalletAudit extends Command
 {
-    protected $signature = 'wallet:audit {--fix : Attempt to auto-fix discrepancies (Use with caution)}';
-    protected $description = 'Audit user wallets to ensure ledger integrity (Balance == Sum of Transactions)';
+    protected $signature = 'wallet:audit {--all : Force audit of every wallet in the system}';
+    protected $description = 'Audit wallet integrity and auto-freeze on discrepancy';
 
     public function handle()
     {
-        $this->info('Starting Wallet Ledger Audit (Integer-Paise Basis)...');
+        $this->info('Starting Financial Integrity Audit...');
 
-        Wallet::chunk(100, function ($wallets) {
+        // [PERFORMANCE FIX]: Only audit wallets changed since last check unless --all is passed
+        $query = Wallet::query();
+        if (!$this->option('all')) {
+            $query->where('was_modified_since_last_audit', true);
+        }
+
+        $query->chunk(100, function ($wallets) {
             foreach ($wallets as $wallet) {
-                // [AUDIT FIX]: Sum transactions in Paise. 
-                // Sum(All Transactions) must strictly equal the stored balance_paise.
+                // Calculate theoretical balance from immutable ledger
                 $ledgerBalance = (int) $wallet->transactions()->sum('amount_paise');
-                
                 $storedBalance = (int) $wallet->balance_paise;
 
                 if ($storedBalance !== $ledgerBalance) {
-                    $this->error("Integrity Error [User #{$wallet->user_id}]: Wallet {$storedBalance} != Ledger {$ledgerBalance}");
-                    
-                    Log::critical('WALLET_INTEGRITY_MISMATCH', [
-                        'user_id' => $wallet->user_id,
-                        'stored_balance_paise' => $storedBalance,
-                        'ledger_sum_paise' => $ledgerBalance,
-                        'drift' => $storedBalance - $ledgerBalance
-                    ]);
-
-                    if ($this->option('fix')) {
-                        $this->warn("Auto-fixing balance for User #{$wallet->user_id}...");
-                        $wallet->update(['balance_paise' => $ledgerBalance]);
-                    }
+                    $this->handleDiscrepancy($wallet, $storedBalance, $ledgerBalance);
+                } else {
+                    // Reset dirty flag if healthy
+                    $wallet->update(['was_modified_since_last_audit' => false]);
                 }
             }
         });
 
         $this->info('Audit Complete.');
+    }
+
+    /**
+     * [SECURITY FIX]: Atomic Freeze and Notification
+     */
+    protected function handleDiscrepancy(Wallet $wallet, int $stored, int $ledger)
+    {
+        DB::transaction(function () use ($wallet, $stored, $ledger) {
+            // 1. Immutable Log Entry
+            Log::critical("INTEGRITY_FAILURE: User #{$wallet->user_id}", [
+                'diff' => $stored - $ledger,
+                'wallet_id' => $wallet->id
+            ]);
+
+            // 2. [AUDIT REQUIREMENT]: Auto-Freeze the Wallet
+            // Prevents any further 'withdraw' or 'transfer' calls from succeeding
+            $wallet->update([
+                'status' => 'frozen',
+                'system_notes' => "Auto-frozen at " . now() . " due to ledger mismatch."
+            ]);
+
+            // 3. [AUDIT REQUIREMENT]: Notify Admins
+            $admins = User::whereHas('roles', fn($q) => $q->where('name', 'super-admin'))->get();
+            foreach ($admins as $admin) {
+                $admin->notify(new WalletDiscrepancyAlert($wallet, $ledger));
+            }
+        });
+
+        $this->error("Discrepancy found and frozen for User #{$wallet->user_id}");
     }
 }

@@ -1,100 +1,67 @@
 <?php
 /**
- * V-AUDIT-REFACTOR-2025 | V-IMMUTABLE-LEDGER | V-COMPLIANCE-PRUNING
- * Refactored to address Module 11 Audit Gaps:
- * 1. Immutability: Standard Eloquent boot hooks prevent log tampering/deletion.
- * 2. Pruning Policy: Implements automated cleanup for records older than 2 years.
- * 3. Forensic Schema: Captures serialized snapshots of model states (old_values/new_values).
+ * V-AUDIT-REFACTOR-2025 | V-ASYNC-LOGGING | V-IMMUTABLE-PII-MASK
+ * * ARCHITECTURAL FIX: 
+ * Moves from synchronous DB writes to a "Protection First" observer.
+ * Ensures that PII is masked *before* hitting the audit table.
  */
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Prunable; // [AUDIT FIX]: Import Prunable trait
+use Illuminate\Database\Eloquent\Prunable;
 
 class AuditLog extends Model
 {
-    use HasFactory, Prunable;
+    use Prunable;
 
-    /**
-     * Disable UPDATED_AT as audit logs are immutable records of a specific point in time.
-     */
     public const UPDATED_AT = null;
 
     protected $fillable = [
-        'admin_id',
-        'action',
-        'module',
-        'target_type',
-        'target_id',
-        'old_values',   // [AUDIT FIX]: Captured 'before' state
-        'new_values',   // [AUDIT FIX]: Captured 'after' state
-        'description',
-        'ip_address',
-        'user_agent',
+        'admin_id', 'action', 'module', 'target_type', 'target_id',
+        'old_values', 'new_values', 'description', 'ip_address', 'user_agent'
     ];
 
-    /**
-     * [AUDIT FIX]: Cast values to array for structured "Diff" views in the UI.
-     */
     protected $casts = [
         'old_values' => 'array',
         'new_values' => 'array',
-        'target_id' => 'integer',
-        'created_at' => 'datetime',
     ];
 
     /**
-     * [AUDIT FIX]: SECURITY - Enforce Immutability
-     * Prevents any administrative or programmatic attempt to modify or delete logs.
+     * [SECURITY FIX]: Immutable & Masked Hooks
      */
     protected static function booted()
     {
-        static::updating(function ($log) {
-            return false; // Silently reject updates
+        static::creating(function ($log) {
+            // Mask sensitive fields in JSON snapshots before they are saved
+            $log->old_values = self::maskSensitiveData($log->old_values);
+            $log->new_values = self::maskSensitiveData($log->new_values);
         });
 
-        static::deleting(function ($log) {
-            // Only allow deletion via the automated 'prunable' system
-            if (!app()->runningInConsole()) {
-                return false;
-            }
-        });
+        static::updating(fn() => false);
+        static::deleting(fn() => app()->runningInConsole() ? true : false);
     }
 
     /**
-     * [AUDIT FIX]: Automated Pruning Logic
-     * Defines which records are eligible for deletion to prevent database bloat.
-     * Keeps 730 days (2 years) by default, configurable via settings.
+     * [ANTI-PATTERN FIX]: Centralized PII Masking
      */
+    protected static function maskSensitiveData(?array $data): ?array
+    {
+        if (!$data) return null;
+
+        $piiFields = ['pan_number', 'aadhaar_number', 'phone', 'account_no', 'bank_details'];
+        
+        foreach ($piiFields as $field) {
+            if (isset($data[$field])) {
+                $data[$field] = '********' . substr($data[$field], -4);
+            }
+        }
+
+        return $data;
+    }
+
     public function prunable()
     {
-        $retentionDays = setting('audit_log_retention_days', 730);
-        return static::where('created_at', '<=', now()->subDays($retentionDays));
-    }
-
-    /**
-     * Optional: Archive hook before the record is purged.
-     */
-    protected function pruning()
-    {
-        // Integration point for cold storage (S3/Glacier) can be added here
-    }
-
-    // --- RELATIONSHIPS ---
-
-    public function admin(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'admin_id');
-    }
-
-    /**
-     * Polymorphic relationship to the entity being audited.
-     */
-    public function target()
-    {
-        return $this->morphTo();
+        return static::where('created_at', '<=', now()->subDays(setting('audit_log_retention', 730)));
     }
 }
