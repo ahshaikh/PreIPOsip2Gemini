@@ -1,7 +1,7 @@
 <?php
 // V-FINAL-1730-269 | 1730-420 | 1730-438 | 1730-447 |
 // 1730-533 (Redirects Added) | 1730-562 (Legal Middleware) |
-// V-FINAL-1730-652 (Role Middleware Fix)
+// V-FINAL-1730-652 (Role Middleware Fix) | V-AUDIT-FIX-MFA-REGISTRATION
 
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -18,6 +18,7 @@ use App\Http\Middleware\ConcurrentSessionControl;
 use App\Http\Middleware\ValidateFileUpload;
 use App\Http\Middleware\ForceHttps;
 use App\Http\Middleware\TrustProxies;
+use App\Http\Middleware\EnsureMfaVerified; // [AUDIT FIX] Import MFA Middleware
 
 // ----------------------------------------------------------
 // 1. Build the application instance
@@ -33,28 +34,22 @@ $app = Application::configure(basePath: dirname(__DIR__))
 
         // Global middleware
         $middleware->append([
-            TrustProxies::class, // Trust proxies for HTTPS detection
-            ForceHttps::class, // Enforce HTTPS in production
+            TrustProxies::class,
+            ForceHttps::class,
+            SanitizeInput::class,
             CheckMaintenanceMode::class,
-        ]);
-
-        // Web middleware
-        $middleware->group('web', [
             RedirectMiddleware::class,
         ]);
 
-        // API middleware
-        $middleware->group('api', [
-            SanitizeInput::class, // XSS protection
-        ]);
-
-        // Configure API authentication to return JSON instead of redirecting
+        // [AUDIT FIX]: Ensure API guests get a 401 instead of a redirect
         $middleware->redirectGuestsTo(function ($request) {
-            // For API routes, don't redirect - return null to trigger 401 JSON response
             return $request->expectsJson() || $request->is('api/*') ? null : '/login';
         });
 
-        // Aliases
+        /**
+         * Middleware Aliases
+         * These keys are used in routes/api.php to apply logic to specific groups.
+         */
         $middleware->alias([
             'admin.ip' => AdminIpRestriction::class,
             'permission' => CheckPermission::class,
@@ -62,15 +57,19 @@ $app = Application::configure(basePath: dirname(__DIR__))
             'webhook.verify' => VerifyWebhookSignature::class,
             'session.control' => ConcurrentSessionControl::class,
             'file.validate' => ValidateFileUpload::class,
+            
+            // [AUDIT FIX]: Register the MFA Gating middleware
+            // Use this in routes/api.php to protect high-risk transactions.
+            'mfa.verified' => EnsureMfaVerified::class,
 
-            // Spatie
+            // Spatie Roles & Permissions
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission_spatie' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // ...
+        // Global exception handling logic...
     })
     ->create();
 

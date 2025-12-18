@@ -9,16 +9,19 @@ use App\Models\User;
 use App\Domains\Identity\Actions\RegisterUserAction;
 use App\Domains\Identity\Actions\LoginUserAction;
 use App\Domains\Identity\Actions\VerifyOtpAction;
+use App\Services\Auth\CoreAuthService;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    public function __construct(protected CoreAuthService $authService) {}
+
     /**
      * Register a new user.
-     * Delegates to Identity Domain.
      */
-    public function register(RegisterRequest $request, RegisterUserAction $action)
+    public function register(RegisterRequest $request, RegisterUserAction $action): JsonResponse
     {
         try {
             $user = $action->execute($request->validated());
@@ -29,32 +32,35 @@ class AuthController extends Controller
             ], 201);
         } catch (\Exception $e) {
             $code = $e->getCode();
-            // Map common exception codes to valid HTTP status
             $status = ($code >= 400 && $code < 600) ? $code : 400;
             return response()->json(['message' => $e->getMessage()], $status);
         }
     }
     
     /**
-     * User Login (Step 1 or final step if no 2FA).
-     * Delegates to Identity Domain.
+     * User Login.
+     * Now issues a secure HttpOnly cookie upon successful login.
      */
-    public function login(LoginRequest $request, LoginUserAction $action)
+    public function login(LoginRequest $request, LoginUserAction $action): JsonResponse
     {
-        // Authenticate credentials first (Throttle via Laravel middleware)
         $request->authenticate(); 
-        
-        // Retrieve user
         $user = $request->user() ?? User::where('email', $request->email)->first();
 
         try {
             $result = $action->execute($user, $request->ip());
+
+            // If login results in a token immediately (no 2FA required)
+            if (isset($result['token'])) {
+                $cookie = $this->authService->issueAuthCookie($result['token']);
+                return response()
+                    ->json($result)
+                    ->withCookie($cookie);
+            }
+
             return response()->json($result);
         } catch (\Exception $e) {
-            // Handle pending verification explicitly with 403
             $status = $e->getCode() === 403 ? 403 : 422;
             
-            // If explicit response data was passed in exception (custom logic), use it
             if ($status === 403 && str_contains($e->getMessage(), 'verify')) {
                  return response()->json([
                     'message' => $e->getMessage(),
@@ -70,7 +76,7 @@ class AuthController extends Controller
     /**
      * 2FA Login Flow (Step 2).
      */
-    public function verifyTwoFactor(Request $request, LoginUserAction $loginAction)
+    public function verifyTwoFactor(Request $request, LoginUserAction $loginAction): JsonResponse
     {
         $request->validate([
             'user_id' => 'required|exists:users,id',
@@ -79,34 +85,27 @@ class AuthController extends Controller
         
         $user = User::findOrFail($request->user_id);
         
-        // Verify code (Standard or Recovery)
-        if (!$user->verifyTwoFactorCode($request->code)) {
-            // Check recovery codes
-            $recoveryCode = collect($user->two_factor_recovery_codes)
-                ->first(fn ($rc) => hash_equals($rc, $request->code));
-
-            if (!$recoveryCode) {
-                return response()->json(['message' => 'Invalid 2FA or recovery code.'], 422);
-            }
-            
-            $user->replaceRecoveryCode($recoveryCode);
+        if (!$this->authService->verifyTwoFactor($user, $request->code)) {
+            return response()->json(['message' => 'Invalid 2FA or recovery code.'], 422);
         }
 
-        // Reuse Login Action logic for token issuance
-        // This ensures consistent behavior (logging login time, IP, etc.)
         $result = $loginAction->issueToken($user, $request->ip());
+        
+        // Attach secure cookie for 2FA success
+        $cookie = $this->authService->issueAuthCookie($result['token']);
 
-        return response()->json($result);
+        return response()
+            ->json($result)
+            ->withCookie($cookie);
     }
 
     /**
      * Verify OTP for new account.
-     * Fixed Security Risk: Logic moved to VerifyOtpAction which includes Rate Limiting.
      */
-    public function verifyOtp(Request $request, VerifyOtpAction $action)
+    public function verifyOtp(Request $request, VerifyOtpAction $action): JsonResponse
     {
         $request->validate([
-            'user_id' => 'required|integer', // 'exists' check handled in Action securely
+            'user_id' => 'required|integer',
             'type' => 'required|in:email,mobile',
             'otp' => 'required|digits:6',
         ]);
@@ -123,12 +122,16 @@ class AuthController extends Controller
 
     /**
      * Log the user out.
+     * Clears token and removes the cookie.
      */
-    public function logout(Request $request)
+    public function logout(Request $request): JsonResponse
     {
         if ($request->user()) {
             $request->user()->currentAccessToken()->delete();
         }
-        return response()->json(['message' => 'Logged out successfully.']);
+
+        return response()
+            ->json(['message' => 'Logged out successfully.'])
+            ->withCookie($this->authService->getLogoutCookie());
     }
 }

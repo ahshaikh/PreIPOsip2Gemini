@@ -8,7 +8,7 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "Refactor rolled back"
+$CommitMessage = "Bug Fixes 1-10"
 #----------------------
 
 function Get-GitCredential {

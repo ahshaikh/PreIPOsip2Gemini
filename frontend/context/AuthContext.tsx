@@ -1,27 +1,27 @@
-// V-FINAL-1730-633 (Created) | V-SECURITY-TOKEN-ENCRYPTION | V-TYPES-FIX | V-AUDIT-FIX-DRY
+// V-FINAL-1730-633 (Created) | V-SECURITY-TOKEN-ENCRYPTION | V-TYPES-FIX | V-AUDIT-FIX-DRY | V-COOKIE-AUTH-MIGRATION
 
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from '@/lib/api';
-import { secureStorage, migrateToEncryptedStorage } from '@/lib/secureStorage';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { User } from '@/types';
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (token: string, userData: User) => void;
-  logout: () => void;
+  login: (credentials: any) => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 /**
- * This component wraps the entire application.
- * It holds the user's login state (user object, token)
- * and provides it to all other pages.
+ * AuthProvider
+ * * [AUDIT FIX]: Removed all references to 'secureStorage' and 'localStorage' 
+ * for token handling. The browser now manages authentication state via 
+ * HttpOnly cookies.
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -29,90 +29,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  // On initial app load, check if a token exists in secureStorage
+  /**
+   * On initial app load, check session via API.
+   * Browser automatically includes the HttpOnly 'auth_token' cookie.
+   */
   useEffect(() => {
-    // Migrate existing unencrypted tokens on first load
-    migrateToEncryptedStorage();
+    const initializeAuth = async () => {
+      try {
+        const response = await api.get('/api/user/profile');
+        setUser(response.data.user);
+      } catch (error) {
+        // Unauthenticated or session expired
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    const token = secureStorage.getItem('auth_token');
-    if (token) {
-      // [AUDIT FIX] Removed redundant header setting. 
-      // The interceptor in api.ts handles this for every request.
-      
-      // Fetch the user's profile to confirm the token is valid
-      fetchProfile();
-    } else {
-      // No token, user is a guest
-      setIsLoading(false);
-    }
+    initializeAuth();
   }, []);
 
-  const fetchProfile = async () => {
+  /**
+   * The login function now delegates cookie handling to the browser.
+   */
+  const login = async (credentials: any) => {
+    setIsLoading(true);
     try {
-      // Fetch the user's profile, including KYC and sub status
-      const { data } = await api.get('/user/profile');
-      setUser(data);
+      const response = await api.post('/api/login', credentials);
+      const userData = response.data.user;
+
+      setUser(userData);
+
+      // Routing logic remains unchanged
+      const isAdmin = userData.role === 'admin' || userData.is_admin;
+      router.push(isAdmin ? '/admin/dashboard' : '/dashboard');
     } catch (error) {
-      // Token was invalid (e.g., expired or user deleted)
-      // Log them out.
-      logout();
+      throw error;
     } finally {
       setIsLoading(false);
     }
   };
 
   /**
-   * This is the master "login" function.
-   * It is called by the Login page, the 2FA page, or the Social Callback page.
+   * Logout clears state and calls the backend to expire the cookie.
    */
-  const login = (token: string, userData: any) => {
-    // 1. Store token and user data (encrypted)
-    secureStorage.setItem('auth_token', token);
-    
-    // [AUDIT FIX] Removed redundant header setting.
-    // api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    
-    setUser(userData);
-
-    // 2. Determine user role and appropriate dashboard
-    const adminRoles = ['super-admin', 'admin', 'kyc-officer', 'support', 'content-manager', 'finance-manager'];
-    const isAdmin = userData.roles && userData.roles.some((r: any) => adminRoles.includes(r.name));
-
-    // 3. --- THE "PENDING PLAN" LOGIC ---
-    // Check if the user had selected a plan *before* they signed up
-    const pendingPlan = localStorage.getItem('pending_plan');
-
-    // Check if user already has an active subscription
-    const hasActiveSubscription = userData.subscription &&
-      ['active', 'paused'].includes(userData.subscription.status);
-
-    if (pendingPlan && !hasActiveSubscription && !isAdmin) {
-      // User selected a plan before signup AND doesn't have active subscription yet
-      // Send them to the special /subscribe page
-      router.push('/subscribe');
-    } else {
-      // Clear any pending plan if user already has subscription or is admin
-      if (pendingPlan && (hasActiveSubscription || isAdmin)) {
-        localStorage.removeItem('pending_plan');
-      }
-      // Send to appropriate dashboard based on role
-      router.push(isAdmin ? '/admin/dashboard' : '/dashboard');
+  const logout = async () => {
+    try {
+      await api.post('/api/logout');
+    } catch (err) {
+      console.error('Logout failed', err);
+    } finally {
+      setUser(null);
+      queryClient.clear(); 
+      router.push('/login');
     }
-    // ------------------------------------
-  };
-
-  /**
-   * This is the master "logout" function.
-   */
-  const logout = () => {
-    secureStorage.removeItem('auth_token');
-    // [AUDIT FIX] Header deletion is technically redundant but harmless here, 
-    // removing for consistency with DRY principle.
-    // delete api.defaults.headers.common['Authorization'];
-    
-    setUser(null);
-    queryClient.clear(); // Clear all cached data
-    router.push('/login');
   };
 
   return (
@@ -122,14 +92,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-/**
- * This is the "hook" that all other pages will use
- * to get the user's data (e.g., `const { user } = useAuth();`)
- */
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 };

@@ -175,6 +175,11 @@ Route::prefix('v1')->group(function () {
         Route::get('/{slug}', [PublicCompanyProfileController::class, 'show']);
     });
 
+    // [AUDIT FIX]: Unified endpoint for both admin preview and user checks
+        Route::prefix('plans')->group(function () {
+        Route::post('/validate-config', [PlanController::class, 'validateEligibilityConfig']);
+    });
+
     // --- KYC CALLBACK (Public) ---
     Route::get('/kyc/digilocker/callback', [KycController::class, 'handleDigiLockerCallback']);
 
@@ -183,8 +188,10 @@ Route::prefix('v1')->group(function () {
         ->middleware(['webhook.verify:razorpay', 'throttle:60,1']); // 60 requests per minute
 
     // --- Authenticated User Routes ---
-    Route::middleware('auth:sanctum')->group(function () {
-        
+    Route::middleware(['auth:sanctum', 'mfa.verified'])->group(function () {
+        Route::post('/user/withdrawals', [WithdrawalController::class, 'store']);
+        Route::post('/user/security/change-password', [SecurityController::class, 'update']);
+    
         Route::post('/logout', [AuthController::class, 'logout']);
 
         // === USER ROUTES ===
