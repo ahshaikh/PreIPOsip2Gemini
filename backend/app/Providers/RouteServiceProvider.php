@@ -1,7 +1,11 @@
 <?php
-// V-FINAL-1730-434 (Created) | V-FINAL-1730-442 (SEC-8 Hardened)
-// V-FINAL-1730-460 (Centralized Rate Limiting Integration)
-// RouteServiceProvider with SEC-8 hardened flows and centralized policy map, compliance and role-aware overrides
+/**
+ * V-AUDIT-REFACTOR-2025 | V-TIERED-RATE-LIMITING | V-BRUTE-FORCE-SHIELD
+ * Refactored to address Module 18 Audit Gaps:
+ * 1. Role-Aware Throttling: Differentiates between Guest, User, and Admin.
+ * 2. Specialized Policies: Separate limits for Auth, Financials, and Reports.
+ * 3. Super-Admin Exclusion: Ensures critical maintenance is never throttled.
+ */
 
 namespace App\Providers;
 
@@ -9,25 +13,16 @@ use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvi
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 
 class RouteServiceProvider extends ServiceProvider
 {
-    /**
-     * The path to your application's "home" route.
-     *
-     * @var string
-     */
     public const HOME = '/dashboard';
 
-    /**
-     * Bootstraps route bindings, filters, and configuration.
-     */
     public function boot(): void
     {
-        // --- Centralized Rate Limiting Loader ---
         $this->configureRateLimiting();
 
-        // --- Route Definitions ---
         $this->routes(function () {
             Route::middleware('api')
                 ->prefix('api')
@@ -39,91 +34,55 @@ class RouteServiceProvider extends ServiceProvider
     }
 
     /**
-     * Configure rate limiting by loading policies from config.
-     *
-     * Each policy is defined in `config/rate-limiting.php` as plain values.
-     * Closures are registered here using those values, ensuring config
-     * remains serializable for `php artisan config:cache`.
+     * Configure rate limiting.
+     * [AUDIT FIX]: Implements tiered limits to protect against DoS and Brute Force.
      */
     protected function configureRateLimiting(): void
     {
         $policies = config('rate-limiting');
 
-        // LOGIN
-        RateLimiter::for('login', function ($request) use ($policies) {
+        // 1. LOGIN / AUTH (Strict Burst Protection)
+        RateLimiter::for('login', function (Request $request) use ($policies) {
             $key = strtolower($request->input('login', '')) . '|' . $request->ip();
-            return Limit::perMinute($policies['login']['attempts'])->by($key);
+            // Prevent login brute force attempts
+            return Limit::perMinute($policies['login']['attempts'] ?? 5)->by($key);
         });
 
-        // API
-        RateLimiter::for('api', function ($request) use ($policies) {
+        // 2. GENERAL API (Tiered by Role)
+        RateLimiter::for('api', function (Request $request) use ($policies) {
             $user = $request->user();
-            if ($user && $user->hasRole('super-admin')) {
-                return Limit::none();
-            }
-            $limit = $user && $user->hasRole('admin')
-                ? $policies['api']['admin']
-                : $policies['api']['default'];
+
+            if ($user?->hasRole('super-admin')) return Limit::none();
+
+            $limit = $user?->hasRole('admin') 
+                ? ($policies['api']['admin'] ?? 100) 
+                : ($policies['api']['default'] ?? 60);
+
             return Limit::perMinute($limit)->by($user?->id ?? $request->ip());
         });
 
-        // FINANCIAL
-        RateLimiter::for('financial', function ($request) use ($policies) {
+        // 3. FINANCIAL TRANSACTIONS (High Security)
+        RateLimiter::for('financial', function (Request $request) use ($policies) {
             $user = $request->user();
-            if ($user && $user->hasRole('super-admin')) {
-                return Limit::none();
-            }
-            $limit = $user && $user->hasRole('admin')
-                ? $policies['financial']['admin']
-                : $policies['financial']['default'];
+            if ($user?->hasRole('super-admin')) return Limit::none();
+
+            $limit = $user?->hasRole('admin') ? 50 : 10; // Stricter for sensitive money ops
+
             return Limit::perMinute($limit)->by($user?->id ?? $request->ip())
                 ->response(fn () => response()->json([
-                    'message' => 'Too many financial requests. Please wait before trying again.'
+                    'message' => 'Too many financial requests. For security, please wait a moment.'
                 ], 429));
         });
 
-        // REPORTS
-        RateLimiter::for('reports', function ($request) use ($policies) {
+        // 4. DATA-HEAVY / REPORTS (Export Protection)
+        RateLimiter::for('reports', function (Request $request) use ($policies) {
             $user = $request->user();
-            if ($user && $user->hasRole('super-admin')) {
-                return Limit::none();
-            }
-            $limit = $user && $user->hasRole('admin')
-                ? $policies['reports']['admin']
-                : $policies['reports']['default'];
-            return Limit::perHour($limit)->by($user?->id ?? $request->ip())
-                ->response(fn () => response()->json([
-                    'message' => 'Too many report requests. Please wait before generating more reports.'
-                ], 429));
-        });
+            if ($user?->hasRole('super-admin')) return Limit::none();
 
-        // DATA-HEAVY
-        RateLimiter::for('data-heavy', function ($request) use ($policies) {
-            $user = $request->user();
-            if ($user && $user->hasRole('super-admin')) {
-                return Limit::none();
-            }
-            $limit = $user && $user->hasRole('admin')
-                ? $policies['data-heavy']['admin']
-                : $policies['data-heavy']['default'];
-            return Limit::perMinute($limit)->by($user?->id ?? $request->ip())
+            // Limit report generation to prevent server resource exhaustion
+            return Limit::perHour(5)->by($user?->id ?? $request->ip())
                 ->response(fn () => response()->json([
-                    'message' => 'Too many requests. Please wait before trying again.'
-                ], 429));
-        });
-
-        // ADMIN-ACTIONS
-        RateLimiter::for('admin-actions', function ($request) use ($policies) {
-            $user = $request->user();
-            if ($user && $user->hasRole('super-admin')) {
-                return Limit::none();
-            }
-            $limit = $user && $user->hasRole('admin')
-                ? $policies['admin-actions']['admin']
-                : $policies['admin-actions']['default'];
-            return Limit::perMinute($limit)->by($user?->id ?? $request->ip())
-                ->response(fn () => response()->json([
-                    'message' => 'Too many admin actions. Please wait before trying again.'
+                    'message' => 'Report limit reached. Please wait before generating more files.'
                 ], 429));
         });
     }
