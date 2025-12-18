@@ -14,10 +14,7 @@ use Illuminate\Support\Str;
 
 /**
  * UserService (Legacy/Transition)
- * * Refactoring Note:
- * - Identity creation logic has been moved to App\Domains\Identity.
- * - Admin/Finance methods (suspend, block, forcePayment) are RETAINED to prevent 
- * breaking other modules (Module 19, Module 4) until they are refactored.
+ * Retains Admin/Finance methods to prevent breaking other modules.
  */
 class UserService
 {
@@ -30,22 +27,18 @@ class UserService
         $this->allocationService = $allocationService;
     }
 
-    // --- IDENTITY PROXIES (Refactored) ---
+    // --- IDENTITY PROXIES ---
 
     /**
      * @deprecated Use App\Domains\Identity\Actions\RegisterUserAction directly.
-     * Kept for backward compatibility with Seeders/Bulk Imports.
      */
     public function createUser(array $data, string $role = 'user'): User
     {
-        // Delegate to the new Domain Action
         return app(RegisterUserAction::class)->execute($data);
     }
 
     public function updateUser(User $user, array $data): User
     {
-        // Logic specific to Admin updating a user profile.
-        // Pending move to Admin/UserManagement Domain.
         return DB::transaction(function () use ($user, $data) {
             $userFields = array_intersect_key($data, array_flip(['username', 'email', 'mobile', 'status']));
             
@@ -65,7 +58,7 @@ class UserService
         });
     }
 
-    // --- SEARCH & SEGMENTATION (Admin Domain - Retained) ---
+    // --- SEARCH & SEGMENTATION (Admin Logic Retained) ---
 
     public function advancedSearch(array $filters, int $perPage = 50): LengthAwarePaginator
     {
@@ -179,7 +172,6 @@ class UserService
 
     public function anonymizeAndDelete(User $user)
     {
-        // GDPR logic - Candidate for Compliance Domain
         return DB::transaction(function () use ($user) {
             $randomId = 'deleted_' . Str::random(10);
             $user->update(['username' => $randomId, 'email' => $randomId . '@deleted.local', 'mobile' => '0000000000', 'is_anonymized' => true, 'anonymized_at' => now(), 'status' => 'blocked']);
@@ -202,7 +194,6 @@ class UserService
             $amount = $data['amount'] ?? 0;
             if ($amount <= 0) throw new \InvalidArgumentException('Invalid bonus amount');
             foreach ($users as $user) {
-                // Dependency on WalletService is maintained
                 $this->walletService->deposit($user, $amount, 'manual_bonus', 'Bulk Bonus Award', $admin);
             }
             return ['message' => "Bonus of $amount awarded to $count users."];
