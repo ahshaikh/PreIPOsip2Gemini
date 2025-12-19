@@ -1,6 +1,7 @@
 'use client';
 //C:\PreIPOsip\frontend\app\(public)\login\page.tsx
 // V-PHASE4-1730-111 (Created - Revised) | V-FINAL-1730-475 (Social Login UI)
+// V-FIX-LOGIN-REDIRECT (Fixed architectural mismatch: token now properly stored in secureStorage)
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,7 @@ import api from "@/lib/api";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { useAuth } from "@/context/AuthContext";
+import { secureStorage } from "@/lib/secureStorage";
 
 // Google Icon
 const GoogleIcon = () => (
@@ -48,9 +49,6 @@ export default function LoginPage() {
   const [userId, setUserId] = useState(null);
   const [otp, setOtp] = useState('');
 
-// Get login function from context
-  const { login: handleAuthSuccess } = useAuth();
-
   // Handle errors from social callback
   useEffect(() => {
     if (searchParams.get('error') === 'google_failed') {
@@ -70,7 +68,17 @@ export default function LoginPage() {
         toast.info("2FA Code Required", { description: "Please enter your authenticator code." });
       } else {
         // --- Standard Login Success ---
-        handleAuthSuccess(data.token, data.user);
+        // Store token in secure storage
+        secureStorage.setItem('auth_token', data.token);
+
+        // Show success message
+        toast.success("Login Successful", {
+          description: "Redirecting to dashboard..."
+        });
+
+        // Redirect based on user role
+        const isAdmin = data.user.role === 'admin' || data.user.is_admin;
+        router.push(isAdmin ? '/admin/dashboard' : '/dashboard');
       }
     },
     onError: (error: any) => {
@@ -83,7 +91,19 @@ export default function LoginPage() {
   const twoFaMutation = useMutation({
     mutationFn: () => api.post('login/2fa', { user_id: userId, code: otp }),
     onSuccess: (response) => {
-      handleAuthSuccess(response.data.token, response.data.user);
+      const data = response.data;
+
+      // Store token in secure storage
+      secureStorage.setItem('auth_token', data.token);
+
+      // Show success message
+      toast.success("2FA Verified", {
+        description: "Redirecting to dashboard..."
+      });
+
+      // Redirect based on user role
+      const isAdmin = data.user.role === 'admin' || data.user.is_admin;
+      router.push(isAdmin ? '/admin/dashboard' : '/dashboard');
     },
     onError: (error: any) => {
       toast.error("2FA Failed", { description: error.response?.data?.message || "Invalid code." });
