@@ -1,10 +1,12 @@
 // V-PHASE5-1730-115 (Created) | V-FINAL-1730-237 (NotificationBell Integrated) | V-ENHANCED-USER-NAV
+// V-FIX-LOGIN-REDIRECT (Fixed storage consistency - using secureStorage)
 'use client';
 
 import { DashboardNav } from '@/components/shared/DashboardNav';
 import { UserTopNav } from '@/components/shared/UserTopNav';
 import { Button } from '@/components/ui/button';
 import api from '@/lib/api';
+import { secureStorage } from '@/lib/secureStorage';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { User } from '@/types';
@@ -21,17 +23,17 @@ export default function DashboardLayout({
 
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem('auth_token');
+      const token = secureStorage.getItem('auth_token');
       if (!token) {
         router.push('/login');
         return;
       }
-      
+
       try {
         const response = await api.get('/user/profile');
-        setUser(response.data);
+        setUser(response.data.user || response.data);
       } catch (error) {
-        localStorage.removeItem('auth_token');
+        secureStorage.removeItem('auth_token');
         router.push('/login');
       } finally {
         setIsLoading(false);
@@ -46,7 +48,7 @@ export default function DashboardLayout({
     } catch (e) {
         // Ignore logout errors
     }
-    localStorage.removeItem('auth_token');
+    secureStorage.removeItem('auth_token');
     router.push('/login');
   };
 
