@@ -60,6 +60,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await api.post('/login', credentials);
       const userData = response.data.user;
+      const token = response.data.token;
+
+      // Store token
+      if (token) {
+        localStorage.setItem('auth_token', token);
+      }
 
       setUser(userData);
 
@@ -82,6 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.error('Logout failed', err);
     } finally {
+      localStorage.removeItem('auth_token');
       setUser(null);
       queryClient.clear();
       router.push('/login');
