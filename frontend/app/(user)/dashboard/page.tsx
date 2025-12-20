@@ -37,11 +37,17 @@ export default function DashboardPage() {
   });
 
   // Dashboard summary
-  const { data: summary, isLoading } = useQuery({
+  const { data: summary, isLoading, error: summaryError } = useQuery({
     queryKey: ['dashboardSummary'],
     queryFn: async () => {
       const { data } = await api.get('/user/portfolio');
       return data.summary;
+    },
+    retry: false, // Don't retry on error
+    meta: {
+      onError: (error: any) => {
+        console.error('[DASHBOARD] Portfolio fetch failed:', error);
+      }
     }
   });
 
@@ -60,40 +66,53 @@ export default function DashboardPage() {
   });
 
   // Subscription status
-  const { data: subscription } = useQuery({
+  const { data: subscription, error: subscriptionError } = useQuery({
     queryKey: ['subscription'],
     queryFn: async () => (await api.get('/user/subscription')).data,
     retry: false,
+    onError: (error: any) => {
+      console.error('[DASHBOARD] Subscription fetch failed:', error);
+    }
   });
 
   // Bonuses summary
   const { data: bonuses } = useQuery({
     queryKey: ['bonuses'],
     queryFn: async () => (await api.get('/user/bonuses')).data,
+    retry: false,
+    onError: () => console.error('[DASHBOARD] Bonuses fetch failed')
   });
 
   // Referrals summary
   const { data: referrals } = useQuery({
     queryKey: ['referrals'],
     queryFn: async () => (await api.get('/user/referrals')).data,
+    retry: false,
+    onError: () => console.error('[DASHBOARD] Referrals fetch failed')
   });
 
   // Wallet balance
   const { data: wallet } = useQuery({
     queryKey: ['wallet'],
     queryFn: async () => (await api.get('/user/wallet')).data,
+    retry: false,
+    onError: () => console.error('[DASHBOARD] Wallet fetch failed')
   });
 
   // Recent activity
   const { data: activity } = useQuery({
     queryKey: ['userActivity'],
     queryFn: async () => (await api.get('/user/activity')).data,
+    retry: false,
+    onError: () => console.error('[DASHBOARD] Activity fetch failed')
   });
 
   // Notifications
   const { data: notifications } = useQuery({
     queryKey: ['userNotifications'],
     queryFn: async () => (await api.get('/user/notifications?unread=true')).data,
+    retry: false,
+    onError: () => console.error('[DASHBOARD] Notifications fetch failed')
   });
 
   // Calculate portfolio gain/loss percentage

@@ -120,10 +120,23 @@ api.interceptors.response.use(
       case 502:
       case 503:
       case 504:
-        // Server errors
-        toast.error('Server Error', {
-          description: 'Something went wrong on our end. Please try again later.'
+        // Server errors - Log but don't show intrusive toast
+        // Let the component handle the error gracefully
+        console.error('[API] Server Error:', {
+          url: error.config?.url,
+          status,
+          message
         });
+
+        // Only show toast for critical endpoints (login, logout, etc.)
+        const isCriticalEndpoint = error.config?.url?.includes('/login') ||
+                                   error.config?.url?.includes('/logout');
+
+        if (isCriticalEndpoint) {
+          toast.error('Server Error', {
+            description: 'Something went wrong on our end. Please try again later.'
+          });
+        }
         break;
 
       default:
