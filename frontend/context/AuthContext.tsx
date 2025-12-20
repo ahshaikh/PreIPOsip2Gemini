@@ -85,9 +85,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setUser(userData);
 
-      // Routing logic: Handle admin, superadmin, or is_admin flag
-      const isAdmin = ['admin', 'superadmin'].includes(userData.role) || userData.is_admin;
-      router.push(isAdmin ? '/admin/dashboard' : '/dashboard');
+      // -------------------------------------------------------------------
+      // GEMINI FIX: Role-Based Redirect Logic
+      // -------------------------------------------------------------------
+      // We safely extract role names from the 'roles' relationship array.
+      // We also check 'role_name' accessor if available.
+      // This prevents Admins from being sent to the User Dashboard (which causes 500 errors).
+      // -------------------------------------------------------------------
+      
+      const userRoles = userData.roles ? userData.roles.map((r: any) => r.name) : [];
+      const userRoleName = userData.role_name || '';
+
+      if (userRoles.includes('admin') || userRoles.includes('super_admin') || userRoleName === 'admin') {
+        router.push('/admin/dashboard');
+      } else if (userRoles.includes('company') || userRoleName === 'company') {
+        router.push('/company/dashboard');
+      } else {
+        router.push('/dashboard');
+      }
+      
+      // OLD LOGIC REMOVED:
+      // const isAdmin = ['admin', 'superadmin'].includes(userData.role) || userData.is_admin;
+      // router.push(isAdmin ? '/admin/dashboard' : '/dashboard');
+
     } catch (error) {
       throw error;
     } finally {

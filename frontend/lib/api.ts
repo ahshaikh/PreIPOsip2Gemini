@@ -1,64 +1,148 @@
 // V-PHASE4-1730-098 | V-ENHANCED-ERROR-HANDLING | V-FIX-LOGIN-REDIRECT (Simplified to plain localStorage)
+//
+// CENTRAL API CLIENT
+// ------------------
+// This file is responsible for:
+// 1. Attaching authentication headers
+// 2. Centralized error normalization
+// 3. Preventing silent error shape corruption
+// 4. Ensuring logs are deterministic (never `{}`)
+// 5. Providing audit-grade diagnostics without speculation
+
 import axios, { AxiosError, AxiosResponse } from 'axios';
 import { toast } from 'sonner';
 
+/**
+ * Axios instance configuration
+ * ----------------------------
+ * - baseURL resolved from env
+ * - credentials enabled for sanctum / cookies if required
+ * - Accept header enforced
+ */
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1/',
   withCredentials: true,
   headers: {
-    'Accept': 'application/json',
+    Accept: 'application/json',
   },
 });
 
-// Request interceptor - Add auth token
+/**
+ * REQUEST INTERCEPTOR
+ * -------------------
+ * Purpose:
+ * - Attach Bearer token from localStorage
+ * - Log request execution deterministically
+ *
+ * Important invariants:
+ * - localStorage is accessed ONLY in browser
+ * - headers object is always initialized
+ */
 api.interceptors.request.use(
   (config) => {
-    console.log('[API INTERCEPTOR] Running for:', config.method?.toUpperCase(), config.url);
+    console.log(
+      '[API INTERCEPTOR] Running for:',
+      config.method?.toUpperCase(),
+      config.url
+    );
 
-    // Only access localStorage on the client side
+    // Only access localStorage on the client
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('auth_token');
-      console.log('[API INTERCEPTOR] Token from localStorage:', token ? `${token.substring(0, 20)}...` : 'NONE');
+
+      console.log(
+        '[API INTERCEPTOR] Token from localStorage:',
+        token ? `${token.substring(0, 20)}...` : 'NONE'
+      );
 
       if (token) {
-        // CRITICAL: Ensure headers object exists
+        // CRITICAL: Axios does not guarantee headers existence
         if (!config.headers) {
           config.headers = {} as any;
         }
+
         config.headers.Authorization = `Bearer ${token}`;
-        console.log('[API INTERCEPTOR] Authorization header set:', config.headers.Authorization);
+
+        console.log(
+          '[API INTERCEPTOR] Authorization header set:',
+          config.headers.Authorization
+        );
       } else {
         console.warn('[API INTERCEPTOR] No token found in localStorage!');
       }
     } else {
-      console.log('[API INTERCEPTOR] Running on server side, skipping token');
+      console.log('[API INTERCEPTOR] Server-side execution, token skipped');
     }
 
-    console.log('[API INTERCEPTOR] Final headers:', config.headers);
     return config;
   },
   (error) => {
-    console.error('[API INTERCEPTOR] Error:', error);
+    // Interceptor failures must always propagate real Error objects
+    console.error('[API INTERCEPTOR] Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
 
-// Response interceptor - Centralized error handling
+/**
+ * RESPONSE INTERCEPTOR
+ * -------------------
+ * Purpose:
+ * - Normalize ALL errors into safe, inspectable shapes
+ * - Prevent throwing raw objects / primitives
+ * - Handle auth redirects and user feedback
+ * - Log server errors without polluting UI
+ */
 api.interceptors.response.use(
   (response: AxiosResponse) => {
-    // Success response - just return it
+    // Success path: return response untouched
     return response;
   },
-  (error: AxiosError<any>) => {
-    // Only handle errors on client side
+  (rawError: unknown) => {
+    /**
+     * ERROR NORMALIZATION (CRITICAL)
+     * ------------------------------
+     * Axios / React Query / fetch chains may throw:
+     * - AxiosError
+     * - Error
+     * - string
+     * - object
+     * - null / undefined (bad upstream code)
+     *
+     * From this point onward:
+     * - We ALWAYS work with a real Error instance
+     * - We NEVER throw raw data
+     */
+    let error: Error;
+    let axiosError: AxiosError | null = null;
+
+    if (rawError instanceof AxiosError) {
+      axiosError = rawError;
+      error = rawError;
+    } else if (rawError instanceof Error) {
+      error = rawError;
+    } else {
+      // Absolute fallback: stringify unknown throwables
+      error = new Error(
+        typeof rawError === 'string'
+          ? rawError
+          : JSON.stringify(rawError)
+      );
+    }
+
+    // Client-side only handling
     if (typeof window === 'undefined') {
       return Promise.reject(error);
     }
 
-    const status = error.response?.status;
-    const data = error.response?.data;
+    const status = axiosError?.response?.status;
+    const data = axiosError?.response?.data;
 
-    // Extract error message with fallbacks
+    /**
+     * MESSAGE RESOLUTION
+     * ------------------
+     * Extract a user-facing message WITHOUT speculation.
+     * Priority order is deterministic.
+     */
     let message = 'An unexpected error occurred';
 
     if (data?.message) {
@@ -71,46 +155,67 @@ api.interceptors.response.use(
       message = error.message;
     }
 
-    // Handle specific status codes
+    /**
+     * STATUS-BASED HANDLING
+     * --------------------
+     * All branches are explicit.
+     */
     switch (status) {
-      case 401:
-        // Unauthorized - clear token and redirect to login
-        // V-FIX-PUBLIC-PAGE-REDIRECT: Don't redirect on public pages
-        const publicPaths = ['/', '/login', '/signup', '/about', '/contact', '/products', '/companies', '/plans', '/blog', '/faq', '/help-center'];
-        const isPublicPage = publicPaths.some(path => window.location.pathname === path || window.location.pathname.startsWith(path + '/'));
-        const isLoginPage = window.location.pathname.includes('/login');
+      case 401: {
+        // Unauthorized - token invalid or expired
+        const publicPaths = [
+          '/',
+          '/login',
+          '/signup',
+          '/about',
+          '/contact',
+          '/products',
+          '/companies',
+          '/plans',
+          '/blog',
+          '/faq',
+          '/help-center',
+        ];
+
+        const pathname = window.location.pathname;
+        const isPublicPage = publicPaths.some(
+          (path) => pathname === path || pathname.startsWith(path + '/')
+        );
+        const isLoginPage = pathname.includes('/login');
 
         if (!isLoginPage && !isPublicPage) {
           toast.error('Session Expired', {
-            description: 'Please log in again to continue'
+            description: 'Please log in again to continue',
           });
+
           localStorage.removeItem('auth_token');
           window.location.href = '/login';
-        } else if (!isLoginPage && isPublicPage) {
-          // On public pages, just clear token silently
+        } else if (isPublicPage) {
+          // Silent cleanup on public pages
           localStorage.removeItem('auth_token');
         }
         break;
+      }
 
       case 403:
-        // Forbidden - user doesn't have permission
         toast.error('Access Denied', {
-          description: message || 'You do not have permission to perform this action'
+          description: message,
         });
         break;
 
       case 404:
-        // Not found - usually don't show toast for this
-        // Components can handle it individually if needed
+        // Intentionally silent
         break;
 
       case 422:
-        // Validation errors - show first validation message
         if (data?.errors) {
           const firstError = Object.values(data.errors)[0];
-          const errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
+          const errorMessage = Array.isArray(firstError)
+            ? firstError[0]
+            : firstError;
+
           toast.error('Validation Error', {
-            description: errorMessage as string
+            description: String(errorMessage),
           });
         } else {
           toast.error('Validation Error', { description: message });
@@ -118,84 +223,105 @@ api.interceptors.response.use(
         break;
 
       case 429:
-        // Rate limit exceeded
         toast.error('Too Many Requests', {
-          description: message || 'Please slow down and try again later'
+          description: message,
         });
         break;
 
       case 500:
       case 502:
       case 503:
-      case 504:
-        // Server errors - Log but don't show intrusive toast
-        // Let the component handle the error gracefully
-        console.error('[API] Server Error:', {
-          url: error.config?.url || 'unknown',
-          method: error.config?.method?.toUpperCase() || 'GET',
-          status: status || error.response?.status || 500,
-          message: message || 'No message',
-          responseData: error.response?.data || null,
-          errorName: error.name || 'Error',
-          errorMessage: error.message || 'No error message',
-          stack: error.stack?.split('\n').slice(0, 3) || []
-        });
+      case 504: {
+        /**
+         * SERVER ERROR LOGGING (NON-INTRUSIVE)
+         * -----------------------------------
+         * This log is guaranteed NOT to be `{}`.
+         * All fields have explicit fallbacks.
+         */
+        
+        const errorPayload = {
+          url: axiosError?.config?.url ?? null,
+          method: axiosError?.config?.method?.toUpperCase() ?? null,
+          status: status ?? null,
+          message,
+          errorName: error.name,
+          errorMessage: error.message,
+          stack: error.stack?.split('\n').slice(0, 3) ?? [],
+          responseData: data ?? null,
+        };
 
-        // Only show toast for critical endpoints (login, logout, etc.)
-        const isCriticalEndpoint = error.config?.url?.includes('/login') ||
-                                   error.config?.url?.includes('/logout');
+        console.error(
+          '[API] Server Error:\n' +
+          JSON.stringify(errorPayload, null, 2)
+        );
+
+        const isCriticalEndpoint =
+          axiosError?.config?.url?.includes('/login') ||
+          axiosError?.config?.url?.includes('/logout');
 
         if (isCriticalEndpoint) {
           toast.error('Server Error', {
-            description: 'Something went wrong on our end. Please try again later.'
+            description:
+              'Something went wrong on our end. Please try again later.',
           });
         }
         break;
+      }
 
       default:
-        // Generic error for other cases
         if (status && status >= 400) {
           toast.error('Error', { description: message });
         }
         break;
     }
 
-    // Log errors in production (integrated with Sentry)
-    if (process.env.NODE_ENV === 'production' && status && status >= 500) {
+    /**
+     * PRODUCTION ERROR REPORTING
+     * --------------------------
+     * Only server-side failures are sent to Sentry.
+     */
+    if (
+      process.env.NODE_ENV === 'production' &&
+      status &&
+      status >= 500
+    ) {
       if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
         import('@sentry/nextjs').then((Sentry) => {
           Sentry.captureException(error, {
             contexts: {
               api: {
-                url: error.config?.url,
-                method: error.config?.method,
+                url: axiosError?.config?.url,
+                method: axiosError?.config?.method,
                 status,
-              }
+              },
             },
             extra: {
               message,
               data,
-            }
+            },
           });
-        });
-      } else {
-        console.error('API Error:', {
-          url: error.config?.url,
-          method: error.config?.method,
-          status,
-          message,
-          data,
         });
       }
     }
 
-    // Network errors (no response from server)
-    if (!error.response) {
+    /**
+     * NETWORK FAILURE (NO RESPONSE)
+     * -----------------------------
+     * Happens on DNS failure, CORS, offline mode.
+     */
+    if (!axiosError?.response) {
       toast.error('Network Error', {
-        description: 'Unable to connect to server. Please check your internet connection.'
+        description:
+          'Unable to connect to server. Please check your internet connection.',
       });
     }
 
+    /**
+     * IMPORTANT:
+     * ----------
+     * Always reject with a real Error object.
+     * Never throw raw data.
+     */
     return Promise.reject(error);
   }
 );

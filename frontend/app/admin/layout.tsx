@@ -1,4 +1,4 @@
-// V-PHASE6-1730-124 (Created) | V-FINAL-1730-238 (NotificationBell Integrated) | V-ENHANCED-ADMIN-NAV
+// V-PHASE6-1730-124 (Created) | V-FINAL-1730-238 (NotificationBell Integrated) | V-ENHANCED-ADMIN-NAV | V-FIX-REDIRECT-LOOP
 'use client';
 
 import { AdminNav } from '@/components/shared/AdminNav';
@@ -9,7 +9,7 @@ import api from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { User } from '@/types';
-import { LogOut } from 'lucide-react';
+import { LogOut, Loader2 } from 'lucide-react';
 
 export default function AdminLayout({
   children,
@@ -30,14 +30,25 @@ export default function AdminLayout({
 
       try {
         const response = await api.get('/user/profile');
-        const userData = response.data;
+        
+        // GEMINI FIX: Handle both wrapped (response.data.data) and flat (response.data) structures
+        const userData = response.data.data || response.data;
 
-        // Check if user is admin or superadmin
-        const isAdmin = userData.is_admin ||
-                        ['admin', 'superadmin'].includes(userData.role) ||
-                        (userData.roles && userData.roles.some((r: any) => ['admin', 'superadmin', 'super-admin'].includes(r.name)));
+        console.log('[AdminLayout] User Data:', userData);
+
+        // GEMINI FIX: Robust Role Checking
+        // Checks: 1. is_admin flag
+        //         2. role column (singular)
+        //         3. role_name accessor (from User model appends)
+        //         4. roles relationship (Spatie/Array)
+        const isAdmin = 
+            userData.is_admin ||
+            ['admin', 'superadmin', 'super_admin'].includes(userData.role) ||
+            ['admin', 'superadmin', 'super_admin'].includes(userData.role_name) ||
+            (userData.roles && userData.roles.some((r: any) => ['admin', 'superadmin', 'super-admin'].includes(r.name)));
 
         if (!isAdmin) {
+          console.warn('[AdminLayout] Access Denied. Redirecting to User Dashboard.');
           // Redirect non-admin users to user dashboard
           router.push('/dashboard');
           return;
@@ -45,6 +56,7 @@ export default function AdminLayout({
 
         setUser(userData);
       } catch (error) {
+        console.error('[AdminLayout] Auth Check Failed:', error);
         localStorage.removeItem('auth_token');
         router.push('/login');
       } finally {
@@ -66,8 +78,11 @@ export default function AdminLayout({
 
   if (isLoading || !user) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div>Loading admin panel...</div>
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-2">
+            <Loader2 className="h-8 w-8 animate-spin text-[#0A2647]" />
+            <span className="text-sm text-gray-500">Verifying admin privileges...</span>
+        </div>
       </div>
     );
   }
