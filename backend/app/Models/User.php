@@ -58,6 +58,11 @@ class User extends Authenticatable
         'two_factor_confirmed_at' => 'datetime',
         'two_factor_recovery_codes' => 'array',
     ];
+
+    protected $appends = [
+        'role',
+        'is_admin',
+    ];
     
     protected static function booted()
     {
@@ -135,6 +140,23 @@ class User extends Authenticatable
     public function canReceiveNotification(string $key): bool {
         $pref = $this->notificationPreferences->where('preference_key', $key)->first();
         return $pref ? $pref->is_enabled : true;
+    }
+
+    /**
+     * Get the user's primary role name.
+     * Returns the first role name, or 'user' if no roles assigned.
+     */
+    public function getRoleAttribute(): string
+    {
+        return $this->roles->first()?->name ?? 'user';
+    }
+
+    /**
+     * Check if the user is an admin (has admin or superadmin role).
+     */
+    public function getIsAdminAttribute(): bool
+    {
+        return $this->hasAnyRole(['admin', 'superadmin']);
     }
 
     /**
