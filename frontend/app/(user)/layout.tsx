@@ -21,6 +21,12 @@ export default function DashboardLayout({
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // CRITICAL: Only run on client side after hydration
+    if (typeof window === 'undefined') {
+      console.log('[DASHBOARD LAYOUT] Running on server, skipping auth check');
+      return;
+    }
+
     const checkAuth = async () => {
       console.log('[DASHBOARD LAYOUT] Checking authentication...');
       const token = localStorage.getItem('auth_token');
