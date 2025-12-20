@@ -16,8 +16,13 @@ api.interceptors.request.use(
     // Only access localStorage on the client side
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('auth_token');
+      console.log('[API REQUEST]', config.method?.toUpperCase(), config.url);
+      console.log('[API REQUEST] Token from localStorage:', token ? `${token.substring(0, 20)}...` : 'NONE');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+        console.log('[API REQUEST] Authorization header set');
+      } else {
+        console.warn('[API REQUEST] No token found in localStorage!');
       }
     }
     return config;

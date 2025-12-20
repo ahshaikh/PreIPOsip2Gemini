@@ -67,8 +67,17 @@ export default function LoginPage() {
         toast.info("2FA Code Required", { description: "Please enter your authenticator code." });
       } else {
         // --- Standard Login Success ---
+        console.log('[LOGIN] Success response:', data);
+        console.log('[LOGIN] Token received:', data.token);
+        console.log('[LOGIN] User data:', data.user);
+
         // Store token in localStorage (plaintext for now - encryption was causing retrieval issues)
         localStorage.setItem('auth_token', data.token);
+        console.log('[LOGIN] Token stored in localStorage');
+
+        // Verify storage
+        const storedToken = localStorage.getItem('auth_token');
+        console.log('[LOGIN] Verified stored token:', storedToken);
 
         // Show success message
         toast.success("Login Successful", {
@@ -77,7 +86,9 @@ export default function LoginPage() {
 
         // Redirect based on user role
         const isAdmin = data.user.role === 'admin' || data.user.is_admin;
-        router.push(isAdmin ? '/admin/dashboard' : '/dashboard');
+        const redirectPath = isAdmin ? '/admin/dashboard' : '/dashboard';
+        console.log('[LOGIN] Redirecting to:', redirectPath);
+        router.push(redirectPath);
       }
     },
     onError: (error: any) => {
