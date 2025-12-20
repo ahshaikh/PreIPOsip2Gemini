@@ -44,6 +44,17 @@ export default function DashboardLayout({
         console.log('[DASHBOARD LAYOUT] Profile response:', response.data);
         const userData = response.data.user || response.data;
         console.log('[DASHBOARD LAYOUT] Setting user:', userData);
+
+        // V-FIX-SUPERADMIN-REDIRECT: Check if user is admin/superadmin
+        // If so, redirect them to admin dashboard instead
+        const isAdmin = ['admin', 'superadmin'].includes(userData.role) || userData.is_admin;
+        if (isAdmin) {
+          console.log('[DASHBOARD LAYOUT] Admin user detected, redirecting to admin dashboard');
+          console.log('[DASHBOARD LAYOUT] User role:', userData.role, '| is_admin:', userData.is_admin);
+          router.push('/admin/dashboard');
+          return;
+        }
+
         setUser(userData);
       } catch (error) {
         console.error('[DASHBOARD LAYOUT] Auth check failed:', error);

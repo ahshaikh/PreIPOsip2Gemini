@@ -131,12 +131,14 @@ api.interceptors.response.use(
         // Server errors - Log but don't show intrusive toast
         // Let the component handle the error gracefully
         console.error('[API] Server Error:', {
-          url: error.config?.url,
-          method: error.config?.method?.toUpperCase(),
-          status,
-          message,
-          responseData: error.response?.data,
-          fullError: error
+          url: error.config?.url || 'unknown',
+          method: error.config?.method?.toUpperCase() || 'GET',
+          status: status || error.response?.status || 500,
+          message: message || 'No message',
+          responseData: error.response?.data || null,
+          errorName: error.name || 'Error',
+          errorMessage: error.message || 'No error message',
+          stack: error.stack?.split('\n').slice(0, 3) || []
         });
 
         // Only show toast for critical endpoints (login, logout, etc.)
