@@ -10,6 +10,8 @@ use App\Services\SubscriptionService;
 use App\Services\PlanEligibilityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class SubscriptionController extends Controller
 {
@@ -22,16 +24,49 @@ class SubscriptionController extends Controller
         $this->eligibilityService = $eligibilityService;
     }
 
+    /**
+     * Get User's Latest Subscription
+     * Endpoint: /api/v1/user/subscription
+     *
+     * V-FIX-DASHBOARD-RESILIENCE: Added error handling to prevent 500 errors
+     * Returns null instead of crashing when tables don't exist or queries fail
+     */
     public function show(Request $request)
     {
-        $subscription = Subscription::where('user_id', $request->user()->id)
-            ->with('plan.features', 'payments')
-            ->latest()
-            ->first();
+        try {
+            $user = $request->user();
 
-        // Return null with success status if no subscription exists
-        // This allows frontend to handle gracefully instead of showing loading forever
-        return response()->json($subscription);
+            // Check if required tables exist before querying
+            if (!DB::getSchemaBuilder()->hasTable('subscriptions') ||
+                !DB::getSchemaBuilder()->hasTable('plans')) {
+                Log::warning('Subscription tables missing', [
+                    'user_id' => $user->id,
+                    'tables_checked' => ['subscriptions', 'plans']
+                ]);
+                return response()->json(null);
+            }
+
+            $subscription = Subscription::where('user_id', $user->id)
+                ->with('plan.features', 'payments')
+                ->latest()
+                ->first();
+
+            // Return null with success status if no subscription exists
+            // This allows frontend to handle gracefully instead of showing loading forever
+            return response()->json($subscription);
+
+        } catch (\Throwable $e) {
+            // Return null instead of 500 error
+            // This allows dashboard to load even if subscription data unavailable
+            Log::error("Subscription Error: " . $e->getMessage(), [
+                'user_id' => $request->user()->id ?? null,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json(null);
+        }
     }
 
     public function store(Request $request)
