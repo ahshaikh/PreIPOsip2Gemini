@@ -75,12 +75,20 @@ api.interceptors.response.use(
     switch (status) {
       case 401:
         // Unauthorized - clear token and redirect to login
-        if (!window.location.pathname.includes('/login')) {
+        // V-FIX-PUBLIC-PAGE-REDIRECT: Don't redirect on public pages
+        const publicPaths = ['/', '/login', '/signup', '/about', '/contact', '/products', '/companies', '/plans', '/blog', '/faq', '/help-center'];
+        const isPublicPage = publicPaths.some(path => window.location.pathname === path || window.location.pathname.startsWith(path + '/'));
+        const isLoginPage = window.location.pathname.includes('/login');
+
+        if (!isLoginPage && !isPublicPage) {
           toast.error('Session Expired', {
             description: 'Please log in again to continue'
           });
           localStorage.removeItem('auth_token');
           window.location.href = '/login';
+        } else if (!isLoginPage && isPublicPage) {
+          // On public pages, just clear token silently
+          localStorage.removeItem('auth_token');
         }
         break;
 
@@ -124,8 +132,11 @@ api.interceptors.response.use(
         // Let the component handle the error gracefully
         console.error('[API] Server Error:', {
           url: error.config?.url,
+          method: error.config?.method?.toUpperCase(),
           status,
-          message
+          message,
+          responseData: error.response?.data,
+          fullError: error
         });
 
         // Only show toast for critical endpoints (login, logout, etc.)

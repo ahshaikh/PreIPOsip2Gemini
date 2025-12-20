@@ -33,15 +33,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /**
    * On initial app load, check session via API.
    * Token is retrieved from localStorage via secureStorage (api.ts interceptor).
+   *
+   * V-FIX-PUBLIC-PAGE-REDIRECT: Only check auth if token exists
+   * This prevents unnecessary 401 errors on public pages
    */
   useEffect(() => {
     const initializeAuth = async () => {
+      // Only check auth if token exists
+      const token = localStorage.getItem('auth_token');
+
+      if (!token) {
+        console.log('[AUTH] No token found, skipping auth check');
+        setUser(null);
+        setIsLoading(false);
+        return;
+      }
+
       try {
+        console.log('[AUTH] Token found, verifying with backend...');
         const response = await api.get('/user/profile');
         setUser(response.data.user || response.data);
       } catch (error) {
         // Unauthenticated or session expired
+        console.log('[AUTH] Auth check failed, clearing token');
         setUser(null);
+        localStorage.removeItem('auth_token');
       } finally {
         setIsLoading(false);
       }
@@ -69,8 +85,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setUser(userData);
 
-      // Routing logic remains unchanged
-      const isAdmin = userData.role === 'admin' || userData.is_admin;
+      // Routing logic: Handle admin, superadmin, or is_admin flag
+      const isAdmin = ['admin', 'superadmin'].includes(userData.role) || userData.is_admin;
       router.push(isAdmin ? '/admin/dashboard' : '/dashboard');
     } catch (error) {
       throw error;

@@ -85,9 +85,10 @@ export default function LoginPage() {
         });
 
         // Redirect based on user role
-        const isAdmin = data.user.role === 'admin' || data.user.is_admin;
+        // Check for admin, superadmin, or is_admin flag
+        const isAdmin = ['admin', 'superadmin'].includes(data.user.role) || data.user.is_admin;
         const redirectPath = isAdmin ? '/admin/dashboard' : '/dashboard';
-        console.log('[LOGIN] Redirecting to:', redirectPath);
+        console.log('[LOGIN] User role:', data.user.role, '| is_admin:', data.user.is_admin, '| Redirecting to:', redirectPath);
         router.push(redirectPath);
       }
     },
