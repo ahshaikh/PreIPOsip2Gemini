@@ -40,15 +40,15 @@ export default function DashboardPage() {
   const { data: summary, isLoading, error: summaryError } = useQuery({
     queryKey: ['dashboardSummary'],
     queryFn: async () => {
-      const { data } = await api.get('/user/portfolio');
-      return data.summary;
-    },
-    retry: false, // Don't retry on error
-    meta: {
-      onError: (error: any) => {
+      try {
+        const { data } = await api.get('/user/portfolio');
+        return data.summary;
+      } catch (error) {
         console.error('[DASHBOARD] Portfolio fetch failed:', error);
+        return null; // Return null instead of throwing
       }
-    }
+    },
+    retry: false,
   });
 
   // KYC Status
@@ -68,51 +68,91 @@ export default function DashboardPage() {
   // Subscription status
   const { data: subscription, error: subscriptionError } = useQuery({
     queryKey: ['subscription'],
-    queryFn: async () => (await api.get('/user/subscription')).data,
+    queryFn: async () => {
+      try {
+        const { data } = await api.get('/user/subscription');
+        return data;
+      } catch (error) {
+        console.error('[DASHBOARD] Subscription fetch failed:', error);
+        return null;
+      }
+    },
     retry: false,
-    onError: (error: any) => {
-      console.error('[DASHBOARD] Subscription fetch failed:', error);
-    }
   });
 
   // Bonuses summary
   const { data: bonuses } = useQuery({
     queryKey: ['bonuses'],
-    queryFn: async () => (await api.get('/user/bonuses')).data,
+    queryFn: async () => {
+      try {
+        const { data } = await api.get('/user/bonuses');
+        return data;
+      } catch (error) {
+        console.error('[DASHBOARD] Bonuses fetch failed:', error);
+        return null;
+      }
+    },
     retry: false,
-    onError: () => console.error('[DASHBOARD] Bonuses fetch failed')
   });
 
   // Referrals summary
   const { data: referrals } = useQuery({
     queryKey: ['referrals'],
-    queryFn: async () => (await api.get('/user/referrals')).data,
+    queryFn: async () => {
+      try {
+        const { data } = await api.get('/user/referrals');
+        return data;
+      } catch (error) {
+        console.error('[DASHBOARD] Referrals fetch failed:', error);
+        return null;
+      }
+    },
     retry: false,
-    onError: () => console.error('[DASHBOARD] Referrals fetch failed')
   });
 
   // Wallet balance
   const { data: wallet } = useQuery({
     queryKey: ['wallet'],
-    queryFn: async () => (await api.get('/user/wallet')).data,
+    queryFn: async () => {
+      try {
+        const { data } = await api.get('/user/wallet');
+        return data;
+      } catch (error) {
+        console.error('[DASHBOARD] Wallet fetch failed:', error);
+        return null;
+      }
+    },
     retry: false,
-    onError: () => console.error('[DASHBOARD] Wallet fetch failed')
   });
 
   // Recent activity
   const { data: activity } = useQuery({
     queryKey: ['userActivity'],
-    queryFn: async () => (await api.get('/user/activity')).data,
+    queryFn: async () => {
+      try {
+        const { data } = await api.get('/user/activity');
+        return data;
+      } catch (error) {
+        console.error('[DASHBOARD] Activity fetch failed:', error);
+        return null;
+      }
+    },
     retry: false,
-    onError: () => console.error('[DASHBOARD] Activity fetch failed')
   });
 
   // Notifications
   const { data: notifications } = useQuery({
     queryKey: ['userNotifications'],
-    queryFn: async () => (await api.get('/user/notifications?unread=true')).data,
+    queryFn: async () => {
+      try {
+        const { data } = await api.get('/user/notifications?unread=true');
+        return data;
+      } catch (error) {
+        console.error('[DASHBOARD] Notifications fetch failed:', error);
+        return null;
+      }
+    },
     retry: false,
-    onError: () => console.error('[DASHBOARD] Notifications fetch failed')
   });
 
   // Calculate portfolio gain/loss percentage
