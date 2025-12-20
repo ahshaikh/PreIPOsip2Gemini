@@ -1,7 +1,6 @@
-// V-PHASE4-1730-098 | V-ENHANCED-ERROR-HANDLING | V-SECURITY-TOKEN-ENCRYPTION
+// V-PHASE4-1730-098 | V-ENHANCED-ERROR-HANDLING | V-FIX-LOGIN-REDIRECT (Simplified to plain localStorage)
 import axios, { AxiosError, AxiosResponse } from 'axios';
 import { toast } from 'sonner';
-import { secureStorage } from './secureStorage';
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1/',
@@ -14,16 +13,32 @@ const api = axios.create({
 // Request interceptor - Add auth token
 api.interceptors.request.use(
   (config) => {
-    // Only access secureStorage on the client side
+    console.log('[API INTERCEPTOR] Running for:', config.method?.toUpperCase(), config.url);
+
+    // Only access localStorage on the client side
     if (typeof window !== 'undefined') {
-      const token = secureStorage.getItem('auth_token');
+      const token = localStorage.getItem('auth_token');
+      console.log('[API INTERCEPTOR] Token from localStorage:', token ? `${token.substring(0, 20)}...` : 'NONE');
+
       if (token) {
+        // CRITICAL: Ensure headers object exists
+        if (!config.headers) {
+          config.headers = {} as any;
+        }
         config.headers.Authorization = `Bearer ${token}`;
+        console.log('[API INTERCEPTOR] Authorization header set:', config.headers.Authorization);
+      } else {
+        console.warn('[API INTERCEPTOR] No token found in localStorage!');
       }
+    } else {
+      console.log('[API INTERCEPTOR] Running on server side, skipping token');
     }
+
+    console.log('[API INTERCEPTOR] Final headers:', config.headers);
     return config;
   },
   (error) => {
+    console.error('[API INTERCEPTOR] Error:', error);
     return Promise.reject(error);
   }
 );
@@ -64,7 +79,7 @@ api.interceptors.response.use(
           toast.error('Session Expired', {
             description: 'Please log in again to continue'
           });
-          secureStorage.removeItem('auth_token');
+          localStorage.removeItem('auth_token');
           window.location.href = '/login';
         }
         break;

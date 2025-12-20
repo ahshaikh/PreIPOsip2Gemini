@@ -1,7 +1,7 @@
 'use client';
 //C:\PreIPOsip\frontend\app\(public)\login\page.tsx
 // V-PHASE4-1730-111 (Created - Revised) | V-FINAL-1730-475 (Social Login UI)
-// V-FIX-LOGIN-REDIRECT (Fixed architectural mismatch: token now properly stored in secureStorage)
+// V-FIX-LOGIN-REDIRECT (Fixed architectural mismatch: token now properly stored in localStorage)
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,6 @@ import api from "@/lib/api";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { secureStorage } from "@/lib/secureStorage";
 
 // Google Icon
 const GoogleIcon = () => (
@@ -68,8 +67,17 @@ export default function LoginPage() {
         toast.info("2FA Code Required", { description: "Please enter your authenticator code." });
       } else {
         // --- Standard Login Success ---
-        // Store token in secure storage
-        secureStorage.setItem('auth_token', data.token);
+        console.log('[LOGIN] Success response:', data);
+        console.log('[LOGIN] Token received:', data.token);
+        console.log('[LOGIN] User data:', data.user);
+
+        // Store token in localStorage (plaintext for now - encryption was causing retrieval issues)
+        localStorage.setItem('auth_token', data.token);
+        console.log('[LOGIN] Token stored in localStorage');
+
+        // Verify storage
+        const storedToken = localStorage.getItem('auth_token');
+        console.log('[LOGIN] Verified stored token:', storedToken);
 
         // Show success message
         toast.success("Login Successful", {
@@ -78,7 +86,9 @@ export default function LoginPage() {
 
         // Redirect based on user role
         const isAdmin = data.user.role === 'admin' || data.user.is_admin;
-        router.push(isAdmin ? '/admin/dashboard' : '/dashboard');
+        const redirectPath = isAdmin ? '/admin/dashboard' : '/dashboard';
+        console.log('[LOGIN] Redirecting to:', redirectPath);
+        router.push(redirectPath);
       }
     },
     onError: (error: any) => {
@@ -93,8 +103,8 @@ export default function LoginPage() {
     onSuccess: (response) => {
       const data = response.data;
 
-      // Store token in secure storage
-      secureStorage.setItem('auth_token', data.token);
+      // Store token in localStorage (plaintext for now - encryption was causing retrieval issues)
+      localStorage.setItem('auth_token', data.token);
 
       // Show success message
       toast.success("2FA Verified", {

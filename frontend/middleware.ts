@@ -3,40 +3,21 @@ import type { NextRequest } from 'next/server';
 
 /**
  * Next.js Auth Middleware
- * * Intercepts requests to dashboard, admin, and user profile routes
- * to verify authentication server-side using the auth_token cookie.
+ *
+ * DISABLED: This middleware was designed for cookie-based authentication,
+ * but the app currently uses localStorage-based token auth.
+ *
+ * Since middleware runs on the server and can't access localStorage,
+ * authentication is now handled client-side in the layout components.
+ *
+ * If you want to re-enable server-side auth protection, you need to:
+ * 1. Use the HttpOnly cookie that the backend already sets
+ * 2. Remove localStorage token storage
+ * 3. Update all API calls to rely on cookie credentials
  */
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  
-  // 1. Get token from cookies (HttpOnly cookies are accessible to Middleware)
-  const token = request.cookies.get('auth_token')?.value;
-
-  // 2. Define protected route patterns
-  const isProtectedRoute = 
-    pathname.startsWith('/dashboard') || 
-    pathname.startsWith('/portfolio') || 
-    pathname.startsWith('/wallet') || 
-    pathname.startsWith('/kyc') ||
-    pathname.startsWith('/admin') ||
-    pathname.startsWith('/Profile');
-
-  const isAuthRoute = 
-    pathname.startsWith('/login') || 
-    pathname.startsWith('/signup');
-
-  // 3. Logic: Redirect unauthenticated users to login
-  if (isProtectedRoute && !token) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('callbackUrl', pathname);
-    return NextResponse.redirect(loginUrl);
-  }
-
-  // 4. Logic: Redirect logged-in users away from Login/Signup
-  if (isAuthRoute && token) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
-  }
-
+  // Authentication is handled client-side in layout components
+  // This middleware is currently a passthrough
   return NextResponse.next();
 }
 

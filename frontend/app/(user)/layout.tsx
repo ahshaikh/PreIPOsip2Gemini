@@ -1,4 +1,5 @@
 // V-PHASE5-1730-115 (Created) | V-FINAL-1730-237 (NotificationBell Integrated) | V-ENHANCED-USER-NAV
+// V-FIX-LOGIN-REDIRECT (Fixed storage consistency - using plain localStorage)
 'use client';
 
 import { DashboardNav } from '@/components/shared/DashboardNav';
@@ -20,20 +21,36 @@ export default function DashboardLayout({
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // CRITICAL: Only run on client side after hydration
+    if (typeof window === 'undefined') {
+      console.log('[DASHBOARD LAYOUT] Running on server, skipping auth check');
+      return;
+    }
+
     const checkAuth = async () => {
+      console.log('[DASHBOARD LAYOUT] Checking authentication...');
       const token = localStorage.getItem('auth_token');
+      console.log('[DASHBOARD LAYOUT] Token found:', token ? `${token.substring(0, 20)}...` : 'NONE');
+
       if (!token) {
+        console.log('[DASHBOARD LAYOUT] No token, redirecting to login');
         router.push('/login');
         return;
       }
-      
+
       try {
+        console.log('[DASHBOARD LAYOUT] Fetching user profile...');
         const response = await api.get('/user/profile');
-        setUser(response.data);
+        console.log('[DASHBOARD LAYOUT] Profile response:', response.data);
+        const userData = response.data.user || response.data;
+        console.log('[DASHBOARD LAYOUT] Setting user:', userData);
+        setUser(userData);
       } catch (error) {
+        console.error('[DASHBOARD LAYOUT] Auth check failed:', error);
         localStorage.removeItem('auth_token');
         router.push('/login');
       } finally {
+        console.log('[DASHBOARD LAYOUT] Auth check complete');
         setIsLoading(false);
       }
     };

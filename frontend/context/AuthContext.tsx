@@ -1,4 +1,5 @@
-// V-FINAL-1730-633 (Created) | V-SECURITY-TOKEN-ENCRYPTION | V-TYPES-FIX | V-AUDIT-FIX-DRY | V-COOKIE-AUTH-MIGRATION
+// V-FINAL-1730-633 (Created) | V-SECURITY-TOKEN-ENCRYPTION | V-TYPES-FIX | V-AUDIT-FIX-DRY
+// V-FIX-LOGIN-REDIRECT (Fixed API endpoint paths - removed double /api/ prefix)
 
 'use client';
 
@@ -19,9 +20,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 /**
  * AuthProvider
- * * [AUDIT FIX]: Removed all references to 'secureStorage' and 'localStorage' 
- * for token handling. The browser now manages authentication state via 
- * HttpOnly cookies.
+ * Manages authentication state and provides login/logout functions.
+ * Token is stored in localStorage via secureStorage and attached to requests
+ * via the API client interceptor (see lib/api.ts).
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -31,13 +32,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * On initial app load, check session via API.
-   * Browser automatically includes the HttpOnly 'auth_token' cookie.
+   * Token is retrieved from localStorage via secureStorage (api.ts interceptor).
    */
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        const response = await api.get('/api/user/profile');
-        setUser(response.data.user);
+        const response = await api.get('/user/profile');
+        setUser(response.data.user || response.data);
       } catch (error) {
         // Unauthenticated or session expired
         setUser(null);
@@ -50,13 +51,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * The login function now delegates cookie handling to the browser.
+   * Note: This login function is NOT used by the login page anymore.
+   * The login page directly stores the token and redirects.
+   * This is kept for backward compatibility if needed elsewhere.
    */
   const login = async (credentials: any) => {
     setIsLoading(true);
     try {
-      const response = await api.post('/api/login', credentials);
+      const response = await api.post('/login', credentials);
       const userData = response.data.user;
+      const token = response.data.token;
+
+      // Store token
+      if (token) {
+        localStorage.setItem('auth_token', token);
+      }
 
       setUser(userData);
 
@@ -71,16 +80,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   /**
-   * Logout clears state and calls the backend to expire the cookie.
+   * Logout clears localStorage token and server session.
    */
   const logout = async () => {
     try {
-      await api.post('/api/logout');
+      await api.post('/logout');
     } catch (err) {
       console.error('Logout failed', err);
     } finally {
+      localStorage.removeItem('auth_token');
       setUser(null);
-      queryClient.clear(); 
+      queryClient.clear();
       router.push('/login');
     }
   };
