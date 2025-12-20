@@ -13,21 +13,32 @@ const api = axios.create({
 // Request interceptor - Add auth token
 api.interceptors.request.use(
   (config) => {
+    console.log('[API INTERCEPTOR] Running for:', config.method?.toUpperCase(), config.url);
+
     // Only access localStorage on the client side
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('auth_token');
-      console.log('[API REQUEST]', config.method?.toUpperCase(), config.url);
-      console.log('[API REQUEST] Token from localStorage:', token ? `${token.substring(0, 20)}...` : 'NONE');
+      console.log('[API INTERCEPTOR] Token from localStorage:', token ? `${token.substring(0, 20)}...` : 'NONE');
+
       if (token) {
+        // CRITICAL: Ensure headers object exists
+        if (!config.headers) {
+          config.headers = {} as any;
+        }
         config.headers.Authorization = `Bearer ${token}`;
-        console.log('[API REQUEST] Authorization header set');
+        console.log('[API INTERCEPTOR] Authorization header set:', config.headers.Authorization);
       } else {
-        console.warn('[API REQUEST] No token found in localStorage!');
+        console.warn('[API INTERCEPTOR] No token found in localStorage!');
       }
+    } else {
+      console.log('[API INTERCEPTOR] Running on server side, skipping token');
     }
+
+    console.log('[API INTERCEPTOR] Final headers:', config.headers);
     return config;
   },
   (error) => {
+    console.error('[API INTERCEPTOR] Error:', error);
     return Promise.reject(error);
   }
 );
