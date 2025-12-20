@@ -27,10 +27,23 @@ export default function AdminLayout({
         router.push('/login');
         return;
       }
-      
+
       try {
         const response = await api.get('/user/profile');
-        setUser(response.data);
+        const userData = response.data;
+
+        // Check if user is admin or superadmin
+        const isAdmin = userData.is_admin ||
+                        ['admin', 'superadmin'].includes(userData.role) ||
+                        (userData.roles && userData.roles.some((r: any) => ['admin', 'superadmin', 'super-admin'].includes(r.name)));
+
+        if (!isAdmin) {
+          // Redirect non-admin users to user dashboard
+          router.push('/dashboard');
+          return;
+        }
+
+        setUser(userData);
       } catch (error) {
         localStorage.removeItem('auth_token');
         router.push('/login');

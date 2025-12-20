@@ -29,10 +29,10 @@ class ProfileController extends Controller
         $user = $request->user();
 
         // --- FIX (Gap 2) ---
-        // Eager load the profile, kyc, and subscription status
-        $user->load('profile', 'kyc', 'subscription');
+        // Eager load the profile, kyc, subscription status, and roles for proper admin detection
+        $user->load('profile', 'kyc', 'subscription', 'roles');
         // -----------------
-        
+
         return response()->json($user);
     }
 
