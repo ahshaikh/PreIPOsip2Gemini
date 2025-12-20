@@ -8,7 +8,7 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "Enhancement 1-20"
+$CommitMessage = "Login issue resolved"
 #----------------------
 
 function Get-GitCredential {

@@ -7,6 +7,22 @@ const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
 });
 
+// [ADDED] Define Content Security Policy to fix 'eval' blocking and secure the app
+// We replace newlines with spaces because HTTP headers cannot contain newlines
+const cspHeader = `
+    default-src 'self';
+    script-src 'self' 'unsafe-inline' 'unsafe-eval';
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' blob: data: https:;
+    font-src 'self';
+    object-src 'none';
+    base-uri 'self';
+    form-action 'self';
+    frame-ancestors 'none';
+    block-all-mixed-content;
+    upgrade-insecure-requests;
+`.replace(/\s{2,}/g, ' ').trim();
+
 const nextConfig: NextConfig = {
   // Enable React strict mode for better development experience
   reactStrictMode: true,
@@ -123,6 +139,11 @@ const nextConfig: NextConfig = {
       {
         source: "/(.*)",
         headers: [
+          // [ADDED] Content-Security-Policy Header
+          {
+            key: "Content-Security-Policy",
+            value: cspHeader,
+          },
           // Security headers
           {
             key: "X-DNS-Prefetch-Control",
@@ -136,6 +157,7 @@ const nextConfig: NextConfig = {
             key: "X-Content-Type-Options",
             value: "nosniff",
           },
+          // [MODIFIED] X-Frame-Options is usually DENY, but SAMEORIGIN is fine if you frame your own site
           {
             key: "X-Frame-Options",
             value: "SAMEORIGIN",

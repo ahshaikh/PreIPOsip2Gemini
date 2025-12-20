@@ -1,4 +1,5 @@
 <?php
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -7,17 +8,15 @@ return new class extends Migration
 {
     public function up(): void
     {
-	// [AUDIT FIX]: Enforce database-level idempotency
-	Schema::table('payments', function (Blueprint $table) {
-	    $table->string('gateway_payment_id')->unique()->change();
-	});
-
+        Schema::table('payments', function (Blueprint $table) {
+            $table->unique('gateway_payment_id');
+        });
     }
 
     public function down(): void
     {
         Schema::table('payments', function (Blueprint $table) {
-                'gateway_payment_id',
-            );
-      }
+            $table->dropUnique('payments_gateway_payment_id_unique');
+        });
+    }
 };

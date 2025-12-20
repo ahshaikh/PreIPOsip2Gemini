@@ -15,38 +15,43 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('user_tutorial_progress', function (Blueprint $table) {
-            $table->id();
+        // Guard required for migrate:fresh and legacy schema safety
+        if (! Schema::hasTable('user_tutorial_progress')) {
 
-            // Relationships
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->foreignId('tutorial_id')->constrained('tutorials')->onDelete('cascade');
+            Schema::create('user_tutorial_progress', function (Blueprint $table) {
+                $table->id();
 
-            // Progress Tracking
-            $table->integer('current_step')->default(1);
-            $table->integer('total_steps')->default(1);
-            $table->json('steps_completed')->nullable(); // Array of completed step numbers
+                // Relationships
+                $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+                $table->foreignId('tutorial_id')->constrained('tutorials')->onDelete('cascade');
 
-            // Completion Status
-            $table->boolean('completed')->default(false)->index();
-            $table->timestamp('completed_at')->nullable();
+                // Progress Tracking
+                $table->integer('current_step')->default(1);
+                $table->integer('total_steps')->default(1);
+                $table->json('steps_completed')->nullable(); // Array of completed step numbers
 
-            // Time Tracking
-            $table->timestamp('started_at')->nullable();
-            $table->timestamp('last_activity_at')->nullable()->index();
-            $table->unsignedInteger('time_spent_seconds')->default(0); // Total time spent
+                // Completion Status
+                $table->boolean('completed')->default(false)->index();
+                $table->timestamp('completed_at')->nullable();
 
-            // Timestamps
-            $table->timestamps();
+                // Time Tracking
+                $table->timestamp('started_at')->nullable();
+                $table->timestamp('last_activity_at')->nullable()->index();
+                $table->unsignedInteger('time_spent_seconds')->default(0); // Total time spent
 
-            // Ensure one progress record per user per tutorial
-            $table->unique(['user_id', 'tutorial_id']);
+                // Timestamps
+                $table->timestamps();
 
-            // Indexes for performance
-            $table->index(['user_id', 'completed']);
-            $table->index(['tutorial_id', 'completed']);
-            $table->index('last_activity_at');
-        });
+                // Ensure one progress record per user per tutorial
+                $table->unique(['user_id', 'tutorial_id']);
+
+                // Indexes for performance
+                $table->index(['user_id', 'completed']);
+                $table->index(['tutorial_id', 'completed']);
+                $table->index('last_activity_at');
+            });
+
+        }
     }
 
     /**
