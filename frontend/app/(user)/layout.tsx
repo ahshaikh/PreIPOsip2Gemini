@@ -11,6 +11,9 @@ import { useEffect, useState } from 'react';
 import { User } from '@/types';
 import { LogOut } from 'lucide-react';
 
+// NEW: use shared role helper
+import { extractRoleNames } from '@/lib/auth';
+
 export default function DashboardLayout({
   children,
 }: {
@@ -47,10 +50,12 @@ export default function DashboardLayout({
 
         // V-FIX-SUPERADMIN-REDIRECT: Check if user is admin/superadmin
         // If so, redirect them to admin dashboard instead
-        const isAdmin = ['admin', 'superadmin'].includes(userData.role) || userData.is_admin;
+        const roleNames = extractRoleNames(userData);
+        const isAdmin = roleNames.includes('admin') || roleNames.includes('superadmin');
+
         if (isAdmin) {
           console.log('[DASHBOARD LAYOUT] Admin user detected, redirecting to admin dashboard');
-          console.log('[DASHBOARD LAYOUT] User role:', userData.role, '| is_admin:', userData.is_admin);
+          console.log('[DASHBOARD LAYOUT] User role(s):', roleNames, '| is_admin:', userData.is_admin);
           router.push('/admin/dashboard');
           return;
         }

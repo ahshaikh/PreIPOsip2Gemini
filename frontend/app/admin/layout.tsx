@@ -11,6 +11,9 @@ import { useEffect, useState } from 'react';
 import { User } from '@/types';
 import { LogOut, Loader2 } from 'lucide-react';
 
+// NEW: centralized role extraction helper
+import { extractRoleNames } from '@/lib/auth';
+
 export default function AdminLayout({
   children,
 }: {
@@ -36,16 +39,9 @@ export default function AdminLayout({
 
         console.log('[AdminLayout] User Data:', userData);
 
-        // GEMINI FIX: Robust Role Checking
-        // Checks: 1. is_admin flag
-        //         2. role column (singular)
-        //         3. role_name accessor (from User model appends)
-        //         4. roles relationship (Spatie/Array)
-        const isAdmin = 
-            userData.is_admin ||
-            ['admin', 'superadmin', 'super_admin'].includes(userData.role) ||
-            ['admin', 'superadmin', 'super_admin'].includes(userData.role_name) ||
-            (userData.roles && userData.roles.some((r: any) => ['admin', 'superadmin', 'super-admin'].includes(r.name)));
+        // GEMINI FIX: Robust Role Checking (USING CENTRALIZED HELPER)
+        const roleNames = extractRoleNames(userData);
+        const isAdmin = roleNames.includes('admin') || roleNames.includes('superadmin');
 
         if (!isAdmin) {
           console.warn('[AdminLayout] Access Denied. Redirecting to User Dashboard.');

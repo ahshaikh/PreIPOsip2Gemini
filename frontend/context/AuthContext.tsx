@@ -9,6 +9,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { User } from '@/types';
 
+// NEW: Use shared role extraction helper
+import { extractRoleNames } from '@/lib/auth';
+
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
@@ -86,19 +89,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(userData);
 
       // -------------------------------------------------------------------
-      // GEMINI FIX: Role-Based Redirect Logic
+      // GEMINI FIX: Role-Based Redirect Logic (USING CENTRALIZED HELPER)
       // -------------------------------------------------------------------
-      // We safely extract role names from the 'roles' relationship array.
-      // We also check 'role_name' accessor if available.
-      // This prevents Admins from being sent to the User Dashboard (which causes 500 errors).
-      // -------------------------------------------------------------------
-      
-      const userRoles = userData.roles ? userData.roles.map((r: any) => r.name) : [];
-      const userRoleName = userData.role_name || '';
+      // We safely extract role names from multiple possible response shapes.
+      const roleNames = extractRoleNames(userData || {});
+      console.log('[AUTH] roleNames after login:', roleNames, 'userData:', userData);
 
-      if (userRoles.includes('admin') || userRoles.includes('super_admin') || userRoleName === 'admin') {
+      if (roleNames.includes('admin') || roleNames.includes('superadmin')) {
         router.push('/admin/dashboard');
-      } else if (userRoles.includes('company') || userRoleName === 'company') {
+      } else if (roleNames.includes('company')) {
         router.push('/company/dashboard');
       } else {
         router.push('/dashboard');
