@@ -58,21 +58,21 @@ export default function LoginPage() {
         });
 
         // -----------------------------------------------------------------------
-        // GEMINI FIX: Role-Based Redirect Logic (Directly in Login Page)
+        // CRITICAL FIX: Role-Based Routing
         // -----------------------------------------------------------------------
         const userData = response.data.user || {};
-        
-        // Extract roles safely. Check 'roles' array or 'role_name' accessor
         const userRoles = userData.roles ? userData.roles.map((r: any) => r.name) : [];
-        const userRoleName = userData.role_name || '';
-
-        console.log('[LOGIN] User Roles:', userRoles, 'Role Name:', userRoleName);
-
-        if (userRoles.includes('admin') || userRoles.includes('super_admin') || userRoleName === 'admin') {
+        
+        // Check for Admin Role
+        if (userRoles.includes('admin') || userRoles.includes('super_admin')) {
             router.push('/admin/dashboard');
-        } else if (userRoles.includes('company') || userRoleName === 'company') {
+        } 
+        // Check for Company Role
+        else if (userRoles.includes('company')) {
             router.push('/company/dashboard');
-        } else {
+        } 
+        // Default to User Dashboard
+        else {
             router.push('/dashboard');
         }
         // -----------------------------------------------------------------------
