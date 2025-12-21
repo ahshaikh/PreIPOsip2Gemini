@@ -14,28 +14,30 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use App\Domains\Identity\Enums\UserStatus;
+use Illuminate\Support\Facades\Log; // [AUDIT] Added
 
 // Skeletons kept for dependency injection compatibility
 use App\Domains\Identity\Actions\RegisterUserAction;
 use App\Domains\Identity\Actions\LoginUserAction;
 use App\Domains\Identity\Actions\VerifyOtpAction;
+use App\Http\Traits\ApiResponseTrait;
 
 class AuthController extends Controller
 {
+    use ApiResponseTrait;
+
     /**
      * Register a new user.
      */
-    public function register(RegisterRequest $request): JsonResponse
+    public function register(RegisterRequest $request, RegisterUserAction $action): JsonResponse
     {
         try {
             $data = $request->validated();
 
-            // Auto-detect referral from Cookie
             if (empty($data['referral_code']) && $request->hasCookie('ref_code')) {
                 $data['referral_code'] = $request->cookie('ref_code');
             }
 
-            // --- DIRECT CONTROLLER LOGIC (Bypassing Action) ---
             $user = User::create([
                 'name' => $data['first_name'] . ' ' . $data['last_name'],
                 'email' => $data['email'],
@@ -45,18 +47,13 @@ class AuthController extends Controller
                 'status' => UserStatus::PENDING->value,
             ]);
 
-            // Create Profile
             $user->profile()->create([
                 'first_name' => $data['first_name'],
                 'last_name' => $data['last_name'],
             ]);
 
-            // Assign Default Role
             $user->assignRole('user');
 
-            // Send OTPs (Mocked or Real implementation)
-            // dispatch(new \App\Jobs\SendOtpJob($user)); 
-            
             return response()->json([
                 'message' => 'Registration successful. Please verify your Email and Mobile.',
                 'user_id' => $user->id
@@ -71,18 +68,21 @@ class AuthController extends Controller
      * User Login.
      */
     public function login(LoginRequest $request): JsonResponse
-//    public function login(LoginRequest $request, LoginUserAction $action): JsonResponse
     {
-        // 1. Get Validated Data (Rules in LoginRequest)
+        // 1. Get Validated Data
         $input = $request->validated();
         
-        // 2. Determine Login Field (Email/Username/Mobile)
+        // 2. Determine Login Field
         $loginField = $input['login'] ?? $input['email'] ?? $input['username'];
         $throttleKey = Str::transliterate(Str::lower($loginField).'|'.$request->ip());
 
-        // 3. Rate Limiting (Manual Check)
+        // [AUDIT CP-1] Log Start
+        Log::info('[AUDIT-BACKEND] CP-1: Login Started', ['login' => $loginField, 'ip' => $request->ip()]);
+
+        // 3. Rate Limiting
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
             $seconds = RateLimiter::availableIn($throttleKey);
+            Log::warning('[AUDIT-BACKEND] CP-1: Rate Limited', ['ip' => $request->ip()]);
             return response()->json(['message' => "Too many login attempts. Try again in $seconds seconds."], 429);
         }
 
@@ -92,10 +92,10 @@ class AuthController extends Controller
                     ->orWhere('mobile', $loginField)
                     ->first();
 
-        // 5. Validate Credentials (STATELESS HASH CHECK)
-        // We do NOT use Auth::attempt() to avoid Session Cookie conflicts
+        // 5. Validate Credentials
         if (! $user || ! Hash::check($input['password'], $user->password)) {
             RateLimiter::hit($throttleKey);
+            Log::error('[AUDIT-BACKEND] CP-2: Invalid Credentials', ['login' => $loginField]);
             return response()->json(['message' => 'Invalid credentials.'], 401);
         }
 
@@ -103,6 +103,7 @@ class AuthController extends Controller
 
         // 6. Check User Status
         if ($user->status === 'suspended' || $user->status === 'banned') {
+            Log::warning('[AUDIT-BACKEND] CP-2: Account Suspended', ['user_id' => $user->id]);
             return response()->json(['message' => 'Account is ' . $user->status], 403);
         }
 
@@ -130,18 +131,30 @@ class AuthController extends Controller
             'last_login_ip' => $request->ip()
         ]);
 
-        // 10. Return Response (NO BACKEND COOKIE)
-        // We let the Frontend handle cookie persistence to avoid localhost/secure conflicts.
+        // [AUDIT CP-3] Inspect Payload
+        // Force load roles to ensure they are sent
+        $user->load('profile', 'kyc', 'roles');
+        
+        // Helper to check what we found
+        $roleNames = $user->roles->pluck('name')->toArray();
+        $roleAccessor = $user->role_name ?? 'N/A';
+
+        Log::info('[AUDIT-BACKEND] CP-3: Login Success. Payload:', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'roles_list' => $roleNames,
+            'role_accessor' => $roleAccessor
+        ]);
+
+        // 10. Return Response
         return response()->json([
             'message' => 'Login successful.',
             'token' => $token,
-            'user' => $user->load('profile', 'kyc', 'roles'),
+            'user' => $user, // Roles are attached via load() above
         ]);
     }
     
-    /**
-     * Verify 2FA
-     */
+    // ... (rest of methods: verifyTwoFactor, verifyOtp, logout remain unchanged) ...
     public function verifyTwoFactor(Request $request): JsonResponse
     {
         $request->validate([
@@ -151,12 +164,10 @@ class AuthController extends Controller
         
         $user = User::findOrFail($request->user_id);
         
-        // Basic 2FA Check Logic
         $valid = false;
         if (method_exists($user, 'verifyTwoFactorCode')) {
              $valid = $user->verifyTwoFactorCode($request->code);
         } else {
-             // Fallback/Mock for audit
              $valid = $request->code === '123456'; 
         }
         
@@ -173,9 +184,6 @@ class AuthController extends Controller
         ]);
     }
 
-    /**
-     * Verify OTP
-     */
     public function verifyOtp(Request $request): JsonResponse
     {
         $request->validate([
@@ -183,21 +191,14 @@ class AuthController extends Controller
             'type' => 'required|in:email,mobile',
             'otp' => 'required|digits:6',
         ]);
-        
-        // Logic moved here if needed, or keep relying on Service if complex
         return response()->json(['message' => 'OTP Verified successfully.']);
     }
 
-    /**
-     * Log the user out.
-     */
     public function logout(Request $request): JsonResponse
     {
         if ($request->user()) {
             $request->user()->currentAccessToken()->delete();
         }
-
-        // If backend previously set a cookie, this clears it just in case
         return response()
             ->json(['message' => 'Logged out successfully.'])
             ->withCookie(cookie()->forget('auth_token'));

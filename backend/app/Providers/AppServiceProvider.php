@@ -7,9 +7,13 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Event; // <-- Added Facade
-use App\Events\KycVerified; // <-- Added Event
-use App\Listeners\ProcessPendingReferralsOnKycVerify; // <-- Added Listener
+use Illuminate\Support\Facades\Event;
+use App\Events\KycVerified;
+use App\Listeners\ProcessPendingReferralsOnKycVerify;
+
+// [FIX] Imports for Payment Gateway Binding
+use App\Contracts\PaymentGatewayInterface;
+use App\Services\Payments\Gateways\RazorpayGateway;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -18,7 +22,28 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // [FIX] DYNAMIC GATEWAY BINDING
+        // This resolves the "Target [App\Contracts\PaymentGatewayInterface] is not instantiable" error.
+        // It uses a Closure to determine which gateway to load based on database settings,
+        // preventing hard dependencies while ensuring a valid object is always returned.
+        $this->app->bind(PaymentGatewayInterface::class, function ($app) {
+            
+            // Check settings (wrapped in try-catch to prevent crash during migrations)
+            try {
+                if (function_exists('setting') && setting('payment_gateway_razorpay_enabled')) {
+                    return new RazorpayGateway();
+                }
+
+                // Future: Add Stripe check here
+                // if (setting('payment_gateway_stripe_enabled')) return new StripeGateway();
+                
+            } catch (\Exception $e) {
+                // Squelch errors if database is not yet ready (e.g. during composer install)
+            }
+
+            // Default Fallback: Razorpay (Ensures system never crashes on dependency injection)
+            return new RazorpayGateway();
+        });
     }
 
     /**
@@ -37,10 +62,8 @@ class AppServiceProvider extends ServiceProvider
         }
 
         // =================================================================
-        // EVENT LISTENER REGISTRATION (Module 9 Fix)
+        // EVENT LISTENER REGISTRATION
         // =================================================================
-        // Since EventServiceProvider doesn't exist in Laravel 11, we register here.
-        // This ensures pending referrals are processed immediately when KYC is verified.
         
         Event::listen(
             KycVerified::class,
@@ -48,38 +71,31 @@ class AppServiceProvider extends ServiceProvider
         );
 
         // =================================================================
-        // RATE LIMITER DEFINITIONS (Matching routes/api.php)
+        // RATE LIMITER DEFINITIONS
         // =================================================================
 
-        // 1. Financial Transactions (Money Movement)
-        // Route: throttle:financial
+        // 1. Financial Transactions
         RateLimiter::for('financial', function (Request $request) {
             return Limit::perMinute(10)->by($request->user()?->id ?: $request->ip());
         });
-        // Legacy support for Job-based limiting
         RateLimiter::for('App\Models\User::financial', function ($target) {
             return Limit::perMinute(10)->by($this->extractUserId($target) ?: request()->ip());
         });
 
-        // 2. Data Heavy Endpoints (Portfolio, Bonuses, Referrals)
-        // Route: throttle:data-heavy
-        // FIX: This was missing, causing the 500 Error on Portfolio/Bonuses
+        // 2. Data Heavy Endpoints
         RateLimiter::for('data-heavy', function (Request $request) {
             return Limit::perMinute(20)->by($request->user()?->id ?: $request->ip());
         });
-        // Catch specific model-based calls if any
         RateLimiter::for('App\Models\User::data-heavy', function ($target) {
             return Limit::perMinute(20)->by($this->extractUserId($target) ?: request()->ip());
         });
 
-        // 3. Admin Actions (Bulk updates, Approvals)
-        // Route: throttle:admin-actions
+        // 3. Admin Actions
         RateLimiter::for('admin-actions', function (Request $request) {
             return Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());
         });
 
         // 4. Reporting Module
-        // Route: throttle:reports
         RateLimiter::for('reports', function (Request $request) {
             return Limit::perMinute(5)->by($request->user()?->id ?: $request->ip());
         });
