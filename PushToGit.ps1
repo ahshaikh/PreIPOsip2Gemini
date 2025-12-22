@@ -8,7 +8,7 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "Removed Docs"
+$CommitMessage = "Landing Page Updated."
 #----------------------
 
 function Get-GitCredential {
