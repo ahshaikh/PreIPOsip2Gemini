@@ -8,7 +8,7 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "Login issue Finally - resolved"
+$CommitMessage = "Removed Docs"
 #----------------------
 
 function Get-GitCredential {
