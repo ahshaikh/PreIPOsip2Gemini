@@ -1,0 +1,268 @@
+<?php
+
+namespace App\Http\Controllers\Api\User;
+
+use App\Http\Controllers\Controller;
+use App\Models\Investment;
+use App\Models\Deal;
+use App\Models\Subscription;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
+class InvestmentController extends Controller
+{
+    /**
+     * Get user's investments
+     * GET /api/v1/user/investments
+     */
+    public function index(Request $request)
+    {
+        $user = $request->user();
+
+        $query = Investment::where('user_id', $user->id)
+            ->with(['deal.product', 'company', 'subscription.plan']);
+
+        // Filter by status if provided
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $investments = $query->orderBy('invested_at', 'desc')->paginate(20);
+
+        // Calculate current value for each investment
+        $investmentsData = $investments->items();
+        foreach ($investmentsData as $investment) {
+            $investment->current_value = $investment->getCurrentValueAttribute();
+            $investment->unrealized_profit_loss = $investment->getUnrealizedProfitLossAttribute();
+            $investment->profit_loss_percentage = $investment->getProfitLossPercentageAttribute();
+        }
+
+        return response()->json([
+            'success' => true,
+            'investments' => $investmentsData,
+            'pagination' => [
+                'total' => $investments->total(),
+                'per_page' => $investments->perPage(),
+                'current_page' => $investments->currentPage(),
+                'last_page' => $investments->lastPage(),
+            ],
+        ]);
+    }
+
+    /**
+     * Get user's portfolio summary
+     * GET /api/v1/user/portfolio
+     */
+    public function portfolio(Request $request)
+    {
+        $user = $request->user();
+
+        // Get active investments
+        $activeInvestments = Investment::where('user_id', $user->id)
+            ->where('status', 'active')
+            ->with('deal')
+            ->get();
+
+        // Calculate totals
+        $totalInvested = Investment::where('user_id', $user->id)
+            ->whereIn('status', ['active', 'pending'])
+            ->sum('total_amount');
+
+        $totalCurrentValue = 0;
+        foreach ($activeInvestments as $investment) {
+            $totalCurrentValue += $investment->getCurrentValueAttribute();
+        }
+
+        $unrealizedProfitLoss = $totalCurrentValue - $totalInvested;
+
+        $stats = [
+            'total_invested' => (float) $totalInvested,
+            'active_investments_count' => Investment::where('user_id', $user->id)
+                ->where('status', 'active')
+                ->count(),
+            'pending_investments_count' => Investment::where('user_id', $user->id)
+                ->where('status', 'pending')
+                ->count(),
+            'total_current_value' => (float) $totalCurrentValue,
+            'unrealized_profit_loss' => (float) $unrealizedProfitLoss,
+            'unrealized_profit_loss_percentage' => $totalInvested > 0
+                ? (($unrealizedProfitLoss / $totalInvested) * 100)
+                : 0,
+            'exited_investments_count' => Investment::where('user_id', $user->id)
+                ->where('status', 'exited')
+                ->count(),
+            'realized_profit_loss' => (float) Investment::where('user_id', $user->id)
+                ->where('status', 'exited')
+                ->sum('profit_loss'),
+        ];
+
+        return response()->json([
+            'success' => true,
+            'portfolio' => $stats,
+        ]);
+    }
+
+    /**
+     * Create a new investment
+     * POST /api/v1/user/investments
+     */
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'deal_id' => 'required|exists:deals,id',
+            'subscription_id' => 'required|exists:subscriptions,id',
+            'shares_allocated' => 'required|integer|min:1',
+        ]);
+
+        $user = $request->user();
+
+        // Verify subscription ownership
+        $subscription = Subscription::where('id', $validated['subscription_id'])
+            ->where('user_id', $user->id)
+            ->with('plan')
+            ->firstOrFail();
+
+        if (!in_array($subscription->status, ['active', 'paused'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Subscription must be active to invest.',
+            ], 400);
+        }
+
+        // Verify deal availability
+        $deal = Deal::with('product')->findOrFail($validated['deal_id']);
+
+        if (!$deal->is_available) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This deal is no longer available.',
+            ], 400);
+        }
+
+        if ($deal->remaining_shares < $validated['shares_allocated']) {
+            return response()->json([
+                'success' => false,
+                'message' => "Only {$deal->remaining_shares} shares available.",
+            ], 400);
+        }
+
+        // Calculate investment amount
+        $totalAmount = $validated['shares_allocated'] * $deal->share_price;
+
+        // Check minimum investment
+        if ($totalAmount < $deal->min_investment) {
+            return response()->json([
+                'success' => false,
+                'message' => "Minimum investment is ₹{$deal->min_investment}. You need at least " .
+                            ceil($deal->min_investment / $deal->share_price) . " shares.",
+            ], 400);
+        }
+
+        // Check subscription balance
+        $availableBalance = $subscription->availableBalance;
+        if ($availableBalance < $totalAmount) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Insufficient subscription balance. Available: ₹' .
+                            number_format($availableBalance, 2),
+            ], 400);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $investment = Investment::create([
+                'user_id' => $user->id,
+                'subscription_id' => $subscription->id,
+                'deal_id' => $deal->id,
+                'company_id' => $deal->product->company_id ?? null,
+                'investment_code' => 'INV-' . strtoupper(uniqid()),
+                'shares_allocated' => $validated['shares_allocated'],
+                'price_per_share' => $deal->share_price,
+                'total_amount' => $totalAmount,
+                'status' => 'active', // Immediately active since subscription is already paid
+                'invested_at' => now(),
+            ]);
+
+            DB::commit();
+
+            Log::info("Investment created", [
+                'user_id' => $user->id,
+                'investment_id' => $investment->id,
+                'deal_id' => $deal->id,
+                'amount' => $totalAmount,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Investment created successfully.',
+                'investment' => $investment->load(['deal', 'company']),
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error("Investment creation failed", [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create investment. Please try again.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Get a specific investment
+     * GET /api/v1/user/investments/{id}
+     */
+    public function show(Request $request, $id)
+    {
+        $user = $request->user();
+
+        $investment = Investment::where('id', $id)
+            ->where('user_id', $user->id)
+            ->with(['deal.product', 'company', 'subscription.plan'])
+            ->firstOrFail();
+
+        $investment->current_value = $investment->getCurrentValueAttribute();
+        $investment->unrealized_profit_loss = $investment->getUnrealizedProfitLossAttribute();
+        $investment->profit_loss_percentage = $investment->getProfitLossPercentageAttribute();
+
+        return response()->json([
+            'success' => true,
+            'investment' => $investment,
+        ]);
+    }
+
+    /**
+     * Cancel a pending investment
+     * DELETE /api/v1/user/investments/{id}
+     */
+    public function destroy(Request $request, $id)
+    {
+        $user = $request->user();
+
+        $investment = Investment::where('id', $id)
+            ->where('user_id', $user->id)
+            ->where('status', 'pending')
+            ->firstOrFail();
+
+        $investment->update([
+            'status' => 'cancelled',
+            'notes' => 'Cancelled by user',
+        ]);
+
+        Log::info("Investment cancelled", [
+            'user_id' => $user->id,
+            'investment_id' => $investment->id,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Investment cancelled successfully.',
+        ]);
+    }
+}

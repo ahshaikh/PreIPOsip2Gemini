@@ -128,7 +128,8 @@ class User extends Authenticatable
     public function tickets(): HasMany { return $this->hasMany(SupportTicket::class); }
     public function subscription(): HasOne { return $this->hasOne(Subscription::class)->latest(); }
     public function subscriptions(): HasMany { return $this->hasMany(Subscription::class); }
-    public function investments(): HasMany { return $this->hasMany(UserInvestment::class); }
+    public function investments(): HasMany { return $this->hasMany(Investment::class); }
+    public function activeInvestments(): HasMany { return $this->investments()->where('status', 'active'); }
     public function bonuses(): HasMany { return $this->hasMany(BonusTransaction::class); }
     public function referrals(): HasMany { return $this->hasMany(Referral::class, 'referrer_id'); }
     public function referrer(): HasOne { return $this->hasOne(Referral::class, 'referred_id'); }

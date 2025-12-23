@@ -20,6 +20,8 @@ use App\Http\Controllers\Api\Public\LegalDocumentController;
 use App\Http\Controllers\Api\User\ProfileController;
 use App\Http\Controllers\Api\User\KycController;
 use App\Http\Controllers\Api\User\SubscriptionController;
+use App\Http\Controllers\Api\User\InvestmentController;
+use App\Http\Controllers\Api\User\DealController;
 use App\Http\Controllers\Api\User\PaymentController;
 use App\Http\Controllers\Api\User\PortfolioController;
 use App\Http\Controllers\Api\User\BonusController;
@@ -238,7 +240,23 @@ Route::prefix('v1')->group(function () {
             Route::post('/subscription/pause', [SubscriptionController::class, 'pause']);
             Route::post('/subscription/resume', [SubscriptionController::class, 'resume']);
             Route::post('/subscription/cancel', [SubscriptionController::class, 'cancel']);
-            
+
+            // Deals & Investments
+            Route::prefix('deals')->group(function () {
+                Route::get('/', [DealController::class, 'index']);
+                Route::get('/featured', [DealController::class, 'featured']);
+                Route::get('/{id}', [DealController::class, 'show']);
+            });
+
+            Route::prefix('investments')->group(function () {
+                Route::get('/', [InvestmentController::class, 'index']);
+                Route::post('/', [InvestmentController::class, 'store']);
+                Route::get('/{id}', [InvestmentController::class, 'show']);
+                Route::delete('/{id}', [InvestmentController::class, 'destroy']);
+            });
+
+            Route::get('/portfolio', [InvestmentController::class, 'portfolio']);
+
             Route::prefix('notifications')->group(function () {
                 Route::get('/', [UserNotificationController::class, 'index']); // Use Alias
                 Route::get('unread-count', [UserNotificationController::class, 'unreadCount']);

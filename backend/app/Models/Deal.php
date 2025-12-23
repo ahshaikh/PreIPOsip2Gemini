@@ -76,6 +76,11 @@ class Deal extends Model
         return $this->belongsTo(Product::class);
     }
 
+    public function investments()
+    {
+        return $this->hasMany(Investment::class);
+    }
+
     public function scopeLive($query)
     {
         return $query->where('deal_type', 'live')
@@ -91,5 +96,30 @@ class Deal extends Model
     {
         return $query->where('is_featured', true)
                     ->where('status', 'active');
+    }
+
+    // --- ACCESSORS ---
+
+    /**
+     * Calculate remaining shares available for investment
+     */
+    public function getRemainingSharesAttribute()
+    {
+        $allocated = $this->investments()
+            ->whereIn('status', ['active', 'pending'])
+            ->sum('shares_allocated');
+
+        return max(0, $this->available_shares - $allocated);
+    }
+
+    /**
+     * Check if deal is available for new investments
+     */
+    public function getIsAvailableAttribute()
+    {
+        return $this->remaining_shares > 0 &&
+               $this->status === 'active' &&
+               $this->deal_opens_at <= now() &&
+               ($this->deal_closes_at === null || $this->deal_closes_at > now());
     }
 }
