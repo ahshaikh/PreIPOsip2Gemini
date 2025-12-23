@@ -21,7 +21,7 @@ use App\Http\Controllers\Api\User\ProfileController;
 use App\Http\Controllers\Api\User\KycController;
 use App\Http\Controllers\Api\User\SubscriptionController;
 use App\Http\Controllers\Api\User\InvestmentController;
-use App\Http\Controllers\Api\User\DealController;
+use App\Http\Controllers\Api\User\DealController as UserDealController;
 use App\Http\Controllers\Api\User\PaymentController;
 use App\Http\Controllers\Api\User\PortfolioController;
 use App\Http\Controllers\Api\User\BonusController;
@@ -243,9 +243,9 @@ Route::prefix('v1')->group(function () {
 
             // Deals & Investments
             Route::prefix('deals')->group(function () {
-                Route::get('/', [DealController::class, 'index']);
-                Route::get('/featured', [DealController::class, 'featured']);
-                Route::get('/{id}', [DealController::class, 'show']);
+                Route::get('/', [UserDealController::class, 'index']);
+                Route::get('/featured', [UserDealController::class, 'featured']);
+                Route::get('/{id}', [UserDealController::class, 'show']);
             });
 
             Route::prefix('investments')->group(function () {
