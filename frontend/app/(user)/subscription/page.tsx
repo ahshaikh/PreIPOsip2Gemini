@@ -227,8 +227,8 @@ export default function SubscriptionPage() {
           )}
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Quick Actions for Active Subscribers */}
-          {(sub.status === 'active' || sub.status === 'paused') && !pendingPayment && (
+          {/* Quick Actions for Active Subscribers - Always show for active/paused */}
+          {(sub.status === 'active' || sub.status === 'paused') && (
             <div className="grid md:grid-cols-2 gap-4">
               <Link href="/deals">
                 <Card className="border-2 border-primary/20 hover:border-primary/40 hover:shadow-lg transition-all cursor-pointer group">
