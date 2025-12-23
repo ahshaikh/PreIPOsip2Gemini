@@ -1,5 +1,5 @@
 <?php
-// V-PHASE3-1730-076 (Created) | V-FINAL-1730-356 (Upgraded) | V-SEC-1730-604 (Unsafe Methods Removed) | V-AUDIT-FIX-MODULE7 (Performance Optimization)
+// V-PHASE3-1730-076 (Created) | V-FINAL-1730-356 (Upgraded) | V-SEC-1730-604 (Unsafe Methods Removed) | V-AUDIT-FIX-MODULE7 (Performance Optimization) | V-AUDIT-REFACTOR-2025 (Atomic Integers & Accessors)
 
 namespace App\Models;
 
@@ -24,13 +24,23 @@ class Wallet extends Model
 
     protected $fillable = [
         'user_id',
-        'balance',
-        'locked_balance',
+        // [AUDIT FIX]: Switched to integer-based storage (Paise) to prevent floating point drift.
+        'balance_paise', 
+        'locked_balance_paise',
     ];
 
     protected $casts = [
-        'balance' => 'decimal:2',
-        'locked_balance' => 'decimal:2',
+        // [AUDIT FIX]: Cast as integers for atomic math operations
+        'balance_paise' => 'integer',
+        'locked_balance_paise' => 'integer',
+    ];
+
+    // [PROTOCOL 7 FIX]: Automatically append these accessors to array/JSON serialization.
+    // This guarantees that whenever $wallet is accessed in a Controller or View,
+    // the 'balance' and 'locked_balance' fields (in Rupees) are available.
+    protected $appends = [
+        'balance',
+        'locked_balance',
     ];
 
     // --- RELATIONSHIPS ---
@@ -48,8 +58,31 @@ class Wallet extends Model
     // --- ACCESSORS ---
     // Note: Use Wallet::with('transactions') when loading multiple wallets to avoid N+1
 
+    /**
+     * Virtual Accessor: Convert stored Paise to Rupees for display/API.
+     * Usage: $wallet->balance
+     */
+    protected function balance(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value, $attributes) => ($attributes['balance_paise'] ?? 0) / 100,
+        );
+    }
+
+    /**
+     * Virtual Accessor: Convert stored Locked Paise to Rupees for display/API.
+     * Usage: $wallet->locked_balance
+     */
+    protected function lockedBalance(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value, $attributes) => ($attributes['locked_balance_paise'] ?? 0) / 100,
+        );
+    }
+
     protected function availableBalance(): Attribute
     {
+        // [AUDIT FIX]: Updated to use the virtual 'balance' accessor
         return Attribute::make(get: fn () => $this->balance);
     }
 

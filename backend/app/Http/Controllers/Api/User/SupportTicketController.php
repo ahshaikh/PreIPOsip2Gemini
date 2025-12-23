@@ -40,8 +40,11 @@ class SupportTicketController extends Controller
             $query->where('status', $request->status);
         }
 
-        $tickets = $query->latest()->paginate(20);
-        return response()->json($tickets);
+        $perPage = (int) setting('records_per_page', 15);
+
+        return response()->json(
+            $query->latest()->paginate($perPage)
+        );
     }
 
     /**

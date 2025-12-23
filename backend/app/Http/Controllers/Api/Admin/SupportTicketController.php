@@ -68,7 +68,8 @@ class SupportTicketController extends Controller
             }
 
             // 3. Pagination
-            $tickets = $query->latest()->paginate(10);
+            $perPage = (int) setting('records_per_page', 15);
+            $tickets = $query->latest()->paginate($perPage);
 
             // 4. Safe Transformation
             $data = $tickets->through(function ($ticket) {

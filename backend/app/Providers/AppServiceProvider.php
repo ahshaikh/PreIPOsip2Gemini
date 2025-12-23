@@ -12,6 +12,7 @@ use App\Events\KycVerified;
 use App\Listeners\ProcessPendingReferralsOnKycVerify;
 
 // [FIX] Imports for Payment Gateway Binding
+// [AUDIT FIX]: Strictly use the Contract namespace
 use App\Contracts\PaymentGatewayInterface;
 use App\Services\Payments\Gateways\RazorpayGateway;
 
@@ -23,9 +24,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         // [FIX] DYNAMIC GATEWAY BINDING
-        // This resolves the "Target [App\Contracts\PaymentGatewayInterface] is not instantiable" error.
-        // It uses a Closure to determine which gateway to load based on database settings,
-        // preventing hard dependencies while ensuring a valid object is always returned.
+        // Binds App\Contracts\PaymentGatewayInterface to RazorpayGateway
         $this->app->bind(PaymentGatewayInterface::class, function ($app) {
             
             // Check settings (wrapped in try-catch to prevent crash during migrations)
@@ -33,15 +32,12 @@ class AppServiceProvider extends ServiceProvider
                 if (function_exists('setting') && setting('payment_gateway_razorpay_enabled')) {
                     return new RazorpayGateway();
                 }
-
-                // Future: Add Stripe check here
-                // if (setting('payment_gateway_stripe_enabled')) return new StripeGateway();
                 
             } catch (\Exception $e) {
-                // Squelch errors if database is not yet ready (e.g. during composer install)
+                // Squelch errors if database is not yet ready
             }
 
-            // Default Fallback: Razorpay (Ensures system never crashes on dependency injection)
+            // Default Fallback: Razorpay
             return new RazorpayGateway();
         });
     }

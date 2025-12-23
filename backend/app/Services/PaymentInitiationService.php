@@ -11,7 +11,7 @@ use App\Contracts\PaymentGatewayInterface; // [AUDIT FIX]
 
 class PaymentInitiationService
 {
-    // [AUDIT FIX] Depend on Abstraction (Interface), not Concretion (RazorpayService)
+    // [AUDIT FIX] Depend on Abstraction (Interface), not Concretion
     public function __construct(
         protected PaymentGatewayInterface $gateway
     ) {}
@@ -55,8 +55,11 @@ class PaymentInitiationService
         // Ensure Plan exists on Gateway
         if (!$plan->razorpay_plan_id) {
             try {
-                // [AUDIT FIX] Use generic method name from interface
-                $this->gateway->createOrUpdatePlan($plan);
+                // [AUDIT FIX] Create plan and capture the ID
+                $planId = $this->gateway->createOrUpdatePlan($plan);
+                
+                // [IMPORTANT] Save the external Plan ID so we don't create it again
+                $plan->update(['razorpay_plan_id' => $planId]);
             } catch (Exception $e) {
                 Log::error("Gateway Plan Creation Failed: " . $e->getMessage());
                 throw new Exception('Payment provider plan setup failed. Please try again.');
@@ -65,7 +68,6 @@ class PaymentInitiationService
 
         // Create Gateway Subscription
         try {
-            // [AUDIT FIX] Use generic method name from interface
             $gatewaySub = $this->gateway->createSubscription(
                 $plan->razorpay_plan_id,
                 $user->email,
@@ -76,18 +78,21 @@ class PaymentInitiationService
             throw new Exception('Mandate creation failed. Please try again.');
         }
 
+        // [AUDIT FIX]: Use Array Access (Gateway returns array)
+        $subId = $gatewaySub['id'];
+
         // Save Mandate ID locally
         $payment->subscription->update([
             'is_auto_debit' => true,
-            'razorpay_subscription_id' => $gatewaySub->id
+            'razorpay_subscription_id' => $subId
         ]);
         
         // Unified Order ID logic
-        $payment->update(['gateway_order_id' => $gatewaySub->id]); 
+        $payment->update(['gateway_order_id' => $subId]); 
 
         return [
             'type' => 'subscription',
-            'subscription_id' => $gatewaySub->id,
+            'subscription_id' => $subId,
             'razorpay_key' => setting('razorpay_key_id', env('RAZORPAY_KEY')),
             'name' => $plan->name . ' (Auto-Debit)',
             'description' => 'Setup recurring monthly payment',
@@ -101,7 +106,7 @@ class PaymentInitiationService
     protected function handleOneTimeFlow(User $user, Payment $payment): array
     {
         try {
-            // [AUDIT FIX] Use interface method
+            // [AUDIT FIX] Use interface method signature: createOrder(amount, receiptId)
             $order = $this->gateway->createOrder(
                 $payment->amount, 
                 'payment_' . $payment->id
@@ -111,11 +116,14 @@ class PaymentInitiationService
             throw new Exception('Payment gateway failed. Please try again.');
         }
         
-        $payment->update(['gateway_order_id' => $order->id]);
+        // [AUDIT FIX]: Use Array Access (Gateway returns array)
+        $orderId = $order['id'];
+
+        $payment->update(['gateway_order_id' => $orderId]);
 
         return [
             'type' => 'order',
-            'order_id' => $order->id,
+            'order_id' => $orderId,
             'razorpay_key' => setting('razorpay_key_id', env('RAZORPAY_KEY')),
             'amount' => $payment->amount * 100,
             'name' => 'PreIPO SIP Payment',

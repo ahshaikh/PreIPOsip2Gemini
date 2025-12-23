@@ -1,4 +1,5 @@
 'use client';
+// V-PHASE3-1730-101 | V-AUDIT-FIX-2025 (Transaction History Fix) | V-PROTOCOL-7-REFACTOR
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -29,6 +30,7 @@ import {
   Search,
 } from "lucide-react";
 import api from "@/lib/api";
+import { PaginationControls } from "@/components/shared/PaginationControls";
 
 interface Transaction {
   id: number;
@@ -49,18 +51,34 @@ export default function TransactionsPage() {
   const [page, setPage] = useState(1);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["transactions", page, typeFilter],
+    queryKey: ["transactions", page, typeFilter, searchQuery],
     queryFn: async () => {
-      const response = await api.get('/user/transactions', {
-        params: { page, type: typeFilter !== 'all' ? typeFilter : undefined }
+      const params = new URLSearchParams({
+        page: page.toString(),
       });
-      const data = response.data;
-      return data?.data || data || { data: [], meta: {} };
+      
+      if (typeFilter !== 'all') params.append('type', typeFilter);
+      // Assuming backend supports search, if not, this param might be ignored but harmless
+      if (searchQuery) params.append('search', searchQuery);
+
+      const response = await api.get('/user/wallet/transactions', { params });
+      return response.data; // Expecting Laravel Paginator Object
     },
+    placeholderData: (previousData) => previousData,
   });
 
-  const transactions = Array.isArray(data?.data) ? data.data : [];
-  const meta = data?.meta || {};
+  const transactions = data?.data || [];
+  
+  // Handlers for Filters (Reset Page on Change)
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setSearchQuery(e.target.value);
+      setPage(1);
+  };
+
+  const handleTypeChange = (val: string) => {
+      setTypeFilter(val);
+      setPage(1);
+  };
 
   const getTransactionIcon = (type: string) => {
     if (type.includes('credit') || type.includes('bonus') || type.includes('refund') || type === 'reversal') {
@@ -145,12 +163,12 @@ export default function TransactionsPage() {
                 <Input
                   placeholder="Search by description..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={handleSearch}
                   className="pl-9"
                 />
               </div>
             </div>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <Select value={typeFilter} onValueChange={handleTypeChange}>
               <SelectTrigger className="w-full md:w-[200px]">
                 <Filter className="mr-2 h-4 w-4" />
                 <SelectValue placeholder="Filter by type" />
@@ -172,7 +190,7 @@ export default function TransactionsPage() {
         <CardHeader>
           <CardTitle>All Transactions</CardTitle>
           <CardDescription>
-            {meta.total || transactions.length} transaction{transactions.length !== 1 ? 's' : ''} found
+            {data?.total || transactions.length} transaction{data?.total !== 1 ? 's' : ''} found
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -197,59 +215,45 @@ export default function TransactionsPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  transactions
-                    .filter((txn: Transaction) =>
-                      !searchQuery || txn.description.toLowerCase().includes(searchQuery.toLowerCase())
-                    )
-                    .map((txn: Transaction) => (
-                      <TableRow key={txn.id}>
-                        <TableCell>{getTransactionIcon(txn.type)}</TableCell>
-                        <TableCell className="font-medium">
-                          {new Date(txn.created_at).toLocaleString('en-IN', {
-                            dateStyle: 'medium',
-                            timeStyle: 'short',
-                          })}
-                        </TableCell>
-                        <TableCell>{txn.description}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="font-mono text-xs">
-                            {txn.type.replace(/_/g, ' ').toUpperCase()}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatAmount(txn.amount)}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          ₹{txn.balance_after.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </TableCell>
-                        <TableCell>{getStatusBadge(txn.status)}</TableCell>
-                      </TableRow>
-                    ))
+                  transactions.map((txn: Transaction) => (
+                    <TableRow key={txn.id}>
+                      <TableCell>{getTransactionIcon(txn.type)}</TableCell>
+                      <TableCell className="font-medium">
+                        {new Date(txn.created_at).toLocaleString('en-IN', {
+                          dateStyle: 'medium',
+                          timeStyle: 'short',
+                        })}
+                      </TableCell>
+                      <TableCell>{txn.description}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="font-mono text-xs">
+                          {txn.type.replace(/_/g, ' ').toUpperCase()}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatAmount(txn.amount)}
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        ₹{Number(txn.balance_after).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell>{getStatusBadge(txn.status)}</TableCell>
+                    </TableRow>
+                  ))
                 )}
               </TableBody>
             </Table>
           </div>
 
-          {meta.last_page > 1 && (
-            <div className="flex justify-center gap-2 mt-6">
-              <Button
-                variant="outline"
-                disabled={page === 1}
-                onClick={() => setPage(page - 1)}
-              >
-                Previous
-              </Button>
-              <span className="flex items-center px-4">
-                Page {page} of {meta.last_page}
-              </span>
-              <Button
-                variant="outline"
-                disabled={page === meta.last_page}
-                onClick={() => setPage(page + 1)}
-              >
-                Next
-              </Button>
-            </div>
+          {/* [PROTOCOL 7] Dynamic Pagination */}
+          {data && (
+            <PaginationControls
+              currentPage={data.current_page}
+              totalPages={data.last_page}
+              onPageChange={setPage}
+              totalItems={data.total}
+              from={data.from}
+              to={data.to}
+            />
           )}
         </CardContent>
       </Card>

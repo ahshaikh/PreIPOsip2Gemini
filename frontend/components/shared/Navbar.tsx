@@ -211,10 +211,10 @@ export default function Navbar() {
   };
 
   // Toggle language
-  const toggleLanguage = () => {
-    setLanguage(language === "en" ? "hi" : "en");
+  //const toggleLanguage = () => {
+  //  setLanguage(language === "en" ? "hi" : "en");
     // Add your language switching logic here
-  };
+  //};
 
   return (
     <nav
@@ -337,7 +337,7 @@ export default function Navbar() {
               )}
             </button>
 
-            {/* Language Switcher */}
+            {/* Language Switcher 
             <button
               onClick={toggleLanguage}
               className="p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors flex items-center space-x-1"
@@ -346,7 +346,7 @@ export default function Navbar() {
               <Globe className="w-5 h-5" />
               <span className="text-xs font-medium uppercase">{language}</span>
             </button>
-
+            */}
             {/* Login Button */}
             <Link
               href="/login"

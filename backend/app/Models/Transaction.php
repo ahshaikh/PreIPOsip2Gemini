@@ -1,5 +1,5 @@
 <?php
-// V-PHASE3-1730-077 (Created) | V-PHASE3-1730-355 | V-FINAL-1730-450 (TDS Field Added)
+// V-PHASE3-1730-077 (Created) | V-PHASE3-1730-355 | V-FINAL-1730-450 (TDS Field Added) | V-AUDIT-REFACTOR-2025 (Atomic Integers & JSON Fix)
 
 namespace App\Models;
 
@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Support\Str;
 
 class Transaction extends Model
@@ -19,20 +20,30 @@ class Transaction extends Model
         'transaction_id',
         'type',
         'status',
-        'amount',
-        'balance_before',
-        'balance_after',
-        'tds_deducted', // <-- NEW (Tracks tax on deposits)
+        // [AUDIT FIX]: Switched to atomic integers
+        'amount_paise',
+        'balance_before_paise',
+        'balance_after_paise',
+        'tds_deducted', 
         'description',
         'reference_type',
         'reference_id',
     ];
     
     protected $casts = [
-        'amount' => 'decimal:2',
-        'balance_before' => 'decimal:2',
-        'balance_after' => 'decimal:2',
-        'tds_deducted' => 'decimal:2', // <-- NEW
+        // [AUDIT FIX]: Cast as integers for atomic math operations
+        'amount_paise' => 'integer',
+        'balance_before_paise' => 'integer',
+        'balance_after_paise' => 'integer',
+        'tds_deducted' => 'decimal:2',
+    ];
+
+    // [AUDIT FIX]: Automatically append these accessors to array/JSON representation
+    // This ensures frontend receives 'amount', 'balance_before', etc.
+    protected $appends = [
+        'amount',
+        'balance_before',
+        'balance_after'
     ];
 
     /**
@@ -48,6 +59,41 @@ class Transaction extends Model
                 $transaction->tds_deducted = 0;
             }
         });
+    }
+
+    // --- ACCESSORS (Backward Compatibility & API Response) ---
+
+    /**
+     * Get amount in Rupees (Float).
+     * Usage: $transaction->amount
+     */
+    protected function amount(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value, $attributes) => ($attributes['amount_paise'] ?? 0) / 100,
+        );
+    }
+
+    /**
+     * Get balance before in Rupees (Float).
+     * Usage: $transaction->balance_before
+     */
+    protected function balanceBefore(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value, $attributes) => ($attributes['balance_before_paise'] ?? 0) / 100,
+        );
+    }
+
+    /**
+     * Get balance after in Rupees (Float).
+     * Usage: $transaction->balance_after
+     */
+    protected function balanceAfter(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value, $attributes) => ($attributes['balance_after_paise'] ?? 0) / 100,
+        );
     }
 
     // --- RELATIONSHIPS ---

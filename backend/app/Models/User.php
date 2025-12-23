@@ -1,5 +1,5 @@
 <?php
-// V-PHASE1-1730-008 (Created) | V-FINAL-1730-321 | V-FINAL-1730-394 (Notif Prefs Added) | V-FINAL-1730-468 (2FA Added)
+// V-PHASE1-1730-008 (Created) | V-FINAL-1730-321 | V-FINAL-1730-394 (Notif Prefs Added) | V-FINAL-1730-468 (2FA Added) | V-AUDIT-FIX-REFACTOR (Relationships Added)
 
 namespace App\Models;
 
@@ -167,5 +167,14 @@ class User extends Authenticatable
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * [AUDIT FIX]: Added missing relationship for Withdrawals.
+     * Required by WalletController::withdrawals()
+     */
+    public function withdrawals(): HasMany
+    {
+        return $this->hasMany(Withdrawal::class);
     }
 }

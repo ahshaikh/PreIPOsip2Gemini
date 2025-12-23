@@ -1,4 +1,4 @@
-// V-REMEDIATE-1730-151 | V-ENHANCED-SUPPORT
+// V-REMEDIATE-1730-151 | V-ENHANCED-SUPPORT | V-PAGINATION-PROTOCOL-7
 'use client';
 
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import SupportQuickLinks from "@/components/shared/SupportQuickLinks";
 import AISuggestionsPanel from "@/components/support/AISuggestionsPanel";
+import { PaginationControls } from "@/components/shared/PaginationControls"; // [Protocol 7]
 
 // Ticket categories with icons and descriptions
 const TICKET_CATEGORIES = [
@@ -52,6 +53,9 @@ export default function SupportPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  
+  // [PROTOCOL 7] State for pagination
+  const [page, setPage] = useState(1);
 
   // State for new ticket
   const [subject, setSubject] = useState('');
@@ -59,11 +63,23 @@ export default function SupportPage() {
   const [priority, setPriority] = useState('medium');
   const [message, setMessage] = useState('');
 
-  // Fetch all existing tickets
+  // [PROTOCOL 7] Fetch tickets with server-side pagination
   const { data, isLoading } = useQuery({
-    queryKey: ['userTickets'],
-    queryFn: async () => (await api.get('/user/support-tickets')).data,
+    queryKey: ['userTickets', page, filterStatus, searchQuery],
+    queryFn: async () => {
+        const params = new URLSearchParams({
+            page: page.toString(),
+        });
+        if (filterStatus !== 'all') params.append('status', filterStatus);
+        if (searchQuery) params.append('search', searchQuery);
+
+        const res = await api.get(`/user/support/tickets?${params.toString()}`);
+        return res.data;
+    },
+    placeholderData: (previousData) => previousData,
   });
+
+  const tickets = data?.data || [];
 
   // Fetch FAQs from backend (or use static)
   const { data: faqs } = useQuery({
@@ -98,20 +114,23 @@ export default function SupportPage() {
     mutation.mutate({ subject, category, priority, message });
   };
 
-  // Filter tickets
-  const tickets = data?.data || [];
-  const filteredTickets = tickets.filter((ticket: any) => {
-    const matchesSearch = searchQuery === '' ||
-      ticket.subject?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.ticket_code?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || ticket.status === filterStatus;
-    return matchesSearch && matchesStatus;
-  });
+  // [PROTOCOL 7] Handlers
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setSearchQuery(e.target.value);
+      setPage(1);
+  };
 
-  // Count tickets by status
-  const openCount = tickets.filter((t: any) => t.status === 'open').length;
-  const waitingCount = tickets.filter((t: any) => t.status === 'waiting_for_user').length;
-  const closedCount = tickets.filter((t: any) => t.status === 'closed').length;
+  const handleStatusChange = (val: string) => {
+      setFilterStatus(val);
+      setPage(1);
+  };
+
+  // Count tickets by status - NOTE: This only works perfectly if backend sends stats, 
+  // otherwise it only counts current page. Ideally backend should send 'overview' stats.
+  // For now, we fallback to 0 or what's visible, or you can implement a separate stats endpoint.
+  const openCount = 0; // Placeholder until backend supports stats endpoint
+  const waitingCount = 0; 
+  const closedCount = 0;
 
   // Get status badge variant
   const getStatusBadge = (status: string) => {
@@ -241,7 +260,7 @@ export default function SupportPage() {
         <SupportQuickLinks currentPage="support" />
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Note: Static until backend endpoint exists */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="border-l-4 border-l-blue-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -249,39 +268,10 @@ export default function SupportPage() {
             <MessageSquare className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{tickets.length}</div>
+            <div className="text-2xl font-bold">{data?.total || 0}</div>
           </CardContent>
         </Card>
-
-        <Card className="border-l-4 border-l-red-500">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Open</CardTitle>
-            <AlertCircle className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{openCount}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-yellow-500">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Awaiting Reply</CardTitle>
-            <Clock className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{waitingCount}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-green-500">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Resolved</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{closedCount}</div>
-          </CardContent>
-        </Card>
+        {/* ... (Other cards would require separate stats API to be accurate) ... */}
       </div>
 
       {/* Tabs */}
@@ -313,11 +303,11 @@ export default function SupportPage() {
                     <Input
                       placeholder="Search tickets..."
                       value={searchQuery}
-                      onChange={e => setSearchQuery(e.target.value)}
+                      onChange={handleSearch}
                       className="pl-10 w-48"
                     />
                   </div>
-                  <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <Select value={filterStatus} onValueChange={handleStatusChange}>
                     <SelectTrigger className="w-36">
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
@@ -335,7 +325,7 @@ export default function SupportPage() {
             <CardContent>
               {isLoading ? (
                 <div className="text-center py-8 text-muted-foreground">Loading tickets...</div>
-              ) : filteredTickets.length === 0 ? (
+              ) : tickets.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p className="text-lg font-medium">No Tickets Found</p>
@@ -355,7 +345,7 @@ export default function SupportPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredTickets.map((ticket: any) => {
+                    {tickets.map((ticket: any) => {
                       const status = getStatusBadge(ticket.status);
                       const priorityBadge = getPriorityBadge(ticket.priority);
                       return (
@@ -383,7 +373,7 @@ export default function SupportPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => router.push(`/support/${ticket.id}`)}
+                              onClick={() => router.push(`/user/support/${ticket.id}`)}
                             >
                               View <ChevronRight className="ml-1 h-4 w-4" />
                             </Button>
@@ -393,6 +383,18 @@ export default function SupportPage() {
                     })}
                   </TableBody>
                 </Table>
+              )}
+
+              {/* [PROTOCOL 7] Dynamic Pagination */}
+              {data && (
+                <PaginationControls
+                  currentPage={data.current_page}
+                  totalPages={data.last_page}
+                  onPageChange={setPage}
+                  totalItems={data.total}
+                  from={data.from}
+                  to={data.to}
+                />
               )}
             </CardContent>
           </Card>
@@ -435,11 +437,11 @@ export default function SupportPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 {[
-                  { href: '/kyc', label: 'Complete KYC Verification', icon: FileText },
-                  { href: '/subscription', label: 'Manage Subscription', icon: CheckCircle },
-                  { href: '/wallet', label: 'Wallet & Withdrawals', icon: Clock },
-                  { href: '/referrals', label: 'Referral Program', icon: HelpCircle },
-                  { href: '/profile', label: 'Account Settings', icon: MessageSquare },
+                  { href: '/user/kyc', label: 'Complete KYC Verification', icon: FileText },
+                  { href: '/user/subscription', label: 'Manage Subscription', icon: CheckCircle },
+                  { href: '/user/wallet', label: 'Wallet & Withdrawals', icon: Clock },
+                  { href: '/user/referrals', label: 'Referral Program', icon: HelpCircle },
+                  { href: '/user/settings', label: 'Account Settings', icon: MessageSquare },
                 ].map((link) => (
                   <Link
                     key={link.href}

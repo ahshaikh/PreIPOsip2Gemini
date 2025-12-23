@@ -191,6 +191,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'mfa.verified'])->group(function () {
         Route::post('/user/withdrawals', [WithdrawalController::class, 'store']);
         Route::post('/user/security/change-password', [SecurityController::class, 'update']);
+        Route::get('/user/dashboard/overview', [UserDashboardController::class, 'overview']);
     
         Route::post('/logout', [AuthController::class, 'logout']);
 
@@ -523,16 +524,34 @@ Route::prefix('v1')->group(function () {
 
             Route::apiResource('/roles', RoleController::class)->middleware('permission:users.manage_roles');
 
-            // KYC Management
+            // KYC Management - Read Operations
             Route::get('/kyc-queue', [KycQueueController::class, 'index'])->middleware('permission:kyc.view_queue');
+            
+            // KYC Statistics for the dashboard widgets
+            Route::get('/kyc-queue/stats', [KycQueueController::class, 'stats'])->middleware('permission:kyc.view_queue');
+            
+            // KYC Populates the "Quick Template" dropdown
+            Route::get('/kyc-queue/rejection-templates', [KycQueueController::class, 'getRejectionTemplates'])->middleware('permission:kyc.view_queue');
+            
+            // KYC Single Record Detail
             Route::get('/kyc-queue/{id}', [KycQueueController::class, 'show'])->middleware('permission:kyc.view_queue');
 
-            // KYC approval/rejection - Rate limited
+            // KYC Actions - Rate Limited & Protected
             Route::middleware('throttle:admin-actions')->group(function () {
+                
+                // Approve
                 Route::post('/kyc-queue/{id}/approve', [KycQueueController::class, 'approve'])->middleware('permission:kyc.approve');
+                
+                // Reject
                 Route::post('/kyc-queue/{id}/reject', [KycQueueController::class, 'reject'])->middleware('permission:kyc.reject');
+                
+                // Request Resubmission 
+                Route::post('/kyc-queue/{id}/request-resubmission', [KycQueueController::class, 'requestResubmission'])->middleware('permission:kyc.reject');
+                
+                // Add Internal Note 
+                Route::post('/kyc-queue/{id}/notes', [KycQueueController::class, 'addNote'])->middleware('permission:kyc.view_queue');
             });
-
+            
             // Business Management
             Route::apiResource('/plans', PlanController::class)->middleware('permission:plans.edit');
             Route::apiResource('/products', ProductController::class)->middleware('permission:products.edit');

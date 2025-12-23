@@ -1,4 +1,4 @@
-// V-REMEDIATE-1730-173
+// V-REMEDIATE-1730-173 | V-FIX-HYDRATION-2025
 'use client';
 
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,38 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { AlertTriangle, CreditCard, History, Shield, User as UserIcon, Wallet } from "lucide-react";
 
+// [AUDIT FIX] Defined interface to match Backend Response exactly
+interface UserDetail {
+  id: number;
+  username: string;
+  email: string;
+  mobile: string;
+  status: string;
+  created_at: string;
+  profile: {
+    first_name: string;
+    last_name: string;
+  };
+  wallet: {
+    balance: number;
+    locked_balance: number;
+    transactions: any[];
+  } | null;
+  kyc: {
+    status: string;
+    pan_number?: string;
+    aadhaar_number?: string;
+    bank_account?: string;
+  } | null;
+  subscription: {
+    plan_name: string;
+    status: string;
+    starts_at: string; // Fixed from start_dat
+    bonus_multiplier?: number;
+  } | null;
+  activity_logs: any[];
+}
+
 export default function UserDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -35,7 +67,7 @@ export default function UserDetailPage() {
   const [suspendReason, setSuspendReason] = useState('');
 
   // Fetch User Data
-  const { data: user, isLoading } = useQuery({
+  const { data: user, isLoading } = useQuery<UserDetail>({
     queryKey: ['adminUserDetail', userId],
     queryFn: async () => (await api.get(`/admin/users/${userId}`)).data,
   });
@@ -124,8 +156,8 @@ export default function UserDetailPage() {
             <CardTitle className="text-sm font-medium">Wallet Balance</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">₹{user.wallet?.balance || '0.00'}</div>
-            <p className="text-xs text-muted-foreground mb-4">Locked: ₹{user.wallet?.locked_balance || '0.00'}</p>
+            <div className="text-3xl font-bold">₹{user.wallet?.balance?.toLocaleString() || '0.00'}</div>
+            <p className="text-xs text-muted-foreground mb-4">Locked: ₹{user.wallet?.locked_balance?.toLocaleString() || '0.00'}</p>
             <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
               <DialogTrigger asChild><Button className="w-full" variant="secondary">Adjust Balance</Button></DialogTrigger>
               <DialogContent>
@@ -226,10 +258,20 @@ export default function UserDetailPage() {
             <CardContent className="pt-6">
               {user.subscription ? (
                 <div className="space-y-4">
-                  <h3 className="text-xl font-bold">{user.subscription.plan.name}</h3>
-                  <p>Status: <Badge>{user.subscription.status}</Badge></p>
-                  <p>Start Date: {new Date(user.subscription.start_date).toLocaleDateString()}</p>
-                  <p>Bonus Multiplier: {user.subscription.bonus_multiplier}x</p>
+                  <h3 className="text-xl font-bold">{user.subscription.plan_name}</h3>
+                  {/* [FIX]: Changed <p> to <div> to solve hydration error (Badge is a div) */}
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">Status:</span> 
+                    <Badge variant={user.subscription.status === 'active' ? 'default' : 'secondary'}>
+                      {user.subscription.status}
+                    </Badge>
+                  </div>
+                  {/* [FIX]: Corrected typo 'start_dat' to 'starts_at' matching Backend */}
+                  <p>Start Date: {user.subscription.starts_at ? new Date(user.subscription.starts_at).toLocaleDateString() : 'N/A'}</p>
+                  {/* [FIX]: Added optional chaining for bonus_multiplier */}
+                  {user.subscription.bonus_multiplier && (
+                    <p>Bonus Multiplier: {user.subscription.bonus_multiplier}x</p>
+                  )}
                 </div>
               ) : (
                 <p className="text-muted-foreground">No active subscription.</p>

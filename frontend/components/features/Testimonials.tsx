@@ -40,7 +40,7 @@ export default function Testimonials() {
             What Our <span className="text-gradient">Investors Say</span>
           </h2>
           <p className="text-xl text-gray-600 dark:text-gray-400 transition-colors duration-300">
-            Join 5,000+ happy investors
+            Join our happy growing investors
           </p>
 
           {/* NEW CTA BUTTON ADDED HERE */}

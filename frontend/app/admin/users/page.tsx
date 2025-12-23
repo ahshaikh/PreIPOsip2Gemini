@@ -1,4 +1,4 @@
-// V-PHASE6-1730-126 (Created) | V-FINAL-1730-218 (Bulk & Import Added)
+// V-PHASE6-1730-126 (Created) | V-FINAL-1730-218 (Bulk & Import Added) | V-PROTOCOL-7-REFACTOR
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +13,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { SearchInput } from "@/components/shared/SearchInput";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { ChevronDown, Upload, Download, Gift, Ban, CheckCircle } from "lucide-react";
 
@@ -21,16 +21,33 @@ export default function UsersPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
+  
+  // [PROTOCOL 7] State for Pagination
+  const [page, setPage] = useState(1);
+  const search = searchParams.get('search') || '';
+
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [isImportOpen, setIsImportOpen] = useState(false);
-  
-  const page = searchParams.get('page') || '1';
-  const search = searchParams.get('search') || '';
 
+  // [PROTOCOL 7] Reset page to 1 when search term changes
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  // [PROTOCOL 7] Updated Query Logic
   const { data: queryData, isLoading } = useQuery({
     queryKey: ['adminUsers', page, search],
-    queryFn: async () => (await api.get(`/admin/users?page=${page}&search=${search}`)).data,
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: page.toString(),
+      });
+      if (search) params.append('search', search);
+      
+      const res = await api.get(`/admin/users?${params.toString()}`);
+      return res.data;
+    },
+    placeholderData: (previousData) => previousData,
   });
 
   // Mutations
@@ -205,7 +222,17 @@ export default function UsersPage() {
             </TableBody>
           </Table>
           
-          {queryData && <PaginationControls meta={queryData.meta} />}
+          {/* [PROTOCOL 7] Standardized Pagination Controls */}
+          {queryData && (
+            <PaginationControls 
+                currentPage={queryData.current_page}
+                totalPages={queryData.last_page}
+                onPageChange={setPage}
+                totalItems={queryData.total}
+                from={queryData.from}
+                to={queryData.to}
+            />
+          )}
           
         </CardContent>
       </Card>

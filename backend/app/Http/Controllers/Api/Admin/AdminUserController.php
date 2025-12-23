@@ -1,5 +1,5 @@
 <?php
-// V-PHASE2-1730-053 (Created) | V-REMEDIATE-1730-172 | V-FINAL-1730-294 (SEC-2 Fix Applied) | V-FINAL-1730-446 (WalletService Refactor) | V-AUDIT-FIX-REFACTOR
+// V-PHASE2-1730-053 (Created) | V-REMEDIATE-1730-172 | V-FINAL-1730-294 (SEC-2 Fix Applied) | V-FINAL-1730-446 (WalletService Refactor) | V-AUDIT-FIX-REFACTOR | V-FIX-UNITS-2025 | V-FEATURE-OVERDRAFT | V-FIX-HISTORY-TAB
 
 namespace App\Http\Controllers\Api\Admin;
 
@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Notification;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use App\Enums\TransactionType; // [AUDIT FIX] Added required Enum import
 
 class AdminUserController extends Controller
 {
@@ -67,9 +68,10 @@ class AdminUserController extends Controller
                   });
             });
         }
+        $perPage = function_exists('setting') ? (int) setting('records_per_page', 15) : 15;
 
         $users = $query->latest()
-            ->paginate(setting('records_per_page', 25))
+            ->paginate($perPage)
             ->appends($request->only('search')); 
             
         return response()->json($users);
@@ -109,10 +111,11 @@ class AdminUserController extends Controller
      */
     public function show(User $user)
     {
+        // [AUDIT FIX]: Eager load wallet transactions so they appear in the Admin UI tab
         $user->load([
             'profile',
             'kyc.documents',
-            'wallet',
+            'wallet.transactions', 
             'subscription.plan',
         ]);
 
@@ -142,6 +145,18 @@ class AdminUserController extends Controller
             'wallet' => $user->wallet ? [
                 'balance' => $user->wallet->balance,
                 'locked_balance' => $user->wallet->locked_balance,
+                // [AUDIT FIX]: Map transactions for the frontend history tab
+                'transactions' => $user->wallet->transactions->map(function($tx) {
+                    return [
+                        'id' => $tx->id,
+                        'type' => $tx->type,
+                        'amount' => $tx->amount, // Uses Accessor (Paise -> Rupees)
+                        'balance_after' => $tx->balance_after, // Uses Accessor (Paise -> Rupees)
+                        'description' => $tx->description,
+                        'status' => $tx->status,
+                        'created_at' => $tx->created_at,
+                    ];
+                }),
             ] : null,
             'subscription' => $user->subscription ? [
                 'id' => $user->subscription->id,
@@ -208,15 +223,35 @@ class AdminUserController extends Controller
     public function adjustBalance(AdjustBalanceRequest $request, User $user)
     {
         $validated = $request->validated();
+        
+        // [AUDIT FIX]: Unit Conversion - Rupees to Paise
+        // Frontend sends Rupees (e.g., 1500), WalletService expects Paise (150000)
         $amount = (float)$validated['amount'];
+        $amountPaise = (int) round($amount * 100); 
+
         $description = "Admin Adjustment: " . $validated['description'];
         $admin = $request->user();
 
         try {
             if ($validated['type'] === 'credit') {
-                $this->walletService->deposit($user, $amount, 'admin_adjustment', $description, $admin);
+                $this->walletService->deposit(
+                    $user, 
+                    $amountPaise, 
+                    TransactionType::DEPOSIT, 
+                    $description, 
+                    $admin
+                );
             } else {
-                $this->walletService->withdraw($user, $amount, 'admin_adjustment', $description, $admin, false); 
+                // [PROTOCOL 7 Fix]: Updated arguments to allow overdraft
+                $this->walletService->withdraw(
+                    $user, 
+                    $amountPaise, 
+                    TransactionType::WITHDRAWAL, 
+                    $description, 
+                    $admin, 
+                    false, // lockBalance
+                    true   // [NEW ARGUMENT]: allowOverdraft = true for Admin actions
+                ); 
             }
             return response()->json(['message' => 'Wallet balance adjusted successfully.', 'new_balance' => $user->wallet->fresh()->balance]);
         } catch (\Exception $e) {
@@ -237,12 +272,21 @@ class AdminUserController extends Controller
         $admin = $request->user();
 
         if ($validated['action'] === 'bonus') {
-            $amount = $validated['data']['amount'] ?? 0;
-            if ($amount <= 0) return response()->json(['message' => 'Invalid bonus amount'], 400);
+            // [AUDIT FIX]: Unit Conversion for Bulk Bonus
+            $amount = (float)($validated['data']['amount'] ?? 0);
+            $amountPaise = (int) round($amount * 100);
+
+            if ($amountPaise <= 0) return response()->json(['message' => 'Invalid bonus amount'], 400);
 
             $users = User::whereIn('id', $validated['user_ids'])->get();
             foreach ($users as $user) {
-                $this->walletService->deposit($user, $amount, 'manual_bonus', 'Bulk Bonus Award', $admin);
+                $this->walletService->deposit(
+                    $user, 
+                    $amountPaise, 
+                    TransactionType::DEPOSIT, 
+                    'Bulk Bonus Award', 
+                    $admin
+                );
             }
             return response()->json(['message' => "Bonus of $amount awarded to $count users."]);
         }

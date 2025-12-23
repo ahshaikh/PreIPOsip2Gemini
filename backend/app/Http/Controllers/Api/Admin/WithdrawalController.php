@@ -21,12 +21,14 @@ class WithdrawalController extends Controller
     public function index(Request $request)
     {
         $status = $request->query('status', 'pending');
-        $withdrawals = Withdrawal::where('status', $status)
-            ->with('user:id,username')
-            ->latest()
-            ->paginate(25);
-            
-        return response()->json($withdrawals);
+        $query = Withdrawal::where('status', $status)
+            ->with('user:id,username');
+
+        $perPage = (int) setting('records_per_page', 15);
+
+        return response()->json(
+            $query->latest()->paginate($perPage)
+        );
     }
     
     public function approve(Request $request, Withdrawal $withdrawal)
