@@ -1,6 +1,6 @@
 'use client';
 
-// V-PHASE5-1730-119 | V-ENHANCED-PORTFOLIO
+// V-PHASE5-1730-119 | V-ENHANCED-PORTFOLIO | V-PROTOCOL-7-PAGINATION
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,6 +13,7 @@ import api from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
+import { PaginationControls } from "@/components/shared/PaginationControls"; // [PROTOCOL 7]
 import {
   TrendingUp, TrendingDown, PieChart, BarChart3, ArrowUpRight,
   ArrowDownRight, Wallet, Target, Info, Download, Calendar,
@@ -22,6 +23,9 @@ import {
 export default function PortfolioPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedHolding, setSelectedHolding] = useState<any>(null);
+  
+  // [PROTOCOL 7] Pagination State
+  const [page, setPage] = useState(1);
 
   const handleDownloadStatement = async () => {
     try {
@@ -41,24 +45,35 @@ export default function PortfolioPage() {
     }
   };
 
+  // 1. Fetch Portfolio Overview
   const { data, isLoading } = useQuery({
     queryKey: ['portfolio'],
     queryFn: async () => (await api.get('/user/portfolio')).data,
   });
 
-  // Transaction history
-  const { data: transactions } = useQuery({
-    queryKey: ['portfolioTransactions'],
-    queryFn: async () => (await api.get('/user/portfolio/transactions')).data,
+  // 2. Fetch Transactions (Protocol 7: Paginated)
+  const { data: transactionsData } = useQuery({
+    queryKey: ['portfolioTransactions', page], // Include page in key
+    queryFn: async () => {
+        const params = new URLSearchParams({
+            page: page.toString(),
+            // Add type filter here if you implement a dropdown for it
+        });
+        const res = await api.get(`/user/portfolio/transactions?${params.toString()}`);
+        return res.data;
+    },
     enabled: activeTab === 'transactions',
+    placeholderData: (prev) => prev, // Keep data while fetching next page
   });
+
+  const transactions = transactionsData?.data || [];
 
   if (isLoading) return <div className="flex items-center justify-center h-64">Loading portfolio...</div>;
 
   // Calculate portfolio metrics
   const totalInvested = parseFloat(data?.summary?.total_invested || 0);
   const currentValue = parseFloat(data?.summary?.current_value || 0);
-  const unrealizedGain = parseFloat(data?.summary?.total_returns || 0); // Updated key based on controller
+  const unrealizedGain = parseFloat(data?.summary?.total_returns || 0);
   const gainPercentage = totalInvested > 0 ? ((unrealizedGain / totalInvested) * 100).toFixed(2) : '0.00';
   const isPositive = unrealizedGain >= 0;
 
@@ -188,7 +203,6 @@ export default function PortfolioPage() {
                   </TableHeader>
                   <TableBody>
                     {holdings.map((holding: any, index: number) => {
-                      // Map fields from the updated controller response
                       const units = parseFloat(holding.total_units || holding.units || 0);
                       const invested = parseFloat(holding.cost_basis || holding.invested || 0);
                       const currentVal = parseFloat(holding.current_value || 0);
@@ -198,7 +212,6 @@ export default function PortfolioPage() {
                       const holdingPositive = gain >= 0;
 
                       return (
-                        // FIX: Added fallback key using product_slug or index to prevent 'unique key' error
                         <TableRow key={holding.product_slug || holding.id || `holding-${index}`}>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -271,7 +284,7 @@ export default function PortfolioPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {transactions?.data?.map((tx: any, idx: number) => (
+                  {transactions?.map((tx: any, idx: number) => (
                     <TableRow key={tx.id || `tx-${idx}`}>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -295,7 +308,7 @@ export default function PortfolioPage() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {(!transactions?.data || transactions.data.length === 0) && (
+                  {(!transactions || transactions.length === 0) && (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                         No transactions yet
@@ -304,6 +317,18 @@ export default function PortfolioPage() {
                   )}
                 </TableBody>
               </Table>
+              
+              {/* [PROTOCOL 7] Dynamic Pagination Controls */}
+              {transactionsData && (
+                <PaginationControls
+                  currentPage={transactionsData.current_page}
+                  totalPages={transactionsData.last_page}
+                  onPageChange={setPage}
+                  totalItems={transactionsData.total}
+                  from={transactionsData.from}
+                  to={transactionsData.to}
+                />
+              )}
             </CardContent>
           </Card>
         </TabsContent>
