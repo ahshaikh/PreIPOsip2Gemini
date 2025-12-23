@@ -55,34 +55,34 @@ export default function UserPlansPage() {
   // Color schemes for different plan tiers
   const planColors = [
     {
-      gradient: "from-amber-50 to-orange-50",
-      border: "border-amber-200",
-      iconBg: "bg-amber-100",
-      iconColor: "text-amber-600",
+      gradient: "from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30",
+      border: "border-amber-200 dark:border-amber-800",
+      iconBg: "bg-amber-100 dark:bg-amber-900/50",
+      iconColor: "text-amber-600 dark:text-amber-400",
       buttonClass: "bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700",
       icon: Sparkles,
     },
     {
-      gradient: "from-blue-50 to-cyan-50",
-      border: "border-blue-200",
-      iconBg: "bg-blue-100",
-      iconColor: "text-blue-600",
+      gradient: "from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30",
+      border: "border-blue-200 dark:border-blue-800",
+      iconBg: "bg-blue-100 dark:bg-blue-900/50",
+      iconColor: "text-blue-600 dark:text-blue-400",
       buttonClass: "bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700",
       icon: TrendingUp,
     },
     {
-      gradient: "from-purple-50 to-pink-50",
-      border: "border-purple-200",
-      iconBg: "bg-purple-100",
-      iconColor: "text-purple-600",
+      gradient: "from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30",
+      border: "border-purple-200 dark:border-purple-800",
+      iconBg: "bg-purple-100 dark:bg-purple-900/50",
+      iconColor: "text-purple-600 dark:text-purple-400",
       buttonClass: "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700",
       icon: Crown,
     },
     {
-      gradient: "from-emerald-50 to-teal-50",
-      border: "border-emerald-200",
-      iconBg: "bg-emerald-100",
-      iconColor: "text-emerald-600",
+      gradient: "from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30",
+      border: "border-emerald-200 dark:border-emerald-800",
+      iconBg: "bg-emerald-100 dark:bg-emerald-900/50",
+      iconColor: "text-emerald-600 dark:text-emerald-400",
       buttonClass: "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700",
       icon: Zap,
     },
@@ -100,9 +100,9 @@ export default function UserPlansPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="text-center max-w-3xl mx-auto">
-        <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-purple-100 to-blue-100 rounded-full px-6 py-3 mb-6 border border-purple-200">
-          <Star className="w-5 h-5 text-purple-600" />
-          <span className="font-semibold text-purple-900">100% Free Plans</span>
+        <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/50 dark:to-blue-900/50 rounded-full px-6 py-3 mb-6 border border-purple-200 dark:border-purple-800">
+          <Star className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+          <span className="font-semibold text-purple-900 dark:text-purple-100">100% Free Plans</span>
         </div>
 
         <h1 className="text-4xl font-bold mb-4">
@@ -112,18 +112,18 @@ export default function UserPlansPage() {
         <p className="text-lg text-muted-foreground mb-2">
           All plans are 100% free. No platform fees, no exit fees.
         </p>
-        <p className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-600">
+        <p className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-600 dark:from-green-400 dark:to-emerald-400">
           Your investment, your profit, plus our bonuses.
         </p>
       </div>
 
       {/* Current Subscription Alert */}
       {subscription && (
-        <Card className="border-blue-500 bg-blue-50">
+        <Card className="border-blue-500 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/30">
           <CardContent className="pt-6">
             <p className="text-sm">
               You're currently subscribed to <strong>{subscription.plan?.name}</strong>.
-              To change plans, please go to your <a href="/subscription" className="text-blue-600 hover:underline">subscription page</a>.
+              To change plans, please go to your <a href="/subscription" className="text-blue-600 dark:text-blue-400 hover:underline">subscription page</a>.
             </p>
           </CardContent>
         </Card>

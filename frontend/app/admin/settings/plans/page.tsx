@@ -308,7 +308,8 @@ export default function PlanManagerPage() {
     setIsFeatured(plan.is_featured);
     setAvailableFrom(formatDateForInput(plan.available_from));
     setAvailableUntil(formatDateForInput(plan.available_until));
-    setFeatures(Array.isArray(plan.features) ? plan.features : []);
+    // Convert feature objects to strings, or keep strings as-is
+    setFeatures(Array.isArray(plan.features) ? plan.features.map((f: any) => typeof f === 'string' ? f : f.feature_text) : []);
     setMinInvestment(plan.min_investment || '');
     setMaxInvestment(plan.max_investment || '');
     setDisplayOrder(plan.display_order?.toString() || '0');

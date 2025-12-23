@@ -329,7 +329,7 @@ export default function SubscriptionPage() {
           <div>
             <h3 className="font-semibold mb-2">Payment History</h3>
             <div className="border rounded-lg">
-              {sub.payments.map((p: any) => (
+              {(sub.payments || []).map((p: any) => (
                 <div key={p.id} className="flex justify-between items-center p-4 border-b last:border-b-0">
                   <div>
                     <p className="font-medium">Payment for {new Date(p.created_at).toLocaleDateString()}</p>
