@@ -111,19 +111,18 @@ class UserDashboardController extends Controller
 
     /**
      * Get Latest Announcements
+     * Returns format expected by UserTopNav: { text, link }
      */
     public function announcements()
     {
+        // TODO: Replace with actual Announcement model query when implemented
+        // For now, return a banner-compatible format
         return response()->json([
-            'data' => [
-                [
-                    'id' => 1,
-                    'title' => 'Diwali Investment Bonanza!',
-                    'content' => 'Get 2% extra units on all investments above ₹50k.',
-                    'type' => 'info', 
-                    'created_at' => now()->subDays(2)->toIso8601String(),
-                ]
-            ]
+            'id' => 1,
+            'text' => 'Diwali Investment Bonanza! Get 2% extra units on all investments above ₹50k',
+            'link' => '/deals',
+            'type' => 'info',
+            'created_at' => now()->subDays(2)->toIso8601String(),
         ]);
     }
 

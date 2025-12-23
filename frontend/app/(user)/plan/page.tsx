@@ -25,7 +25,7 @@ export default function UserPlansPage() {
     retry: false,
   });
 
-  // Subscribe mutation
+  // Subscribe mutation (for new subscriptions)
   const subscribeMutation = useMutation({
     mutationFn: (planId: number) => api.post('/user/subscription', { plan_id: planId }),
     onSuccess: () => {
@@ -35,6 +35,20 @@ export default function UserPlansPage() {
     },
     onError: (error: any) => {
       toast.error("Subscription Failed", { description: error.response?.data?.message });
+    }
+  });
+
+  // Change plan mutation (for existing subscriptions)
+  const changePlanMutation = useMutation({
+    mutationFn: (planId: number) => api.post('/user/subscription/change-plan', { new_plan_id: planId }),
+    onSuccess: (response) => {
+      const message = response.data?.message || "Plan changed successfully!";
+      toast.success("Plan Changed!", { description: message });
+      queryClient.invalidateQueries({ queryKey: ['subscription'] });
+      router.push('/subscription');
+    },
+    onError: (error: any) => {
+      toast.error("Plan Change Failed", { description: error.response?.data?.message || "Please try again" });
     }
   });
 
@@ -176,15 +190,24 @@ export default function UserPlansPage() {
 
                 <Button
                   className={`w-full ${colorScheme.buttonClass} text-white`}
-                  onClick={() => subscribeMutation.mutate(plan.id)}
-                  disabled={subscribeMutation.isPending || isCurrentPlan || !!subscription}
+                  onClick={() => {
+                    if (subscription) {
+                      changePlanMutation.mutate(plan.id);
+                    } else {
+                      subscribeMutation.mutate(plan.id);
+                    }
+                  }}
+                  disabled={subscribeMutation.isPending || changePlanMutation.isPending || isCurrentPlan}
                 >
-                  {subscribeMutation.isPending ? (
+                  {(subscribeMutation.isPending || changePlanMutation.isPending) ? (
                     "Processing..."
                   ) : isCurrentPlan ? (
                     "Current Plan"
                   ) : subscription ? (
-                    "Change Plan"
+                    <>
+                      Change to {plan.name}
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </>
                   ) : (
                     <>
                       Choose {plan.name}
