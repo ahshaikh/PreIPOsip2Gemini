@@ -15,19 +15,23 @@ import {
   LifeBuoy,
   User,
   Ticket,
-  PieChart, // <-- 1. IMPORT NEW ICON
+  PieChart,
+  TrendingUp,
+  Building2,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/kyc', label: 'KYC Verification', icon: FileCheck2 },
   { href: '/subscription', label: 'My Subscription', icon: Package },
+  { href: '/deals', label: 'Available Deals', icon: Building2 },
+  { href: '/investments', label: 'My Investments', icon: TrendingUp },
   { href: '/portfolio', label: 'My Portfolio', icon: AreaChart },
   { href: '/bonuses', label: 'My Bonuses', icon: Gift },
   { href: '/referrals', label: 'My Referrals', icon: Users },
   { href: '/wallet', label: 'My Wallet', icon: Wallet },
   { href: '/lucky-draws', label: 'Lucky Draw', icon: Ticket },
-  { href: '/profit-sharing', label: 'Profit Sharing', icon: PieChart }, // <-- 2. ADD THIS LINK
+  { href: '/profit-sharing', label: 'Profit Sharing', icon: PieChart },
   { href: '/support', label: 'Support', icon: LifeBuoy },
   { href: '/profile', label: 'Profile', icon: User },
 ];
