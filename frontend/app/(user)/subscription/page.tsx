@@ -365,10 +365,10 @@ export default function SubscriptionPage() {
       </Card>
 
       {/* Modals */}
-      <ManageSubscriptionModal 
-        isOpen={isManageOpen} 
+      <ManageSubscriptionModal
+        isOpen={isManageOpen}
         onClose={() => setIsManageOpen(false)}
-        currentPlanId={sub.plan.id}
+        currentPlanId={sub.plan?.id || 0}
         plans={plans || []}
         status={sub.status}
       />

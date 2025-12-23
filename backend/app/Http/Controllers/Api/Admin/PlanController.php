@@ -81,10 +81,14 @@ class PlanController extends Controller
             ->count();
 
         if ($activeSubscriptionCount > 0) {
-            if (
-                ($request->has('monthly_amount') && $request->monthly_amount != $plan->monthly_amount) ||
-                ($request->has('billing_cycle') && $request->billing_cycle != $plan->billing_cycle)
-            ) {
+            // Use strict type comparison to avoid false positives from string vs decimal
+            $priceChanged = isset($validated['monthly_amount']) &&
+                           (float)$validated['monthly_amount'] !== (float)$plan->monthly_amount;
+
+            $billingChanged = isset($validated['billing_cycle']) &&
+                             $validated['billing_cycle'] !== $plan->billing_cycle;
+
+            if ($priceChanged || $billingChanged) {
                 return response()->json([
                     'message' => "Cannot modify price or billing cycle for a plan with {$activeSubscriptionCount} active subscription(s). All other fields can be edited."
                 ], 409);
