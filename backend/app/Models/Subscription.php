@@ -66,6 +66,11 @@ class Subscription extends Model
         return $this->hasMany(BonusTransaction::class);
     }
 
+    public function investments(): HasMany
+    {
+        return $this->hasMany(Investment::class);
+    }
+
     // --- ACCESSORS ---
 
     /**
@@ -85,6 +90,30 @@ class Subscription extends Model
     {
         return Attribute::make(
             get: fn () => $this->payments()->where('status', 'paid')->sum('amount')
+        );
+    }
+
+    /**
+     * Calculate total amount invested from this subscription.
+     */
+    protected function totalInvested(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->investments()->whereIn('status', ['active', 'pending'])->sum('total_amount')
+        );
+    }
+
+    /**
+     * Calculate available balance for new investments.
+     */
+    protected function availableBalance(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                // Total subscription value based on plan
+                $totalValue = ($this->amount ?? $this->plan->monthly_amount) * ($this->plan->duration_months ?? 12);
+                return max(0, $totalValue - $this->total_invested);
+            }
         );
     }
 

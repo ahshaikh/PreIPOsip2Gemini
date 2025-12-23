@@ -94,7 +94,7 @@ export default function SubscriptionPage() {
               verifyPayload.razorpay_subscription_id = response.razorpay_subscription_id;
             }
 
-            await api.post('/user/payment/verify', verifyPayload);
+            const verifyResponse = await api.post('/user/payment/verify', verifyPayload);
 
             toast.success("Payment Verified!", { description: "Your payment has been successfully processed." });
 
@@ -102,6 +102,11 @@ export default function SubscriptionPage() {
             queryClient.invalidateQueries({ queryKey: ['subscription'] });
             queryClient.invalidateQueries({ queryKey: ['portfolio'] });
             queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
+
+            // Redirect to deals page after first payment
+            setTimeout(() => {
+              router.push('/deals?welcome=true');
+            }, 1500);
           } catch (error: any) {
             toast.error("Verification Failed", {
               description: error.response?.data?.message || "Payment completed but verification failed. Please contact support."
