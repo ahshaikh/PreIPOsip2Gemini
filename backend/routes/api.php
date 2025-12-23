@@ -571,6 +571,7 @@ Route::prefix('v1')->group(function () {
             });
             
             // Business Management
+            Route::get('/plans/stats', [PlanController::class, 'stats'])->middleware('permission:plans.edit');
             Route::apiResource('/plans', PlanController::class)->middleware('permission:plans.edit');
             Route::apiResource('/products', ProductController::class)->middleware('permission:products.edit');
 
