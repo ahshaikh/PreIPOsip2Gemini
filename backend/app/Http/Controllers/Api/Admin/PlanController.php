@@ -23,7 +23,10 @@ class PlanController extends Controller
 
     public function index()
     {
-        return Plan::with('configs', 'features')->latest()->get();
+        return Plan::with('configs', 'features')
+            ->withCount('subscriptions')
+            ->latest()
+            ->get();
     }
 
     public function store(StorePlanRequest $request)
@@ -72,13 +75,22 @@ class PlanController extends Controller
         $validated = $request->validated();
 
         // FIX: Critical check to prevent price/cycle changes on active plans
-        if ($plan->subscriptions()->exists()) {
-            if (
-                ($request->has('monthly_amount') && $request->monthly_amount != $plan->monthly_amount) ||
-                ($request->has('billing_cycle') && $request->billing_cycle != $plan->billing_cycle)
-            ) {
+        // Only check for ACTIVE subscriptions (not cancelled, expired, etc.)
+        $activeSubscriptionCount = $plan->subscriptions()
+            ->whereIn('status', ['active', 'paused', 'pending'])
+            ->count();
+
+        if ($activeSubscriptionCount > 0) {
+            // Use strict type comparison to avoid false positives from string vs decimal
+            $priceChanged = isset($validated['monthly_amount']) &&
+                           (float)$validated['monthly_amount'] !== (float)$plan->monthly_amount;
+
+            $billingChanged = isset($validated['billing_cycle']) &&
+                             $validated['billing_cycle'] !== $plan->billing_cycle;
+
+            if ($priceChanged || $billingChanged) {
                 return response()->json([
-                    'message' => 'Cannot modify price or billing cycle for a plan with active subscriptions. Please archive this plan and create a new one.'
+                    'message' => "Cannot modify price or billing cycle for a plan with {$activeSubscriptionCount} active subscription(s). All other fields can be edited."
                 ], 409);
             }
         }
@@ -104,5 +116,30 @@ class PlanController extends Controller
         }
         $plan->delete();
         return response()->noContent();
+    }
+
+    /**
+     * Get plan statistics for admin dashboard
+     */
+    public function stats()
+    {
+        $totalSubscribers = DB::table('subscriptions')
+            ->whereIn('status', ['active', 'paused'])
+            ->distinct('user_id')
+            ->count();
+
+        $monthlyRevenue = DB::table('subscriptions')
+            ->join('plans', 'subscriptions.plan_id', '=', 'plans.id')
+            ->where('subscriptions.status', 'active')
+            ->sum('plans.monthly_amount');
+
+        $avgPlanValue = DB::table('plans')
+            ->avg(DB::raw('monthly_amount * duration_months'));
+
+        return response()->json([
+            'total_subscribers' => $totalSubscribers,
+            'monthly_revenue' => $monthlyRevenue,
+            'avg_plan_value' => round($avgPlanValue, 2),
+        ]);
     }
 }

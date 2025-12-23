@@ -109,6 +109,15 @@ class Plan extends Model
     }
 
     /**
+     * Alias for subscriptions_count (created by withCount).
+     * Provides backwards compatibility for frontend.
+     */
+    public function getSubscribersCountAttribute()
+    {
+        return $this->attributes['subscriptions_count'] ?? 0;
+    }
+
+    /**
      * Retrieve a specific config value (e.g., 'progressive_rate').
      */
     public function getConfig(string $key, $default = null)

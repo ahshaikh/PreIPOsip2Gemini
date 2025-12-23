@@ -111,19 +111,34 @@ class UserDashboardController extends Controller
 
     /**
      * Get Latest Announcements
+     * Returns format expected by UserTopNav: { text, link }
      */
     public function announcements()
     {
+        $banner = \App\Models\Banner::active()
+            ->where('type', 'top_bar')
+            ->orderBy('display_order', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        if (!$banner) {
+            // Return fallback announcement if no active banner exists
+            return response()->json([
+                'id' => 1,
+                'text' => '🚀 Browse available deals and start investing in pre-IPO companies!',
+                'link' => '/deals',
+                'type' => 'info',
+                'created_at' => now()->subDays(2)->toIso8601String(),
+            ]);
+        }
+
+        // Return banner in format expected by frontend
         return response()->json([
-            'data' => [
-                [
-                    'id' => 1,
-                    'title' => 'Diwali Investment Bonanza!',
-                    'content' => 'Get 2% extra units on all investments above ₹50k.',
-                    'type' => 'info', 
-                    'created_at' => now()->subDays(2)->toIso8601String(),
-                ]
-            ]
+            'id' => $banner->id,
+            'text' => $banner->content ?: $banner->title,
+            'link' => $banner->link_url,
+            'type' => $banner->type,
+            'created_at' => $banner->created_at->toIso8601String(),
         ]);
     }
 

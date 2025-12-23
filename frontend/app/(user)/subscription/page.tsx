@@ -11,7 +11,8 @@ import { usePlans } from "@/lib/hooks";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useRouter } from "next/navigation";
-import { Download, CreditCard, Zap, Settings, Building2 } from "lucide-react";
+import Link from "next/link";
+import { Download, CreditCard, Zap, Settings, Building2, TrendingUp } from "lucide-react";
 import { useState } from "react";
 import { ManageSubscriptionModal } from "@/components/features/ManageSubscriptionModal";
 import { ManualPaymentModal } from "@/components/features/ManualPaymentModal";
@@ -226,6 +227,47 @@ export default function SubscriptionPage() {
           )}
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Quick Actions for Active Subscribers - Show for all non-cancelled */}
+          {sub.status !== 'cancelled' && (
+            <div className="grid md:grid-cols-2 gap-4">
+              <Link href="/deals">
+                <Card className="border-2 border-primary/20 hover:border-primary/40 hover:shadow-lg transition-all cursor-pointer group">
+                  <CardContent className="pt-6">
+                    <div className="flex items-start gap-4">
+                      <div className="p-3 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                        <Building2 className="w-6 h-6 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg mb-1">Browse Available Deals</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Discover and invest in pre-IPO companies using your subscription balance
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+
+              <Link href="/investments">
+                <Card className="border-2 border-green-200 hover:border-green-300 hover:shadow-lg transition-all cursor-pointer group">
+                  <CardContent className="pt-6">
+                    <div className="flex items-start gap-4">
+                      <div className="p-3 rounded-lg bg-green-100 group-hover:bg-green-200 transition-colors">
+                        <TrendingUp className="w-6 h-6 text-green-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg mb-1">My Investments</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Track your portfolio and view investment performance
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            </div>
+          )}
+
           {/* Paused Subscription Alert */}
           {sub.status === 'paused' && (
             <Alert className="border-yellow-500/50 bg-yellow-500/10">
@@ -287,7 +329,7 @@ export default function SubscriptionPage() {
           <div>
             <h3 className="font-semibold mb-2">Payment History</h3>
             <div className="border rounded-lg">
-              {sub.payments.map((p: any) => (
+              {(sub.payments || []).map((p: any) => (
                 <div key={p.id} className="flex justify-between items-center p-4 border-b last:border-b-0">
                   <div>
                     <p className="font-medium">Payment for {new Date(p.created_at).toLocaleDateString()}</p>
@@ -323,10 +365,10 @@ export default function SubscriptionPage() {
       </Card>
 
       {/* Modals */}
-      <ManageSubscriptionModal 
-        isOpen={isManageOpen} 
+      <ManageSubscriptionModal
+        isOpen={isManageOpen}
         onClose={() => setIsManageOpen(false)}
-        currentPlanId={sub.plan.id}
+        currentPlanId={sub.plan?.id || 0}
         plans={plans || []}
         status={sub.status}
       />

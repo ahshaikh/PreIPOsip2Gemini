@@ -141,9 +141,13 @@ export function UserTopNav({ user }: { user: any }) {
   const { data: announcement } = useQuery({
     queryKey: ["site-announcement"],
     queryFn: async () => {
-      const response = await api.get("/announcements/latest");
-      const data = response.data;
-      return data?.data || data;
+      try {
+        const response = await api.get("/announcements/latest");
+        const data = response.data;
+        return data?.data || data || null;
+      } catch (error) {
+        return null;
+      }
     }
   });
 
@@ -169,7 +173,7 @@ export function UserTopNav({ user }: { user: any }) {
     { id: 4, type: "offer", title: "New Offer!", message: "Get 2x referral bonus this weekend", created_at: "3 days ago", read: true },
     { id: 5, type: "reminder", title: "SIP Due", message: "Your monthly SIP of ₹5,000 is due tomorrow", created_at: "3 days ago", read: true },
   ];
-  const mockAnnouncement = { id: 1, text: "New Pre-IPO available: SpaceX Round F — Invest Now!", link: "/investments/spacex" };
+  const mockAnnouncement = { id: 1, text: "🚀 Browse available deals and start investing in pre-IPO companies!", link: "/deals" };
   const mockOffers = [
     { id: 1, code: "WELCOME50", description: "50% off on first investment", expiry: "2024-03-31" },
     { id: 2, code: "REFER2X", description: "2x referral bonus this month", expiry: "2024-03-25" },
@@ -177,7 +181,8 @@ export function UserTopNav({ user }: { user: any }) {
 
   const wallet = walletData || mockWallet;
   const userNotifications = Array.isArray(notifications) ? notifications : mockNotifications;
-  const currentAnnouncement = announcement || mockAnnouncement;
+  // Always show announcement - use API data if valid, otherwise use mock
+  const currentAnnouncement = (announcement && announcement.text) ? announcement : mockAnnouncement;
   const activeOffers = Array.isArray(offers) ? offers : mockOffers;
   const unreadCount = userNotifications.filter((n: UserNotification) => !n.read).length;
 
