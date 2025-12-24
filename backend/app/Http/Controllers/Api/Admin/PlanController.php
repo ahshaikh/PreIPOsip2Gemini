@@ -108,6 +108,20 @@ class PlanController extends Controller
 
         $plan->update($validated);
 
+        // Sync features (must be done explicitly - not mass assignable)
+        if ($request->has('features')) {
+            // Delete all existing features
+            $plan->features()->delete();
+            // Create new features from array
+            if (!empty($validated['features'])) {
+                foreach ($validated['features'] as $featureText) {
+                    $plan->features()->create([
+                        'feature_text' => is_string($featureText) ? $featureText : $featureText['feature_text'] ?? '',
+                    ]);
+                }
+            }
+        }
+
         if ($request->has('configs')) {
             foreach ($request->input('configs') as $key => $value) {
                 $plan->configs()->updateOrCreate(

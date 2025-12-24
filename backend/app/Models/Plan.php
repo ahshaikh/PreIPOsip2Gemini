@@ -23,20 +23,26 @@ class Plan extends Model
         'is_active',
         'is_featured',
         'display_order',
-        'available_from', // <-- NEW
-        'available_until', // <-- NEW
+        'available_from',
+        'available_until',
         'max_subscriptions_per_user',
         'allow_pause',
         'max_pause_count',
         'max_pause_duration_months',
+        'min_investment',
+        'max_investment',
+        'billing_cycle',
+        'trial_period_days',
+        'metadata',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'is_featured' => 'boolean',
         'monthly_amount' => 'decimal:2',
-        'available_from' => 'datetime', // <-- NEW
-        'available_until' => 'datetime', // <-- NEW
+        'available_from' => 'datetime',
+        'available_until' => 'datetime',
+        'metadata' => 'array',
     ];
 
     /**
