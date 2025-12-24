@@ -142,9 +142,23 @@ class KycController extends Controller
         } catch (\Exception $e) {
             // Rollback status to pending on failure
             $this->statusService->transitionStatus($kyc, KycStatus::PENDING->value, "Upload failed: " . $e->getMessage());
-            
-            Log::error("KYC document upload failed", ['user_id' => $user->id, 'error' => $e->getMessage()]);
-            return response()->json(['message' => 'Failed to upload documents.'], 400);
+
+            Log::error("KYC document upload failed", [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to upload documents.',
+                'error' => $e->getMessage(), // Show actual error in response
+                'debug' => config('app.debug') ? [
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine()
+                ] : null
+            ], 400);
         }
 
         // Dispatch background job for OCR/Verification
