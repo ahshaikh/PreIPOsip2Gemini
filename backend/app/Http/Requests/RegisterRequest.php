@@ -69,12 +69,31 @@ class RegisterRequest extends FormRequest
                 'string',
                 new CaseInsensitiveReferralCode()
             ],
+            // --- LEGAL DOCUMENT ACCEPTANCE (REQUIRED FOR FINTECH COMPLIANCE) ---
+            'accept_terms' => 'required|accepted',
+            'accept_privacy' => 'required|accepted',
+            'accept_risk_disclosure' => 'required|accepted',
+            'accept_aml_kyc' => 'required|accepted',
             // --- NEW: CAPTCHA RULE ---
             'captcha_token' => [
                 'nullable', // Nullable because it might be disabled
                 'string',
                 new Captcha() // Use our custom rule
             ],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'accept_terms.required' => 'You must accept the Terms and Conditions to register.',
+            'accept_terms.accepted' => 'You must accept the Terms and Conditions to register.',
+            'accept_privacy.required' => 'You must accept the Privacy Policy to register.',
+            'accept_privacy.accepted' => 'You must accept the Privacy Policy to register.',
+            'accept_risk_disclosure.required' => 'You must accept the Risk Disclosure to register.',
+            'accept_risk_disclosure.accepted' => 'You must accept the Risk Disclosure to register.',
+            'accept_aml_kyc.required' => 'You must accept the AML/KYC Policy to register.',
+            'accept_aml_kyc.accepted' => 'You must accept the AML/KYC Policy to register.',
         ];
     }
 }
