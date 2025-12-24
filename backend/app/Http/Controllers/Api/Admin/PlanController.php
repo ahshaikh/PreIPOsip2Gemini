@@ -139,7 +139,7 @@ class PlanController extends Controller
             if (!empty($validated['features'])) {
                 foreach ($validated['features'] as $featureText) {
                     $plan->features()->create([
-                        'feature_text' => is_string($featureText) ? $featureText : $featureText['feature_text'] ?? '',
+                        'feature_text' => $featureText,
                     ]);
                 }
             }

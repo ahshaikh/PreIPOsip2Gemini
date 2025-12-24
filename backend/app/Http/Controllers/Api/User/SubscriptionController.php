@@ -122,7 +122,11 @@ class SubscriptionController extends Controller
         if (isset($validated['subscription_id'])) {
             $query->where('id', $validated['subscription_id']);
         }
-        $sub = $query->latest()->firstOrFail();
+        $sub = $query->latest()->first();
+
+        if (!$sub) {
+            return response()->json(['message' => 'No active or paused subscription found to modify.'], 404);
+        }
 
         // Check if same plan
         if ($newPlan->id === $sub->plan_id) {
@@ -170,7 +174,11 @@ class SubscriptionController extends Controller
             $query->where('id', $request->input('subscription_id'));
         }
 
-        $sub = $query->latest()->firstOrFail();
+        $sub = $query->latest()->first();
+
+        if (!$sub) {
+            return response()->json(['message' => 'No active subscription found to pause.'], 404);
+        }
 
         // V-AUDIT-MODULE7-005: Use Plan's max_pause_duration_months instead of hardcoded max:3
         $maxPauseDuration = $sub->plan->max_pause_duration_months ?? 3; // Default to 3 if not set
@@ -204,7 +212,11 @@ class SubscriptionController extends Controller
             $query->where('id', $validated['subscription_id']);
         }
 
-        $sub = $query->latest()->firstOrFail();
+        $sub = $query->latest()->first();
+
+        if (!$sub) {
+            return response()->json(['message' => 'No paused subscription found to resume.'], 404);
+        }
 
         try {
             $this->service->resumeSubscription($sub);
@@ -231,7 +243,11 @@ class SubscriptionController extends Controller
             $query->where('id', $validated['subscription_id']);
         }
 
-        $sub = $query->latest()->firstOrFail();
+        $sub = $query->latest()->first();
+
+        if (!$sub) {
+            return response()->json(['message' => 'No active or paused subscription found to cancel.'], 404);
+        }
 
         try {
             $refundAmount = $this->service->cancelSubscription($sub, $validated['reason']);

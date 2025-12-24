@@ -33,7 +33,7 @@ class StorePlanRequest extends FormRequest
             'trial_period_days' => 'nullable|integer|min:0',
             'metadata' => 'nullable|json',
             'features' => 'nullable|array',
-            'features.*.feature_text' => 'required|string',
+            'features.*' => 'required|string',
             'configs' => 'nullable|array',
         ];
     }
