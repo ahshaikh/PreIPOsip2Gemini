@@ -27,6 +27,7 @@ class User extends Authenticatable
         'referral_code',
         'referred_by',
         'status',
+        'kyc_status',
         'email_verified_at',
         'mobile_verified_at',
         'two_factor_secret',
