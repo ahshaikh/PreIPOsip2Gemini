@@ -1,5 +1,5 @@
 <?php
-// V-PHASE1-1730-021 (Created) | V-FINAL-1730-424 (Logic Upgraded)
+// V-PHASE1-1730-021 (Created) | V-FINAL-1730-424 (Logic Upgraded) | V-FINAL-1730-629 (Manual KYC - Added address_proof, photo, signature)
 
 namespace App\Http\Requests;
 
@@ -31,12 +31,15 @@ class KycSubmitRequest extends FormRequest
             'bank_account' => 'required|string|min:9|max:50',
             'bank_ifsc' => ['required', 'string', "regex:{$ifscRegex}"],
             
-            // --- File Uploads (FSD-KYC-001) ---
+            // --- File Uploads (FSD-KYC-001) - Manual Verification Required ---
             'aadhaar_front' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120', // 5MB
             'aadhaar_back' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'pan' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'bank_proof' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'demat_proof' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'address_proof' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'photo' => 'required|file|mimes:jpg,jpeg,png|max:2048', // 2MB for photo
+            'signature' => 'required|file|mimes:jpg,jpeg,png|max:2048', // 2MB for signature
         ];
     }
 }

@@ -1,10 +1,11 @@
 <?php
 /**
- * V-AUDIT-REFACTOR-2025 | V-SECURITY-IDOR-FIX | V-ASYNC-PIPELINE
+ * V-AUDIT-REFACTOR-2025 | V-SECURITY-IDOR-FIX | V-ASYNC-PIPELINE | V-FINAL-1730-629 (Manual KYC)
  * Refactored to address Module 2 Audit Gaps:
  * 1. Implements Private Storage (No public access to sensitive docs).
  * 2. Uses Temporary Signed URLs for document viewing.
  * 3. Centralizes status logic via KycStatusService.
+ * 4. Manual KYC verification with address_proof, photo, and signature documents.
  */
 
 namespace App\Http\Controllers\Api\User;
@@ -87,6 +88,9 @@ class KycController extends Controller
             'pan' => $request->file('pan'),
             'bank_proof' => $request->file('bank_proof'),
             'demat_proof' => $request->file('demat_proof'),
+            'address_proof' => $request->file('address_proof'),
+            'photo' => $request->file('photo'),
+            'signature' => $request->file('signature'),
         ];
 
         try {
