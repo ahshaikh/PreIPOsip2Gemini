@@ -75,18 +75,30 @@ class PlanController extends Controller
         $validated = $request->validated();
 
         // FIX: Critical check to prevent price/cycle changes on active plans
-        // Only check for ACTIVE subscriptions (not cancelled, expired, etc.)
+        // Only check for ACTIVE subscriptions (not cancelled, completed, etc.)
+        // Valid statuses from migration: active, paused, cancelled, completed
         $activeSubscriptionCount = $plan->subscriptions()
-            ->whereIn('status', ['active', 'paused', 'pending'])
+            ->whereIn('status', ['active', 'paused'])
             ->count();
 
         if ($activeSubscriptionCount > 0) {
-            // Use strict type comparison to avoid false positives from string vs decimal
-            $priceChanged = isset($validated['monthly_amount']) &&
-                           (float)$validated['monthly_amount'] !== (float)$plan->monthly_amount;
+            // Check if price actually changed (with tolerance for floating point)
+            $priceChanged = false;
+            if (isset($validated['monthly_amount'])) {
+                $oldPrice = (float)$plan->monthly_amount;
+                $newPrice = (float)$validated['monthly_amount'];
+                // Use epsilon comparison for floats (tolerance of 0.01)
+                $priceChanged = abs($newPrice - $oldPrice) > 0.01;
+            }
 
-            $billingChanged = isset($validated['billing_cycle']) &&
-                             $validated['billing_cycle'] !== $plan->billing_cycle;
+            // Check if billing_cycle actually changed
+            // NULL and 'monthly' are treated as equivalent (monthly is the default)
+            $billingChanged = false;
+            if (isset($validated['billing_cycle'])) {
+                $oldCycle = $plan->billing_cycle ?? 'monthly';
+                $newCycle = $validated['billing_cycle'] ?? 'monthly';
+                $billingChanged = $oldCycle !== $newCycle;
+            }
 
             if ($priceChanged || $billingChanged) {
                 return response()->json([
@@ -96,6 +108,20 @@ class PlanController extends Controller
         }
 
         $plan->update($validated);
+
+        // Sync features (must be done explicitly - not mass assignable)
+        if ($request->has('features')) {
+            // Delete all existing features
+            $plan->features()->delete();
+            // Create new features from array
+            if (!empty($validated['features'])) {
+                foreach ($validated['features'] as $featureText) {
+                    $plan->features()->create([
+                        'feature_text' => is_string($featureText) ? $featureText : $featureText['feature_text'] ?? '',
+                    ]);
+                }
+            }
+        }
 
         if ($request->has('configs')) {
             foreach ($request->input('configs') as $key => $value) {
