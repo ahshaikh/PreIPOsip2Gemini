@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdatePlanRequest extends FormRequest
 {
@@ -14,12 +15,19 @@ class UpdatePlanRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => 'sometimes|required|string|max:255',
+            // [FIX] Ignore current plan ID for unique name check
+            'name' => [
+                'sometimes', 
+                'required', 
+                'string', 
+                'max:255',
+                Rule::unique('plans', 'name')->ignore($this->route('plan'))
+            ],
             'monthly_amount' => 'sometimes|required|numeric|min:0',
             'duration_months' => 'sometimes|required|integer|min:1',
             'description' => 'nullable|string',
-            'is_active' => 'sometimes|required|boolean',
-            'is_featured' => 'sometimes|required|boolean',
+            'is_active' => 'sometimes|boolean', // Removed 'required' to allow partial updates
+            'is_featured' => 'sometimes|boolean',
             'available_from' => 'nullable|date',
             'available_until' => 'nullable|date',
             'allow_pause' => 'nullable|boolean',
@@ -36,5 +44,30 @@ class UpdatePlanRequest extends FormRequest
             'features.*' => 'required|string',
             'configs' => 'nullable|array',
         ];
+    }
+
+    /**
+     * Prepare the data for validation.
+     * [FIX] Ensures string "true"/"false" are converted to booleans
+     */
+    protected function prepareForValidation()
+    {
+        $merge = [];
+
+        if ($this->has('is_active')) {
+            $merge['is_active'] = $this->boolean('is_active');
+        }
+
+        if ($this->has('is_featured')) {
+            $merge['is_featured'] = $this->boolean('is_featured');
+        }
+
+        if ($this->has('allow_pause')) {
+            $merge['allow_pause'] = $this->boolean('allow_pause');
+        }
+
+        if (!empty($merge)) {
+            $this->merge($merge);
+        }
     }
 }

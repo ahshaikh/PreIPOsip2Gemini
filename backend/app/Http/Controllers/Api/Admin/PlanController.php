@@ -1,5 +1,5 @@
 <?php
-// V-PHASE2-1730-055 (Created) | V-REMEDIATE-1730-189 (Auto-Debit Integrated) | V-FIX-TRANSACTION (Gemini) | V-AUDIT-FIX-REFACTOR
+// V-PHASE2-1730-055 (Created) | V-REMEDIATE-1730-189 (Auto-Debit Integrated) | V-FIX-TRANSACTION (Gemini) | V-AUDIT-FIX-REFACTOR | V-FIX-PERSISTENCE-2025
 
 namespace App\Http\Controllers\Api\Admin;
 
@@ -11,6 +11,7 @@ use App\Http\Requests\Admin\UpdatePlanRequest; // [AUDIT FIX]
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PlanController extends Controller
 {
@@ -28,7 +29,10 @@ class PlanController extends Controller
             ->latest()
             ->get();
     }
-
+    /**
+     * Store a newly created resource in storage.
+     */
+    
     public function store(StorePlanRequest $request)
     {
         $validated = $request->validated();
@@ -107,7 +111,25 @@ class PlanController extends Controller
             }
         }
 
-        $plan->update($validated);
+        // [PROTOCOL 7 FIX] Ensure Persistence
+        // 1. Handle Slug Generation only if name changes
+        if (isset($validated['name']) && $validated['name'] !== $plan->name) {
+            $validated['slug'] = Str::slug($validated['name']);
+        }
+
+        // 2. Explicitly handle boolean fields (is_active, is_featured, allow_pause)
+        // If they are present in request, cast them. If missing, they might be unchecked checkboxes.
+        if ($request->has('is_active')) $plan->is_active = $request->boolean('is_active');
+        if ($request->has('is_featured')) $plan->is_featured = $request->boolean('is_featured');
+        if ($request->has('allow_pause')) $plan->allow_pause = $request->boolean('allow_pause');
+
+        // 3. Fill remaining attributes
+        // Exclude features/configs from direct fill as they are relations
+        $inputs = collect($validated)->except(['features', 'configs', 'is_active', 'is_featured', 'allow_pause'])->toArray();
+        $plan->fill($inputs);
+
+        // 4. Force Save
+        $plan->save();
 
         // Sync features (must be done explicitly - not mass assignable)
         if ($request->has('features')) {
@@ -131,6 +153,8 @@ class PlanController extends Controller
                 );
             }
         }
+
+        Log::info("Plan ID {$plan->id} updated by Admin ID " . auth()->id());
 
         return response()->json($plan->load('configs', 'features'));
     }
