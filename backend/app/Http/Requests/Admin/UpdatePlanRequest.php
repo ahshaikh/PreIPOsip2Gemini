@@ -32,6 +32,8 @@ class UpdatePlanRequest extends FormRequest
             'billing_cycle' => 'nullable|in:weekly,bi-weekly,monthly,quarterly,yearly',
             'trial_period_days' => 'nullable|integer|min:0',
             'metadata' => 'nullable|json',
+            'features' => 'nullable|array',
+            'features.*' => 'required|string',
             'configs' => 'nullable|array',
         ];
     }

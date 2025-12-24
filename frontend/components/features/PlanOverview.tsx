@@ -1,48 +1,30 @@
 // V-FINAL-1730-197 (THEME AWARE PLANS)
+'use client';
+
+import { useQuery } from '@tanstack/react-query';
+import api from '@/lib/api';
+
 export default function Plans() {
-  const plans = [
-    {
-      emoji: "🌱",
-      title: "Family Starter",
-      price: "₹1,000",
+  const { data: plansData } = useQuery({
+    queryKey: ['publicPlans'],
+    queryFn: async () => (await api.get('/plans')).data,
+    staleTime: 300000,
+  });
+
+  const plans = (plansData || []).map((plan: any) => {
+    const features = plan.features?.map((f: any) => typeof f === 'string' ? f : f.feature_text) || [];
+    return {
+      emoji: plan.metadata?.emoji || "💼",
+      title: plan.name,
+      price: `₹${plan.monthly_amount?.toLocaleString()}`,
       period: "per month",
-      highlights: ["Entry-level reward eligibility", "Curated pre-IPO opportunities"],
-      extras: ["Participation in platform incentive programs", "Standard allocation priority", "Email & chat support"],
-      totalValue: "₹36,000",
-      invested: "over 36 months",
-    },
-    {
-      emoji: "💎",
-      title: "Wealth Builder",
-      price: "₹5,000",
-      period: "per month",
-      highlights: ["Enhanced reward eligibility", "Select priority offerings"],
-      extras: ["Increased participation in incentive programs", "Higher allocation priority", "Dedicated relationship support"],
-      totalValue: "₹1,80,000",
-      invested: "over 36 months",
-      featured: true,
-    },
-    {
-      emoji: "🚀",
-      title: "Growth Accelerator",
-      price: "₹10,000",
-      period: "per month",
-      highlights: ["Premium reward eligibility", "Access to premium listings"],
-      extras: ["Moderate participation in incentive programs", "Highest allocation consideration", "Priority customer support"],
-      totalValue: "₹3,60,000",
-      invested: "over 36 months",
-    },
-    {
-      emoji: "👑",
-      title: "Elite Platinum",
-      price: "₹25,000",
-      period: "per month",
-      highlights: ["Maximum reward eligibility", "Access to exclusive listings"],
-      extras: ["Maximum participation in incentive programs", "Assured allocation priority", "Concierge-style relationship management"],
-      totalValue: "₹9,00,000",
-      invested: "over 36 months",
-    },
-  ];
+      highlights: features.slice(0, 2),
+      extras: features.slice(2),
+      totalValue: `₹${(plan.monthly_amount * plan.duration_months)?.toLocaleString()}`,
+      invested: `over ${plan.duration_months} months`,
+      featured: plan.is_featured,
+    };
+  });
 
   return (
     <section 
