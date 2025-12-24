@@ -44,7 +44,19 @@ class KycController extends Controller
     
     public function show(Request $request)
     {
-        $kyc = $request->user()->kyc()->with('documents')->first();
+        $user = $request->user();
+        $kyc = $user->kyc()->with('documents')->first();
+
+        // If KYC record doesn't exist, create a pending one
+        if (!$kyc) {
+            $kyc = UserKyc::create([
+                'user_id' => $user->id,
+                'status' => KycStatus::PENDING->value
+            ]);
+            // Reload with documents relationship
+            $kyc = $user->kyc()->with('documents')->first();
+        }
+
         return response()->json($kyc);
     }
 
@@ -61,7 +73,17 @@ class KycController extends Controller
         }
 
         $user = $request->user();
+
+        // Get or create KYC record
         $kyc = $user->kyc;
+
+        if (!$kyc) {
+            // Create new KYC record if it doesn't exist
+            $kyc = UserKyc::create([
+                'user_id' => $user->id,
+                'status' => KycStatus::PENDING->value
+            ]);
+        }
 
         if ($kyc->status === KycStatus::VERIFIED->value) {
             return response()->json(['message' => 'KYC is already verified.'], 400);
