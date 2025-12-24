@@ -157,22 +157,25 @@ class SubscriptionController extends Controller
      */
     public function pause(Request $request)
     {
-        // [MODIFIED] Added subscription_id requirement
         $user = $request->user();
 
-        // V-AUDIT-MODULE7-005: Fetch subscription first to get Plan configuration
-        $sub = Subscription::where('user_id', $user->id)
-            ->where('id', $request->input('subscription_id'))
+        // Find user's active subscription (subscription_id is optional)
+        $query = Subscription::where('user_id', $user->id)
             ->where('status', 'active')
-            ->with('plan') // Eager load plan for max_pause_duration_months
-            ->firstOrFail();
+            ->with('plan'); // Eager load plan for max_pause_duration_months
+
+        if ($request->has('subscription_id')) {
+            $query->where('id', $request->input('subscription_id'));
+        }
+
+        $sub = $query->latest()->firstOrFail();
 
         // V-AUDIT-MODULE7-005: Use Plan's max_pause_duration_months instead of hardcoded max:3
         $maxPauseDuration = $sub->plan->max_pause_duration_months ?? 3; // Default to 3 if not set
 
         $validated = $request->validate([
             'months' => "required|integer|min:1|max:{$maxPauseDuration}",
-            'subscription_id' => 'required|exists:subscriptions,id' // Fixed: Require ID
+            'subscription_id' => 'sometimes|exists:subscriptions,id' // Optional
         ]);
 
         try {
@@ -185,18 +188,21 @@ class SubscriptionController extends Controller
 
     public function resume(Request $request)
     {
-        // [MODIFIED] Added subscription_id requirement
         $validated = $request->validate([
-            'subscription_id' => 'required|exists:subscriptions,id' // Fixed: Require ID
+            'subscription_id' => 'sometimes|exists:subscriptions,id' // Optional
         ]);
 
         $user = $request->user();
-        
-        // Find specific subscription
-        $sub = Subscription::where('user_id', $user->id)
-            ->where('id', $validated['subscription_id'])
-            ->where('status', 'paused')
-            ->firstOrFail();
+
+        // Find user's paused subscription
+        $query = Subscription::where('user_id', $user->id)
+            ->where('status', 'paused');
+
+        if (isset($validated['subscription_id'])) {
+            $query->where('id', $validated['subscription_id']);
+        }
+
+        $sub = $query->latest()->firstOrFail();
 
         try {
             $this->service->resumeSubscription($sub);
@@ -208,18 +214,22 @@ class SubscriptionController extends Controller
 
     public function cancel(Request $request)
     {
-        // [MODIFIED] Added subscription_id requirement
         $validated = $request->validate([
             'reason' => 'required|string|max:255',
-            'subscription_id' => 'required|exists:subscriptions,id'
+            'subscription_id' => 'sometimes|exists:subscriptions,id' // Optional
         ]);
-        
+
         $user = $request->user();
-        
-        $sub = Subscription::where('user_id', $user->id)
-            ->where('id', $validated['subscription_id'])
-            ->whereIn('status', ['active', 'paused'])
-            ->firstOrFail();
+
+        // Find user's active or paused subscription
+        $query = Subscription::where('user_id', $user->id)
+            ->whereIn('status', ['active', 'paused']);
+
+        if (isset($validated['subscription_id'])) {
+            $query->where('id', $validated['subscription_id']);
+        }
+
+        $sub = $query->latest()->firstOrFail();
 
         try {
             $refundAmount = $this->service->cancelSubscription($sub, $validated['reason']);

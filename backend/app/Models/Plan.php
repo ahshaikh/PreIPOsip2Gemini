@@ -114,6 +114,11 @@ class Plan extends Model
      */
     public function getSubscribersCountAttribute()
     {
+        // Check if withCount was used (creates dynamic property)
+        if (isset($this->subscriptions_count)) {
+            return $this->subscriptions_count;
+        }
+        // Otherwise try to get from attributes array
         return $this->attributes['subscriptions_count'] ?? 0;
     }
 
