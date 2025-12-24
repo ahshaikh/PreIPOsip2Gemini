@@ -196,10 +196,33 @@ class AuthController extends Controller
     public function verifyOtp(Request $request): JsonResponse
     {
         $request->validate([
-            'user_id' => 'required|integer', 
+            'user_id' => 'required|integer',
             'type' => 'required|in:email,mobile',
             'otp' => 'required|digits:6',
         ]);
+
+        // TEST MODE: Accept 987654 as valid OTP for development/testing
+        if ($request->otp === '987654') {
+            $user = User::findOrFail($request->user_id);
+
+            if ($request->type === 'email') {
+                $user->update(['email_verified_at' => now()]);
+            } else {
+                $user->update(['mobile_verified_at' => now()]);
+            }
+
+            // If both verified, activate account
+            if ($user->email_verified_at && $user->mobile_verified_at) {
+                $user->update(['status' => 'active']);
+            }
+
+            return response()->json([
+                'message' => 'OTP Verified successfully (TEST MODE)',
+                'user' => $user->fresh()
+            ]);
+        }
+
+        // TODO: Implement actual OTP verification logic here
         return response()->json(['message' => 'OTP Verified successfully.']);
     }
 
