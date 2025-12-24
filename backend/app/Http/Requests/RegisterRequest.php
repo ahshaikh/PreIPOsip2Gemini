@@ -54,12 +54,14 @@ class RegisterRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'first_name' => 'required|string|max:100',
+            'last_name' => 'required|string|max:100',
             'username' => 'required|string|alpha_dash|min:3|max:50|unique:users,username',
             'email'    => 'required|string|email|max:255|unique:users,email',
             'mobile'   => 'required|string|regex:/^[0-9]{10}$/|unique:users,mobile',
             'password' => [
-                'required', 
-                'confirmed', 
+                'required',
+                'confirmed',
                 Password::min(8)->letters()->mixedCase()->numbers()->symbols()
             ],
             'referral_code' => [

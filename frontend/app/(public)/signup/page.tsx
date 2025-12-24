@@ -17,6 +17,8 @@ export default function SignupPage() {
   const searchParams = useSearchParams(); // <-- HOOK
   const { login } = useAuth(); // <-- Get login from AuthContext
 
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [mobile, setMobile] = useState('');
@@ -62,6 +64,8 @@ export default function SignupPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     mutation.mutate({
+      first_name: firstName,
+      last_name: lastName,
       username,
       email,
       mobile,
@@ -78,6 +82,16 @@ export default function SignupPage() {
       <h1 className="text-3xl font-bold text-center mb-8">Create Your Account</h1>
       
       <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="first_name">First Name</Label>
+            <Input id="first_name" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="last_name">Last Name</Label>
+            <Input id="last_name" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+          </div>
+        </div>
         <div className="space-y-2">
           <Label htmlFor="username">Username</Label>
           <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} required />
