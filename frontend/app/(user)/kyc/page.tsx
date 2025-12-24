@@ -212,8 +212,8 @@ export default function KycPage() {
     );
   }
 
-  // Show submitted/pending state
-  if (kyc.status === 'submitted' || kyc.status === 'under_review') {
+  // Show submitted/pending/processing state
+  if (kyc.status === 'submitted' || kyc.status === 'under_review' || kyc.status === 'processing') {
     return (
       <Card className="border-blue-500 bg-blue-50 dark:bg-blue-900/10">
         <CardHeader>
@@ -222,22 +222,30 @@ export default function KycPage() {
               <Loader2 className="h-6 w-6 text-white animate-spin" />
             </div>
             <div>
-              <CardTitle className="text-2xl text-blue-700 dark:text-blue-500">KYC Under Review</CardTitle>
+              <CardTitle className="text-2xl text-blue-700 dark:text-blue-500">KYC Application Submitted Successfully!</CardTitle>
               <CardDescription className="text-blue-600 dark:text-blue-400">
                 Your documents are being verified by our team
               </CardDescription>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">
-            We're currently reviewing your KYC documents. This process usually takes 24-48 hours. You'll receive a notification once the verification is complete.
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Thank you for submitting your KYC documents. We're currently reviewing your application. This process usually takes 24-48 hours. You'll receive a notification once the verification is complete.
           </p>
-          <Alert>
+          <Alert className="border-blue-500/50 bg-blue-500/10">
             <AlertDescription>
-              Submitted Documents: PAN Card, Aadhaar (Front & Back), Bank Proof, Demat Proof, Address Proof, Photo, Signature
+              <strong>Submitted Documents:</strong> PAN Card, Aadhaar (Front & Back), Bank Proof, Demat Proof, Address Proof, Photo, Signature
             </AlertDescription>
           </Alert>
+          <div className="pt-4 border-t">
+            <p className="text-xs text-muted-foreground mb-3">
+              Submitted on: {kyc.submitted_at ? new Date(kyc.submitted_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Just now'}
+            </p>
+            <Button variant="outline" asChild>
+              <a href="/dashboard">Return to Dashboard</a>
+            </Button>
+          </div>
         </CardContent>
       </Card>
     );

@@ -21,7 +21,8 @@ class KycQueueController extends Controller
      */
     public function index(Request $request)
     {
-        $status = $request->query('status', 'submitted');
+        // Default to 'all' to show both processing and submitted
+        $status = $request->query('status', 'all');
         $search = $request->query('search');
         $priority = $request->query('priority');
 
@@ -29,10 +30,18 @@ class KycQueueController extends Controller
         $query = UserKyc::query()->with('user:id,username,email,mobile');
 
         // [FIX] Status Filtering Logic
-        // If status is provided AND it is NOT 'all', filter by it.
-        // If status IS 'all', we skip this check and return all records.
+        // Default shows all pending KYCs (processing + submitted)
+        // If specific status requested, filter by it
         if ($status && $status !== 'all') {
-            $query->where('status', $status);
+            // If 'pending' requested, show both processing and submitted
+            if ($status === 'pending') {
+                $query->whereIn('status', [KycStatus::PROCESSING->value, KycStatus::SUBMITTED->value]);
+            } else {
+                $query->where('status', $status);
+            }
+        } else {
+            // Default: Show pending KYCs only (exclude verified/rejected)
+            $query->whereIn('status', [KycStatus::PROCESSING->value, KycStatus::SUBMITTED->value]);
         }
 
         // Search filter (username, email, ID, and MOBILE)
