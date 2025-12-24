@@ -27,7 +27,7 @@ class AdminDashboardController extends Controller
             // --- 1. KPIs (Test: testDashboardShows...) ---
             $totalRevenue = Payment::where('status', 'paid')->sum('amount');
             $totalUsers = User::role('user')->count();
-            $pendingKyc = UserKyc::where('status', 'submitted')->count();
+            $pendingKyc = UserKyc::whereIn('status', ['submitted', 'processing'])->count();
             $pendingWithdrawals = Withdrawal::where('status', 'pending')->count();
 
             // --- 2. Charts (Test: testDashboardChartsLoadCorrectly) ---
