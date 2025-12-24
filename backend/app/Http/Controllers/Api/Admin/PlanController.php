@@ -88,9 +88,26 @@ class PlanController extends Controller
             $billingChanged = isset($validated['billing_cycle']) &&
                              $validated['billing_cycle'] !== $plan->billing_cycle;
 
+            // DEBUG: Log the comparison
+            \Log::debug('Plan Edit Debug', [
+                'plan_id' => $plan->id,
+                'validated_amount' => $validated['monthly_amount'] ?? 'not set',
+                'db_amount' => $plan->monthly_amount,
+                'validated_float' => isset($validated['monthly_amount']) ? (float)$validated['monthly_amount'] : null,
+                'db_float' => (float)$plan->monthly_amount,
+                'priceChanged' => $priceChanged,
+                'billingChanged' => $billingChanged,
+            ]);
+
             if ($priceChanged || $billingChanged) {
                 return response()->json([
-                    'message' => "Cannot modify price or billing cycle for a plan with {$activeSubscriptionCount} active subscription(s). All other fields can be edited."
+                    'message' => "Cannot modify price or billing cycle for a plan with {$activeSubscriptionCount} active subscription(s). All other fields can be edited.",
+                    'debug' => [
+                        'price_changed' => $priceChanged,
+                        'billing_changed' => $billingChanged,
+                        'validated_amount' => $validated['monthly_amount'] ?? null,
+                        'current_amount' => $plan->monthly_amount,
+                    ]
                 ], 409);
             }
         }
