@@ -6,6 +6,7 @@
 
 import { useState } from 'react';
 import {
+  Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -199,21 +200,24 @@ export function EnhancedKycVerificationModal({ kycId, onClose }: KycVerification
 
   if (isLoading) {
     return (
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Loading KYC Details...</DialogTitle>
-        </DialogHeader>
-      </DialogContent>
+      <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Loading KYC Details...</DialogTitle>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
     );
   }
 
   return (
-    // [FIX]: Updated classNames to use full viewport width/height (95vw/95vh)
-    <DialogContent className="!max-w-[95vw] w-full h-[95vh] flex flex-col p-0 overflow-hidden">
+    <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
+      {/* [FIX]: Updated classNames to use full viewport width/height (95vw/95vh) */}
+      <DialogContent className="!max-w-[95vw] w-full h-[95vh] flex flex-col p-0 overflow-hidden">
       <DialogHeader className="px-6 py-4 border-b">
         <DialogTitle className="flex items-center gap-2">
           Review KYC: {kyc.user.username}
-          {kyc.status === 'submitted' && (
+          {(kyc.status === 'submitted' || kyc.status === 'processing') && (
             <Badge variant="outline" className="ml-2">
               Pending Review
             </Badge>
@@ -511,5 +515,6 @@ export function EnhancedKycVerificationModal({ kycId, onClose }: KycVerification
         </div>
       </DialogFooter>
     </DialogContent>
+    </Dialog>
   );
 }
