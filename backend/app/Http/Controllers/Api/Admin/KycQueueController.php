@@ -21,7 +21,8 @@ class KycQueueController extends Controller
      */
     public function index(Request $request)
     {
-        $status = $request->query('status', 'submitted');
+        // Default to 'all' to show both processing and submitted
+        $status = $request->query('status', 'all');
         $search = $request->query('search');
         $priority = $request->query('priority');
 
@@ -29,10 +30,18 @@ class KycQueueController extends Controller
         $query = UserKyc::query()->with('user:id,username,email,mobile');
 
         // [FIX] Status Filtering Logic
-        // If status is provided AND it is NOT 'all', filter by it.
-        // If status IS 'all', we skip this check and return all records.
+        // Default shows all pending KYCs (processing + submitted)
+        // If specific status requested, filter by it
         if ($status && $status !== 'all') {
-            $query->where('status', $status);
+            // If 'pending' requested, show both processing and submitted
+            if ($status === 'pending') {
+                $query->whereIn('status', [KycStatus::PROCESSING->value, KycStatus::SUBMITTED->value]);
+            } else {
+                $query->where('status', $status);
+            }
+        } else {
+            // Default: Show pending KYCs only (exclude verified/rejected)
+            $query->whereIn('status', [KycStatus::PROCESSING->value, KycStatus::SUBMITTED->value]);
         }
 
         // Search filter (username, email, ID, and MOBILE)
@@ -86,7 +95,8 @@ class KycQueueController extends Controller
         $kyc = UserKyc::with('user')->findOrFail($id);
         $admin = $request->user();
 
-        if ($kyc->status !== KycStatus::SUBMITTED->value) {
+        // Allow approval of both 'processing' and 'submitted' statuses
+        if (!in_array($kyc->status, [KycStatus::PROCESSING->value, KycStatus::SUBMITTED->value])) {
             return response()->json(['message' => 'This submission is not pending approval.'], 400);
         }
 
@@ -218,13 +228,16 @@ class KycQueueController extends Controller
         $cacheKey = "kyc_statistics_{$days}days";
 
         return response()->json(Cache::remember($cacheKey, 600, function () use ($startDate) {
+            $processingCount = UserKyc::where('status', KycStatus::PROCESSING->value)->count();
+            $submittedCount = UserKyc::where('status', KycStatus::SUBMITTED->value)->count();
+
             return [
                 'total_submissions' => UserKyc::where('created_at', '>=', $startDate)->count(),
-                'pending' => UserKyc::where('status', KycStatus::SUBMITTED->value)->count(),
+                'pending_review' => $processingCount + $submittedCount, // Combined count for "Pending Review"
+                'processing' => $processingCount,
+                'submitted' => $submittedCount,
                 'verified' => UserKyc::where('status', KycStatus::VERIFIED->value)->where('created_at', '>=', $startDate)->count(),
                 'rejected' => UserKyc::where('status', KycStatus::REJECTED->value)->where('created_at', '>=', $startDate)->count(),
-                'processing' => UserKyc::where('status', KycStatus::PROCESSING->value)->count(),
-                'submitted' => UserKyc::where('status', KycStatus::SUBMITTED->value)->count(),
                 'total' => UserKyc::count(),
             ];
         }));

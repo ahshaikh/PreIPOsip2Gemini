@@ -54,12 +54,14 @@ class RegisterRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'first_name' => 'required|string|max:100',
+            'last_name' => 'required|string|max:100',
             'username' => 'required|string|alpha_dash|min:3|max:50|unique:users,username',
             'email'    => 'required|string|email|max:255|unique:users,email',
             'mobile'   => 'required|string|regex:/^[0-9]{10}$/|unique:users,mobile',
             'password' => [
-                'required', 
-                'confirmed', 
+                'required',
+                'confirmed',
                 Password::min(8)->letters()->mixedCase()->numbers()->symbols()
             ],
             'referral_code' => [
@@ -67,12 +69,31 @@ class RegisterRequest extends FormRequest
                 'string',
                 new CaseInsensitiveReferralCode()
             ],
+            // --- LEGAL DOCUMENT ACCEPTANCE (REQUIRED FOR FINTECH COMPLIANCE) ---
+            'accept_terms' => 'required|accepted',
+            'accept_privacy' => 'required|accepted',
+            'accept_risk_disclosure' => 'required|accepted',
+            'accept_aml_kyc' => 'required|accepted',
             // --- NEW: CAPTCHA RULE ---
             'captcha_token' => [
                 'nullable', // Nullable because it might be disabled
                 'string',
                 new Captcha() // Use our custom rule
             ],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'accept_terms.required' => 'You must accept the Terms and Conditions to register.',
+            'accept_terms.accepted' => 'You must accept the Terms and Conditions to register.',
+            'accept_privacy.required' => 'You must accept the Privacy Policy to register.',
+            'accept_privacy.accepted' => 'You must accept the Privacy Policy to register.',
+            'accept_risk_disclosure.required' => 'You must accept the Risk Disclosure to register.',
+            'accept_risk_disclosure.accepted' => 'You must accept the Risk Disclosure to register.',
+            'accept_aml_kyc.required' => 'You must accept the AML/KYC Policy to register.',
+            'accept_aml_kyc.accepted' => 'You must accept the AML/KYC Policy to register.',
         ];
     }
 }

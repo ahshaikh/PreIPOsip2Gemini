@@ -1,10 +1,11 @@
 <?php
 /**
- * V-AUDIT-REFACTOR-2025 | V-SECURITY-IDOR-FIX | V-ASYNC-PIPELINE
+ * V-AUDIT-REFACTOR-2025 | V-SECURITY-IDOR-FIX | V-ASYNC-PIPELINE | V-FINAL-1730-629 (Manual KYC)
  * Refactored to address Module 2 Audit Gaps:
  * 1. Implements Private Storage (No public access to sensitive docs).
  * 2. Uses Temporary Signed URLs for document viewing.
  * 3. Centralizes status logic via KycStatusService.
+ * 4. Manual KYC verification with address_proof, photo, and signature documents.
  */
 
 namespace App\Http\Controllers\Api\User;
@@ -43,7 +44,19 @@ class KycController extends Controller
     
     public function show(Request $request)
     {
-        $kyc = $request->user()->kyc()->with('documents')->first();
+        $user = $request->user();
+        $kyc = $user->kyc()->with('documents')->first();
+
+        // If KYC record doesn't exist, create a pending one
+        if (!$kyc) {
+            $kyc = UserKyc::create([
+                'user_id' => $user->id,
+                'status' => KycStatus::PENDING->value
+            ]);
+            // Reload with documents relationship
+            $kyc = $user->kyc()->with('documents')->first();
+        }
+
         return response()->json($kyc);
     }
 
@@ -60,7 +73,17 @@ class KycController extends Controller
         }
 
         $user = $request->user();
+
+        // Get or create KYC record
         $kyc = $user->kyc;
+
+        if (!$kyc) {
+            // Create new KYC record if it doesn't exist
+            $kyc = UserKyc::create([
+                'user_id' => $user->id,
+                'status' => KycStatus::PENDING->value
+            ]);
+        }
 
         if ($kyc->status === KycStatus::VERIFIED->value) {
             return response()->json(['message' => 'KYC is already verified.'], 400);
@@ -87,6 +110,9 @@ class KycController extends Controller
             'pan' => $request->file('pan'),
             'bank_proof' => $request->file('bank_proof'),
             'demat_proof' => $request->file('demat_proof'),
+            'address_proof' => $request->file('address_proof'),
+            'photo' => $request->file('photo'),
+            'signature' => $request->file('signature'),
         ];
 
         try {
@@ -116,9 +142,23 @@ class KycController extends Controller
         } catch (\Exception $e) {
             // Rollback status to pending on failure
             $this->statusService->transitionStatus($kyc, KycStatus::PENDING->value, "Upload failed: " . $e->getMessage());
-            
-            Log::error("KYC document upload failed", ['user_id' => $user->id, 'error' => $e->getMessage()]);
-            return response()->json(['message' => 'Failed to upload documents.'], 400);
+
+            Log::error("KYC document upload failed", [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to upload documents.',
+                'error' => $e->getMessage(), // Show actual error in response
+                'debug' => config('app.debug') ? [
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine()
+                ] : null
+            ], 400);
         }
 
         // Dispatch background job for OCR/Verification
@@ -156,6 +196,87 @@ class KycController extends Controller
     }
 
     /**
+     * Verify PAN number using third-party API or basic validation.
+     */
+    public function verifyPan(Request $request)
+    {
+        $request->validate([
+            'pan_number' => 'required|string|size:10'
+        ]);
+
+        $user = $request->user();
+        $panNumber = strtoupper($request->pan_number);
+
+        try {
+            $result = $this->verificationService->verifyPan(
+                $panNumber,
+                $user->profile->first_name . ' ' . $user->profile->last_name,
+                $user->profile->dob ?? null
+            );
+
+            return response()->json([
+                'success' => true,
+                'verified' => $result['verified'] ?? false,
+                'message' => $result['message'] ?? 'PAN verification completed',
+                'details' => $result
+            ]);
+        } catch (\Exception $e) {
+            Log::error("PAN Verification Failed", [
+                'user_id' => $user->id,
+                'pan' => $panNumber,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'verified' => false,
+                'message' => 'PAN verification failed: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Verify Bank Account using Razorpay Fund Account Validation (Penny Drop).
+     */
+    public function verifyBank(Request $request)
+    {
+        $request->validate([
+            'bank_account' => 'required|string',
+            'bank_ifsc' => 'required|string|size:11'
+        ]);
+
+        $user = $request->user();
+
+        try {
+            $result = $this->verificationService->verifyBank(
+                $request->bank_account,
+                strtoupper($request->bank_ifsc),
+                $user->profile->first_name . ' ' . $user->profile->last_name
+            );
+
+            return response()->json([
+                'success' => true,
+                'verified' => $result['verified'] ?? false,
+                'message' => $result['message'] ?? 'Bank account verification completed',
+                'details' => $result
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Bank Verification Failed", [
+                'user_id' => $user->id,
+                'account' => $request->bank_account,
+                'ifsc' => $request->bank_ifsc,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'verified' => false,
+                'message' => 'Bank verification failed: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
      * View a KYC document via Temporary Signed URL.
      *
      * [AUDIT FIX (V-AUDIT-MODULE2-007)]:
@@ -185,7 +306,7 @@ class KycController extends Controller
          * The link expires automatically after 5 minutes.
          */
         $url = Storage::disk('private')->temporaryUrl(
-            $doc->file_path, 
+            $doc->file_path,
             now()->addMinutes(5)
         );
 

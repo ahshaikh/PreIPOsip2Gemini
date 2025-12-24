@@ -1,6 +1,6 @@
 'use client';
 
-// V-PHASE5-1730-117 (Created - Revised) | V-REMEDIATE-1730-214 | V-FINAL-1730-481 (DigiLocker UI)
+// V-PHASE5-1730-117 (Created - Revised) | V-REMEDIATE-1730-214 | V-FINAL-1730-629 (Manual KYC - DigiLocker Removed)
 
 
 import { Button } from "@/components/ui/button";
@@ -11,40 +11,33 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
-import { CheckCircle, XCircle, Loader2, ShieldCheck } from "lucide-react";
-import { useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { CheckCircle, XCircle, Loader2, Upload } from "lucide-react";
 
 export default function KycPage() {
   const queryClient = useQueryClient();
-  const searchParams = useSearchParams();
+
   const [formData, setFormData] = useState({
     pan_number: '',
-    aadhaar_number: 'Verified via DigiLocker', // Placeholder
+    aadhaar_number: '',
     demat_account: '',
     bank_account: '',
     bank_ifsc: '',
   });
-  
-  // File states
+
+  // File states - All required documents for manual verification
   const [panFile, setPanFile] = useState<File | null>(null);
+  const [aadhaarFrontFile, setAadhaarFrontFile] = useState<File | null>(null);
+  const [aadhaarBackFile, setAadhaarBackFile] = useState<File | null>(null);
   const [bankFile, setBankFile] = useState<File | null>(null);
   const [dematFile, setDematFile] = useState<File | null>(null);
+  const [addressProofFile, setAddressProofFile] = useState<File | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [signatureFile, setSignatureFile] = useState<File | null>(null);
 
   // Status states
   const [panStatus, setPanStatus] = useState<'idle' | 'verifying' | 'verified' | 'failed'>('idle');
   const [bankStatus, setBankStatus] = useState<'idle' | 'verifying' | 'verified' | 'failed'>('idle');
-
-  // Check for callback status
-  useEffect(() => {
-    if (searchParams.get('status') === 'digilocker_success') {
-      toast.success("Aadhaar Verified!", { description: "Your e-Aadhaar was fetched successfully." });
-      queryClient.invalidateQueries({ queryKey: ['kycData'] });
-    }
-    if (searchParams.get('status') === 'digilocker_failed') {
-      toast.error("Aadhaar Failed", { description: "We could not verify your Aadhaar. Please try again." });
-    }
-  }, [searchParams, queryClient]);
 
   // Fetch data
   const { data: kyc, isLoading: isKycLoading } = useQuery({
@@ -53,12 +46,9 @@ export default function KycPage() {
       const { data } = await api.get('/user/profile');
       const kycData = await api.get('/user/kyc');
 
-      // Safe check for aadhaar verification
-      const isAadhaarVerified = (kycData.data?.documents || []).some((d:any) => d.doc_type === 'aadhaar_front' && d.processing_status === 'verified');
-
       setFormData({
         pan_number: kycData.data?.pan_number || '',
-        aadhaar_number: isAadhaarVerified ? 'Verified via DigiLocker' : '',
+        aadhaar_number: kycData.data?.aadhaar_number || '',
         demat_account: kycData.data?.demat_account || '',
         bank_account: kycData.data?.bank_account || '',
         bank_ifsc: kycData.data?.bank_ifsc || '',
@@ -66,7 +56,6 @@ export default function KycPage() {
       return {
         ...kycData.data,
         user_name: (data.profile?.first_name || '') + ' ' + (data.profile?.last_name || ''),
-        isAadhaarVerified,
         // Ensure status has a default value if not present
         status: kycData.data?.status || 'pending'
       };
@@ -74,25 +63,42 @@ export default function KycPage() {
   });
 
   // --- Mutations ---
-  const digilockerMutation = useMutation({
-    mutationFn: () => api.get('/user/kyc/digilocker/redirect'),
-    onSuccess: (data) => {
-      // Redirect user to DigiLocker
-      window.location.href = data.data.redirect_url;
+  const verifyPanMutation = useMutation({
+    mutationFn: () => api.post('/user/kyc/verify-pan', { pan_number: formData.pan_number }),
+    onMutate: () => setPanStatus('verifying'),
+    onSuccess: () => {
+      setPanStatus('verified');
+      toast.success("PAN Verified Successfully");
     },
-    onError: () => toast.error("Could not connect to DigiLocker. Please try again.")
+    onError: () => {
+      setPanStatus('failed');
+      toast.error("PAN Verification Failed");
+    }
   });
-  
-  const verifyPanMutation = useMutation({ /* ... same as before ... */ });
-  const verifyBankMutation = useMutation({ /* ... same as before ... */ });
+
+  const verifyBankMutation = useMutation({
+    mutationFn: () => api.post('/user/kyc/verify-bank', {
+      bank_account: formData.bank_account,
+      bank_ifsc: formData.bank_ifsc
+    }),
+    onMutate: () => setBankStatus('verifying'),
+    onSuccess: () => {
+      setBankStatus('verified');
+      toast.success("Bank Account Verified Successfully");
+    },
+    onError: () => {
+      setBankStatus('failed');
+      toast.error("Bank Verification Failed");
+    }
+  });
 
   // Main Submit (File Uploads)
   const submitMutation = useMutation({
-    mutationFn: (fd: FormData) => api.post('/user/kyc', fd, { 
-      headers: { 'Content-Type': 'multipart/form-data' } 
+    mutationFn: (fd: FormData) => api.post('/user/kyc', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' }
     }),
     onSuccess: () => {
-      toast.success("KYC Submitted for Review", { description: "Auto-verification is in progress." });
+      toast.success("KYC Submitted for Review", { description: "Your documents will be verified within 24-48 hours." });
       queryClient.invalidateQueries({ queryKey: ['kycData'] });
     },
     onError: (e: any) => toast.error("Submission Failed", { description: e.response?.data?.message })
@@ -100,22 +106,35 @@ export default function KycPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!panFile || !bankFile || !dematFile || !kyc.isAadhaarVerified) {
-      toast.error("Missing Information", { description: "Please verify Aadhaar and upload all required documents."});
+
+    // Validate all required fields
+    if (!formData.aadhaar_number || formData.aadhaar_number.length !== 12) {
+      toast.error("Invalid Aadhaar", { description: "Please enter a valid 12-digit Aadhaar number." });
+      return;
+    }
+
+    if (!panFile || !aadhaarFrontFile || !aadhaarBackFile || !bankFile || !dematFile || !addressProofFile || !photoFile || !signatureFile) {
+      toast.error("Missing Documents", { description: "Please upload all required documents." });
       return;
     }
 
     const fd = new FormData();
     fd.append('pan_number', formData.pan_number);
-    fd.append('aadhaar_number', kyc.aadhaar_number);
+    fd.append('aadhaar_number', formData.aadhaar_number);
     fd.append('demat_account', formData.demat_account);
     fd.append('bank_account', formData.bank_account);
     fd.append('bank_ifsc', formData.bank_ifsc);
-    
+
+    // Append all document files
     fd.append('pan', panFile);
+    fd.append('aadhaar_front', aadhaarFrontFile);
+    fd.append('aadhaar_back', aadhaarBackFile);
     fd.append('bank_proof', bankFile);
     fd.append('demat_proof', dematFile);
-    
+    fd.append('address_proof', addressProofFile);
+    fd.append('photo', photoFile);
+    fd.append('signature', signatureFile);
+
     submitMutation.mutate(fd);
   };
   
@@ -154,7 +173,7 @@ export default function KycPage() {
                   <CheckCircle className="h-4 w-4 text-green-500" />
                   <span className="font-medium">Aadhaar</span>
                 </div>
-                <p className="text-sm text-muted-foreground">Verified via DigiLocker</p>
+                <p className="text-sm text-muted-foreground">{kyc.aadhaar_number || 'Verified'}</p>
               </div>
               <div className="p-4 bg-white dark:bg-gray-800 rounded-lg border">
                 <div className="flex items-center gap-2 mb-2">
@@ -193,8 +212,8 @@ export default function KycPage() {
     );
   }
 
-  // Show submitted/pending state
-  if (kyc.status === 'submitted' || kyc.status === 'under_review') {
+  // Show submitted/pending/processing state
+  if (kyc.status === 'submitted' || kyc.status === 'under_review' || kyc.status === 'processing') {
     return (
       <Card className="border-blue-500 bg-blue-50 dark:bg-blue-900/10">
         <CardHeader>
@@ -203,22 +222,30 @@ export default function KycPage() {
               <Loader2 className="h-6 w-6 text-white animate-spin" />
             </div>
             <div>
-              <CardTitle className="text-2xl text-blue-700 dark:text-blue-500">KYC Under Review</CardTitle>
+              <CardTitle className="text-2xl text-blue-700 dark:text-blue-500">KYC Application Submitted Successfully!</CardTitle>
               <CardDescription className="text-blue-600 dark:text-blue-400">
                 Your documents are being verified by our team
               </CardDescription>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">
-            We're currently reviewing your KYC documents. This process usually takes 24-48 hours. You'll receive a notification once the verification is complete.
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Thank you for submitting your KYC documents. We're currently reviewing your application. This process usually takes 24-48 hours. You'll receive a notification once the verification is complete.
           </p>
-          <Alert>
+          <Alert className="border-blue-500/50 bg-blue-500/10">
             <AlertDescription>
-              Submitted Documents: PAN Card, Aadhaar (DigiLocker), Bank Proof, Demat Proof
+              <strong>Submitted Documents:</strong> PAN Card, Aadhaar (Front & Back), Bank Proof, Demat Proof, Address Proof, Photo, Signature
             </AlertDescription>
           </Alert>
+          <div className="pt-4 border-t">
+            <p className="text-xs text-muted-foreground mb-3">
+              Submitted on: {kyc.submitted_at ? new Date(kyc.submitted_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Just now'}
+            </p>
+            <Button variant="outline" asChild>
+              <a href="/dashboard">Return to Dashboard</a>
+            </Button>
+          </div>
         </CardContent>
       </Card>
     );
@@ -243,79 +270,218 @@ export default function KycPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-        
-          {/* --- AADHAAR (DIGILOCKER) --- */}
-          <Card className={kyc.isAadhaarVerified ? "bg-green-50 border-green-200" : ""}>
-            <CardContent className="pt-6">
-              <Label className="text-lg font-semibold">Aadhaar Verification</Label>
-              <p className="text-sm text-muted-foreground mb-4">
-                Verify your Aadhaar instantly via DigiLocker.
-              </p>
-              {kyc.isAadhaarVerified ? (
-                <div className="flex items-center gap-2 text-green-600 font-medium">
-                  <CheckCircle className="h-5 w-5" />
-                  Aadhaar Verified Successfully
+
+          {/* --- PERSONAL INFORMATION --- */}
+          <Card>
+            <CardContent className="pt-6 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="pan_number">PAN Number *</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="pan_number"
+                    value={formData.pan_number}
+                    onChange={(e) => setFormData({...formData, pan_number: e.target.value.toUpperCase()})}
+                    placeholder="ABCDE1234F"
+                    maxLength={10}
+                    required
+                  />
+                  <Button type="button" variant="outline" onClick={() => verifyPanMutation.mutate()} disabled={panStatus === 'verifying'}>
+                    {panStatus === 'verifying' ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify'}
+                  </Button>
                 </div>
-              ) : (
-                <Button 
-                  type="button" 
-                  onClick={() => digilockerMutation.mutate()} 
-                  disabled={digilockerMutation.isPending}
-                >
-                  <ShieldCheck className="mr-2 h-4 w-4" /> Verify with DigiLocker
-                </Button>
-              )}
+                {panStatus === 'verified' && <p className="text-sm text-green-600 flex items-center gap-1"><CheckCircle className="h-4 w-4" /> Verified</p>}
+                {panStatus === 'failed' && <p className="text-sm text-red-600 flex items-center gap-1"><XCircle className="h-4 w-4" /> Verification Failed</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="aadhaar_number">Aadhaar Number * (12 digits)</Label>
+                <Input
+                  id="aadhaar_number"
+                  value={formData.aadhaar_number}
+                  onChange={(e) => setFormData({...formData, aadhaar_number: e.target.value.replace(/\D/g, '')})}
+                  placeholder="123456789012"
+                  maxLength={12}
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="bank_account">Bank Account Number *</Label>
+                  <Input
+                    id="bank_account"
+                    value={formData.bank_account}
+                    onChange={(e) => setFormData({...formData, bank_account: e.target.value})}
+                    placeholder="1234567890"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bank_ifsc">IFSC Code *</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="bank_ifsc"
+                      value={formData.bank_ifsc}
+                      onChange={(e) => setFormData({...formData, bank_ifsc: e.target.value.toUpperCase()})}
+                      placeholder="SBIN0001234"
+                      maxLength={11}
+                      required
+                    />
+                    <Button type="button" variant="outline" onClick={() => verifyBankMutation.mutate()} disabled={bankStatus === 'verifying'}>
+                      {bankStatus === 'verifying' ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify'}
+                    </Button>
+                  </div>
+                  {bankStatus === 'verified' && <p className="text-sm text-green-600 flex items-center gap-1"><CheckCircle className="h-4 w-4" /> Verified</p>}
+                  {bankStatus === 'failed' && <p className="text-sm text-red-600 flex items-center gap-1"><XCircle className="h-4 w-4" /> Verification Failed</p>}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="demat_account">Demat Account Number *</Label>
+                <Input
+                  id="demat_account"
+                  value={formData.demat_account}
+                  onChange={(e) => setFormData({...formData, demat_account: e.target.value})}
+                  placeholder="1234567890123456"
+                  required
+                />
+              </div>
             </CardContent>
           </Card>
 
-          {/* --- PAN (AUTO-VERIFY) --- */}
-          <div className="space-y-2">
-            <Label>PAN Number</Label>
-            <div className="flex gap-2">
-              <Input value={formData.pan_number} onChange={(e) => setFormData({...formData, pan_number: e.target.value})} />
-              <Button type="button" variant="outline" onClick={() => verifyPanMutation.mutate()}>Verify</Button>
-            </div>
-          </div>
-          
-          {/* --- BANK (AUTO-VERIFY) --- */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Bank Account</Label>
-              <Input value={formData.bank_account} onChange={(e) => setFormData({...formData, bank_account: e.target.value})} />
-            </div>
-            <div className="space-y-2">
-              <Label>IFSC</Label>
-              <div className="flex gap-2">
-                <Input value={formData.bank_ifsc} onChange={(e) => setFormData({...formData, bank_ifsc: e.target.value})} />
-                <Button type="button" variant="outline" onClick={() => verifyBankMutation.mutate()}>Verify</Button>
-              </div>
-            </div>
-          </div>
-          
-          {/* --- DEMAT (MANUAL) --- */}
-          <div className="space-y-2">
-            <Label>Demat Account</Label>
-            <Input value={formData.demat_account} onChange={(e) => setFormData({...formData, demat_account: e.target.value})} />
-          </div>
+          {/* --- DOCUMENT UPLOADS --- */}
+          <Card>
+            <CardContent className="pt-6">
+              <Label className="text-lg font-semibold mb-4 block">Document Uploads (All Required)</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="pan_file" className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" /> PAN Card *
+                  </Label>
+                  <Input
+                    id="pan_file"
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => setPanFile(e.target.files?.[0] || null)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">Upload clear copy of PAN card</p>
+                </div>
 
-          {/* --- FILE UPLOADS (MANUAL) --- */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>PAN Card (PDF, JPG)</Label>
-              <Input type="file" onChange={(e) => setPanFile(e.target.files?.[0] || null)} required />
-            </div>
-            <div className="space-y-2">
-              <Label>Bank Proof (Cheque/Statement)</Label>
-              <Input type="file" onChange={(e) => setBankFile(e.target.files?.[0] || null)} required />
-            </div>
-            <div className="space-y-2">
-              <Label>Demat Proof (Statement)</Label>
-              <Input type="file" onChange={(e) => setDematFile(e.target.files?.[0] || null)} required />
-            </div>
-          </div>
-          
-          <Button type="submit" disabled={submitMutation.isPending} className="w-full">
-            {submitMutation.isPending ? "Submitting..." : "Resubmit All Documents"}
+                <div className="space-y-2">
+                  <Label htmlFor="aadhaar_front" className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" /> Aadhaar Front *
+                  </Label>
+                  <Input
+                    id="aadhaar_front"
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => setAadhaarFrontFile(e.target.files?.[0] || null)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">Front side with photo</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="aadhaar_back" className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" /> Aadhaar Back *
+                  </Label>
+                  <Input
+                    id="aadhaar_back"
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => setAadhaarBackFile(e.target.files?.[0] || null)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">Back side with address</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="bank_proof" className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" /> Bank Proof *
+                  </Label>
+                  <Input
+                    id="bank_proof"
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => setBankFile(e.target.files?.[0] || null)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">Cancelled cheque or bank statement</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="demat_proof" className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" /> Demat Proof *
+                  </Label>
+                  <Input
+                    id="demat_proof"
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => setDematFile(e.target.files?.[0] || null)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">Demat account statement</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="address_proof" className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" /> Address Proof *
+                  </Label>
+                  <Input
+                    id="address_proof"
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => setAddressProofFile(e.target.files?.[0] || null)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">Utility bill, rental agreement, etc.</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="photo" className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" /> Recent Photo *
+                  </Label>
+                  <Input
+                    id="photo"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">Passport-size photograph</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="signature" className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" /> Signature *
+                  </Label>
+                  <Input
+                    id="signature"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setSignatureFile(e.target.files?.[0] || null)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">Clear signature on white paper</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Alert className="border-blue-500/50 bg-blue-500/10">
+            <AlertDescription className="text-sm">
+              <strong>Important:</strong> All documents must be clear, legible, and in PDF or image format (JPG, PNG).
+              File size should not exceed 5MB per document.
+            </AlertDescription>
+          </Alert>
+
+          <Button type="submit" disabled={submitMutation.isPending} className="w-full" size="lg">
+            {submitMutation.isPending ? (
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</>
+            ) : (
+              "Resubmit All Documents"
+            )}
           </Button>
         </form>
           </CardContent>
@@ -329,83 +495,222 @@ export default function KycPage() {
     <Card>
       <CardHeader>
         <CardTitle>KYC Verification</CardTitle>
-        <CardDescription>Complete your KYC verification to start investing</CardDescription>
+        <CardDescription>Complete your KYC verification to start investing. All fields are mandatory for fintech compliance.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
 
-          {/* --- AADHAAR (DIGILOCKER) --- */}
-          <Card className={kyc.isAadhaarVerified ? "bg-green-50 border-green-200" : ""}>
-            <CardContent className="pt-6">
-              <Label className="text-lg font-semibold">Aadhaar Verification</Label>
-              <p className="text-sm text-muted-foreground mb-4">
-                Verify your Aadhaar instantly via DigiLocker.
-              </p>
-              {kyc.isAadhaarVerified ? (
-                <div className="flex items-center gap-2 text-green-600 font-medium">
-                  <CheckCircle className="h-5 w-5" />
-                  Aadhaar Verified Successfully
+          {/* --- PERSONAL INFORMATION --- */}
+          <Card>
+            <CardContent className="pt-6 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="pan_number">PAN Number *</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="pan_number"
+                    value={formData.pan_number}
+                    onChange={(e) => setFormData({...formData, pan_number: e.target.value.toUpperCase()})}
+                    placeholder="ABCDE1234F"
+                    maxLength={10}
+                    required
+                  />
+                  <Button type="button" variant="outline" onClick={() => verifyPanMutation.mutate()} disabled={panStatus === 'verifying'}>
+                    {panStatus === 'verifying' ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify'}
+                  </Button>
                 </div>
-              ) : (
-                <Button
-                  type="button"
-                  onClick={() => digilockerMutation.mutate()}
-                  disabled={digilockerMutation.isPending}
-                >
-                  <ShieldCheck className="mr-2 h-4 w-4" /> Verify with DigiLocker
-                </Button>
-              )}
+                {panStatus === 'verified' && <p className="text-sm text-green-600 flex items-center gap-1"><CheckCircle className="h-4 w-4" /> Verified</p>}
+                {panStatus === 'failed' && <p className="text-sm text-red-600 flex items-center gap-1"><XCircle className="h-4 w-4" /> Verification Failed</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="aadhaar_number">Aadhaar Number * (12 digits)</Label>
+                <Input
+                  id="aadhaar_number"
+                  value={formData.aadhaar_number}
+                  onChange={(e) => setFormData({...formData, aadhaar_number: e.target.value.replace(/\D/g, '')})}
+                  placeholder="123456789012"
+                  maxLength={12}
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="bank_account">Bank Account Number *</Label>
+                  <Input
+                    id="bank_account"
+                    value={formData.bank_account}
+                    onChange={(e) => setFormData({...formData, bank_account: e.target.value})}
+                    placeholder="1234567890"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bank_ifsc">IFSC Code *</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="bank_ifsc"
+                      value={formData.bank_ifsc}
+                      onChange={(e) => setFormData({...formData, bank_ifsc: e.target.value.toUpperCase()})}
+                      placeholder="SBIN0001234"
+                      maxLength={11}
+                      required
+                    />
+                    <Button type="button" variant="outline" onClick={() => verifyBankMutation.mutate()} disabled={bankStatus === 'verifying'}>
+                      {bankStatus === 'verifying' ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify'}
+                    </Button>
+                  </div>
+                  {bankStatus === 'verified' && <p className="text-sm text-green-600 flex items-center gap-1"><CheckCircle className="h-4 w-4" /> Verified</p>}
+                  {bankStatus === 'failed' && <p className="text-sm text-red-600 flex items-center gap-1"><XCircle className="h-4 w-4" /> Verification Failed</p>}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="demat_account">Demat Account Number *</Label>
+                <Input
+                  id="demat_account"
+                  value={formData.demat_account}
+                  onChange={(e) => setFormData({...formData, demat_account: e.target.value})}
+                  placeholder="1234567890123456"
+                  required
+                />
+              </div>
             </CardContent>
           </Card>
 
-          {/* --- PAN (AUTO-VERIFY) --- */}
-          <div className="space-y-2">
-            <Label>PAN Number</Label>
-            <div className="flex gap-2">
-              <Input value={formData.pan_number} onChange={(e) => setFormData({...formData, pan_number: e.target.value})} />
-              <Button type="button" variant="outline" onClick={() => verifyPanMutation.mutate()}>Verify</Button>
-            </div>
-          </div>
+          {/* --- DOCUMENT UPLOADS --- */}
+          <Card>
+            <CardContent className="pt-6">
+              <Label className="text-lg font-semibold mb-4 block">Document Uploads (All Required)</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="pan_file" className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" /> PAN Card *
+                  </Label>
+                  <Input
+                    id="pan_file"
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => setPanFile(e.target.files?.[0] || null)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">Upload clear copy of PAN card</p>
+                </div>
 
-          {/* --- BANK (AUTO-VERIFY) --- */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Bank Account</Label>
-              <Input value={formData.bank_account} onChange={(e) => setFormData({...formData, bank_account: e.target.value})} />
-            </div>
-            <div className="space-y-2">
-              <Label>IFSC</Label>
-              <div className="flex gap-2">
-                <Input value={formData.bank_ifsc} onChange={(e) => setFormData({...formData, bank_ifsc: e.target.value})} />
-                <Button type="button" variant="outline" onClick={() => verifyBankMutation.mutate()}>Verify</Button>
+                <div className="space-y-2">
+                  <Label htmlFor="aadhaar_front" className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" /> Aadhaar Front *
+                  </Label>
+                  <Input
+                    id="aadhaar_front"
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => setAadhaarFrontFile(e.target.files?.[0] || null)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">Front side with photo</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="aadhaar_back" className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" /> Aadhaar Back *
+                  </Label>
+                  <Input
+                    id="aadhaar_back"
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => setAadhaarBackFile(e.target.files?.[0] || null)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">Back side with address</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="bank_proof" className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" /> Bank Proof *
+                  </Label>
+                  <Input
+                    id="bank_proof"
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => setBankFile(e.target.files?.[0] || null)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">Cancelled cheque or bank statement</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="demat_proof" className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" /> Demat Proof *
+                  </Label>
+                  <Input
+                    id="demat_proof"
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => setDematFile(e.target.files?.[0] || null)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">Demat account statement</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="address_proof" className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" /> Address Proof *
+                  </Label>
+                  <Input
+                    id="address_proof"
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => setAddressProofFile(e.target.files?.[0] || null)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">Utility bill, rental agreement, etc.</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="photo" className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" /> Recent Photo *
+                  </Label>
+                  <Input
+                    id="photo"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">Passport-size photograph</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="signature" className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" /> Signature *
+                  </Label>
+                  <Input
+                    id="signature"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setSignatureFile(e.target.files?.[0] || null)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">Clear signature on white paper</p>
+                </div>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          {/* --- DEMAT (MANUAL) --- */}
-          <div className="space-y-2">
-            <Label>Demat Account</Label>
-            <Input value={formData.demat_account} onChange={(e) => setFormData({...formData, demat_account: e.target.value})} />
-          </div>
+          <Alert className="border-blue-500/50 bg-blue-500/10">
+            <AlertDescription className="text-sm">
+              <strong>Important:</strong> All documents must be clear, legible, and in PDF or image format (JPG, PNG).
+              File size should not exceed 5MB per document.
+            </AlertDescription>
+          </Alert>
 
-          {/* --- FILE UPLOADS (MANUAL) --- */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>PAN Card (PDF, JPG)</Label>
-              <Input type="file" onChange={(e) => setPanFile(e.target.files?.[0] || null)} required />
-            </div>
-            <div className="space-y-2">
-              <Label>Bank Proof (Cheque/Statement)</Label>
-              <Input type="file" onChange={(e) => setBankFile(e.target.files?.[0] || null)} required />
-            </div>
-            <div className="space-y-2">
-              <Label>Demat Proof (Statement)</Label>
-              <Input type="file" onChange={(e) => setDematFile(e.target.files?.[0] || null)} required />
-            </div>
-          </div>
-
-          <Button type="submit" disabled={submitMutation.isPending} className="w-full">
-            {submitMutation.isPending ? "Submitting..." : "Submit All Documents"}
+          <Button type="submit" disabled={submitMutation.isPending} className="w-full" size="lg">
+            {submitMutation.isPending ? (
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</>
+            ) : (
+              "Submit All Documents"
+            )}
           </Button>
         </form>
       </CardContent>

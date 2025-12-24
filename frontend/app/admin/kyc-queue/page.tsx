@@ -16,7 +16,7 @@ import { EnhancedKycVerificationModal } from '@/components/admin/EnhancedKycVeri
 
 export default function KycQueuePage() {
   const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState('submitted');
+  const [statusFilter, setStatusFilter] = useState('pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedKycId, setSelectedKycId] = useState<number | null>(null);
 
@@ -77,7 +77,7 @@ export default function KycQueuePage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Pending Review</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{stats?.submitted || 0}</div>
+            <div className="text-2xl font-bold text-yellow-600">{stats?.pending_review || 0}</div>
           </CardContent>
         </Card>
         <Card>
@@ -124,7 +124,7 @@ export default function KycQueuePage() {
               <SelectValue placeholder="Filter Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="submitted">Pending Review</SelectItem>
+              <SelectItem value="pending">Pending Review</SelectItem>
               <SelectItem value="verified">Verified</SelectItem>
               <SelectItem value="rejected">Rejected</SelectItem>
               <SelectItem value="resubmission_required">Resubmission Req</SelectItem>
@@ -171,9 +171,9 @@ export default function KycQueuePage() {
                     </TableCell>
                     <TableCell>
                       <Badge variant={
-                        item.status === 'verified' ? 'success' : 
-                        item.status === 'rejected' ? 'destructive' : 
-                        item.status === 'submitted' ? 'warning' : 'secondary'
+                        item.status === 'verified' ? 'success' :
+                        item.status === 'rejected' ? 'destructive' :
+                        item.status === 'submitted' || item.status === 'processing' ? 'warning' : 'secondary'
                       }>
                         {item.status.toUpperCase().replace('_', ' ')}
                       </Badge>
