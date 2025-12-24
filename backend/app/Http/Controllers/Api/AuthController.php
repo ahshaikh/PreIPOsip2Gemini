@@ -38,12 +38,21 @@ class AuthController extends Controller
                 $data['referral_code'] = $request->cookie('ref_code');
             }
 
+            // Find referrer if referral code provided
+            $referrerId = null;
+            if (!empty($data['referral_code'])) {
+                $referrer = User::whereRaw('BINARY referral_code = ?', [strtoupper($data['referral_code'])])->first();
+                if ($referrer) {
+                    $referrerId = $referrer->id;
+                }
+            }
+
             $user = User::create([
-                'name' => $data['first_name'] . ' ' . $data['last_name'],
+                'username' => $data['username'],
                 'email' => $data['email'],
                 'mobile' => $data['mobile'],
                 'password' => Hash::make($data['password']),
-                'referral_code' => $data['referral_code'] ?? null,
+                'referred_by' => $referrerId,
                 'status' => UserStatus::PENDING->value,
             ]);
 
