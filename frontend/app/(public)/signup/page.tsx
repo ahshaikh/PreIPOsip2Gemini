@@ -47,7 +47,7 @@ export default function SignupPage() {
         description: "Please check your email/SMS to verify your account.",
       });
       // Redirect to OTP verification page
-      router.push(`/verify-otp?user_id=${data.data.user_id}`);
+      router.push(`/verify?user_id=${data.data.user_id}`);
     },
     onError: (error: any) => {
       const messages = error.response?.data?.errors;
