@@ -90,8 +90,14 @@ class PlanController extends Controller
                 $priceChanged = abs($newPrice - $oldPrice) > 0.01;
             }
 
-            $billingChanged = isset($validated['billing_cycle']) &&
-                             $validated['billing_cycle'] !== $plan->billing_cycle;
+            // Check if billing_cycle actually changed
+            // NULL and 'monthly' are treated as equivalent (monthly is the default)
+            $billingChanged = false;
+            if (isset($validated['billing_cycle'])) {
+                $oldCycle = $plan->billing_cycle ?? 'monthly';
+                $newCycle = $validated['billing_cycle'] ?? 'monthly';
+                $billingChanged = $oldCycle !== $newCycle;
+            }
 
             if ($priceChanged || $billingChanged) {
                 return response()->json([
