@@ -160,6 +160,87 @@ class KycController extends Controller
     }
 
     /**
+     * Verify PAN number using third-party API or basic validation.
+     */
+    public function verifyPan(Request $request)
+    {
+        $request->validate([
+            'pan_number' => 'required|string|size:10'
+        ]);
+
+        $user = $request->user();
+        $panNumber = strtoupper($request->pan_number);
+
+        try {
+            $result = $this->verificationService->verifyPan(
+                $panNumber,
+                $user->profile->first_name . ' ' . $user->profile->last_name,
+                $user->profile->dob ?? null
+            );
+
+            return response()->json([
+                'success' => true,
+                'verified' => $result['verified'] ?? false,
+                'message' => $result['message'] ?? 'PAN verification completed',
+                'details' => $result
+            ]);
+        } catch (\Exception $e) {
+            Log::error("PAN Verification Failed", [
+                'user_id' => $user->id,
+                'pan' => $panNumber,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'verified' => false,
+                'message' => 'PAN verification failed: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Verify Bank Account using Razorpay Fund Account Validation (Penny Drop).
+     */
+    public function verifyBank(Request $request)
+    {
+        $request->validate([
+            'bank_account' => 'required|string',
+            'bank_ifsc' => 'required|string|size:11'
+        ]);
+
+        $user = $request->user();
+
+        try {
+            $result = $this->verificationService->verifyBank(
+                $request->bank_account,
+                strtoupper($request->bank_ifsc),
+                $user->profile->first_name . ' ' . $user->profile->last_name
+            );
+
+            return response()->json([
+                'success' => true,
+                'verified' => $result['verified'] ?? false,
+                'message' => $result['message'] ?? 'Bank account verification completed',
+                'details' => $result
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Bank Verification Failed", [
+                'user_id' => $user->id,
+                'account' => $request->bank_account,
+                'ifsc' => $request->bank_ifsc,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'verified' => false,
+                'message' => 'Bank verification failed: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
      * View a KYC document via Temporary Signed URL.
      *
      * [AUDIT FIX (V-AUDIT-MODULE2-007)]:
@@ -189,7 +270,7 @@ class KycController extends Controller
          * The link expires automatically after 5 minutes.
          */
         $url = Storage::disk('private')->temporaryUrl(
-            $doc->file_path, 
+            $doc->file_path,
             now()->addMinutes(5)
         );
 

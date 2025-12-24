@@ -230,6 +230,8 @@ Route::prefix('v1')->group(function () {
             // KYC
             Route::get('/kyc', [KycController::class, 'show']);
             Route::post('/kyc', [KycController::class, 'store']);
+            Route::post('/kyc/verify-pan', [KycController::class, 'verifyPan']);
+            Route::post('/kyc/verify-bank', [KycController::class, 'verifyBank']);
             Route::get('/kyc-documents/{id}/view', [KycController::class, 'viewDocument']);
             Route::get('/kyc/digilocker/redirect', [KycController::class, 'redirectToDigiLocker']);
             
