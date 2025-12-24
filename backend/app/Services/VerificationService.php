@@ -334,6 +334,54 @@ class VerificationService
         }
     }
 
+    /**
+     * Run automated KYC verification on uploaded documents.
+     *
+     * This method is called by ProcessKycJob after documents are uploaded.
+     * It can perform OCR, document validation, and other automated checks.
+     */
+    public function runAutomatedKyc(UserKyc $kyc): void
+    {
+        Log::info("Running automated KYC verification", ['kyc_id' => $kyc->id, 'user_id' => $kyc->user_id]);
+
+        try {
+            // Check if all required documents are uploaded
+            $documents = $kyc->documents;
+            $requiredDocs = ['pan', 'aadhaar_front', 'aadhaar_back', 'bank_proof', 'demat_proof', 'address_proof', 'photo', 'signature'];
+            $uploadedDocs = $documents->pluck('doc_type')->toArray();
+
+            foreach ($requiredDocs as $docType) {
+                if (!in_array($docType, $uploadedDocs)) {
+                    Log::warning("Missing required document", ['kyc_id' => $kyc->id, 'missing_doc' => $docType]);
+                    throw new \Exception("Missing required document: {$docType}");
+                }
+            }
+
+            // All documents present - mark as submitted for manual review
+            // In production, you would run OCR, face matching, document validation here
+
+            $kyc->update([
+                'status' => KycStatus::SUBMITTED->value,
+                'submitted_at' => now()
+            ]);
+
+            Log::info("Automated KYC verification completed", [
+                'kyc_id' => $kyc->id,
+                'status' => 'submitted',
+                'message' => 'All documents uploaded successfully. Pending manual review.'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Automated KYC verification failed", [
+                'kyc_id' => $kyc->id,
+                'error' => $e->getMessage()
+            ]);
+
+            // Don't mark as rejected, just log the error
+            // Manual review can still proceed
+        }
+    }
+
     private function checkNameMatch($inputName, $apiName) {
         // Simple fuzzy match or string containment for robustness
         return Str::contains(strtolower($apiName), strtolower($inputName));
