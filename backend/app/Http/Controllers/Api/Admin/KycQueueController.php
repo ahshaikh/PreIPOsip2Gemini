@@ -95,7 +95,8 @@ class KycQueueController extends Controller
         $kyc = UserKyc::with('user')->findOrFail($id);
         $admin = $request->user();
 
-        if ($kyc->status !== KycStatus::SUBMITTED->value) {
+        // Allow approval of both 'processing' and 'submitted' statuses
+        if (!in_array($kyc->status, [KycStatus::PROCESSING->value, KycStatus::SUBMITTED->value])) {
             return response()->json(['message' => 'This submission is not pending approval.'], 400);
         }
 
@@ -227,13 +228,16 @@ class KycQueueController extends Controller
         $cacheKey = "kyc_statistics_{$days}days";
 
         return response()->json(Cache::remember($cacheKey, 600, function () use ($startDate) {
+            $processingCount = UserKyc::where('status', KycStatus::PROCESSING->value)->count();
+            $submittedCount = UserKyc::where('status', KycStatus::SUBMITTED->value)->count();
+
             return [
                 'total_submissions' => UserKyc::where('created_at', '>=', $startDate)->count(),
-                'pending' => UserKyc::where('status', KycStatus::SUBMITTED->value)->count(),
+                'pending_review' => $processingCount + $submittedCount, // Combined count for "Pending Review"
+                'processing' => $processingCount,
+                'submitted' => $submittedCount,
                 'verified' => UserKyc::where('status', KycStatus::VERIFIED->value)->where('created_at', '>=', $startDate)->count(),
                 'rejected' => UserKyc::where('status', KycStatus::REJECTED->value)->where('created_at', '>=', $startDate)->count(),
-                'processing' => UserKyc::where('status', KycStatus::PROCESSING->value)->count(),
-                'submitted' => UserKyc::where('status', KycStatus::SUBMITTED->value)->count(),
                 'total' => UserKyc::count(),
             ];
         }));
