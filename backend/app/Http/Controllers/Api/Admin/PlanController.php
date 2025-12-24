@@ -75,9 +75,10 @@ class PlanController extends Controller
         $validated = $request->validated();
 
         // FIX: Critical check to prevent price/cycle changes on active plans
-        // Only check for ACTIVE subscriptions (not cancelled, expired, etc.)
+        // Only check for ACTIVE subscriptions (not cancelled, completed, etc.)
+        // Valid statuses from migration: active, paused, cancelled, completed
         $activeSubscriptionCount = $plan->subscriptions()
-            ->whereIn('status', ['active', 'paused', 'pending'])
+            ->whereIn('status', ['active', 'paused'])
             ->count();
 
         if ($activeSubscriptionCount > 0) {

@@ -115,8 +115,10 @@ class SubscriptionController extends Controller
         $user = $request->user();
         $newPlan = Plan::findOrFail($validated['new_plan_id']);
 
-        // Find specific subscription or default to first non-cancelled subscription
-        $query = Subscription::where('user_id', $user->id)->whereIn('status', ['active', 'paused', 'pending']);
+        // Find specific subscription or default to first modifiable subscription
+        // Valid statuses from migration: active, paused, cancelled, completed
+        // Only active and paused subscriptions can be modified
+        $query = Subscription::where('user_id', $user->id)->whereIn('status', ['active', 'paused']);
         if (isset($validated['subscription_id'])) {
             $query->where('id', $validated['subscription_id']);
         }

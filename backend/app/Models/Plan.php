@@ -46,6 +46,11 @@ class Plan extends Model
     ];
 
     /**
+     * Append accessor attributes to JSON serialization
+     */
+    protected $appends = ['subscribers_count'];
+
+    /**
      * Boot logic to enforce data integrity.
      */
     protected static function booted()
