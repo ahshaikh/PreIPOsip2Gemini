@@ -111,7 +111,7 @@ class SubscriptionController extends Controller
             'new_plan_id' => 'required|exists:plans,id',
             'subscription_id' => 'sometimes|exists:subscriptions,id'
         ]);
-        
+
         $user = $request->user();
         $newPlan = Plan::findOrFail($validated['new_plan_id']);
 
@@ -120,7 +120,7 @@ class SubscriptionController extends Controller
         if (isset($validated['subscription_id'])) {
             $query->where('id', $validated['subscription_id']);
         }
-        $sub = $query->firstOrFail();
+        $sub = $query->latest()->firstOrFail();
 
         // Check if same plan
         if ($newPlan->id === $sub->plan_id) {

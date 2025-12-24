@@ -81,33 +81,21 @@ class PlanController extends Controller
             ->count();
 
         if ($activeSubscriptionCount > 0) {
-            // Use strict type comparison to avoid false positives from string vs decimal
-            $priceChanged = isset($validated['monthly_amount']) &&
-                           (float)$validated['monthly_amount'] !== (float)$plan->monthly_amount;
+            // Check if price actually changed (with tolerance for floating point)
+            $priceChanged = false;
+            if (isset($validated['monthly_amount'])) {
+                $oldPrice = (float)$plan->monthly_amount;
+                $newPrice = (float)$validated['monthly_amount'];
+                // Use epsilon comparison for floats (tolerance of 0.01)
+                $priceChanged = abs($newPrice - $oldPrice) > 0.01;
+            }
 
             $billingChanged = isset($validated['billing_cycle']) &&
                              $validated['billing_cycle'] !== $plan->billing_cycle;
 
-            // DEBUG: Log the comparison
-            \Log::debug('Plan Edit Debug', [
-                'plan_id' => $plan->id,
-                'validated_amount' => $validated['monthly_amount'] ?? 'not set',
-                'db_amount' => $plan->monthly_amount,
-                'validated_float' => isset($validated['monthly_amount']) ? (float)$validated['monthly_amount'] : null,
-                'db_float' => (float)$plan->monthly_amount,
-                'priceChanged' => $priceChanged,
-                'billingChanged' => $billingChanged,
-            ]);
-
             if ($priceChanged || $billingChanged) {
                 return response()->json([
-                    'message' => "Cannot modify price or billing cycle for a plan with {$activeSubscriptionCount} active subscription(s). All other fields can be edited.",
-                    'debug' => [
-                        'price_changed' => $priceChanged,
-                        'billing_changed' => $billingChanged,
-                        'validated_amount' => $validated['monthly_amount'] ?? null,
-                        'current_amount' => $plan->monthly_amount,
-                    ]
+                    'message' => "Cannot modify price or billing cycle for a plan with {$activeSubscriptionCount} active subscription(s). All other fields can be edited."
                 ], 409);
             }
         }
