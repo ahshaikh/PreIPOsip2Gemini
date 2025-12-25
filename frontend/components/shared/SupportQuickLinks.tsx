@@ -23,14 +23,14 @@ export default function SupportQuickLinks({ currentPage, className = '' }: Suppo
     {
       title: 'Help Center',
       description: 'Browse articles and guides',
-      href: '/help-center',
+      href: '/knowledge-base',
       icon: <BookOpen className="w-5 h-5" />,
       color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20'
     },
     {
       title: 'FAQs',
       description: 'Quick answers to common questions',
-      href: '/faq',
+      href: '/knowledge-base',
       icon: <HelpCircle className="w-5 h-5" />,
       color: 'text-purple-600 bg-purple-50 dark:bg-purple-900/20'
     },
@@ -74,8 +74,8 @@ export default function SupportQuickLinks({ currentPage, className = '' }: Suppo
 // Compact version for sidebars
 export function SupportQuickLinksCompact({ currentPage, className = '' }: SupportQuickLinksProps) {
   const links = [
-    { title: 'Help Center', href: '/help-center', icon: <BookOpen className="w-4 h-4" /> },
-    { title: 'FAQs', href: '/faq', icon: <HelpCircle className="w-4 h-4" /> },
+    { title: 'Help Center', href: '/knowledge-base', icon: <BookOpen className="w-4 h-4" /> },
+    { title: 'FAQs', href: '/knowledge-base', icon: <HelpCircle className="w-4 h-4" /> },
     { title: 'Support', href: '/support', icon: <Ticket className="w-4 h-4" /> }
   ];
 
