@@ -8,7 +8,7 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "Pagination Work done"
+$CommitMessage = "Pagination-balance Work done"
 #----------------------
 
 function Get-GitCredential {

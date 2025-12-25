@@ -1,6 +1,8 @@
 // V-REMEDIATE-1730-162 | V-AUDIT-FIX-ENHANCEMENT (Enhanced with eligibility, methodology, metrics)
 'use client';
 
+import { useState } from "react";
+import { PaginationControls } from "@/components/shared/PaginationControls";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -61,17 +63,42 @@ interface ProfitSharingData {
   };
 }
 
+interface PaginatedHistoryResponse {
+  data: ProfitShare[];
+  current_page: number;
+  last_page: number;
+  total: number;
+  from: number;
+  to: number;
+}
+
 export default function ProfitSharingPage() {
+  const [historyPage, setHistoryPage] = useState(1);
+
   const { data, isLoading } = useQuery<ProfitSharingData>({
     queryKey: ['userProfitShares'],
     queryFn: async () => (await api.get('/user/profit-sharing')).data,
   });
 
-  const totalEarned = data?.data.reduce((acc: number, share: ProfitShare) => acc + parseFloat(share.amount), 0) || 0;
-  const distributionCount = data?.data.length || 0;
-  const averageDistribution = distributionCount > 0 ? totalEarned / distributionCount : 0;
+  const { data: paginatedHistory } = useQuery<PaginatedHistoryResponse>({
+    queryKey: ['profitSharingHistory', historyPage],
+    queryFn: async () => {
+      return (await api.get(`/user/profit-sharing/history?page=${historyPage}`)).data;
+    },
+    placeholderData: (prev) => prev,
+  });
 
-  // Mock eligibility data if not provided by backend (will be replaced with real API data)
+  const totalEarned =
+    data?.data.reduce(
+      (acc: number, share: ProfitShare) => acc + parseFloat(share.amount),
+      0
+    ) || 0;
+
+  const distributionCount = data?.data.length || 0;
+  const averageDistribution =
+    distributionCount > 0 ? totalEarned / distributionCount : 0;
+
+  // Mock eligibility data if not provided by backend
   const eligibility = data?.eligibility || {
     is_eligible: true,
     min_months: 6,
@@ -86,7 +113,7 @@ export default function ProfitSharingPage() {
       <div>
         <h1 className="text-3xl font-bold">Profit Sharing</h1>
         <p className="text-muted-foreground mt-1">
-          Share in the platform's success through quarterly profit distributions
+          Share in the platform&apos;s success through quarterly profit distributions
         </p>
       </div>
 
@@ -124,7 +151,9 @@ export default function ProfitSharingPage() {
             <TrendingUp className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{averageDistribution.toFixed(2)}</div>
+            <div className="text-2xl font-bold">
+              ₹{averageDistribution.toFixed(2)}
+            </div>
             <p className="text-xs text-muted-foreground mt-1">
               Per distribution period
             </p>
@@ -133,10 +162,14 @@ export default function ProfitSharingPage() {
       </div>
 
       {/* Eligibility Status */}
-      <Card className={cn(
-        "border-2",
-        eligibility.is_eligible ? "border-green-200 bg-green-50/30" : "border-yellow-200 bg-yellow-50/30"
-      )}>
+      <Card
+        className={cn(
+          "border-2",
+          eligibility.is_eligible
+            ? "border-green-200 bg-green-50/30"
+            : "border-yellow-200 bg-yellow-50/30"
+        )}
+      >
         <CardHeader>
           <div className="flex items-center gap-2">
             {eligibility.is_eligible ? (
@@ -160,7 +193,13 @@ export default function ProfitSharingPage() {
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-medium">Investment Period</span>
-                  <Badge variant={eligibility.current_months >= eligibility.min_months ? "default" : "secondary"}>
+                  <Badge
+                    variant={
+                      eligibility.current_months >= eligibility.min_months
+                        ? "default"
+                        : "secondary"
+                    }
+                  >
                     {eligibility.current_months} / {eligibility.min_months} months
                   </Badge>
                 </div>
@@ -168,9 +207,16 @@ export default function ProfitSharingPage() {
                   <div
                     className={cn(
                       "h-2 rounded-full transition-all",
-                      eligibility.current_months >= eligibility.min_months ? "bg-green-600" : "bg-blue-600"
+                      eligibility.current_months >= eligibility.min_months
+                        ? "bg-green-600"
+                        : "bg-blue-600"
                     )}
-                    style={{ width: `${Math.min(100, (eligibility.current_months / eligibility.min_months) * 100)}%` }}
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        (eligibility.current_months / eligibility.min_months) * 100
+                      )}%`,
+                    }}
                   />
                 </div>
               </div>
@@ -182,31 +228,38 @@ export default function ProfitSharingPage() {
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-medium">Minimum Investment</span>
-                  <Badge variant={eligibility.current_investment >= eligibility.min_investment ? "default" : "secondary"}>
-                    ₹{eligibility.current_investment.toLocaleString()} / ₹{eligibility.min_investment.toLocaleString()}
+                  <Badge
+                    variant={
+                      eligibility.current_investment >= eligibility.min_investment
+                        ? "default"
+                        : "secondary"
+                    }
+                  >
+                    ₹{eligibility.current_investment.toLocaleString()} / ₹
+                    {eligibility.min_investment.toLocaleString()}
                   </Badge>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
                     className={cn(
                       "h-2 rounded-full transition-all",
-                      eligibility.current_investment >= eligibility.min_investment ? "bg-green-600" : "bg-purple-600"
+                      eligibility.current_investment >= eligibility.min_investment
+                        ? "bg-green-600"
+                        : "bg-purple-600"
                     )}
-                    style={{ width: `${Math.min(100, (eligibility.current_investment / eligibility.min_investment) * 100)}%` }}
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        (eligibility.current_investment /
+                          eligibility.min_investment) *
+                          100
+                      )}%`,
+                    }}
                   />
                 </div>
               </div>
             </div>
           </div>
-
-          {!eligibility.is_eligible && (
-            <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-3 text-sm">
-              <p className="text-yellow-800">
-                <strong>How to qualify:</strong> Maintain active investments for at least {eligibility.min_months} months
-                with a minimum total investment of ₹{eligibility.min_investment.toLocaleString()}.
-              </p>
-            </div>
-          )}
         </CardContent>
       </Card>
 
@@ -292,7 +345,9 @@ export default function ProfitSharingPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Period</p>
-                <p className="text-lg font-semibold">{data.next_distribution.period_name}</p>
+                <p className="text-lg font-semibold">
+                  {data.next_distribution.period_name}
+                </p>
               </div>
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">Expected Date</p>
@@ -310,22 +365,21 @@ export default function ProfitSharingPage() {
           </CardContent>
         </Card>
       )}
-
       {/* Distribution History */}
       <Card>
         <CardHeader>
           <CardTitle>Distribution History</CardTitle>
-          <CardDescription>Your share of the platform's profits over time</CardDescription>
+          <CardDescription>
+            Your share of the platform&apos;s profits over time
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="flex items-center justify-center h-32">
-              <p className="text-muted-foreground">Loading history...</p>
-            </div>
-          ) : data?.data.length === 0 ? (
+          {(paginatedHistory?.data || []).length === 0 ? (
             <div className="text-center py-12">
               <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No Distributions Yet</h3>
+              <h3 className="text-lg font-semibold mb-2">
+                No Distributions Yet
+              </h3>
               <p className="text-muted-foreground">
                 {eligibility.is_eligible
                   ? "Your first distribution will appear here after the current quarter ends."
@@ -333,38 +387,55 @@ export default function ProfitSharingPage() {
               </p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Period</TableHead>
-                  <TableHead>Distribution Date</TableHead>
-                  <TableHead>Period End Date</TableHead>
-                  <TableHead className="text-right">Amount Earned</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data?.data.map((share: ProfitShare) => (
-                  <TableRow key={share.id}>
-                    <TableCell className="font-medium">
-                      {share.profit_share_period.period_name}
-                    </TableCell>
-                    <TableCell>
-                      {share.profit_share_period.distribution_date
-                        ? new Date(share.profit_share_period.distribution_date).toLocaleDateString()
-                        : 'Pending'}
-                    </TableCell>
-                    <TableCell>
-                      {new Date(share.profit_share_period.end_date).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="text-green-600 font-semibold">
-                        + ₹{parseFloat(share.amount).toFixed(2)}
-                      </span>
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Period</TableHead>
+                    <TableHead>Distribution Date</TableHead>
+                    <TableHead>Period End Date</TableHead>
+                    <TableHead className="text-right">Amount Earned</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {(paginatedHistory?.data || []).map((share: ProfitShare) => (
+                    <TableRow key={share.id}>
+                      <TableCell className="font-medium">
+                        {share.profit_share_period.period_name}
+                      </TableCell>
+                      <TableCell>
+                        {share.profit_share_period.distribution_date
+                          ? new Date(
+                              share.profit_share_period.distribution_date
+                            ).toLocaleDateString()
+                          : "Pending"}
+                      </TableCell>
+                      <TableCell>
+                        {new Date(
+                          share.profit_share_period.end_date
+                        ).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className="text-green-600 font-semibold">
+                          + ₹{parseFloat(share.amount).toFixed(2)}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {paginatedHistory && (
+              <PaginationControls
+                currentPage={paginatedHistory.current_page}
+                totalPages={paginatedHistory.last_page}
+                onPageChange={setHistoryPage}
+                totalItems={paginatedHistory.total}
+                from={paginatedHistory.from}
+                to={paginatedHistory.to}
+              />
+            )}
+            </>
           )}
         </CardContent>
       </Card>

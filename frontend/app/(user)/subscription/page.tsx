@@ -16,6 +16,7 @@ import { Download, CreditCard, Zap, Settings, Building2, TrendingUp } from "luci
 import { useState } from "react";
 import { ManageSubscriptionModal } from "@/components/features/ManageSubscriptionModal";
 import { ManualPaymentModal } from "@/components/features/ManualPaymentModal";
+import { PaginationControls } from "@/components/shared/PaginationControls"; // PAGINATION: added
 
 declare var Razorpay: any;
 
@@ -27,6 +28,9 @@ export default function SubscriptionPage() {
   const [isDownloading, setIsDownloading] = useState<number | null>(null);
   const [isManageOpen, setIsManageOpen] = useState(false);
   const [isManualPayOpen, setIsManualPayOpen] = useState(false);
+
+  // PAGINATION: added
+  const [paymentsPage, setPaymentsPage] = useState(1);
   
   // Payment State
   const [autoDebitEnabled, setAutoDebitEnabled] = useState(false);
@@ -51,6 +55,17 @@ export default function SubscriptionPage() {
 
   // 2. Fetch Plans
   const { data: plans } = usePlans();
+
+  // PAGINATION: added (after existing queries)
+  const { data: paginatedPayments } = useQuery({
+    queryKey: ['subscriptionPayments', paymentsPage],
+    queryFn: async () => {
+      const res = await api.get(`/user/subscription/payments?page=${paymentsPage}`);
+      return res.data;
+    },
+    enabled: !!sub,
+    placeholderData: (prev) => prev,
+  });
   
   // 3. Create Subscription Mutation
   const createSubMutation = useMutation({
@@ -79,7 +94,6 @@ export default function SubscriptionPage() {
         description: data.description,
         prefill: data.prefill,
         handler: async function (response: any) {
-          // Verify payment with backend
           try {
             const verifyPayload: any = {
               payment_id: selectedPaymentId || paymentId,
@@ -87,7 +101,6 @@ export default function SubscriptionPage() {
               razorpay_signature: response.razorpay_signature,
             };
 
-            // Add order_id or subscription_id based on payment type
             if (response.razorpay_order_id) {
               verifyPayload.razorpay_order_id = response.razorpay_order_id;
             }
@@ -95,31 +108,33 @@ export default function SubscriptionPage() {
               verifyPayload.razorpay_subscription_id = response.razorpay_subscription_id;
             }
 
-            const verifyResponse = await api.post('/user/payment/verify', verifyPayload);
+            await api.post('/user/payment/verify', verifyPayload);
 
-            toast.success("Payment Verified!", { description: "Your payment has been successfully processed." });
+            toast.success("Payment Verified!", {
+              description: "Your payment has been successfully processed."
+            });
 
-            // Refresh data
             queryClient.invalidateQueries({ queryKey: ['subscription'] });
             queryClient.invalidateQueries({ queryKey: ['portfolio'] });
             queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
 
-            // Redirect to deals page after first payment
             setTimeout(() => {
               router.push('/deals?welcome=true');
             }, 1500);
           } catch (error: any) {
             toast.error("Verification Failed", {
-              description: error.response?.data?.message || "Payment completed but verification failed. Please contact support."
+              description:
+                error.response?.data?.message ||
+                "Payment completed but verification failed. Please contact support."
             });
           }
         },
       };
 
       if (data.type === 'subscription') {
-        options.subscription_id = data.subscription_id; // Recurring
+        options.subscription_id = data.subscription_id;
       } else {
-        options.order_id = data.order_id; // One-time
+        options.order_id = data.order_id;
         options.amount = data.amount;
         options.currency = "INR";
       }
@@ -136,7 +151,9 @@ export default function SubscriptionPage() {
   const resumeMutation = useMutation({
     mutationFn: () => api.post('/user/subscription/resume'),
     onSuccess: () => {
-      toast.success("Subscription Resumed!", { description: "Your subscription is now active again." });
+      toast.success("Subscription Resumed!", {
+        description: "Your subscription is now active again."
+      });
       queryClient.invalidateQueries({ queryKey: ['subscription'] });
     },
     onError: (error: any) => {
@@ -160,7 +177,7 @@ export default function SubscriptionPage() {
       link.click();
       window.URL.revokeObjectURL(url);
       link.remove();
-    } catch (error) {
+    } catch {
       toast.error("Download Failed");
     } finally {
       setIsDownloading(null);
@@ -181,7 +198,9 @@ export default function SubscriptionPage() {
       <Card>
         <CardHeader>
           <CardTitle>No Active Subscription</CardTitle>
-          <CardDescription>You do not have an active subscription. Please choose a plan to start.</CardDescription>
+          <CardDescription>
+            You do not have an active subscription. Please choose a plan to start.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-2 gap-4">
@@ -192,7 +211,7 @@ export default function SubscriptionPage() {
                   <CardDescription>₹{plan.monthly_amount}/month</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Button 
+                  <Button
                     className="w-full"
                     onClick={() => createSubMutation.mutate(plan.id)}
                     disabled={createSubMutation.isPending}
@@ -209,7 +228,6 @@ export default function SubscriptionPage() {
   }
 
   // --- STATE 2: ACTIVE SUBSCRIPTION ---
-  // Safe guard with fallback
   const pendingPayment = (sub?.payments ?? []).find((p: any) => p.status === 'pending');
 
   return (
@@ -217,30 +235,41 @@ export default function SubscriptionPage() {
       <Card>
         <CardHeader className="flex flex-row items-start justify-between">
           <div>
-              <CardTitle>My Subscription: {sub.plan?.name || 'Loading...'}</CardTitle>
-              <CardDescription>Status: <span className="capitalize font-medium text-primary">{sub.status}</span></CardDescription>
+            <CardTitle>
+              My Subscription: {sub.plan?.name || 'Loading...'}
+            </CardTitle>
+            <CardDescription>
+              Status:{' '}
+              <span className="capitalize font-medium text-primary">
+                {sub.status}
+              </span>
+            </CardDescription>
           </div>
           {sub.status !== 'cancelled' && (
-              <Button variant="outline" size="sm" onClick={() => setIsManageOpen(true)}>
-                  <Settings className="mr-2 h-4 w-4" /> Manage
-              </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsManageOpen(true)}
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              Manage
+            </Button>
           )}
         </CardHeader>
+
         <CardContent className="space-y-6">
-          {/* Quick Actions for Active Subscribers - Show for all non-cancelled */}
+          {/* Quick Actions */}
           {sub.status !== 'cancelled' && (
             <div className="grid md:grid-cols-2 gap-4">
               <Link href="/deals">
-                <Card className="border-2 border-primary/20 hover:border-primary/40 hover:shadow-lg transition-all cursor-pointer group">
+                <Card className="border-2 border-primary/20 hover:border-primary/40 hover:shadow-lg transition-all cursor-pointer">
                   <CardContent className="pt-6">
-                    <div className="flex items-start gap-4">
-                      <div className="p-3 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                        <Building2 className="w-6 h-6 text-primary" />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg mb-1">Browse Available Deals</h3>
+                    <div className="flex gap-4">
+                      <Building2 className="w-6 h-6 text-primary" />
+                      <div>
+                        <h3 className="font-semibold">Browse Deals</h3>
                         <p className="text-sm text-muted-foreground">
-                          Discover and invest in pre-IPO companies using your subscription balance
+                          Invest in pre-IPO companies
                         </p>
                       </div>
                     </div>
@@ -249,16 +278,14 @@ export default function SubscriptionPage() {
               </Link>
 
               <Link href="/investments">
-                <Card className="border-2 border-green-200 hover:border-green-300 hover:shadow-lg transition-all cursor-pointer group">
+                <Card className="border-2 border-green-200 hover:border-green-300 hover:shadow-lg transition-all cursor-pointer">
                   <CardContent className="pt-6">
-                    <div className="flex items-start gap-4">
-                      <div className="p-3 rounded-lg bg-green-100 group-hover:bg-green-200 transition-colors">
-                        <TrendingUp className="w-6 h-6 text-green-600" />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg mb-1">My Investments</h3>
+                    <div className="flex gap-4">
+                      <TrendingUp className="w-6 h-6 text-green-600" />
+                      <div>
+                        <h3 className="font-semibold">My Investments</h3>
                         <p className="text-sm text-muted-foreground">
-                          Track your portfolio and view investment performance
+                          Track your portfolio
                         </p>
                       </div>
                     </div>
@@ -268,98 +295,113 @@ export default function SubscriptionPage() {
             </div>
           )}
 
-          {/* Paused Subscription Alert */}
+          {/* Paused Alert */}
           {sub.status === 'paused' && (
             <Alert className="border-yellow-500/50 bg-yellow-500/10">
               <Zap className="h-4 w-4 text-yellow-500" />
-              <AlertTitle className="text-yellow-700">Subscription Paused</AlertTitle>
+              <AlertTitle>Subscription Paused</AlertTitle>
               <AlertDescription>
-                <p className="mb-4">Your subscription is currently paused{sub.pause_ends_at && ` until ${new Date(sub.pause_ends_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}`}. You can resume it anytime.</p>
                 <Button
                   onClick={() => resumeMutation.mutate()}
                   disabled={resumeMutation.isPending}
-                  className="bg-yellow-600 hover:bg-yellow-700"
                 >
-                  {resumeMutation.isPending ? "Resuming..." : "Resume Subscription"}
+                  Resume Subscription
                 </Button>
               </AlertDescription>
             </Alert>
           )}
 
-          {/* Pending Payment Alert */}
+          {/* Pending Payment */}
           {pendingPayment && (
-            <Alert variant="default" className="border-primary/50 bg-primary/5">
-              <Zap className="h-4 w-4" />
-              <AlertTitle>Payment Due: ₹{pendingPayment.amount}</AlertTitle>
-              <AlertDescription>
-                <div className="mt-4 space-y-4">
-                  {/* Auto Debit Toggle */}
-                  {!sub.is_auto_debit && (
-                    <div className="flex items-center space-x-2">
-                      <Switch id="auto-debit" checked={autoDebitEnabled} onCheckedChange={setAutoDebitEnabled} />
-                      <Label htmlFor="auto-debit">Enable Auto-Debit (Set up Recurring Mandate)</Label>
-                    </div>
-                  )}
-                  
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <Button 
-                      onClick={() => paymentMutation.mutate(pendingPayment.id)}
-                      disabled={paymentMutation.isPending}
-                      className="flex-1"
-                    >
-                      <CreditCard className="mr-2 h-4 w-4" />
-                      {paymentMutation.isPending ? "Processing..." : (autoDebitEnabled ? "Pay & Setup Auto-Debit" : "Pay Online")}
-                    </Button>
-                    
-                    <Button 
-                      variant="outline"
-                      onClick={() => handleManualPayClick(pendingPayment.id, parseFloat(pendingPayment.amount))}
-                      className="flex-1"
-                    >
-                      <Building2 className="mr-2 h-4 w-4" />
-                      Bank Transfer
-                    </Button>
+            <Alert className="border-primary/50 bg-primary/5">
+              <AlertTitle>
+                Payment Due: ₹{pendingPayment.amount}
+              </AlertTitle>
+              <AlertDescription className="space-y-4">
+                {!sub.is_auto_debit && (
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={autoDebitEnabled}
+                      onCheckedChange={setAutoDebitEnabled}
+                    />
+                    <Label>Enable Auto-Debit</Label>
                   </div>
+                )}
+
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => paymentMutation.mutate(pendingPayment.id)}
+                  >
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Pay Online
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      handleManualPayClick(
+                        pendingPayment.id,
+                        parseFloat(pendingPayment.amount)
+                      )
+                    }
+                  >
+                    Bank Transfer
+                  </Button>
                 </div>
               </AlertDescription>
             </Alert>
           )}
-          
-          {/* Payment History */}
+
+          {/* PAYMENT HISTORY — PAGINATED (REPLACED SECTION) */}
           <div>
             <h3 className="font-semibold mb-2">Payment History</h3>
             <div className="border rounded-lg">
-              {(sub.payments || []).map((p: any) => (
-                <div key={p.id} className="flex justify-between items-center p-4 border-b last:border-b-0">
+              {(paginatedPayments?.data || []).map((p: any) => (
+                <div
+                  key={p.id}
+                  className="flex justify-between items-center p-4 border-b last:border-b-0"
+                >
                   <div>
-                    <p className="font-medium">Payment for {new Date(p.created_at).toLocaleDateString()}</p>
-                    <p className="text-sm text-muted-foreground">Amount: ₹{p.amount}</p>
+                    <p className="font-medium">
+                      Payment for{' '}
+                      {new Date(p.created_at).toLocaleDateString()}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Amount: ₹{p.amount}
+                    </p>
                   </div>
+
                   <div className="flex items-center gap-2">
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                      p.status === 'paid' ? 'bg-green-100 text-green-800' :
-                      p.status === 'pending_approval' ? 'bg-yellow-100 text-yellow-800' :
-                      p.status === 'pending' ? 'bg-orange-100 text-orange-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
+                    <span className="text-xs font-semibold capitalize">
                       {p.status.replace('_', ' ')}
                     </span>
-                    
+
                     {p.status === 'paid' && (
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => handleDownloadInvoice(p.id)}
                         disabled={isDownloading === p.id}
                       >
                         <Download className="mr-2 h-4 w-4" />
-                        {isDownloading === p.id ? "..." : "Receipt"}
+                        Receipt
                       </Button>
                     )}
                   </div>
                 </div>
               ))}
             </div>
+
+            {paginatedPayments && (
+              <PaginationControls
+                currentPage={paginatedPayments.current_page}
+                totalPages={paginatedPayments.last_page}
+                onPageChange={setPaymentsPage}
+                totalItems={paginatedPayments.total}
+                from={paginatedPayments.from}
+                to={paginatedPayments.to}
+              />
+            )}
           </div>
         </CardContent>
       </Card>
@@ -374,7 +416,7 @@ export default function SubscriptionPage() {
       />
 
       {selectedPaymentId && (
-        <ManualPaymentModal 
+        <ManualPaymentModal
           isOpen={isManualPayOpen}
           onClose={() => setIsManualPayOpen(false)}
           paymentId={selectedPaymentId}

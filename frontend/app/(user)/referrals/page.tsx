@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
+import { PaginationControls } from "@/components/shared/PaginationControls";
 import { useState } from "react";
 import {
   Copy, Gift, Users, TrendingUp, Share2, Link2, Trophy,
@@ -22,6 +23,11 @@ import {
 export default function ReferralsPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [showQR, setShowQR] = useState(false);
+  // PAGINATION STATE
+const [referralsPage, setReferralsPage] = useState(1);
+const [rewardsPage, setRewardsPage] = useState(1);
+const [statusFilter, setStatusFilter] = useState('all');
+
 
   const { data, isLoading } = useQuery({
     queryKey: ['referrals'],
@@ -37,6 +43,27 @@ export default function ReferralsPage() {
     queryKey: ['referralRewards'],
     queryFn: async () => (await api.get('/user/referrals/rewards')).data,
   });
+  // PAGINATED REFERRAL LIST
+const { data: paginatedReferrals } = useQuery({
+  queryKey: ['referralsList', referralsPage, statusFilter],
+  queryFn: async () => {
+    const params = new URLSearchParams({
+      page: referralsPage.toString(),
+      status: statusFilter,
+    });
+    return (await api.get(`/user/referrals/list?${params}`)).data;
+  },
+  placeholderData: (prev) => prev,
+});
+
+// PAGINATED REWARDS HISTORY
+const { data: paginatedRewards } = useQuery({
+  queryKey: ['referralRewards', rewardsPage],
+  queryFn: async () => {
+    return (await api.get(`/user/referrals/rewards?page=${rewardsPage}`)).data;
+  },
+  placeholderData: (prev) => prev,
+});
 
   if (isLoading) return <div className="flex items-center justify-center h-64">Loading referrals...</div>;
 
@@ -329,7 +356,7 @@ export default function ReferralsPage() {
               <CardDescription>People who signed up using your referral link</CardDescription>
             </CardHeader>
             <CardContent>
-              {(!data?.referrals?.data || data.referrals.data.length === 0) ? (
+              {(!paginatedReferrals?.data || paginatedReferrals.data.length === 0) ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p className="text-lg font-medium">No Referrals Yet</p>
@@ -346,7 +373,7 @@ export default function ReferralsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {data.referrals.data.map((ref: any) => (
+                    {paginatedReferrals.data.map((ref: any) => (
                       <TableRow key={ref.id}>
                         <TableCell>
                           <div className="flex items-center gap-2">
@@ -356,6 +383,14 @@ export default function ReferralsPage() {
                             <span className="font-medium">{ref.referred?.username}</span>
                           </div>
                         </TableCell>
+                        <PaginationControls
+                          currentPage={paginatedReferrals.current_page}
+                          totalPages={paginatedReferrals.last_page}
+                          onPageChange={setReferralsPage}
+                          totalItems={paginatedReferrals.total}
+                          from={paginatedReferrals.from}
+                          to={paginatedReferrals.to}
+                        />
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -393,7 +428,7 @@ export default function ReferralsPage() {
               <CardDescription>All bonuses earned from your referrals</CardDescription>
             </CardHeader>
             <CardContent>
-              {(!rewards?.history || rewards.history.length === 0) ? (
+              {(!paginatedRewards?.data || paginatedRewards.data.length === 0) ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <Gift className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p className="text-lg font-medium">No Rewards Yet</p>
@@ -411,11 +446,19 @@ export default function ReferralsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rewards.history.map((reward: any) => (
+                    {paginatedRewards.data.map((reward: any) => (
                       <TableRow key={reward.id}>
                         <TableCell>
                           {new Date(reward.created_at).toLocaleDateString()}
                         </TableCell>
+                        <PaginationControls
+                          currentPage={paginatedRewards.current_page}
+                          totalPages={paginatedRewards.last_page}
+                          onPageChange={setRewardsPage}
+                          totalItems={paginatedRewards.total}
+                          from={paginatedRewards.from}
+                          to={paginatedRewards.to}
+                        />
                         <TableCell>
                           <Badge variant="outline">
                             {reward.type === 'referral_bonus' ? 'Referral' : reward.type}

@@ -2,6 +2,7 @@
 'use client';
 
 import { useState } from "react";
+import { PaginationControls } from "@/components/shared/PaginationControls";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -90,15 +91,34 @@ interface LuckyDrawsData {
 
 export default function LuckyDrawsPage() {
   const [selectedDraw, setSelectedDraw] = useState<LuckyDraw | null>(null);
+  // PAGINATION: Past draws
+  const [pastDrawsPage, setPastDrawsPage] = useState(1);
 
   const { data, isLoading } = useQuery<LuckyDrawsData>({
     queryKey: ['luckyDraws'],
+    
     queryFn: async () => {
       const response = await api.get('/user/lucky-draws');
       const responseData = response.data;
       // Handle nested data structures
       return responseData?.data || responseData || {};
     },
+  });
+    const { data: paginatedPastDraws } = useQuery<{
+      data: LuckyDraw[];
+      current_page: number;
+      last_page: number;
+      total: number;
+      from: number;
+      to: number;
+    }>({
+
+    // PAGINATION: Past draws
+      queryKey: ['pastDraws', pastDrawsPage],
+    queryFn: async () => {
+      return (await api.get(`/user/lucky-draws/past-draws?page=${pastDrawsPage}`)).data;
+    },
+    placeholderData: (prev) => prev,
   });
 
   if (isLoading) {
@@ -446,7 +466,7 @@ export default function LuckyDrawsPage() {
           <CardDescription>View previous draw results and winner lists</CardDescription>
         </CardHeader>
         <CardContent>
-          {past_draws.data.length === 0 ? (
+          {(!paginatedPastDraws?.data || paginatedPastDraws.data.length === 0) ? (
             <div className="text-center py-12">
               <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-muted-foreground">No past draws yet</p>
@@ -470,7 +490,7 @@ export default function LuckyDrawsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {past_draws.data.map((draw) => (
+                    {(paginatedPastDraws?.data || []).map((draw) => (
                       <TableRow key={draw.id}>
                         <TableCell className="font-medium">{draw.name}</TableCell>
                         <TableCell>{new Date(draw.draw_date).toLocaleDateString()}</TableCell>
@@ -491,6 +511,16 @@ export default function LuckyDrawsPage() {
                     ))}
                   </TableBody>
                 </Table>
+                <PaginationControls
+                  currentPage={paginatedPastDraws?.current_page}
+                  totalPages={paginatedPastDraws?.last_page}
+                  onPageChange={setPastDrawsPage}
+                  totalItems={paginatedPastDraws?.total}
+                  from={paginatedPastDraws?.from}
+                  to={paginatedPastDraws?.to}
+                />
+
+
               </TabsContent>
 
               <TabsContent value="details" className="mt-4">
