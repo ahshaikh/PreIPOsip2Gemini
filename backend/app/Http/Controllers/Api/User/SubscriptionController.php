@@ -277,4 +277,39 @@ class SubscriptionController extends Controller
             return response()->json(['message' => $e->getMessage()], 400);
         }
     }
+
+    /**
+     * Get Paginated Payment History for User's Subscriptions
+     * Endpoint: /api/v1/user/subscription/payments
+     * [PROTOCOL 7 IMPLEMENTATION]
+     */
+    public function payments(Request $request)
+    {
+        $request->validate([
+            'status' => 'nullable|string',
+            'page' => 'nullable|integer',
+        ]);
+
+        $userId = $request->user()->id;
+
+        // Get payments for user's subscriptions
+        $query = DB::table('payments')
+            ->join('subscriptions', 'payments.subscription_id', '=', 'subscriptions.id')
+            ->where('subscriptions.user_id', $userId)
+            ->select('payments.*');
+
+        // Apply status filter
+        if ($request->has('status') && $request->status !== 'all') {
+            $query->where('payments.status', $request->status);
+        }
+
+        // Dynamic Pagination
+        $perPage = function_exists('setting') ? (int) setting('records_per_page', 15) : 15;
+
+        $payments = $query->latest('payments.created_at')
+            ->paginate($perPage)
+            ->appends($request->query());
+
+        return response()->json($payments);
+    }
 }

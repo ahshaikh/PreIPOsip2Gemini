@@ -242,6 +242,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/subscription/pause', [SubscriptionController::class, 'pause']);
             Route::post('/subscription/resume', [SubscriptionController::class, 'resume']);
             Route::post('/subscription/cancel', [SubscriptionController::class, 'cancel']);
+            Route::get('/subscription/payments', [SubscriptionController::class, 'payments']);
 
             // Deals & Investments
             Route::prefix('deals')->group(function () {
@@ -280,6 +281,7 @@ Route::prefix('v1')->group(function () {
                 Route::get('/portfolio/statement', [PortfolioController::class, 'downloadStatement']);
                 Route::get('/portfolio/transactions', [PortfolioController::class, 'transactions']);
                 Route::get('/bonuses', [BonusController::class, 'index']);
+                Route::get('/bonuses/transactions', [BonusController::class, 'transactions']);
                 Route::get('/bonuses/pending', [BonusController::class, 'pending']);
                 Route::get('/bonuses/export', [BonusController::class, 'export']);
                 Route::get('/referrals', [UserReferralController::class, 'index']);
