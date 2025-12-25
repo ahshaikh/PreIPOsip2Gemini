@@ -183,4 +183,60 @@ class LuckyDrawController extends Controller
 
         return ($entry->base_entries ?? 0) + ($entry->bonus_entries ?? 0);
     }
+
+    /**
+     * Get Paginated Past Draws
+     * Endpoint: /api/v1/user/lucky-draws/past-draws
+     * [PROTOCOL 7 IMPLEMENTATION]
+     */
+    public function pastDraws(Request $request): JsonResponse
+    {
+        $request->validate([
+            'page' => 'nullable|integer',
+        ]);
+
+        try {
+            $user = $request->user();
+
+            if (!Schema::hasTable('lucky_draws')) {
+                return response()->json([
+                    'data' => [],
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'total' => 0,
+                ]);
+            }
+
+            // Dynamic Pagination
+            $perPage = function_exists('setting') ? (int) setting('records_per_page', 15) : 15;
+
+            $draws = DB::table('lucky_draws')
+                ->where('status', 'completed')
+                ->orderBy('draw_date', 'desc')
+                ->paginate($perPage)
+                ->through(function ($draw) use ($user) {
+                    return [
+                        'id' => $draw->id,
+                        'name' => $draw->name,
+                        'draw_date' => Carbon::parse($draw->draw_date)->format('d M Y'),
+                        'status' => $draw->status,
+                        'prize_structure' => $this->transformPrizeStructure($draw->prize_structure ?? '[]'),
+                        'winners' => json_decode($draw->winners_json ?? '[]'),
+                        'my_result' => 'Better luck next time', // Placeholder logic
+                    ];
+                });
+
+            $draws->appends($request->query());
+
+            return response()->json($draws);
+
+        } catch (\Throwable $e) {
+            return response()->json([
+                'data' => [],
+                'current_page' => 1,
+                'last_page' => 1,
+                'total' => 0,
+            ]);
+        }
+    }
 }

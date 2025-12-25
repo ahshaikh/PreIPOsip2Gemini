@@ -285,6 +285,7 @@ Route::prefix('v1')->group(function () {
                 Route::get('/bonuses/pending', [BonusController::class, 'pending']);
                 Route::get('/bonuses/export', [BonusController::class, 'export']);
                 Route::get('/referrals', [UserReferralController::class, 'index']);
+                Route::get('/referrals/list', [UserReferralController::class, 'list']);
                 Route::get('/referrals/rewards', [UserReferralController::class, 'rewards']);
             });
 
@@ -355,7 +356,9 @@ Route::prefix('v1')->group(function () {
 
             // Bonus Modules
             Route::get('/lucky-draws', [UserLuckyDrawController::class, 'index']);
+            Route::get('/lucky-draws/past-draws', [UserLuckyDrawController::class, 'pastDraws']);
             Route::get('/profit-sharing', [UserProfitShareController::class, 'index']);
+            Route::get('/profit-sharing/history', [UserProfitShareController::class, 'distributionHistory']);
 
             // [AUDIT FIX] User Reports Module - High Priority #1
             // V-AUDIT-FIX-REPORTS (Connected frontend to Laravel backend)
