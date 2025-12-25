@@ -40,6 +40,45 @@ class AdminDashboardController extends Controller
                 ->count();
             $pendingPayments = Payment::where('status', 'pending')->count();
 
+            // --- Fintech Industry Standard KPIs ---
+            // Payment Success Rate
+            $totalPaymentAttempts = Payment::whereIn('status', ['paid', 'failed'])
+                ->where('created_at', '>=', now()->subDays(30))
+                ->count();
+            $successfulPayments = Payment::where('status', 'paid')
+                ->where('paid_at', '>=', now()->subDays(30))
+                ->count();
+            $paymentSuccessRate = $totalPaymentAttempts > 0
+                ? round(($successfulPayments / $totalPaymentAttempts) * 100, 2)
+                : 0;
+
+            // Average Revenue Per User (ARPU) - Monthly
+            $arpu = $activeSubscriptions > 0
+                ? round($monthlyRevenue / $activeSubscriptions, 2)
+                : 0;
+
+            // Churn Rate - Users who cancelled in last 30 days
+            $cancelledSubs = Subscription::where('status', 'cancelled')
+                ->where('cancelled_at', '>=', now()->subDays(30))
+                ->count();
+            $totalActiveStart = $activeSubscriptions + $cancelledSubs;
+            $churnRate = $totalActiveStart > 0
+                ? round(($cancelledSubs / $totalActiveStart) * 100, 2)
+                : 0;
+
+            // Total Assets Under Management (AUM)
+            $totalAUM = DB::table('user_company_investments')
+                ->sum(DB::raw('shares * current_price'));
+
+            // Average Investment Amount
+            $avgInvestment = Payment::where('status', 'paid')
+                ->where('paid_at', '>=', now()->subDays(30))
+                ->avg('amount');
+
+            // Pending Approvals Count (KYC + Withdrawals + Payments)
+            $totalPendingApprovals = $pendingKyc + $pendingWithdrawals +
+                Payment::where('status', 'pending_approval')->count();
+
             // --- 2. Charts (Test: testDashboardChartsLoadCorrectly) ---
 
             // V-AUDIT-MODULE19-LOW: Fixed Database Coupling (MySQL-Specific DATE() Function)
@@ -96,14 +135,85 @@ class AdminDashboardController extends Controller
                 ->sortBy('date')
                 ->values(); // Reset keys to 0, 1, 2... for JSON array
 
-            // --- 3. Activity (Test: testDashboardShowsRecentActivity) ---
-            $recentActivity = ActivityLog::with('user:id,username')
+            // --- 3. Enhanced Activity (Fintech Industry Standard) ---
+            // Show comprehensive activity: payments, withdrawals, subscriptions, KYC approvals
+            $recentPayments = Payment::with('user:id,username,email')
+                ->where('status', 'paid')
+                ->latest('paid_at')
+                ->limit(5)
+                ->get()
+                ->map(function ($payment) {
+                    return [
+                        'id' => $payment->id,
+                        'type' => 'payment',
+                        'user' => $payment->user,
+                        'description' => "{$payment->user->username} made payment of ₹{$payment->amount}",
+                        'amount' => $payment->amount,
+                        'created_at' => $payment->paid_at,
+                    ];
+                });
+
+            $recentWithdrawals = Withdrawal::with('user:id,username,email')
                 ->latest()
-                ->limit(5) // Get the 5 most recent actions
-                ->get();
+                ->limit(5)
+                ->get()
+                ->map(function ($withdrawal) {
+                    $status = ucfirst($withdrawal->status);
+                    return [
+                        'id' => $withdrawal->id,
+                        'type' => 'withdrawal',
+                        'user' => $withdrawal->user,
+                        'description' => "{$withdrawal->user->username} requested withdrawal of ₹{$withdrawal->amount} - {$status}",
+                        'amount' => $withdrawal->amount,
+                        'created_at' => $withdrawal->created_at,
+                    ];
+                });
+
+            $recentSubscriptions = Subscription::with('user:id,username,email', 'plan:id,name')
+                ->where('status', 'active')
+                ->latest()
+                ->limit(5)
+                ->get()
+                ->map(function ($sub) {
+                    return [
+                        'id' => $sub->id,
+                        'type' => 'subscription',
+                        'user' => $sub->user,
+                        'description' => "{$sub->user->username} subscribed to {$sub->plan->name}",
+                        'amount' => $sub->amount,
+                        'created_at' => $sub->created_at,
+                    ];
+                });
+
+            $recentKyc = UserKyc::with('user:id,username,email')
+                ->where('status', 'verified')
+                ->latest('verified_at')
+                ->limit(5)
+                ->get()
+                ->map(function ($kyc) {
+                    return [
+                        'id' => $kyc->id,
+                        'type' => 'kyc',
+                        'user' => $kyc->user,
+                        'description' => "{$kyc->user->username} KYC verified",
+                        'amount' => null,
+                        'created_at' => $kyc->verified_at,
+                    ];
+                });
+
+            // Merge and sort all activities by created_at
+            $recentActivity = collect()
+                ->merge($recentPayments)
+                ->merge($recentWithdrawals)
+                ->merge($recentSubscriptions)
+                ->merge($recentKyc)
+                ->sortByDesc('created_at')
+                ->take(10) // Show top 10 most recent activities
+                ->values();
 
             return [
                 'kpis' => [
+                    // Basic KPIs
                     'total_revenue' => (float) $totalRevenue,
                     'total_users' => $totalUsers,
                     'pending_kyc' => $pendingKyc,
@@ -112,6 +222,14 @@ class AdminDashboardController extends Controller
                     'monthly_revenue' => (float) $monthlyRevenue,
                     'new_users_30d' => $newUsers30d,
                     'pending_payments' => $pendingPayments,
+
+                    // Fintech Industry Standard KPIs
+                    'payment_success_rate' => (float) $paymentSuccessRate,
+                    'arpu' => (float) $arpu,
+                    'churn_rate' => (float) $churnRate,
+                    'total_aum' => (float) $totalAUM,
+                    'avg_investment' => (float) $avgInvestment,
+                    'total_pending_approvals' => $totalPendingApprovals,
                 ],
                 'charts' => [
                     'revenue_over_time' => $revenueChart,

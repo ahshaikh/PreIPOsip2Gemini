@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import Link from "next/link";
-import { DollarSign, Users, FileText, Activity, ArrowUpRight, TrendingUp, Wallet, CreditCard, AlertCircle, CheckCircle2, Clock } from "lucide-react";
+import { DollarSign, Users, FileText, Activity, ArrowUpRight, TrendingUp, Wallet, CreditCard, AlertCircle, CheckCircle2, Clock, Target, Percent, TrendingDown, BarChart3 } from "lucide-react";
 import { DynamicLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from '@/components/shared/DynamicChart';
 
 export default function AdminDashboardPage() {
@@ -175,6 +175,83 @@ export default function AdminDashboardPage() {
         </Card>
       </div>
 
+      {/* Fintech Industry Standard KPIs */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Performance Metrics</CardTitle>
+          <CardDescription>Key fintech industry standard indicators</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+            <Card className="border-2">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Payment Success Rate</CardTitle>
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{kpis?.payment_success_rate || 0}%</div>
+                <p className="text-xs text-muted-foreground mt-1">Last 30 days</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">ARPU</CardTitle>
+                <Target className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">₹{kpis?.arpu?.toLocaleString() || 0}</div>
+                <p className="text-xs text-muted-foreground mt-1">Avg Revenue Per User</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Churn Rate</CardTitle>
+                <TrendingDown className={`h-4 w-4 ${(kpis?.churn_rate || 0) > 5 ? 'text-red-500' : 'text-green-500'}`} />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{kpis?.churn_rate || 0}%</div>
+                <p className="text-xs text-muted-foreground mt-1">Last 30 days</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total AUM</CardTitle>
+                <BarChart3 className="h-4 w-4 text-purple-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">₹{(kpis?.total_aum || 0).toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground mt-1">Assets Under Management</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Avg Investment</CardTitle>
+                <Wallet className="h-4 w-4 text-orange-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">₹{(kpis?.avg_investment || 0).toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground mt-1">Last 30 days</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
+                <Clock className={`h-4 w-4 ${(kpis?.total_pending_approvals || 0) > 20 ? 'text-red-500' : 'text-muted-foreground'}`} />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{kpis?.total_pending_approvals || 0}</div>
+                <p className="text-xs text-muted-foreground mt-1">KYC + Withdrawals + Payments</p>
+              </CardContent>
+            </Card>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         {/* Chart */}
         <Card className="col-span-4">
@@ -200,35 +277,41 @@ export default function AdminDashboardPage() {
         <Card className="col-span-3">
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
+            <CardDescription>Latest payments, withdrawals, subscriptions & KYC</CardDescription>
           </CardHeader>
           <CardContent>
-             <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>User</TableHead>
-                        <TableHead>Action</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {recent_activity?.length > 0 ? (
-                        recent_activity.map((log: any) => (
-                            <TableRow key={log.id}>
-                                <TableCell className="font-medium">
-                                    <div className="flex flex-col">
-                                        <span>{log.user?.username || 'System'}</span>
-                                        <span className="text-xs text-muted-foreground">{new Date(log.created_at).toLocaleTimeString()}</span>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="text-xs">{log.description}</TableCell>
-                            </TableRow>
-                        ))
-                    ) : (
-                        <TableRow>
-                            <TableCell colSpan={2} className="text-center text-muted-foreground">No recent activity</TableCell>
-                        </TableRow>
-                    )}
-                </TableBody>
-             </Table>
+             <div className="space-y-3">
+                {recent_activity?.length > 0 ? (
+                    recent_activity.map((log: any, idx: number) => (
+                        <div key={`${log.type}-${log.id}-${idx}`} className="flex items-start justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                            <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <Badge variant={
+                                        log.type === 'payment' ? 'default' :
+                                        log.type === 'withdrawal' ? 'destructive' :
+                                        log.type === 'subscription' ? 'secondary' :
+                                        'outline'
+                                    } className="text-xs">
+                                        {log.type}
+                                    </Badge>
+                                    <span className="text-sm font-medium">{log.user?.username || 'System'}</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">{log.description}</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    {new Date(log.created_at).toLocaleString()}
+                                </p>
+                            </div>
+                            {log.amount && (
+                                <div className="text-sm font-bold text-right">
+                                    ₹{parseFloat(log.amount).toLocaleString()}
+                                </div>
+                            )}
+                        </div>
+                    ))
+                ) : (
+                    <p className="text-center text-muted-foreground py-8">No recent activity</p>
+                )}
+             </div>
           </CardContent>
         </Card>
       </div>

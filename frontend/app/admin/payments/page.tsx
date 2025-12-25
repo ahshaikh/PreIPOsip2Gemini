@@ -17,6 +17,7 @@ import { Plus, RefreshCcw, Download, CheckCircle, XCircle, Eye, AlertTriangle } 
 import { SearchInput } from "@/components/shared/SearchInput";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { useSearchParams } from "next/navigation";
+import { getStorageUrl } from "@/lib/utils";
 
 export default function PaymentManagerPage() {
   const queryClient = useQueryClient();
@@ -187,10 +188,10 @@ export default function PaymentManagerPage() {
                       </TableCell>
                       <TableCell>
                         {pay.payment_proof_path ? (
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => window.open(`${process.env.NEXT_PUBLIC_API_URL}/storage/${pay.payment_proof_path}`, '_blank')}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => window.open(getStorageUrl(pay.payment_proof_path), '_blank')}
                           >
                             <Eye className="h-4 w-4 text-blue-600" />
                           </Button>
