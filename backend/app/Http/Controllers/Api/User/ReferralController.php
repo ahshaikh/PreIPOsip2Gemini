@@ -95,11 +95,75 @@ class ReferralController extends Controller
     }
 
     /**
+     * Get Paginated Referral List
+     * Endpoint: /api/v1/user/referrals/list
+     * [PROTOCOL 7 IMPLEMENTATION]
+     */
+    public function list(Request $request): JsonResponse
+    {
+        $request->validate([
+            'status' => 'nullable|string',
+            'page' => 'nullable|integer',
+        ]);
+
+        try {
+            $user = $request->user();
+
+            if (!Schema::hasTable('referrals')) {
+                return response()->json([
+                    'data' => [],
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'total' => 0,
+                ]);
+            }
+
+            $query = DB::table('referrals')
+                ->join('users', 'referrals.referred_id', '=', 'users.id')
+                ->where('referrals.referrer_id', $user->id)
+                ->select(
+                    'referrals.id',
+                    'users.username',
+                    'users.first_name',
+                    'users.email',
+                    'referrals.status',
+                    'referrals.created_at'
+                );
+
+            // Apply status filter
+            if ($request->has('status') && $request->status !== 'all') {
+                $query->where('referrals.status', $request->status);
+            }
+
+            // Dynamic Pagination
+            $perPage = function_exists('setting') ? (int) setting('records_per_page', 15) : 15;
+
+            $referrals = $query->latest('referrals.created_at')
+                ->paginate($perPage)
+                ->appends($request->query());
+
+            return response()->json($referrals);
+
+        } catch (\Throwable $e) {
+            return response()->json([
+                'data' => [],
+                'current_page' => 1,
+                'last_page' => 1,
+                'total' => 0,
+            ]);
+        }
+    }
+
+    /**
      * Get Referral Rewards History
      * Endpoint: /api/v1/user/referrals/rewards
      */
     public function rewards(Request $request): JsonResponse
     {
+        $request->validate([
+            'page' => 'nullable|integer',
+        ]);
+
         try {
             $user = $request->user();
 
@@ -107,23 +171,17 @@ class ReferralController extends Controller
                 return response()->json(['data' => [], 'meta' => ['total' => 0]]);
             }
 
+            // Dynamic Pagination (Protocol 7)
+            $perPage = function_exists('setting') ? (int) setting('records_per_page', 15) : 15;
+
             $rewards = DB::table('bonus_transactions')
                 ->where('user_id', $user->id)
                 ->where('type', 'referral')
                 ->orderBy('created_at', 'desc')
-                ->paginate(15);
+                ->paginate($perPage)
+                ->appends($request->query());
 
-            $data = $rewards->through(function ($reward) {
-                return [
-                    'id' => $reward->id,
-                    'amount' => (float) $reward->amount,
-                    'status' => ucfirst($reward->status),
-                    'description' => $reward->description,
-                    'date' => Carbon::parse($reward->created_at)->format('d M Y, h:i A'),
-                ];
-            });
-
-            return response()->json($data);
+            return response()->json($rewards);
 
         } catch (\Throwable $e) {
             return response()->json(['data' => [], 'meta' => ['total' => 0]]);
