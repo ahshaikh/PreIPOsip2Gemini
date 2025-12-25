@@ -19,6 +19,7 @@ import {
   Download, Filter, Search, Calendar, CreditCard, Building2,
   IndianRupee, TrendingUp, History, FileText
 } from "lucide-react";
+import { PaginationControls } from "@/components/shared/PaginationControls";
 
 // Transaction type filters
 const TRANSACTION_TYPES = [
@@ -35,6 +36,7 @@ export default function WalletPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [filterType, setFilterType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
 
   // Withdraw dialog state
   const [withdrawAmount, setWithdrawAmount] = useState('');
@@ -65,6 +67,21 @@ export default function WalletPage() {
     queryKey: ['withdrawalRequests'],
     queryFn: async () => (await api.get('/user/wallet/withdrawals')).data,
     enabled: activeTab === 'withdrawals',
+  });
+
+  // Fetch paginated transactions for Transactions tab
+  const { data: paginatedTransactions } = useQuery({
+    queryKey: ['walletTransactions', page, filterType],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        type: filterType,
+      });
+      const res = await api.get(`/user/wallet/transactions?${params.toString()}`);
+      return res.data;
+    },
+    enabled: activeTab === 'overview',
+    placeholderData: (prev) => prev,
   });
 
   const withdrawMutation = useMutation({
@@ -174,18 +191,15 @@ export default function WalletPage() {
   // MODULE 7 FIX: Use backend calculated totals for accuracy
   const totalCredits = parseFloat(data?.wallet?.total_deposited || 0);
   const totalDebits = parseFloat(data?.wallet?.total_withdrawn || 0);
-  
-  const transactions = data?.transactions?.data || [];
 
-  // Filter transactions
+  // Use paginated transactions when in overview tab
+  const transactions = paginatedTransactions?.data || [];
+
+  // Filter transactions by search query (type filter is handled by backend)
   const filteredTransactions = transactions.filter((tx: any) => {
-    const matchesType = filterType === 'all' ||
-      (filterType === 'credit' && tx.amount > 0) ||
-      (filterType === 'debit' && tx.amount < 0) ||
-      tx.type === filterType;
     const matchesSearch = searchQuery === '' ||
       tx.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesType && matchesSearch;
+    return matchesSearch;
   });
 
   return (
@@ -540,6 +554,18 @@ export default function WalletPage() {
                   )}
                 </TableBody>
               </Table>
+
+              {/* Pagination Controls */}
+              {paginatedTransactions && (
+                <PaginationControls
+                  currentPage={paginatedTransactions.current_page}
+                  totalPages={paginatedTransactions.last_page}
+                  onPageChange={setPage}
+                  totalItems={paginatedTransactions.total}
+                  from={paginatedTransactions.from}
+                  to={paginatedTransactions.to}
+                />
+              )}
             </CardContent>
           </Card>
         </TabsContent>

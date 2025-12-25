@@ -242,6 +242,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/subscription/pause', [SubscriptionController::class, 'pause']);
             Route::post('/subscription/resume', [SubscriptionController::class, 'resume']);
             Route::post('/subscription/cancel', [SubscriptionController::class, 'cancel']);
+            Route::get('/subscription/payments', [SubscriptionController::class, 'payments']);
 
             // Deals & Investments
             Route::prefix('deals')->group(function () {
@@ -280,9 +281,11 @@ Route::prefix('v1')->group(function () {
                 Route::get('/portfolio/statement', [PortfolioController::class, 'downloadStatement']);
                 Route::get('/portfolio/transactions', [PortfolioController::class, 'transactions']);
                 Route::get('/bonuses', [BonusController::class, 'index']);
+                Route::get('/bonuses/transactions', [BonusController::class, 'transactions']);
                 Route::get('/bonuses/pending', [BonusController::class, 'pending']);
                 Route::get('/bonuses/export', [BonusController::class, 'export']);
                 Route::get('/referrals', [UserReferralController::class, 'index']);
+                Route::get('/referrals/list', [UserReferralController::class, 'list']);
                 Route::get('/referrals/rewards', [UserReferralController::class, 'rewards']);
             });
 
@@ -353,7 +356,9 @@ Route::prefix('v1')->group(function () {
 
             // Bonus Modules
             Route::get('/lucky-draws', [UserLuckyDrawController::class, 'index']);
+            Route::get('/lucky-draws/past-draws', [UserLuckyDrawController::class, 'pastDraws']);
             Route::get('/profit-sharing', [UserProfitShareController::class, 'index']);
+            Route::get('/profit-sharing/history', [UserProfitShareController::class, 'distributionHistory']);
 
             // [AUDIT FIX] User Reports Module - High Priority #1
             // V-AUDIT-FIX-REPORTS (Connected frontend to Laravel backend)

@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { CheckCircle, XCircle, Loader2, Upload } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, Upload, ShieldCheck } from "lucide-react";
 
 export default function KycPage() {
   const queryClient = useQueryClient();
@@ -23,6 +23,7 @@ export default function KycPage() {
     demat_account: '',
     bank_account: '',
     bank_ifsc: '',
+    bank_name: '',
   });
 
   // File states - All required documents for manual verification
@@ -52,6 +53,7 @@ export default function KycPage() {
         demat_account: kycData.data?.demat_account || '',
         bank_account: kycData.data?.bank_account || '',
         bank_ifsc: kycData.data?.bank_ifsc || '',
+        bank_name: kycData.data?.bank_name || '',
       });
       return {
         ...kycData.data,
@@ -124,6 +126,7 @@ export default function KycPage() {
     fd.append('demat_account', formData.demat_account);
     fd.append('bank_account', formData.bank_account);
     fd.append('bank_ifsc', formData.bank_ifsc);
+    fd.append('bank_name', formData.bank_name);
 
     // Append all document files
     fd.append('pan', panFile);
@@ -141,7 +144,20 @@ export default function KycPage() {
   if (isKycLoading) return <div>Loading...</div>;
   if (!kyc) return <div>Failed to load KYC status.</div>;
 
-  // Show completion UI if KYC is verified
+  // Debug logging to trace status
+  console.log('[KYC Page] Current Status:', kyc.status);
+  console.log('[KYC Page] Full KYC Data:', kyc);
+
+  // Defensive check: Ensure status is one of the valid enum values
+  // Valid statuses: 'pending', 'submitted', 'processing', 'verified', 'rejected', 'resubmission_required'
+  const validStatuses = ['pending', 'submitted', 'processing', 'verified', 'rejected', 'resubmission_required'];
+  if (kyc.status && !validStatuses.includes(kyc.status)) {
+    console.error('[KYC Page] Invalid status received:', kyc.status);
+    return <div>Error: Invalid KYC status. Please contact support.</div>;
+  }
+
+  // === STATE 1: KYC VERIFIED (SUCCESS) ===
+  // Show this ONLY when status is explicitly 'verified'
   if (kyc.status === 'verified') {
     return (
       <div className="space-y-6">
@@ -195,7 +211,7 @@ export default function KycPage() {
                 Your KYC verification was completed on {kyc.verified_at ? new Date(kyc.verified_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : 'recently'}.
               </p>
               <Button asChild>
-                <a href="/plans">Start Investing Now</a>
+                <a href="/plan">Start Investing Now</a>
               </Button>
             </div>
           </CardContent>
@@ -212,8 +228,10 @@ export default function KycPage() {
     );
   }
 
-  // Show submitted/pending/processing state
-  if (kyc.status === 'submitted' || kyc.status === 'under_review' || kyc.status === 'processing') {
+  // === STATE 2: KYC SUBMITTED/PROCESSING (WAITING) ===
+  // Show this ONLY when status is 'submitted' or 'processing'
+  // Note: 'under_review' doesn't exist in backend - removed from condition
+  if (kyc.status === 'submitted' || kyc.status === 'processing') {
     return (
       <Card className="border-blue-500 bg-blue-50 dark:bg-blue-900/10">
         <CardHeader>
@@ -251,15 +269,20 @@ export default function KycPage() {
     );
   }
 
-  // Show rejected state
-  if (kyc.status === 'rejected') {
+  // === STATE 3: KYC REJECTED/RESUBMISSION REQUIRED ===
+  // Show this when status is 'rejected' or 'resubmission_required'
+  if (kyc.status === 'rejected' || kyc.status === 'resubmission_required') {
     return (
       <div className="space-y-6">
         <Alert variant="destructive">
           <XCircle className="h-4 w-4" />
-          <AlertTitle>KYC Verification Failed</AlertTitle>
+          <AlertTitle>
+            {kyc.status === 'resubmission_required'
+              ? 'KYC Resubmission Required'
+              : 'KYC Verification Failed'}
+          </AlertTitle>
           <AlertDescription>
-            {kyc.rejection_reason || 'There was an issue with your submitted documents. Please review and resubmit.'}
+            {kyc.rejection_reason || kyc.resubmission_instructions || 'There was an issue with your submitted documents. Please review and resubmit.'}
           </AlertDescription>
         </Alert>
 
@@ -334,6 +357,17 @@ export default function KycPage() {
                   {bankStatus === 'verified' && <p className="text-sm text-green-600 flex items-center gap-1"><CheckCircle className="h-4 w-4" /> Verified</p>}
                   {bankStatus === 'failed' && <p className="text-sm text-red-600 flex items-center gap-1"><XCircle className="h-4 w-4" /> Verification Failed</p>}
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="bank_name">Bank Name *</Label>
+                <Input
+                  id="bank_name"
+                  value={formData.bank_name}
+                  onChange={(e) => setFormData({...formData, bank_name: e.target.value})}
+                  placeholder="State Bank of India"
+                  required
+                />
               </div>
 
               <div className="space-y-2">
@@ -490,7 +524,9 @@ export default function KycPage() {
     );
   }
 
-  // Default form for new/pending KYC
+  // === STATE 4: PENDING OR NEW KYC (DEFAULT) ===
+  // Show this ONLY when status is 'pending', null, or undefined
+  // This is the form for users who haven't submitted KYC yet
   return (
     <Card>
       <CardHeader>
@@ -563,6 +599,17 @@ export default function KycPage() {
                   {bankStatus === 'verified' && <p className="text-sm text-green-600 flex items-center gap-1"><CheckCircle className="h-4 w-4" /> Verified</p>}
                   {bankStatus === 'failed' && <p className="text-sm text-red-600 flex items-center gap-1"><XCircle className="h-4 w-4" /> Verification Failed</p>}
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="bank_name">Bank Name *</Label>
+                <Input
+                  id="bank_name"
+                  value={formData.bank_name}
+                  onChange={(e) => setFormData({...formData, bank_name: e.target.value})}
+                  placeholder="State Bank of India"
+                  required
+                />
               </div>
 
               <div className="space-y-2">

@@ -67,6 +67,7 @@ export function EnhancedKycVerificationModal({ kycId, onClose }: KycVerification
   const [rejectionReason, setRejectionReason] = useState('');
   const [resubmissionInstructions, setResubmissionInstructions] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
+  const [documentBlobUrl, setDocumentBlobUrl] = useState<string>('');
 
   const [checklist, setChecklist] = useState<VerificationChecklist>({
     photo_quality: false,
@@ -82,11 +83,34 @@ export function EnhancedKycVerificationModal({ kycId, onClose }: KycVerification
     queryFn: async () => {
       const res = await api.get(`/admin/kyc-queue/${kycId}`);
       if (res.data.documents && res.data.documents.length > 0) {
-        setSelectedDocument(res.data.documents[0]);
+        const firstDoc = res.data.documents[0];
+        setSelectedDocument(firstDoc);
+        // Fetch the document image with authentication
+        await loadDocumentImage(firstDoc);
       }
       return res.data;
     },
   });
+
+  // Function to load document image with authentication
+  const loadDocumentImage = async (doc: any) => {
+    try {
+      // Revoke previous blob URL to prevent memory leaks
+      if (documentBlobUrl) {
+        URL.revokeObjectURL(documentBlobUrl);
+      }
+
+      const response = await api.get(`/user/kyc-documents/${doc.id}/view`, {
+        responseType: 'blob',
+      });
+
+      const blobUrl = URL.createObjectURL(response.data);
+      setDocumentBlobUrl(blobUrl);
+    } catch (error) {
+      console.error('Failed to load document:', error);
+      toast.error('Failed to load document preview');
+    }
+  };
 
   // Fetch rejection templates
   const { data: templates = [] } = useQuery({
@@ -116,7 +140,8 @@ export function EnhancedKycVerificationModal({ kycId, onClose }: KycVerification
     mutationFn: () =>
       api.post(`/admin/kyc-queue/${kycId}/approve`, {
         verification_checklist: checklist,
-        notes: verificationNotes,
+        // Only include notes if there's actual content (not empty string)
+        ...(verificationNotes?.trim() ? { notes: verificationNotes.trim() } : {}),
       }),
     onSuccess: () => {
       toast.success('KYC Approved Successfully');
@@ -267,6 +292,7 @@ export function EnhancedKycVerificationModal({ kycId, onClose }: KycVerification
                         setSelectedDocument(doc);
                         setDocumentZoom(100);
                         setDocumentRotation(0);
+                        loadDocumentImage(doc);
                       }}
                     >
                       <div className="flex justify-between items-start">
@@ -321,26 +347,34 @@ export function EnhancedKycVerificationModal({ kycId, onClose }: KycVerification
                       }}
                       className="shadow-2xl"
                     >
-                      {selectedDocument.file_path.endsWith('.pdf') ? (
+                      {selectedDocument.file_path.endsWith('.pdf') || selectedDocument.mime_type === 'application/pdf' ? (
                         <div className="text-center bg-white p-10 rounded-lg shadow">
                           <FileText className="h-16 w-16 mx-auto mb-4 text-primary" />
-                          <a
-                            href={`/storage/${selectedDocument.file_path}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-blue-500 underline hover:text-blue-700 block"
-                          >
-                            Open PDF Document
-                          </a>
+                          {documentBlobUrl ? (
+                            <a
+                              href={documentBlobUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-blue-500 underline hover:text-blue-700 block"
+                            >
+                              Open PDF Document
+                            </a>
+                          ) : (
+                            <p className="text-muted-foreground">Loading PDF...</p>
+                          )}
                           <p className="text-xs text-muted-foreground mt-2">PDF previews open in new tab</p>
                         </div>
-                      ) : (
+                      ) : documentBlobUrl ? (
                         <img
-                          src={`/storage/${selectedDocument.file_path}`}
+                          src={documentBlobUrl}
                           alt={selectedDocument.doc_type}
                           className="max-w-none object-contain rounded bg-white"
                           style={{ maxHeight: '70vh', maxWidth: '100%' }}
                         />
+                      ) : (
+                        <div className="text-center text-muted-foreground">
+                          <p>Loading document...</p>
+                        </div>
                       )}
                     </div>
                   ) : (
@@ -373,7 +407,8 @@ export function EnhancedKycVerificationModal({ kycId, onClose }: KycVerification
                     <div className="space-y-4">
                       <div><Label className="text-muted-foreground">Bank Account</Label><p className="font-mono text-lg">{kyc.bank_account}</p></div>
                       <div><Label className="text-muted-foreground">IFSC Code</Label><p className="font-mono">{kyc.bank_ifsc}</p></div>
-                      <div><Label className="text-muted-foreground">Bank Name</Label><p className="font-medium">{kyc.bank_name || 'Auto-detecting...'}</p></div>
+                      <div><Label className="text-muted-foreground">Bank Name</Label><p className="font-medium">{kyc.bank_name || 'Deriving from IFSC...'}</p></div>
+                      <div><Label className="text-muted-foreground">Demat Account</Label><p className="font-mono">{kyc.demat_account || 'Not provided'}</p></div>
                     </div>
                   </div>
                 </div>

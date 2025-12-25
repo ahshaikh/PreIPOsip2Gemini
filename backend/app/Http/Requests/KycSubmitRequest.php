@@ -30,6 +30,7 @@ class KycSubmitRequest extends FormRequest
             'demat_account' => 'required|string|min:8|max:100',
             'bank_account' => 'required|string|min:9|max:50',
             'bank_ifsc' => ['required', 'string', "regex:{$ifscRegex}"],
+            'bank_name' => 'required|string|min:3|max:100',
             
             // --- File Uploads (FSD-KYC-001) - Manual Verification Required ---
             'aadhaar_front' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120', // 5MB

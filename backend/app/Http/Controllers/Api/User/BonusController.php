@@ -64,6 +64,36 @@ class BonusController extends Controller
     }
 
     /**
+     * Get Paginated Bonus Transactions
+     * Endpoint: /api/v1/user/bonuses/transactions
+     * [PROTOCOL 7 IMPLEMENTATION]
+     */
+    public function transactions(Request $request): JsonResponse
+    {
+        $request->validate([
+            'type' => 'nullable|string',
+            'page' => 'nullable|integer',
+        ]);
+
+        $userId = $request->user()->id;
+        $query = BonusTransaction::where('user_id', $userId);
+
+        // Apply type filter
+        if ($request->has('type') && $request->type !== 'all') {
+            $query->where('type', $request->type);
+        }
+
+        // Dynamic Pagination
+        $perPage = function_exists('setting') ? (int) setting('records_per_page', 15) : 15;
+
+        $transactions = $query->latest()
+            ->paginate($perPage)
+            ->appends($request->query());
+
+        return response()->json($transactions);
+    }
+
+    /**
      * Get Pending Bonuses List
      * Endpoint: /api/v1/user/bonuses/pending
      *

@@ -98,6 +98,7 @@ class KycController extends Controller
             'demat_account' => $request->demat_account,
             'bank_account' => $request->bank_account,
             'bank_ifsc' => $request->bank_ifsc,
+            'bank_name' => $request->bank_name,
             'submitted_at' => now(),
         ]);
 
@@ -277,12 +278,10 @@ class KycController extends Controller
     }
 
     /**
-     * View a KYC document via Temporary Signed URL.
+     * View a KYC document - Stream file directly
      *
-     * [AUDIT FIX (V-AUDIT-MODULE2-007)]:
-     * - We no longer manually decrypt and stream in the controller.
-     * - Instead, we generate a short-lived (5 min) Signed URL for the private file.
-     * - This prevents memory exhaustion and improves security.
+     * [FIX]: Since 'private' disk uses local driver (not S3), temporaryUrl() doesn't work.
+     * Instead, we stream the file directly with proper authorization checks.
      */
     public function viewDocument(Request $request, $id)
     {
@@ -296,24 +295,31 @@ class KycController extends Controller
 
         // Check if file exists on private disk
         if (!Storage::disk('private')->exists($doc->file_path)) {
-            Log::error("KYC file missing on private disk", ['document_id' => $id]);
+            \Log::error("KYC file missing on private disk", ['document_id' => $id]);
             return response()->json(['message' => 'Document file not found.'], 404);
         }
 
         /**
-         * [AUDIT FIX]: Generate a Temporary URL.
-         * The frontend will use this URL to display the image/PDF.
-         * The link expires automatically after 5 minutes.
+         * Stream the file directly with proper headers
+         * Files are encrypted during upload, must decrypt before serving
          */
-        $url = Storage::disk('private')->temporaryUrl(
-            $doc->file_path,
-            now()->addMinutes(5)
-        );
+        $encryptedContent = Storage::disk('private')->get($doc->file_path);
 
-        return response()->json([
-            'status' => 'success',
-            'url' => $url,
-            'mime_type' => $doc->mime_type
-        ]);
+        // Decrypt the file content (files are encrypted with Laravel's encrypt())
+        try {
+            $file = decrypt($encryptedContent);
+        } catch (\Exception $e) {
+            \Log::error("Failed to decrypt KYC document", [
+                'document_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json(['message' => 'Failed to decrypt document.'], 500);
+        }
+
+        $mimeType = $doc->mime_type ?: 'application/octet-stream';
+
+        return response($file, 200)
+            ->header('Content-Type', $mimeType)
+            ->header('Content-Disposition', 'inline; filename="' . $doc->file_name . '"');
     }
 }

@@ -49,6 +49,16 @@ class SubscriptionService
 
         return DB::transaction(function () use ($user, $plan, $finalAmount) {
 
+            // Check wallet balance before creating subscription
+            $wallet = $user->wallet;
+            $amountPaise = (int) ($finalAmount * 100); // Convert to paise
+            $hasWalletFunds = $wallet && ($wallet->balance_paise >= $amountPaise);
+
+            // Determine initial subscription status
+            // If wallet has funds, subscription will be activated immediately
+            // Otherwise, it remains pending until payment is made
+            $initialStatus = $hasWalletFunds ? 'active' : 'pending';
+
             // [MODIFIED] Set status to 'pending' to prevent "Free Ride" vulnerability.
             // Previous: 'status' => 'active'
             $subscription = Subscription::create([
@@ -56,12 +66,11 @@ class SubscriptionService
                 'plan_id' => $plan->id,
                 'amount' => $finalAmount,
                 'subscription_code' => 'SUB-' . uniqid(),
-                'status' => 'pending', // Waiting for first payment
+                'status' => $initialStatus,
                 'start_date' => now(),
                 'end_date' => now()->addMonths($plan->duration_months),
-                'next_payment_date' => now(), // Will be adjusted upon activation
-                'billing_cycle' => $plan->billing_cycle, // Ensure this field exists
-                'auto_renew' => true,
+                'next_payment_date' => $hasWalletFunds ? now()->addMonth() : now(),
+                'is_auto_debit' => false, // Can be enabled later via payment settings
             ]);
 
             // V-AUDIT-MODULE5-008: Use PaymentType enum instead of magic string
@@ -70,18 +79,42 @@ class SubscriptionService
                 'subscription_id' => $subscription->id,
                 'amount' => $finalAmount,
                 'currency' => 'INR', // [ADDED] Default currency
-                'status' => 'pending',
+                'status' => $hasWalletFunds ? 'paid' : 'pending',
                 'payment_type' => PaymentType::SUBSCRIPTION_INITIAL->value,
                 'transaction_id' => 'TXN_' . uniqid(), // Temp ID
+                'payment_method' => $hasWalletFunds ? 'wallet' : null,
             ]);
 
-            // [ADDED] Initiate Payment with Gateway (Razorpay)
-            // This generates the 'order_id' needed by the frontend to show the payment popup.
-            try {
-                $this->paymentInitiationService->initiate($payment);
-            } catch (\Exception $e) {
-                // Log error but don't fail transaction if gateway is down (allow retry)
-                // In production, you might want to throw exception here.
+            // If wallet has sufficient funds, pay from wallet immediately
+            if ($hasWalletFunds) {
+                // Deduct from wallet and link to payment
+                $this->walletService->withdraw(
+                    $user,
+                    $amountPaise,
+                    \App\Enums\TransactionType::SUBSCRIPTION_PAYMENT,
+                    "Subscription payment: {$plan->name}",
+                    $payment
+                );
+
+                // Mark payment as completed
+                $payment->update([
+                    'status' => 'paid',
+                    'paid_at' => now(),
+                ]);
+
+                // Activate subscription
+                $subscription->update([
+                    'status' => 'active',
+                ]);
+            } else {
+                // [ADDED] Initiate Payment with Gateway (Razorpay)
+                // This generates the 'order_id' needed by the frontend to show the payment popup.
+                try {
+                    $this->paymentInitiationService->initiate($payment);
+                } catch (\Exception $e) {
+                    // Log error but don't fail transaction if gateway is down (allow retry)
+                    // In production, you might want to throw exception here.
+                }
             }
 
             return $subscription;

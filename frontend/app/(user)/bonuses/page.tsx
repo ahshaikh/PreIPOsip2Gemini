@@ -18,6 +18,7 @@ import {
   Search, Filter, Star, Award, Target, Sparkles, CreditCard,
   ArrowUpRight, Clock, Trophy
 } from "lucide-react";
+import { PaginationControls } from "@/components/shared/PaginationControls";
 
 // Bonus types with labels and colors
 const BONUS_TYPES = [
@@ -35,10 +36,26 @@ export default function BonusesPage() {
   const [filterType, setFilterType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [dateRange, setDateRange] = useState('all');
+  const [page, setPage] = useState(1);
 
   const { data, isLoading } = useQuery({
     queryKey: ['bonuses'],
     queryFn: async () => (await api.get('/user/bonuses')).data,
+  });
+
+  // Paginated bonus transactions
+  const { data: paginatedTransactions } = useQuery({
+    queryKey: ['bonusTransactions', page, filterType],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        type: filterType,
+      });
+      const res = await api.get(`/user/bonuses/transactions?${params.toString()}`);
+      return res.data;
+    },
+    enabled: activeTab === 'overview',
+    placeholderData: (prev) => prev,
   });
 
   // Upcoming/Pending bonuses
@@ -52,15 +69,16 @@ export default function BonusesPage() {
   // Calculate totals
   const summary = data?.summary || {};
   const totalBonuses = Object.values(summary).reduce((acc: number, val: any) => acc + (Number(val) || 0), 0);
-  const transactions = data?.transactions?.data || [];
 
-  // Filter transactions
+  // Use paginated transactions when in overview tab
+  const transactions = paginatedTransactions?.data || [];
+
+  // Filter transactions by search query (type filter is handled by backend)
   const filteredTransactions = transactions.filter((tx: any) => {
-    const matchesType = filterType === 'all' || tx.type === filterType;
     const matchesSearch = searchQuery === '' ||
       tx.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       tx.type?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesType && matchesSearch;
+    return matchesSearch;
   });
 
   // Get bonus type info
@@ -290,6 +308,18 @@ export default function BonusesPage() {
                   )}
                 </TableBody>
               </Table>
+
+              {/* Pagination Controls */}
+              {paginatedTransactions && (
+                <PaginationControls
+                  currentPage={paginatedTransactions.current_page}
+                  totalPages={paginatedTransactions.last_page}
+                  onPageChange={setPage}
+                  totalItems={paginatedTransactions.total}
+                  from={paginatedTransactions.from}
+                  to={paginatedTransactions.to}
+                />
+              )}
             </CardContent>
           </Card>
         </TabsContent>
