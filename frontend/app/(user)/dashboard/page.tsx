@@ -217,7 +217,7 @@ export default function DashboardPage() {
           <CardHeader><CardTitle className="text-lg">Quick Actions</CardTitle></CardHeader>
           <CardContent className="space-y-2">
             <Button variant="outline" className="w-full justify-start" asChild>
-              <Link href="/plans"><Target className="mr-2 h-4 w-4" /> Subscribe Plan</Link>
+              <Link href="/plan"><Target className="mr-2 h-4 w-4" /> Subscribe Plan</Link>
             </Button>
             <Button variant="outline" className="w-full justify-start" asChild>
               <Link href="/wallet"><Wallet className="mr-2 h-4 w-4" /> Add Money</Link>
