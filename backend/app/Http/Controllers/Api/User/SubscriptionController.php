@@ -46,16 +46,16 @@ class SubscriptionController extends Controller
                 return response()->json(null);
             }
 
-            // Only return active or paused subscriptions for plan management
+            // Return active, paused, or pending subscriptions for plan management
             // Cancelled/completed subscriptions should not prevent new subscriptions
             $subscription = Subscription::where('user_id', $user->id)
-                ->whereIn('status', ['active', 'paused'])
+                ->whereIn('status', ['active', 'paused', 'pending'])
                 ->with('plan.features', 'payments')
                 ->latest()
                 ->first();
 
-            // Return null if no active/paused subscription exists
-            // This allows frontend to correctly show "Create Subscription" instead of "Change Plan"
+            // Return null if no active/paused/pending subscription exists
+            // This allows frontend to correctly show "Create Subscription" or "Complete Payment"
             return response()->json($subscription);
 
         } catch (\Throwable $e) {
