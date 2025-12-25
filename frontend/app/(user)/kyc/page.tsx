@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { CheckCircle, XCircle, Loader2, Upload } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, Upload, ShieldCheck } from "lucide-react";
 
 export default function KycPage() {
   const queryClient = useQueryClient();
