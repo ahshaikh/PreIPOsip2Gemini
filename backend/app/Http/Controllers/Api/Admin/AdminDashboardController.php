@@ -67,8 +67,11 @@ class AdminDashboardController extends Controller
                 : 0;
 
             // Total Assets Under Management (AUM)
-            $totalAUM = DB::table('user_company_investments')
-                ->sum(DB::raw('shares * current_price'));
+            $totalAUM = 0;
+            if (DB::getSchemaBuilder()->hasTable('user_company_investments')) {
+                $totalAUM = DB::table('user_company_investments')
+                    ->sum(DB::raw('shares * current_price')) ?? 0;
+            }
 
             // Average Investment Amount
             $avgInvestment = Payment::where('status', 'paid')
