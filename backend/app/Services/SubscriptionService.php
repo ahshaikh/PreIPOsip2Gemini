@@ -110,7 +110,7 @@ class SubscriptionService
                 // [ADDED] Initiate Payment with Gateway (Razorpay)
                 // This generates the 'order_id' needed by the frontend to show the payment popup.
                 try {
-                    $this->paymentInitiationService->initiate($payment);
+                    $this->paymentInitiationService->initiate($user, $payment);
                 } catch (\Exception $e) {
                     // Log error but don't fail transaction if gateway is down (allow retry)
                     // In production, you might want to throw exception here.
