@@ -255,6 +255,7 @@ class KycQueueController extends Controller
     private function invalidateStatisticsCache(): void
     {
         Cache::forget('kyc_queue_stats');
+        Cache::forget('admin_dashboard_v2'); // Invalidate main dashboard cache
         $commonRanges = [7, 30, 60, 90, 365];
         foreach ($commonRanges as $days) {
             Cache::forget("kyc_statistics_{$days}days");

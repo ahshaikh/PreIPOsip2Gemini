@@ -407,7 +407,7 @@ export function EnhancedKycVerificationModal({ kycId, onClose }: KycVerification
                     <div className="space-y-4">
                       <div><Label className="text-muted-foreground">Bank Account</Label><p className="font-mono text-lg">{kyc.bank_account}</p></div>
                       <div><Label className="text-muted-foreground">IFSC Code</Label><p className="font-mono">{kyc.bank_ifsc}</p></div>
-                      <div><Label className="text-muted-foreground">Bank Name</Label><p className="font-medium">{kyc.bank_name || 'Auto-detecting...'}</p></div>
+                      <div><Label className="text-muted-foreground">Demat Account</Label><p className="font-mono">{kyc.demat_account || 'Not provided'}</p></div>
                     </div>
                   </div>
                 </div>
