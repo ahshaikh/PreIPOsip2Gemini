@@ -92,12 +92,16 @@ class KycController extends Controller
         // Use the status service to handle the "Processing" transition
         $this->statusService->transitionStatus($kyc, KycStatus::PROCESSING->value);
 
+        // Derive bank name from IFSC code
+        $bankName = getBankNameFromIFSC($request->bank_ifsc);
+
         $kyc->update([
             'pan_number' => $request->pan_number,
             'aadhaar_number' => $request->aadhaar_number,
             'demat_account' => $request->demat_account,
             'bank_account' => $request->bank_account,
             'bank_ifsc' => $request->bank_ifsc,
+            'bank_name' => $bankName,
             'submitted_at' => now(),
         ]);
 
