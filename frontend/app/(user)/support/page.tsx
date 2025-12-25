@@ -437,11 +437,11 @@ export default function SupportPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 {[
-                  { href: '/user/kyc', label: 'Complete KYC Verification', icon: FileText },
-                  { href: '/user/subscription', label: 'Manage Subscription', icon: CheckCircle },
-                  { href: '/user/wallet', label: 'Wallet & Withdrawals', icon: Clock },
-                  { href: '/user/referrals', label: 'Referral Program', icon: HelpCircle },
-                  { href: '/user/settings', label: 'Account Settings', icon: MessageSquare },
+                  { href: '/kyc', label: 'Complete KYC Verification', icon: FileText },
+                  { href: '/subscription', label: 'Manage Subscription', icon: CheckCircle },
+                  { href: '/wallet', label: 'Wallet & Withdrawals', icon: Clock },
+                  { href: '/referrals', label: 'Referral Program', icon: HelpCircle },
+                  { href: '/settings', label: 'Account Settings', icon: MessageSquare },
                 ].map((link) => (
                   <Link
                     key={link.href}
