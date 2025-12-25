@@ -49,6 +49,21 @@ export default function Navbar() {
 
   const isHome = pathname === "/";
 
+  // Initialize dark mode from localStorage or system preference
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+    const shouldBeDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
+    setDarkMode(shouldBeDark);
+
+    if (shouldBeDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
+
   // Navigation structure
   const navigation: NavItem[] = [
     {
@@ -201,12 +216,16 @@ export default function Navbar() {
 
   // Toggle dark mode
   const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    // Add your dark mode logic here (e.g., toggle class on <html>)
-    if (!darkMode) {
+    const newDarkMode = !darkMode;
+    setDarkMode(newDarkMode);
+
+    // Update DOM and persist to localStorage
+    if (newDarkMode) {
       document.documentElement.classList.add("dark");
+      localStorage.setItem('theme', 'dark');
     } else {
       document.documentElement.classList.remove("dark");
+      localStorage.setItem('theme', 'light');
     }
   };
 

@@ -109,14 +109,15 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex flex-col">
       <Navbar />
-      
-      <main className="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <Card className="w-full max-w-md shadow-xl border-gray-100">
+
+      {/* Added pt-20 for navbar spacing (h-16 navbar + extra padding) */}
+      <main className="flex-grow flex items-center justify-center pt-20 pb-12 px-4 sm:px-6 lg:px-8">
+        <Card className="w-full max-w-md shadow-xl border-gray-100 dark:border-slate-700 dark:bg-slate-800">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center text-[#0A2647]">Sign in to your account</CardTitle>
-            <CardDescription className="text-center">
+            <CardTitle className="text-2xl font-bold text-center text-[#0A2647] dark:text-white">Sign in to your account</CardTitle>
+            <CardDescription className="text-center dark:text-gray-300">
               Enter your credentials to access your dashboard
             </CardDescription>
           </CardHeader>
