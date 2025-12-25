@@ -19,11 +19,23 @@ export default function UserPlansPage() {
   });
 
   // Check if user already has a subscription
-  const { data: subscription } = useQuery({
+  const { data: subscription, isLoading: isSubscriptionLoading } = useQuery({
     queryKey: ['subscription'],
-    queryFn: async () => (await api.get('/user/subscription')).data,
+    queryFn: async () => {
+      const response = await api.get('/user/subscription');
+      // Defensive check: Ensure null/undefined is treated as no subscription
+      // Empty objects or arrays should also be treated as no subscription
+      const sub = response.data;
+      if (!sub || (typeof sub === 'object' && Object.keys(sub).length === 0)) {
+        return null;
+      }
+      return sub;
+    },
     retry: false,
   });
+
+  // Defensive check: Treat invalid subscription data as no subscription
+  const hasActiveSubscription = subscription && subscription.id && subscription.status;
 
   // Subscribe mutation (for new subscriptions)
   const subscribeMutation = useMutation({
@@ -133,7 +145,7 @@ export default function UserPlansPage() {
       </div>
 
       {/* Current Subscription Alert */}
-      {subscription && (
+      {hasActiveSubscription && (
         <Card className="border-blue-500 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/30">
           <CardContent className="pt-6">
             <p className="text-sm">
@@ -206,7 +218,7 @@ export default function UserPlansPage() {
                 <Button
                   className={`w-full ${colorScheme.buttonClass} text-white`}
                   onClick={() => {
-                    if (subscription) {
+                    if (hasActiveSubscription) {
                       changePlanMutation.mutate(plan.id);
                     } else {
                       subscribeMutation.mutate(plan.id);
@@ -218,7 +230,7 @@ export default function UserPlansPage() {
                     "Processing..."
                   ) : isCurrentPlan ? (
                     "Current Plan"
-                  ) : subscription ? (
+                  ) : hasActiveSubscription ? (
                     <>
                       Change to {plan.name}
                       <ArrowRight className="w-4 h-4 ml-2" />
