@@ -46,13 +46,16 @@ class SubscriptionController extends Controller
                 return response()->json(null);
             }
 
+            // Only return active or paused subscriptions for plan management
+            // Cancelled/completed subscriptions should not prevent new subscriptions
             $subscription = Subscription::where('user_id', $user->id)
+                ->whereIn('status', ['active', 'paused'])
                 ->with('plan.features', 'payments')
                 ->latest()
                 ->first();
 
-            // Return null with success status if no subscription exists
-            // This allows frontend to handle gracefully instead of showing loading forever
+            // Return null if no active/paused subscription exists
+            // This allows frontend to correctly show "Create Subscription" instead of "Change Plan"
             return response()->json($subscription);
 
         } catch (\Throwable $e) {
@@ -95,9 +98,21 @@ class SubscriptionController extends Controller
 
         try {
             $subscription = $this->service->createSubscription($user, $plan, $customAmount);
+            $subscription->load('payments');
+
+            // Check if payment was made from wallet
+            $latestPayment = $subscription->payments()->latest()->first();
+            $paidFromWallet = $latestPayment && $latestPayment->status === 'paid' && $latestPayment->payment_method === 'wallet';
+
+            $message = $paidFromWallet
+                ? 'Subscription activated! Payment deducted from wallet.'
+                : 'Subscription created. Please complete the first payment.';
+
             return response()->json([
-                'message' => 'Subscription created. Please complete the first payment.',
-                'subscription' => $subscription->load('payments'),
+                'message' => $message,
+                'subscription' => $subscription,
+                'paid_from_wallet' => $paidFromWallet,
+                'redirect_to' => $paidFromWallet ? 'companies' : 'payment',
             ], 201);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 400);

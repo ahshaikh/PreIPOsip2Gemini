@@ -211,7 +211,7 @@ export default function KycPage() {
                 Your KYC verification was completed on {kyc.verified_at ? new Date(kyc.verified_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : 'recently'}.
               </p>
               <Button asChild>
-                <a href="/plans">Start Investing Now</a>
+                <a href="/plan">Start Investing Now</a>
               </Button>
             </div>
           </CardContent>

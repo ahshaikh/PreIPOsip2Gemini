@@ -28,10 +28,25 @@ export default function UserPlansPage() {
   // Subscribe mutation (for new subscriptions)
   const subscribeMutation = useMutation({
     mutationFn: (planId: number) => api.post('/user/subscription', { plan_id: planId }),
-    onSuccess: () => {
-      toast.success("Subscribed!", { description: "Please complete your first payment." });
+    onSuccess: (response) => {
+      const data = response.data;
+      const paidFromWallet = data.paid_from_wallet;
+      const redirectTo = data.redirect_to;
+
+      // Show appropriate toast message
+      toast.success(
+        paidFromWallet ? "Subscription Activated!" : "Subscribed!",
+        { description: data.message || (paidFromWallet ? "Payment deducted from wallet." : "Please complete your first payment.") }
+      );
+
       queryClient.invalidateQueries({ queryKey: ['subscription'] });
-      router.push('/subscription');
+
+      // Redirect based on payment method
+      if (redirectTo === 'companies') {
+        router.push('/deals'); // Browse available deals after wallet payment
+      } else {
+        router.push('/subscription'); // Complete payment via gateway
+      }
     },
     onError: (error: any) => {
       toast.error("Subscription Failed", { description: error.response?.data?.message });

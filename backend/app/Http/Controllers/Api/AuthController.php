@@ -63,6 +63,9 @@ class AuthController extends Controller
 
             $user->assignRole('user');
 
+            // Invalidate admin dashboard cache to update user counts
+            \Cache::forget('admin_dashboard_v2');
+
             return response()->json([
                 'message' => 'Registration successful. Please verify your Email and Mobile.',
                 'user_id' => $user->id
