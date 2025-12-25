@@ -321,11 +321,11 @@ export function EnhancedKycVerificationModal({ kycId, onClose }: KycVerification
                       }}
                       className="shadow-2xl"
                     >
-                      {selectedDocument.file_path.endsWith('.pdf') ? (
+                      {selectedDocument.file_path.endsWith('.pdf') || selectedDocument.mime_type === 'application/pdf' ? (
                         <div className="text-center bg-white p-10 rounded-lg shadow">
                           <FileText className="h-16 w-16 mx-auto mb-4 text-primary" />
                           <a
-                            href={`/storage/${selectedDocument.file_path}`}
+                            href={`/api/user/kyc-documents/${selectedDocument.id}/view`}
                             target="_blank"
                             rel="noreferrer"
                             className="text-blue-500 underline hover:text-blue-700 block"
@@ -336,7 +336,7 @@ export function EnhancedKycVerificationModal({ kycId, onClose }: KycVerification
                         </div>
                       ) : (
                         <img
-                          src={`/storage/${selectedDocument.file_path}`}
+                          src={`/api/user/kyc-documents/${selectedDocument.id}/view`}
                           alt={selectedDocument.doc_type}
                           className="max-w-none object-contain rounded bg-white"
                           style={{ maxHeight: '70vh', maxWidth: '100%' }}

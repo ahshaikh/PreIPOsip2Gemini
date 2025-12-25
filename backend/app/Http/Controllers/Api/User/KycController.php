@@ -277,12 +277,10 @@ class KycController extends Controller
     }
 
     /**
-     * View a KYC document via Temporary Signed URL.
+     * View a KYC document - Stream file directly
      *
-     * [AUDIT FIX (V-AUDIT-MODULE2-007)]:
-     * - We no longer manually decrypt and stream in the controller.
-     * - Instead, we generate a short-lived (5 min) Signed URL for the private file.
-     * - This prevents memory exhaustion and improves security.
+     * [FIX]: Since 'private' disk uses local driver (not S3), temporaryUrl() doesn't work.
+     * Instead, we stream the file directly with proper authorization checks.
      */
     public function viewDocument(Request $request, $id)
     {
@@ -296,24 +294,19 @@ class KycController extends Controller
 
         // Check if file exists on private disk
         if (!Storage::disk('private')->exists($doc->file_path)) {
-            Log::error("KYC file missing on private disk", ['document_id' => $id]);
+            \Log::error("KYC file missing on private disk", ['document_id' => $id]);
             return response()->json(['message' => 'Document file not found.'], 404);
         }
 
         /**
-         * [AUDIT FIX]: Generate a Temporary URL.
-         * The frontend will use this URL to display the image/PDF.
-         * The link expires automatically after 5 minutes.
+         * Stream the file directly with proper headers
+         * This allows images to display in browser and PDFs to open
          */
-        $url = Storage::disk('private')->temporaryUrl(
-            $doc->file_path,
-            now()->addMinutes(5)
-        );
+        $file = Storage::disk('private')->get($doc->file_path);
+        $mimeType = $doc->mime_type ?: Storage::disk('private')->mimeType($doc->file_path);
 
-        return response()->json([
-            'status' => 'success',
-            'url' => $url,
-            'mime_type' => $doc->mime_type
-        ]);
+        return response($file, 200)
+            ->header('Content-Type', $mimeType)
+            ->header('Content-Disposition', 'inline; filename="' . $doc->file_name . '"');
     }
 }
