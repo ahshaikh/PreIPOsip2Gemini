@@ -9,10 +9,38 @@ Payment proof files were returning **403 Forbidden** error when accessed via the
 1. Missing frontend environment variable configuration
 2. Missing Laravel storage symbolic link
 3. Missing storage directories
+4. **Missing Laravel backend .env file with APP_URL configuration**
 
 ## Setup Steps
 
-### 1. Frontend Environment Configuration
+### 1. Backend Environment Configuration (CRITICAL)
+
+Laravel backend **requires** a `.env` file with `APP_URL` configured.
+
+**Already completed:**
+```bash
+# Created backend/.env from .env.example
+# Set APP_KEY for encryption
+# Set APP_URL=http://localhost:8000
+# Set APP_DEBUG=true for development
+```
+
+**Verify backend .env exists:**
+```bash
+ls -la backend/.env
+# Should exist with APP_URL=http://localhost:8000
+```
+
+**If .env doesn't exist, create it:**
+```bash
+cd backend
+cp .env.example .env
+# Then generate APP_KEY
+php artisan key:generate
+# Or manually: php -r "echo 'base64:' . base64_encode(random_bytes(32)) . PHP_EOL;"
+```
+
+### 2. Frontend Environment Configuration
 
 Create `frontend/.env.local` file (already done):
 ```env
@@ -27,7 +55,22 @@ cd frontend
 npm run dev
 ```
 
-### 2. Laravel Storage Symbolic Link
+**🚨 CRITICAL: YOU MUST RESTART BOTH SERVERS**
+
+After setting up environment files:
+```bash
+# Terminal 1: Restart Laravel backend
+cd backend
+php artisan serve
+# Or however you're running the backend
+
+# Terminal 2: Restart Next.js frontend
+cd frontend
+# Press Ctrl+C to stop
+npm run dev
+```
+
+### 3. Laravel Storage Symbolic Link
 
 Laravel requires a symbolic link from `public/storage` to `storage/app/public` for web-accessible files.
 
@@ -43,7 +86,7 @@ cd backend
 php artisan storage:link
 ```
 
-### 3. Storage Directories
+### 4. Storage Directories
 
 Created with proper permissions (already done):
 ```bash
