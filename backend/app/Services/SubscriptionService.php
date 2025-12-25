@@ -40,7 +40,7 @@ class SubscriptionService
             throw new \Exception("KYC must be verified to start a subscription.");
         }
 
-        $activeSubCount = $user->subscriptions()->whereIn('status', ['active', 'paused'])->count();
+        $activeSubCount = $user->subscriptions()->whereIn('status', ['active', 'paused', 'pending'])->count();
         if ($activeSubCount >= $plan->max_subscriptions_per_user) {
             throw new \Exception("You have reached the maximum allowed subscriptions.");
         }
