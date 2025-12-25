@@ -23,6 +23,7 @@ export default function KycPage() {
     demat_account: '',
     bank_account: '',
     bank_ifsc: '',
+    bank_name: '',
   });
 
   // File states - All required documents for manual verification
@@ -52,6 +53,7 @@ export default function KycPage() {
         demat_account: kycData.data?.demat_account || '',
         bank_account: kycData.data?.bank_account || '',
         bank_ifsc: kycData.data?.bank_ifsc || '',
+        bank_name: kycData.data?.bank_name || '',
       });
       return {
         ...kycData.data,
@@ -124,6 +126,7 @@ export default function KycPage() {
     fd.append('demat_account', formData.demat_account);
     fd.append('bank_account', formData.bank_account);
     fd.append('bank_ifsc', formData.bank_ifsc);
+    fd.append('bank_name', formData.bank_name);
 
     // Append all document files
     fd.append('pan', panFile);
@@ -357,6 +360,17 @@ export default function KycPage() {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="bank_name">Bank Name *</Label>
+                <Input
+                  id="bank_name"
+                  value={formData.bank_name}
+                  onChange={(e) => setFormData({...formData, bank_name: e.target.value})}
+                  placeholder="State Bank of India"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="demat_account">Demat Account Number *</Label>
                 <Input
                   id="demat_account"
@@ -585,6 +599,17 @@ export default function KycPage() {
                   {bankStatus === 'verified' && <p className="text-sm text-green-600 flex items-center gap-1"><CheckCircle className="h-4 w-4" /> Verified</p>}
                   {bankStatus === 'failed' && <p className="text-sm text-red-600 flex items-center gap-1"><XCircle className="h-4 w-4" /> Verification Failed</p>}
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="bank_name">Bank Name *</Label>
+                <Input
+                  id="bank_name"
+                  value={formData.bank_name}
+                  onChange={(e) => setFormData({...formData, bank_name: e.target.value})}
+                  placeholder="State Bank of India"
+                  required
+                />
               </div>
 
               <div className="space-y-2">
