@@ -70,8 +70,7 @@ class SubscriptionService
                 'start_date' => now(),
                 'end_date' => now()->addMonths($plan->duration_months),
                 'next_payment_date' => $hasWalletFunds ? now()->addMonth() : now(),
-                'billing_cycle' => $plan->billing_cycle, // Ensure this field exists
-                'auto_renew' => true,
+                'is_auto_debit' => false, // Can be enabled later via payment settings
             ]);
 
             // V-AUDIT-MODULE5-008: Use PaymentType enum instead of magic string
@@ -106,7 +105,6 @@ class SubscriptionService
                 // Activate subscription
                 $subscription->update([
                     'status' => 'active',
-                    'activated_at' => now(),
                 ]);
             } else {
                 // [ADDED] Initiate Payment with Gateway (Razorpay)
