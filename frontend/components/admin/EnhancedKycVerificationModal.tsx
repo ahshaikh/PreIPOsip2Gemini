@@ -140,7 +140,8 @@ export function EnhancedKycVerificationModal({ kycId, onClose }: KycVerification
     mutationFn: () =>
       api.post(`/admin/kyc-queue/${kycId}/approve`, {
         verification_checklist: checklist,
-        notes: verificationNotes,
+        // Only include notes if there's actual content (not empty string)
+        ...(verificationNotes?.trim() ? { notes: verificationNotes.trim() } : {}),
       }),
     onSuccess: () => {
       toast.success('KYC Approved Successfully');
