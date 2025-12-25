@@ -27,6 +27,7 @@ class UserKyc extends Model
         'demat_account',
         'bank_account',
         'bank_ifsc',
+        'bank_name',
         'status',
         'rejection_reason',
         'resubmission_instructions', // ADDED: For resubmission flow
