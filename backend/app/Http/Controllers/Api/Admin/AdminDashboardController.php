@@ -30,6 +30,16 @@ class AdminDashboardController extends Controller
             $pendingKyc = UserKyc::whereIn('status', ['submitted', 'processing'])->count();
             $pendingWithdrawals = Withdrawal::where('status', 'pending')->count();
 
+            // Additional KPIs for frontend dashboard
+            $activeSubscriptions = Subscription::where('status', 'active')->count();
+            $monthlyRevenue = Payment::where('status', 'paid')
+                ->where('paid_at', '>=', now()->startOfMonth())
+                ->sum('amount');
+            $newUsers30d = User::role('user')
+                ->where('created_at', '>=', now()->subDays(30))
+                ->count();
+            $pendingPayments = Payment::where('status', 'pending')->count();
+
             // --- 2. Charts (Test: testDashboardChartsLoadCorrectly) ---
 
             // V-AUDIT-MODULE19-LOW: Fixed Database Coupling (MySQL-Specific DATE() Function)
@@ -98,6 +108,10 @@ class AdminDashboardController extends Controller
                     'total_users' => $totalUsers,
                     'pending_kyc' => $pendingKyc,
                     'pending_withdrawals' => $pendingWithdrawals,
+                    'active_subscriptions' => $activeSubscriptions,
+                    'monthly_revenue' => (float) $monthlyRevenue,
+                    'new_users_30d' => $newUsers30d,
+                    'pending_payments' => $pendingPayments,
                 ],
                 'charts' => [
                     'revenue_over_time' => $revenueChart,

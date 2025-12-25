@@ -26,6 +26,7 @@ class Payment extends Model
         'method', // card, upi, netbanking
         'payment_method', // upi, card, netbanking, wallet
         'payment_metadata',
+        'payment_proof_path', // For manual bank transfer proofs
         'paid_at',
         'refunded_at',
         'refunded_by',
