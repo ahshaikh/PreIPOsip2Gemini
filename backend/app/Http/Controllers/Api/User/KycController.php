@@ -300,10 +300,22 @@ class KycController extends Controller
 
         /**
          * Stream the file directly with proper headers
-         * This allows images to display in browser and PDFs to open
+         * Files are encrypted during upload, must decrypt before serving
          */
-        $file = Storage::disk('private')->get($doc->file_path);
-        $mimeType = $doc->mime_type ?: Storage::disk('private')->mimeType($doc->file_path);
+        $encryptedContent = Storage::disk('private')->get($doc->file_path);
+
+        // Decrypt the file content (files are encrypted with Laravel's encrypt())
+        try {
+            $file = decrypt($encryptedContent);
+        } catch (\Exception $e) {
+            \Log::error("Failed to decrypt KYC document", [
+                'document_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json(['message' => 'Failed to decrypt document.'], 500);
+        }
+
+        $mimeType = $doc->mime_type ?: 'application/octet-stream';
 
         return response($file, 200)
             ->header('Content-Type', $mimeType)
