@@ -25,7 +25,7 @@
         </include>
     </source>
     <php>
-        <!-- 
+        <!--
           These variables override your .env file ONLY during tests.
           This tells Laravel to use a fast, in-memory database
           and prevents test data from touching your real database.
