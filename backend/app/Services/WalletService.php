@@ -23,10 +23,24 @@ class WalletService
     /**
      * Safely deposit funds into a user's wallet.
      * [AUDIT FIX]: Uses integer-based Paise math to eliminate float errors.
-     * * @param int $amountPaise Amount in Paise (e.g., 10050 for ₹100.50)
+     * [BACKWARD COMPATIBLE]: Accepts both float (Rupees) and int (Paise) amounts
+     * @param User $user
+     * @param int|float $amount Amount in Paise (int) or Rupees (float)
+     * @param TransactionType|string $type Transaction type (enum or string)
+     * @param string $description
+     * @param Model|null $reference
+     * @return Transaction
      */
-    public function deposit(User $user, int $amountPaise, TransactionType $type, string $description = '', ?Model $reference = null): Transaction
+    public function deposit(User $user, int|float $amount, TransactionType|string $type, string $description = '', ?Model $reference = null): Transaction
     {
+        // [BACKWARD COMPATIBLE]: Convert float (Rupees) to int (Paise) if needed
+        $amountPaise = is_float($amount) ? (int)round($amount * 100) : $amount;
+
+        // [BACKWARD COMPATIBLE]: Convert string to TransactionType enum if needed
+        if (is_string($type)) {
+            $type = TransactionType::from($type);
+        }
+
         if ($amountPaise <= 0) {
             throw new \InvalidArgumentException("Deposit amount must be positive.");
         }
@@ -58,31 +72,41 @@ class WalletService
 
     /**
      * Safely withdraw funds from a user's wallet.
-     * * [AUDIT FIX]: Added $allowOverdraft parameter to support Admin corrections/recoveries.
-     * * @param User $user
-     * @param int $amountPaise Amount in Paise
-     * @param TransactionType $type
+     * [AUDIT FIX]: Added $allowOverdraft parameter to support Admin corrections/recoveries.
+     * [BACKWARD COMPATIBLE]: Accepts both float (Rupees) and int (Paise) amounts
+     * @param User $user
+     * @param int|float $amount Amount in Paise (int) or Rupees (float)
+     * @param TransactionType|string $type Transaction type (enum or string)
      * @param string $description
      * @param Model|null $reference
      * @param bool $lockBalance If true, moves funds to 'locked_balance' instead of deducting immediately.
      * @param bool $allowOverdraft [NEW] If true, allows balance to go negative (e.g., -500).
+     * @return Transaction
      */
     public function withdraw(
-        User $user, 
-        int $amountPaise, 
-        TransactionType $type, 
-        string $description, 
-        ?Model $reference = null, 
+        User $user,
+        int|float $amount,
+        TransactionType|string $type,
+        string $description,
+        ?Model $reference = null,
         bool $lockBalance = false,
         bool $allowOverdraft = false // [PROTOCOL 7]: New Argument for Admin Overrides
     ): Transaction
     {
+        // [BACKWARD COMPATIBLE]: Convert float (Rupees) to int (Paise) if needed
+        $amountPaise = is_float($amount) ? (int)round($amount * 100) : $amount;
+
+        // [BACKWARD COMPATIBLE]: Convert string to TransactionType enum if needed
+        if (is_string($type)) {
+            $type = TransactionType::from($type);
+        }
+
         if ($amountPaise <= 0) {
             throw new \InvalidArgumentException("Withdrawal amount must be positive.");
         }
 
         return DB::transaction(function () use ($user, $amountPaise, $type, $description, $reference, $lockBalance, $allowOverdraft) {
-            // [AUDIT FIX]: Changed first() to firstOrCreate(). 
+            // [AUDIT FIX]: Changed first() to firstOrCreate().
             // If a user has never had a wallet, we create one now so we can deduct from it (resulting in negative balance).
             $wallet = $user->wallet()->lockForUpdate()->firstOrCreate(['user_id' => $user->id]);
 

@@ -67,6 +67,15 @@ class Payment extends Model
         return $this->hasMany(BonusTransaction::class);
     }
 
+    /**
+     * Relationship for user investments linked to this payment.
+     * Used by AllocationService for refund allocation reversals.
+     */
+    public function investments()
+    {
+        return $this->hasMany(UserInvestment::class);
+    }
+
     // --- SCOPES ---
 
     public function scopePaid(Builder $query): void
