@@ -24,6 +24,11 @@ class CampaignUsage extends Model
         'ip_address',
         'user_agent',
         'used_at',
+        'terms_accepted',
+        'terms_accepted_at',
+        'terms_acceptance_ip',
+        'disclaimer_acknowledged',
+        'disclaimer_acknowledged_at',
     ];
 
     protected $casts = [
@@ -32,6 +37,10 @@ class CampaignUsage extends Model
         'final_amount' => 'decimal:2',
         'campaign_snapshot' => 'array',
         'used_at' => 'datetime',
+        'terms_accepted' => 'boolean',
+        'terms_accepted_at' => 'datetime',
+        'disclaimer_acknowledged' => 'boolean',
+        'disclaimer_acknowledged_at' => 'datetime',
     ];
 
     /**

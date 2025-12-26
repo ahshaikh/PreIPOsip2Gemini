@@ -11,6 +11,13 @@ use Illuminate\Support\Facades\Log;
 
 class CampaignService
 {
+    protected FeatureFlagService $featureFlagService;
+
+    public function __construct(FeatureFlagService $featureFlagService)
+    {
+        $this->featureFlagService = $featureFlagService;
+    }
+
     /**
      * Validate if a campaign code exists and return the campaign
      *
@@ -28,10 +35,35 @@ class CampaignService
      * @param Campaign $campaign
      * @param User $user
      * @param float $amount
+     * @param string $context Optional context for feature flag check (investment, subscription, etc.)
      * @return array ['applicable' => bool, 'reason' => string|null]
      */
-    public function isApplicable(Campaign $campaign, User $user, float $amount): array
+    public function isApplicable(Campaign $campaign, User $user, float $amount, string $context = 'investment'): array
     {
+        // Check if campaigns feature is globally enabled
+        if (!$this->featureFlagService->isCampaignsEnabled()) {
+            return [
+                'applicable' => false,
+                'reason' => 'Campaigns are temporarily disabled'
+            ];
+        }
+
+        // Check if campaign type is enabled
+        if (!$this->featureFlagService->isCampaignTypeEnabled($campaign->discount_type)) {
+            return [
+                'applicable' => false,
+                'reason' => 'This campaign type is temporarily unavailable'
+            ];
+        }
+
+        // Check if campaign application is enabled for this context
+        if (!$this->featureFlagService->isCampaignApplicationEnabled($context)) {
+            return [
+                'applicable' => false,
+                'reason' => 'Campaign application is temporarily disabled for this type of transaction'
+            ];
+        }
+
         // Check if campaign is approved
         if (!$campaign->is_approved) {
             return [
@@ -134,16 +166,20 @@ class CampaignService
      * @param User $user
      * @param Model $applicable The entity to which campaign is being applied (Investment, Subscription, etc.)
      * @param float $originalAmount
+     * @param bool $termsAccepted Whether user accepted campaign terms
+     * @param bool $disclaimerAcknowledged Whether user acknowledged regulatory disclaimers
      * @return array ['success' => bool, 'usage' => CampaignUsage|null, 'discount' => float, 'message' => string]
      */
     public function applyCampaign(
         Campaign $campaign,
         User $user,
         Model $applicable,
-        float $originalAmount
+        float $originalAmount,
+        bool $termsAccepted = true,
+        bool $disclaimerAcknowledged = true
     ): array {
         try {
-            return DB::transaction(function () use ($campaign, $user, $applicable, $originalAmount) {
+            return DB::transaction(function () use ($campaign, $user, $applicable, $originalAmount, $termsAccepted, $disclaimerAcknowledged) {
                 // Lock campaign for update to prevent race conditions
                 $campaign = Campaign::where('id', $campaign->id)
                     ->lockForUpdate()
@@ -202,6 +238,11 @@ class CampaignService
                     'ip_address' => request()->ip(),
                     'user_agent' => request()->userAgent(),
                     'used_at' => now(),
+                    'terms_accepted' => $termsAccepted,
+                    'terms_accepted_at' => $termsAccepted ? now() : null,
+                    'terms_acceptance_ip' => $termsAccepted ? request()->ip() : null,
+                    'disclaimer_acknowledged' => $disclaimerAcknowledged,
+                    'disclaimer_acknowledged_at' => $disclaimerAcknowledged ? now() : null,
                 ]);
 
                 // Increment campaign usage count
@@ -366,5 +407,89 @@ class CampaignService
         ]);
 
         return true;
+    }
+
+    /**
+     * Archive a campaign
+     * Archived campaigns are soft-disabled and moved out of active view
+     *
+     * @param Campaign $campaign
+     * @param User $archiver
+     * @param string|null $reason
+     * @return bool
+     */
+    public function archiveCampaign(Campaign $campaign, User $archiver, ?string $reason = null): bool
+    {
+        // Archive conditions: expired or manually archived by admin
+        $campaign->update([
+            'is_active' => false,
+            'is_archived' => true,
+            'archived_by' => $archiver->id,
+            'archived_at' => now(),
+            'archive_reason' => $reason ?? 'Campaign archived by admin',
+        ]);
+
+        Log::info('Campaign archived', [
+            'campaign_id' => $campaign->id,
+            'campaign_code' => $campaign->code,
+            'archived_by' => $archiver->id,
+            'reason' => $reason,
+        ]);
+
+        return true;
+    }
+
+    /**
+     * Unarchive a campaign
+     *
+     * @param Campaign $campaign
+     * @return bool
+     */
+    public function unarchiveCampaign(Campaign $campaign): bool
+    {
+        if (!$campaign->is_archived) {
+            return false;
+        }
+
+        $campaign->update([
+            'is_archived' => false,
+            'archived_by' => null,
+            'archived_at' => null,
+            'archive_reason' => null,
+        ]);
+
+        Log::info('Campaign unarchived', [
+            'campaign_id' => $campaign->id,
+            'campaign_code' => $campaign->code,
+        ]);
+
+        return true;
+    }
+
+    /**
+     * Auto-archive expired campaigns
+     * Should be run via scheduled task
+     *
+     * @param User $systemUser
+     * @return int Number of campaigns archived
+     */
+    public function autoArchiveExpiredCampaigns(User $systemUser): int
+    {
+        $expiredCampaigns = Campaign::whereNotNull('end_at')
+            ->where('end_at', '<', now())
+            ->where('is_archived', false)
+            ->get();
+
+        $count = 0;
+        foreach ($expiredCampaigns as $campaign) {
+            $this->archiveCampaign($campaign, $systemUser, 'Auto-archived: Campaign expired');
+            $count++;
+        }
+
+        if ($count > 0) {
+            Log::info("Auto-archived {$count} expired campaigns");
+        }
+
+        return $count;
     }
 }

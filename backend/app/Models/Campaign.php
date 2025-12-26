@@ -7,10 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Campaign extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'title',
@@ -35,9 +36,13 @@ class Campaign extends Model
         'terms',
         'is_featured',
         'is_active',
+        'is_archived',
         'created_by',
         'approved_by',
         'approved_at',
+        'archived_by',
+        'archived_at',
+        'archive_reason',
     ];
 
     protected $casts = [
@@ -51,10 +56,12 @@ class Campaign extends Model
         'start_at' => 'datetime',
         'end_at' => 'datetime',
         'approved_at' => 'datetime',
+        'archived_at' => 'datetime',
         'features' => 'array',
         'terms' => 'array',
         'is_featured' => 'boolean',
         'is_active' => 'boolean',
+        'is_archived' => 'boolean',
     ];
 
     /**
@@ -68,6 +75,11 @@ class Campaign extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function archiver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'archived_by');
     }
 
     public function usages(): HasMany
