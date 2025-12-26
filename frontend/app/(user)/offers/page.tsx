@@ -10,18 +10,18 @@ import api from "@/lib/api";
 
 export default function OffersPage() {
   const { data, isLoading } = useQuery({
-    queryKey: ['activeOffers'],
+    queryKey: ['activeCampaigns'],
     queryFn: async () => {
-      const response = await api.get('/offers/active');
+      const response = await api.get('/campaigns/active');
       const responseData = response.data;
       if (Array.isArray(responseData)) return responseData;
       if (responseData?.data && Array.isArray(responseData.data)) return responseData.data;
-      if (responseData?.offers && Array.isArray(responseData.offers)) return responseData.offers;
+      if (responseData?.campaigns && Array.isArray(responseData.campaigns)) return responseData.campaigns;
       return [];
     },
   });
 
-  const offers = data || [];
+  const offers = data || []; // Keep variable name for compatibility
 
   if (isLoading) {
     return (
@@ -101,10 +101,10 @@ export default function OffersPage() {
                       <span>Min. investment: ₹{offer.min_investment.toLocaleString('en-IN')}</span>
                     </div>
                   )}
-                  {offer.expiry && (
+                  {offer.end_at && (
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span>Valid until {new Date(offer.expiry).toLocaleDateString('en-IN')}</span>
+                      <span>Valid until {new Date(offer.end_at).toLocaleDateString('en-IN')}</span>
                     </div>
                   )}
                   {offer.usage_limit && (

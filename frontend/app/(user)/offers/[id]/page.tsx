@@ -28,9 +28,9 @@ export default function OfferDetailPage() {
   const offerId = params.id;
 
   const { data: offer, isLoading } = useQuery({
-    queryKey: ['offer', offerId],
+    queryKey: ['campaign', offerId],
     queryFn: async () => {
-      const response = await api.get(`/offers/${offerId}`);
+      const response = await api.get(`/campaigns/${offerId}`);
       return response.data?.data || response.data;
     },
   });
@@ -151,12 +151,12 @@ export default function OfferDetailPage() {
               </Card>
             )}
 
-            {offer.expiry && (
+            {offer.end_at && (
               <Card>
                 <CardContent className="p-6 text-center">
                   <Clock className="h-8 w-8 mx-auto mb-2 text-primary" />
                   <p className="text-2xl font-bold text-primary">
-                    {new Date(offer.expiry).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                    {new Date(offer.end_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                   </p>
                   <p className="text-sm text-muted-foreground">Valid Until</p>
                 </CardContent>
