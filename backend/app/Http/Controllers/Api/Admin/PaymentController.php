@@ -139,10 +139,15 @@ class PaymentController extends Controller
     public function refund(Request $request, Payment $payment)
     {
         $validated = $request->validate([
-            'reason' => 'required|string|max:255',
-            'reverse_bonuses' => 'required|boolean',
-            'reverse_allocations' => 'required|boolean',
+            'reason' => 'nullable|string|max:255',
+            'reverse_bonuses' => 'nullable|boolean',
+            'reverse_allocations' => 'nullable|boolean',
         ]);
+
+        // Set defaults if not provided
+        $validated['reason'] = $validated['reason'] ?? 'Admin initiated refund';
+        $validated['reverse_bonuses'] = $validated['reverse_bonuses'] ?? true;
+        $validated['reverse_allocations'] = $validated['reverse_allocations'] ?? true;
 
         if ($payment->status !== 'paid') {
             return response()->json(['message' => 'Only paid payments can be refunded.'], 400);
