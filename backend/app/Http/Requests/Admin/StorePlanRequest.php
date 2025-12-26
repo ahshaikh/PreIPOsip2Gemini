@@ -32,10 +32,8 @@ class StorePlanRequest extends FormRequest
             'billing_cycle' => 'nullable|in:weekly,bi-weekly,monthly,quarterly,yearly',
             'trial_period_days' => 'nullable|integer|min:0',
             'metadata' => 'nullable|json',
+            // Features array - accepts both string[] and object[] formats
             'features' => 'nullable|array',
-            'features.*.feature_text' => 'required_with:features|string',
-            'features.*.icon' => 'nullable|string',
-            'features.*.display_order' => 'nullable|integer',
             'configs' => 'nullable|array',
         ];
     }

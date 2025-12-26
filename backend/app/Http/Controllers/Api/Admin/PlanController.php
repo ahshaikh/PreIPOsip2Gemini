@@ -37,6 +37,29 @@ class PlanController extends Controller
     {
         $validated = $request->validated();
 
+        // Validate features format before processing
+        if (!empty($validated['features'])) {
+            foreach ($validated['features'] as $index => $feature) {
+                if (is_string($feature)) {
+                    if (empty(trim($feature))) {
+                        return response()->json([
+                            'message' => "Feature at index {$index} cannot be empty"
+                        ], 422);
+                    }
+                } elseif (is_array($feature)) {
+                    if (!isset($feature['feature_text']) || empty(trim($feature['feature_text']))) {
+                        return response()->json([
+                            'message' => "Feature at index {$index} must have 'feature_text' field"
+                        ], 422);
+                    }
+                } else {
+                    return response()->json([
+                        'message' => "Feature at index {$index} must be string or object with 'feature_text'"
+                    ], 422);
+                }
+            }
+        }
+
         // FIX: Wrap in transaction to prevent "Ghost Plans" if Razorpay fails
         try {
             $plan = DB::transaction(function () use ($validated) {
@@ -44,12 +67,12 @@ class PlanController extends Controller
 
                 if (!empty($validated['features'])) {
                     foreach ($validated['features'] as $feature) {
-                        // Handle both string format (legacy) and object format (new)
                         if (is_string($feature)) {
                             $plan->features()->create([
                                 'feature_text' => $feature,
                             ]);
-                        } elseif (is_array($feature) && isset($feature['feature_text'])) {
+                        } else {
+                            // Feature is an array with feature_text, icon, display_order
                             $plan->features()->create([
                                 'feature_text' => $feature['feature_text'],
                                 'icon' => $feature['icon'] ?? null,
@@ -146,16 +169,36 @@ class PlanController extends Controller
 
         // Sync features (must be done explicitly - not mass assignable)
         if (isset($validated['features'])) {
+            // Validate features format before processing
+            foreach ($validated['features'] as $index => $feature) {
+                if (is_string($feature)) {
+                    if (empty(trim($feature))) {
+                        return response()->json([
+                            'message' => "Feature at index {$index} cannot be empty"
+                        ], 422);
+                    }
+                } elseif (is_array($feature)) {
+                    if (!isset($feature['feature_text']) || empty(trim($feature['feature_text']))) {
+                        return response()->json([
+                            'message' => "Feature at index {$index} must have 'feature_text' field"
+                        ], 422);
+                    }
+                } else {
+                    return response()->json([
+                        'message' => "Feature at index {$index} must be string or object with 'feature_text'"
+                    ], 422);
+                }
+            }
+
             // Delete all existing features
             $plan->features()->delete();
             // Create new features from validated array
             foreach ($validated['features'] as $feature) {
-                // Handle both string format (legacy) and object format (new)
                 if (is_string($feature)) {
                     $plan->features()->create([
                         'feature_text' => $feature,
                     ]);
-                } elseif (is_array($feature) && isset($feature['feature_text'])) {
+                } else {
                     // Feature is an array with feature_text, icon, display_order
                     $plan->features()->create([
                         'feature_text' => $feature['feature_text'],

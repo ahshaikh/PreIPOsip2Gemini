@@ -43,11 +43,8 @@ class UpdatePlanRequest extends FormRequest
             'metadata' => 'nullable',
             // Configs is a flexible array for bonus/advanced settings
             'configs' => 'nullable|array',
-            // Features array for plan features
+            // Features array - accepts both string[] and object[] formats
             'features' => 'nullable|array',
-            'features.*.feature_text' => 'required_with:features|string',
-            'features.*.icon' => 'nullable|string',
-            'features.*.display_order' => 'nullable|integer',
         ];
     }
 
