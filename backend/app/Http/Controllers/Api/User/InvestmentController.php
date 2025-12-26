@@ -6,12 +6,24 @@ use App\Http\Controllers\Controller;
 use App\Models\Investment;
 use App\Models\Deal;
 use App\Models\Subscription;
+use App\Models\Payment;
+use App\Services\WalletService;
+use App\Services\AllocationService;
+use App\Enums\TransactionType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class InvestmentController extends Controller
 {
+    protected $walletService;
+    protected $allocationService;
+
+    public function __construct(WalletService $walletService, AllocationService $allocationService)
+    {
+        $this->walletService = $walletService;
+        $this->allocationService = $allocationService;
+    }
     /**
      * Get user's investments
      * GET /api/v1/user/investments
@@ -159,12 +171,13 @@ class InvestmentController extends Controller
             ], 400);
         }
 
-        // Check subscription balance
-        $availableBalance = $subscription->availableBalance;
-        if ($availableBalance < $totalAmount) {
+        // Check wallet balance (New payment flow: Payment → Wallet → User selects shares → Debit wallet)
+        $wallet = $user->wallet;
+        if (!$wallet || $wallet->balance < $totalAmount) {
+            $availableBalance = $wallet ? $wallet->balance : 0;
             return response()->json([
                 'success' => false,
-                'message' => 'Insufficient subscription balance. Available: ₹' .
+                'message' => 'Insufficient wallet balance. Available: ₹' .
                             number_format($availableBalance, 2),
             ], 400);
         }
@@ -172,6 +185,17 @@ class InvestmentController extends Controller
         try {
             DB::beginTransaction();
 
+            // 1. Debit wallet for share purchase
+            $this->walletService->withdraw(
+                $user,
+                $totalAmount,
+                TransactionType::INVESTMENT,
+                "Share purchase: {$validated['shares_allocated']} shares of {$deal->product->name}",
+                null,
+                false // Not locked, immediate debit
+            );
+
+            // 2. Create investment record
             $investment = Investment::create([
                 'user_id' => $user->id,
                 'subscription_id' => $subscription->id,
@@ -181,9 +205,19 @@ class InvestmentController extends Controller
                 'shares_allocated' => $validated['shares_allocated'],
                 'price_per_share' => $deal->share_price,
                 'total_amount' => $totalAmount,
-                'status' => 'active', // Immediately active since subscription is already paid
+                'status' => 'active',
                 'invested_at' => now(),
             ]);
+
+            // 3. Allocate shares (creates UserInvestment records)
+            // Note: We pass a dummy payment for allocation tracking
+            // In the future, this should link to the actual payment that funded the wallet
+            $dummyPayment = new Payment([
+                'id' => null,
+                'user_id' => $user->id,
+                'amount' => $totalAmount,
+            ]);
+            $this->allocationService->allocateShares($dummyPayment, $totalAmount);
 
             DB::commit();
 

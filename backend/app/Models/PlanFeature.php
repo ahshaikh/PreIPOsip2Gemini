@@ -11,7 +11,11 @@ class PlanFeature extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['plan_id', 'feature_text', 'is_active', 'display_order'];
+    protected $fillable = ['plan_id', 'feature_text', 'icon', 'display_order'];
+
+    protected $casts = [
+        'display_order' => 'integer',
+    ];
 
     public function plan(): BelongsTo
     {

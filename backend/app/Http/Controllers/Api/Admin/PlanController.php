@@ -137,10 +137,20 @@ class PlanController extends Controller
             $plan->features()->delete();
             // Create new features from array
             if (!empty($validated['features'])) {
-                foreach ($validated['features'] as $featureText) {
-                    $plan->features()->create([
-                        'feature_text' => $featureText,
-                    ]);
+                foreach ($validated['features'] as $feature) {
+                    // Handle both string format (legacy) and object format (new)
+                    if (is_string($feature)) {
+                        $plan->features()->create([
+                            'feature_text' => $feature,
+                        ]);
+                    } else {
+                        // Feature is an array/object with feature_text, icon, display_order
+                        $plan->features()->create([
+                            'feature_text' => $feature['feature_text'] ?? $feature,
+                            'icon' => $feature['icon'] ?? null,
+                            'display_order' => $feature['display_order'] ?? 0,
+                        ]);
+                    }
                 }
             }
         }
