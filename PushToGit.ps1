@@ -8,7 +8,7 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "Pagination-balance Work done"
+$CommitMessage = "Hardcoding removed from plan page"
 #----------------------
 
 function Get-GitCredential {

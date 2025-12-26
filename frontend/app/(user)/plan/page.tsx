@@ -127,21 +127,21 @@ export default function UserPlansPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="text-center max-w-3xl mx-auto">
-        <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/50 dark:to-blue-900/50 rounded-full px-6 py-3 mb-6 border border-purple-200 dark:border-purple-800">
+        {/*  <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/50 dark:to-blue-900/50 rounded-full px-6 py-3 mb-6 border border-purple-200 dark:border-purple-800">
           <Star className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-          <span className="font-semibold text-purple-900 dark:text-purple-100">100% Free Plans</span>
+           <span className="font-semibold text-purple-900 dark:text-purple-100">100% Free Plans</span>
         </div>
-
+        */}
         <h1 className="text-4xl font-bold mb-4">
           Choose Your Investment Plan
         </h1>
 
-        <p className="text-lg text-muted-foreground mb-2">
+       {/*  <p className="text-lg text-muted-foreground mb-2">
           All plans are 100% free. No platform fees, no exit fees.
         </p>
         <p className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-600 dark:from-green-400 dark:to-emerald-400">
           Your investment, your profit, plus our bonuses.
-        </p>
+        </p> */}
       </div>
 
       {/* Current Subscription Alert */}
@@ -172,7 +172,7 @@ export default function UserPlansPage() {
                 transition-all duration-300 hover:shadow-xl`}
             >
               {plan.is_featured && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                <div className="absolute top-1 left-1/2 -translate-x-1/2 z-10">
                   <Badge className="bg-gradient-to-r from-purple-600 to-pink-600 text-white border-0">
                     <Crown className="w-3 h-3 mr-1" />
                     MOST POPULAR
@@ -182,9 +182,7 @@ export default function UserPlansPage() {
 
               {isCurrentPlan && (
                 <div className="absolute top-4 right-4 z-10">
-                  <Badge variant="default" className="bg-green-600">
-                    Current Plan
-                  </Badge>
+
                 </div>
               )}
 
@@ -215,33 +213,52 @@ export default function UserPlansPage() {
                   ))}
                 </div>
 
-                <Button
-                  className={`w-full ${colorScheme.buttonClass} text-white`}
-                  onClick={() => {
-                    if (hasActiveSubscription) {
-                      changePlanMutation.mutate(plan.id);
-                    } else {
-                      subscribeMutation.mutate(plan.id);
-                    }
-                  }}
-                  disabled={subscribeMutation.isPending || changePlanMutation.isPending || isCurrentPlan}
-                >
-                  {(subscribeMutation.isPending || changePlanMutation.isPending) ? (
-                    "Processing..."
-                  ) : isCurrentPlan ? (
-                    "Current Plan"
-                  ) : hasActiveSubscription ? (
-                    <>
-                      Change to {plan.name}
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </>
-                  ) : (
-                    <>
-                      Choose {plan.name}
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </>
-                  )}
-                </Button>
+<Button
+  className="w-full bg-transparent p-0 hover:bg-transparent"
+  onClick={() => {
+    if (hasActiveSubscription) {
+      changePlanMutation.mutate(plan.id);
+    } else {
+      subscribeMutation.mutate(plan.id);
+    }
+  }}
+  disabled={subscribeMutation.isPending || changePlanMutation.isPending || isCurrentPlan}
+>
+  <span
+    className={`
+      inline-flex
+      items-center
+      justify-center
+      gap-2
+      px-6
+      py-3
+      rounded-xl
+      text-white
+      text-center
+      whitespace-normal
+      break-words
+      ${colorScheme.buttonClass}
+    `}
+  >
+    {(subscribeMutation.isPending || changePlanMutation.isPending) ? (
+      "Processing..."
+    ) : isCurrentPlan ? (
+      "Current Plan"
+    ) : hasActiveSubscription ? (
+      <>
+        Change to this plan
+        <ArrowRight className="w-4 h-4 flex-shrink-0" />
+      </>
+    ) : (
+      <>
+        Choose {plan.name}
+        <ArrowRight className="w-4 h-4 flex-shrink-0" />
+      </>
+    )}
+  </span>
+</Button>
+
+
               </CardContent>
             </Card>
           );
