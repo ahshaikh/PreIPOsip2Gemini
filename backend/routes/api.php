@@ -50,6 +50,7 @@ use App\Http\Controllers\Api\Admin\AdminDashboardController;
 use App\Http\Controllers\Api\Admin\AdminUserController;
 use App\Http\Controllers\Api\Admin\KycQueueController;
 use App\Http\Controllers\Api\Admin\PlanController;
+use App\Http\Controllers\Api\Admin\CampaignController;
 use App\Http\Controllers\Api\Admin\ProductController;
 use App\Http\Controllers\Api\Admin\BulkPurchaseController;
 use App\Http\Controllers\Api\Admin\SettingsController;
@@ -160,10 +161,17 @@ Route::prefix('v1')->group(function () {
     // --- Help Center Feedback ---
     Route::post('/help-center/feedback', [App\Http\Controllers\Api\HelpCenterController::class, 'storeFeedback']);
 
-    // --- Offers ---
-    Route::get('/offers/active', [App\Http\Controllers\Api\User\OfferController::class, 'index']);
-    Route::get('/offers/{id}', [App\Http\Controllers\Api\User\OfferController::class, 'show']);
-    Route::post('/offers/validate', [App\Http\Controllers\Api\User\OfferController::class, 'validateCode']);
+    // --- Campaigns (formerly Offers) ---
+    Route::get('/campaigns/active', [App\Http\Controllers\Api\User\CampaignController::class, 'index']);
+    Route::get('/campaigns/applicable', [App\Http\Controllers\Api\User\CampaignController::class, 'applicable'])->middleware('auth:sanctum');
+    Route::get('/campaigns/{id}', [App\Http\Controllers\Api\User\CampaignController::class, 'show']);
+    Route::post('/campaigns/validate', [App\Http\Controllers\Api\User\CampaignController::class, 'validateCode'])->middleware('auth:sanctum');
+    Route::get('/campaigns/my/usages', [App\Http\Controllers\Api\User\CampaignController::class, 'myUsages'])->middleware('auth:sanctum');
+
+    // Legacy offer routes (redirect to campaigns for backward compatibility)
+    Route::get('/offers/active', [App\Http\Controllers\Api\User\CampaignController::class, 'index']);
+    Route::get('/offers/{id}', [App\Http\Controllers\Api\User\CampaignController::class, 'show']);
+    Route::post('/offers/validate', [App\Http\Controllers\Api\User\CampaignController::class, 'validateCode'])->middleware('auth:sanctum');
 
     // --- Legal Documents (Public) ---
     Route::get('/legal/documents', [LegalDocumentController::class, 'index']);
@@ -581,6 +589,19 @@ Route::prefix('v1')->group(function () {
             Route::get('/plans/stats', [PlanController::class, 'stats'])->middleware('permission:plans.edit');
             Route::apiResource('/plans', PlanController::class)->middleware('permission:plans.edit');
             Route::apiResource('/products', ProductController::class)->middleware('permission:products.edit');
+
+            // Campaign Management
+            Route::prefix('campaigns')->middleware('permission:plans.edit')->group(function () {
+                Route::get('/', [CampaignController::class, 'index']);
+                Route::post('/', [CampaignController::class, 'store']);
+                Route::get('/{campaign}', [CampaignController::class, 'show']);
+                Route::put('/{campaign}', [CampaignController::class, 'update']);
+                Route::post('/{campaign}/approve', [CampaignController::class, 'approve']);
+                Route::post('/{campaign}/activate', [CampaignController::class, 'activate']);
+                Route::post('/{campaign}/pause', [CampaignController::class, 'pause']);
+                Route::get('/{campaign}/analytics', [CampaignController::class, 'analytics']);
+                Route::get('/{campaign}/usages', [CampaignController::class, 'usages']);
+            });
 
             // Bulk Purchase Management (V-BULK-PURCHASE-ENHANCEMENT-005)
             Route::apiResource('/bulk-purchases', BulkPurchaseController::class)->middleware('permission:products.edit');

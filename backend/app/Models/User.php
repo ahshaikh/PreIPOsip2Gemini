@@ -179,4 +179,22 @@ class User extends Authenticatable
     {
         return $this->hasMany(Withdrawal::class);
     }
+
+    /**
+     * Campaign relationships
+     */
+    public function createdCampaigns(): HasMany
+    {
+        return $this->hasMany(Campaign::class, 'created_by');
+    }
+
+    public function approvedCampaigns(): HasMany
+    {
+        return $this->hasMany(Campaign::class, 'approved_by');
+    }
+
+    public function campaignUsages(): HasMany
+    {
+        return $this->hasMany(CampaignUsage::class);
+    }
 }

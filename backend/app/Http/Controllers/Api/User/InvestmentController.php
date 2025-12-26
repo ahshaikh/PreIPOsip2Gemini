@@ -7,8 +7,10 @@ use App\Models\Investment;
 use App\Models\Deal;
 use App\Models\Subscription;
 use App\Models\Payment;
+use App\Models\Campaign;
 use App\Services\WalletService;
 use App\Services\AllocationService;
+use App\Services\CampaignService;
 use App\Enums\TransactionType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,11 +20,16 @@ class InvestmentController extends Controller
 {
     protected $walletService;
     protected $allocationService;
+    protected $campaignService;
 
-    public function __construct(WalletService $walletService, AllocationService $allocationService)
-    {
+    public function __construct(
+        WalletService $walletService,
+        AllocationService $allocationService,
+        CampaignService $campaignService
+    ) {
         $this->walletService = $walletService;
         $this->allocationService = $allocationService;
+        $this->campaignService = $campaignService;
     }
     /**
      * Get user's investments
@@ -125,6 +132,7 @@ class InvestmentController extends Controller
             'deal_id' => 'required|exists:deals,id',
             'subscription_id' => 'required|exists:subscriptions,id',
             'shares_allocated' => 'required|integer|min:1',
+            'campaign_code' => 'nullable|string', // Optional campaign code
         ]);
 
         $user = $request->user();
@@ -171,26 +179,61 @@ class InvestmentController extends Controller
             ], 400);
         }
 
+        // Campaign/Discount Application
+        $campaign = null;
+        $discount = 0;
+        $finalAmount = $totalAmount;
+
+        if (!empty($validated['campaign_code'])) {
+            $campaign = $this->campaignService->validateCampaignCode($validated['campaign_code']);
+
+            if (!$campaign) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid campaign code.',
+                ], 400);
+            }
+
+            // Check if campaign is applicable
+            $applicabilityCheck = $this->campaignService->isApplicable($campaign, $user, $totalAmount);
+            if (!$applicabilityCheck['applicable']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $applicabilityCheck['reason'],
+                ], 400);
+            }
+
+            // Calculate discount
+            $discount = $this->campaignService->calculateDiscount($campaign, $totalAmount);
+            $finalAmount = $totalAmount - $discount;
+        }
+
         // Check wallet balance (New payment flow: Payment → Wallet → User selects shares → Debit wallet)
         $wallet = $user->wallet;
-        if (!$wallet || $wallet->balance < $totalAmount) {
+        if (!$wallet || $wallet->balance < $finalAmount) {
             $availableBalance = $wallet ? $wallet->balance : 0;
             return response()->json([
                 'success' => false,
                 'message' => 'Insufficient wallet balance. Available: ₹' .
-                            number_format($availableBalance, 2),
+                            number_format($availableBalance, 2) .
+                            ($discount > 0 ? ' (After ₹' . number_format($discount, 2) . ' discount)' : ''),
             ], 400);
         }
 
         try {
             DB::beginTransaction();
 
-            // 1. Debit wallet for share purchase
+            // 1. Debit wallet for share purchase (using final amount after discount)
+            $description = "Share purchase: {$validated['shares_allocated']} shares of {$deal->product->name}";
+            if ($discount > 0) {
+                $description .= " (₹" . number_format($discount, 2) . " discount applied)";
+            }
+
             $this->walletService->withdraw(
                 $user,
-                $totalAmount,
+                $finalAmount,
                 TransactionType::INVESTMENT,
-                "Share purchase: {$validated['shares_allocated']} shares of {$deal->product->name}",
+                $description,
                 null,
                 false // Not locked, immediate debit
             );
@@ -204,12 +247,31 @@ class InvestmentController extends Controller
                 'investment_code' => 'INV-' . strtoupper(uniqid()),
                 'shares_allocated' => $validated['shares_allocated'],
                 'price_per_share' => $deal->share_price,
-                'total_amount' => $totalAmount,
+                'total_amount' => $totalAmount, // Original amount before discount
                 'status' => 'active',
                 'invested_at' => now(),
             ]);
 
-            // 3. Allocate shares (creates UserInvestment records)
+            // 3. Apply campaign if provided
+            if ($campaign) {
+                $campaignResult = $this->campaignService->applyCampaign(
+                    $campaign,
+                    $user,
+                    $investment,
+                    $totalAmount
+                );
+
+                if (!$campaignResult['success']) {
+                    // Rollback if campaign application fails
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Campaign application failed: ' . $campaignResult['message'],
+                    ], 400);
+                }
+            }
+
+            // 4. Allocate shares (creates UserInvestment records)
             // Note: We pass a dummy payment for allocation tracking
             // In the future, this should link to the actual payment that funded the wallet
             $dummyPayment = new Payment([
@@ -225,14 +287,26 @@ class InvestmentController extends Controller
                 'user_id' => $user->id,
                 'investment_id' => $investment->id,
                 'deal_id' => $deal->id,
-                'amount' => $totalAmount,
+                'original_amount' => $totalAmount,
+                'discount' => $discount,
+                'final_amount' => $finalAmount,
+                'campaign_code' => $campaign?->code,
             ]);
 
-            return response()->json([
+            $responseData = [
                 'success' => true,
                 'message' => 'Investment created successfully.',
                 'investment' => $investment->load(['deal', 'company']),
-            ], 201);
+                'original_amount' => $totalAmount,
+                'final_amount' => $finalAmount,
+            ];
+
+            if ($discount > 0) {
+                $responseData['discount_applied'] = $discount;
+                $responseData['campaign_code'] = $campaign->code;
+            }
+
+            return response()->json($responseData, 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
