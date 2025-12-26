@@ -42,7 +42,7 @@ return new class extends Migration
             $table->index('user_id');
             $table->index('campaign_code');
             $table->index('used_at');
-            $table->index(['applicable_type', 'applicable_id']);
+            // Note: morphs('applicable') already creates an index for applicable_type, applicable_id
 
             // Prevent duplicate application to same entity
             $table->unique(['campaign_id', 'applicable_type', 'applicable_id'], 'unique_campaign_application');
