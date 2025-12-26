@@ -58,16 +58,19 @@ return new class extends Migration
             $table->renameColumn('end_at', 'expiry');
         });
 
-        // Drop added columns
+        // Drop added columns - MUST drop foreign keys before indexes
         Schema::table('campaigns', function (Blueprint $table) {
+            // Drop foreign keys first
+            $table->dropForeign(['created_by']);
+            $table->dropForeign(['approved_by']);
+
+            // Then drop indexes
             $table->dropIndex(['created_by']);
             $table->dropIndex(['approved_by']);
             $table->dropIndex(['is_active']);
             $table->dropIndex(['start_at']);
 
-            $table->dropForeign(['created_by']);
-            $table->dropForeign(['approved_by']);
-
+            // Finally drop columns
             $table->dropColumn(['created_by', 'approved_by', 'approved_at', 'is_active', 'start_at']);
         });
 
