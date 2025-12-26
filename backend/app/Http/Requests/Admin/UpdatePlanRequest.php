@@ -40,9 +40,14 @@ class UpdatePlanRequest extends FormRequest
             'billing_cycle' => 'nullable|in:weekly,bi-weekly,monthly,quarterly,yearly',
             'trial_period_days' => 'nullable|integer|min:0',
             // Metadata can be array or JSON string depending on frontend implementation
-            'metadata' => 'nullable', 
+            'metadata' => 'nullable',
             // Configs is a flexible array for bonus/advanced settings
             'configs' => 'nullable|array',
+            // Features array for plan features
+            'features' => 'nullable|array',
+            'features.*.feature_text' => 'required_with:features|string',
+            'features.*.icon' => 'nullable|string',
+            'features.*.display_order' => 'nullable|integer',
         ];
     }
 

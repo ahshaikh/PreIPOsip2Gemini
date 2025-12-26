@@ -43,9 +43,22 @@ class PlanController extends Controller
                 $plan = Plan::create($validated + ['slug' => Str::slug($validated['name'])]);
 
                 if (!empty($validated['features'])) {
-                    $plan->features()->createMany($validated['features']);
+                    foreach ($validated['features'] as $feature) {
+                        // Handle both string format (legacy) and object format (new)
+                        if (is_string($feature)) {
+                            $plan->features()->create([
+                                'feature_text' => $feature,
+                            ]);
+                        } elseif (is_array($feature) && isset($feature['feature_text'])) {
+                            $plan->features()->create([
+                                'feature_text' => $feature['feature_text'],
+                                'icon' => $feature['icon'] ?? null,
+                                'display_order' => $feature['display_order'] ?? 0,
+                            ]);
+                        }
+                    }
                 }
-                
+
                 if (!empty($validated['configs'])) {
                     foreach ($validated['configs'] as $key => $value) {
                         $plan->configs()->create(['config_key' => $key, 'value' => $value]);
@@ -132,25 +145,23 @@ class PlanController extends Controller
         $plan->save();
 
         // Sync features (must be done explicitly - not mass assignable)
-        if ($request->has('features')) {
+        if (isset($validated['features'])) {
             // Delete all existing features
             $plan->features()->delete();
-            // Create new features from array
-            if (!empty($validated['features'])) {
-                foreach ($validated['features'] as $feature) {
-                    // Handle both string format (legacy) and object format (new)
-                    if (is_string($feature)) {
-                        $plan->features()->create([
-                            'feature_text' => $feature,
-                        ]);
-                    } else {
-                        // Feature is an array/object with feature_text, icon, display_order
-                        $plan->features()->create([
-                            'feature_text' => $feature['feature_text'] ?? $feature,
-                            'icon' => $feature['icon'] ?? null,
-                            'display_order' => $feature['display_order'] ?? 0,
-                        ]);
-                    }
+            // Create new features from validated array
+            foreach ($validated['features'] as $feature) {
+                // Handle both string format (legacy) and object format (new)
+                if (is_string($feature)) {
+                    $plan->features()->create([
+                        'feature_text' => $feature,
+                    ]);
+                } elseif (is_array($feature) && isset($feature['feature_text'])) {
+                    // Feature is an array with feature_text, icon, display_order
+                    $plan->features()->create([
+                        'feature_text' => $feature['feature_text'],
+                        'icon' => $feature['icon'] ?? null,
+                        'display_order' => $feature['display_order'] ?? 0,
+                    ]);
                 }
             }
         }
