@@ -347,7 +347,7 @@ class CampaignService
      */
     public function approveCampaign(Campaign $campaign, User $approver): bool
     {
-        if (!$campaign->can_be_approved) {
+        if (!$campaign->canBeApproved()) {
             return false;
         }
 
@@ -373,7 +373,7 @@ class CampaignService
      */
     public function activateCampaign(Campaign $campaign): bool
     {
-        if (!$campaign->can_be_activated) {
+        if (!$campaign->canBeActivated()) {
             return false;
         }
 
@@ -395,7 +395,7 @@ class CampaignService
      */
     public function pauseCampaign(Campaign $campaign): bool
     {
-        if (!$campaign->can_be_paused) {
+        if (!$campaign->canBePaused()) {
             return false;
         }
 
