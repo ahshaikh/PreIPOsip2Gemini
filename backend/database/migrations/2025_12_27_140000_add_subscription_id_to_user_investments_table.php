@@ -29,13 +29,18 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('user_investments', function (Blueprint $table) {
-            // Add subscription_id column as nullable initially (for existing records)
-            // After backfill, can be made NOT NULL if business logic requires
+            // [PROTOCOL 1]: subscription_id is NOT NULL
+            // WHY: payments.subscription_id is NOT NULL (create_payments_table.php:16)
+            // AllocationService receives Payment → subscription_id guaranteed non-null
+            // BulkPurchaseController admin path is BROKEN (missing required fields)
+            // Therefore: ALL valid UserInvestment records MUST have subscription_id
+            //
+            // onDelete: RESTRICT (not CASCADE) to prevent accidental financial data loss
+            // Regulatory compliance: Cannot delete investment records by deleting subscription
             $table->foreignId('subscription_id')
-                  ->nullable()
                   ->after('payment_id')
                   ->constrained('subscriptions')
-                  ->onDelete('cascade');
+                  ->onDelete('restrict');  // [PROTOCOL 1]: Prevent cascade delete of financial records
 
             // Add index for query performance (frequently used in WHERE clauses)
             $table->index('subscription_id');

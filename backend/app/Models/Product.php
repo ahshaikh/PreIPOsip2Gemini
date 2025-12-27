@@ -101,11 +101,14 @@ class Product extends Model
     }
 
     /**
-     * Offers (campaigns) applicable to this product.
+     * Campaigns applicable to this product.
+     *
+     * [P0.2 FIX]: Uses Campaign model (not Offer).
+     * Pivot table renamed: offer_products → campaign_products
      */
     public function offers()
     {
-        return $this->belongsToMany(Offer::class, 'offer_products')
+        return $this->belongsToMany(Campaign::class, 'campaign_products')
                     ->withPivot([
                         'custom_discount_percent',
                         'custom_discount_amount',
@@ -129,7 +132,7 @@ class Product extends Model
     }
 
     /**
-     * Get active offers for this product.
+     * Get active campaigns for this product.
      */
     public function getActiveOffers()
     {

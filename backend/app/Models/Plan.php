@@ -136,11 +136,14 @@ class Plan extends Model
     }
 
     /**
-     * Offers (campaigns) exclusive or available to this plan tier.
+     * Campaigns exclusive or available to this plan tier.
+     *
+     * [P0.2 FIX]: Uses Campaign model (not Offer).
+     * Pivot table renamed: offer_plans → campaign_plans
      */
     public function offers()
     {
-        return $this->belongsToMany(Offer::class, 'offer_plans')
+        return $this->belongsToMany(Campaign::class, 'campaign_plans')
                     ->withPivot([
                         'additional_discount_percent',
                         'is_exclusive',
@@ -151,7 +154,7 @@ class Plan extends Model
     }
 
     /**
-     * Get active offers for this plan.
+     * Get active campaigns for this plan.
      */
     public function getActiveOffers()
     {

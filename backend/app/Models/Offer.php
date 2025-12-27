@@ -1,5 +1,17 @@
 <?php
 
+/**
+ * DEPRECATED - P0.2 FIX
+ *
+ * This model has been DEPRECATED and replaced by Campaign.
+ * The offers table was renamed to campaigns in migration 2025_12_26_000001.
+ * All offer_* pivot tables have been renamed to campaign_* in migration 2025_12_27_150000.
+ *
+ * USE: App\Models\Campaign instead
+ *
+ * This model will throw an exception if instantiated to prevent dual semantics bug.
+ */
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,6 +22,26 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 class Offer extends Model
 {
     use HasFactory;
+
+    /**
+     * [PROTOCOL 1]: Make Offer model STRUCTURALLY IMPOSSIBLE to use.
+     *
+     * WHY: Prevent Campaign/Offer duality bug.
+     * - offers table was renamed to campaigns
+     * - All pivot tables use campaign_id (not offer_id)
+     * - Campaign model is single source of truth
+     *
+     * This constructor throws exception to fail-fast on any instantiation attempt.
+     */
+    public function __construct(array $attributes = [])
+    {
+        throw new \RuntimeException(
+            'P0.2 FIX: Offer model is DEPRECATED. ' .
+            'The offers table was renamed to campaigns. ' .
+            'Use App\Models\Campaign instead. ' .
+            'See migration 2025_12_27_150000_consolidate_offer_to_campaign_rename_pivots.php'
+        );
+    }
 
     protected $fillable = [
         'title',

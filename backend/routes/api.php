@@ -173,10 +173,22 @@ Route::prefix('v1')->group(function () {
     Route::post('/campaigns/validate', [App\Http\Controllers\Api\User\CampaignController::class, 'validateCode'])->middleware('auth:sanctum');
     Route::get('/campaigns/my/usages', [App\Http\Controllers\Api\User\CampaignController::class, 'myUsages'])->middleware('auth:sanctum');
 
-    // Legacy offer routes (redirect to campaigns for backward compatibility)
-    Route::get('/offers/active', [App\Http\Controllers\Api\User\CampaignController::class, 'index']);
-    Route::get('/offers/{id}', [App\Http\Controllers\Api\User\CampaignController::class, 'show']);
-    Route::post('/offers/validate', [App\Http\Controllers\Api\User\CampaignController::class, 'validateCode'])->middleware('auth:sanctum');
+    /**
+     * [P0.2 FIX]: Legacy /offers routes REMOVED
+     *
+     * WHY ROUTES CANNOT EXIST:
+     * - offers table was renamed to campaigns
+     * - Offer model throws exception on instantiation
+     * - Having dual routes (/offers and /campaigns) recreates semantic duality
+     *
+     * MIGRATION PATH:
+     * - Replace /offers/active → /campaigns/active
+     * - Replace /offers/{id} → /campaigns/{id}
+     * - Replace /offers/validate → /campaigns/validate
+     *
+     * If you need backward compatibility, implement 410 Gone response with redirect URL.
+     * DO NOT reinstate dual routes - this violates Protocol 1.
+     */
 
     // --- Legal Documents (Public) ---
     Route::get('/legal/documents', [LegalDocumentController::class, 'index']);
@@ -610,24 +622,25 @@ Route::prefix('v1')->group(function () {
                 Route::delete('/products/{product}', [\App\Http\Controllers\Api\Admin\PlanProductController::class, 'destroy']);
             });
 
-            // Offer Campaign Management (NEW: Campaign Integration)
-            Route::prefix('offers/{offer}')->middleware('permission:settings.manage_cms')->group(function () {
-                // Offer-Product Campaigns
+            // Campaign Relationship Management
+            // [P0.2 FIX]: Changed from offers/{offer} to campaigns/{campaign}
+            Route::prefix('campaigns/{campaign}')->middleware('permission:settings.manage_cms')->group(function () {
+                // Campaign-Product Relationships
                 Route::get('/products', [OfferCampaignController::class, 'getProducts']);
                 Route::post('/products', [OfferCampaignController::class, 'assignProducts']);
                 Route::delete('/products/{product}', [OfferCampaignController::class, 'removeProduct']);
 
-                // Offer-Deal Campaigns
+                // Campaign-Deal Relationships
                 Route::get('/deals', [OfferCampaignController::class, 'getDeals']);
                 Route::post('/deals', [OfferCampaignController::class, 'assignDeals']);
                 Route::delete('/deals/{deal}', [OfferCampaignController::class, 'removeDeal']);
 
-                // Offer-Plan Campaigns
+                // Campaign-Plan Relationships
                 Route::get('/plans', [OfferCampaignController::class, 'getPlans']);
                 Route::post('/plans', [OfferCampaignController::class, 'assignPlans']);
                 Route::delete('/plans/{plan}', [OfferCampaignController::class, 'removePlan']);
 
-                // Campaign Performance
+                // Campaign Performance Statistics
                 Route::get('/statistics', [OfferCampaignController::class, 'statistics']);
             });
 
