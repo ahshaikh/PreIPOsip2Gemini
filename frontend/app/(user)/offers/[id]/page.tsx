@@ -46,6 +46,7 @@ export default function OfferDetailPage() {
   const router = useRouter();
   const offerId = params.id;
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [howToUseDialogOpen, setHowToUseDialogOpen] = useState(false);
 
   const { data: offer, isLoading } = useQuery({
     queryKey: ['campaign', offerId],
@@ -59,13 +60,6 @@ export default function OfferDetailPage() {
     if (offer?.code) {
       navigator.clipboard.writeText(offer.code);
       toast.success("Code Copied!", { description: "Offer code copied to clipboard" });
-    }
-  };
-
-  const scrollToHowToUse = () => {
-    const howToUseElement = document.getElementById('how-to-use-section');
-    if (howToUseElement) {
-      howToUseElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
 
@@ -304,36 +298,6 @@ export default function OfferDetailPage() {
               </>
             )}
 
-            {/* How to Use Section - ALWAYS EXISTS */}
-            <div id="how-to-use-section">
-              <h3>How to Use This Offer</h3>
-              <ol className="space-y-2">
-                <li>
-                  <strong>Step 1:</strong> Copy the promo code <code className="bg-primary/10 px-2 py-1 rounded text-primary font-mono">{offer.code}</code> above
-                </li>
-                <li>
-                  <strong>Step 2:</strong> Browse available companies on the <a href="/deals" className="text-primary underline">Deals page</a>
-                </li>
-                <li>
-                  <strong>Step 3:</strong> Select a company and choose how many shares to buy
-                </li>
-                <li>
-                  <strong>Step 4:</strong> At checkout, enter your campaign code in the "Campaign Code" field
-                </li>
-                <li>
-                  <strong>Step 5:</strong> Click "Apply" to validate the code and see your discount
-                </li>
-                <li>
-                  <strong>Step 6:</strong> Accept the campaign terms and complete your investment
-                </li>
-              </ol>
-              {offer.min_investment && (
-                <p className="text-sm text-muted-foreground mt-4">
-                  <strong>Note:</strong> Minimum investment of ₹{offer.min_investment.toLocaleString('en-IN')} required to use this offer.
-                </p>
-              )}
-            </div>
-
             {/* Terms and Conditions */}
             {offer.terms && (
               <div>
@@ -358,7 +322,7 @@ export default function OfferDetailPage() {
             <Button size="lg" className="flex-1" onClick={() => router.push('/deals')}>
               Start Investing Now
             </Button>
-            <Button size="lg" variant="outline" className="flex-1" onClick={scrollToHowToUse}>
+            <Button size="lg" variant="outline" className="flex-1" onClick={() => setHowToUseDialogOpen(true)}>
               <FileText className="mr-2 h-4 w-4" />
               How to Use
             </Button>
@@ -416,6 +380,83 @@ export default function OfferDetailPage() {
             <Button variant="outline" size="sm" onClick={shareViaEmail}>
               <Mail className="h-4 w-4 mr-2" /> Email
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* How to Use Dialog */}
+      <Dialog open={howToUseDialogOpen} onOpenChange={setHowToUseDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>How to Use This Offer</DialogTitle>
+            <DialogDescription>
+              Follow these steps to apply your campaign discount
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <ol className="space-y-3">
+              <li className="flex gap-3">
+                <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm font-semibold">1</span>
+                <div>
+                  <strong>Copy the promo code</strong>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Copy code: <code className="bg-primary/10 px-2 py-1 rounded text-primary font-mono">{offer?.code}</code>
+                  </p>
+                </div>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm font-semibold">2</span>
+                <div>
+                  <strong>Browse available companies</strong>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Visit the <a href="/deals" className="text-primary underline">Deals page</a> to see all investment opportunities
+                  </p>
+                </div>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm font-semibold">3</span>
+                <div>
+                  <strong>Select a company and shares</strong>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Choose how many shares to buy based on your budget
+                  </p>
+                </div>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm font-semibold">4</span>
+                <div>
+                  <strong>Enter campaign code at checkout</strong>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Paste your code in the "Campaign Code" field and click "Apply"
+                  </p>
+                </div>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm font-semibold">5</span>
+                <div>
+                  <strong>Validate and see your discount</strong>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    The system will validate your code and show the discount amount
+                  </p>
+                </div>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm font-semibold">6</span>
+                <div>
+                  <strong>Accept terms and complete investment</strong>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Check both campaign terms boxes and confirm your investment
+                  </p>
+                </div>
+              </li>
+            </ol>
+            {offer?.min_investment && (
+              <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                <p className="text-sm text-amber-800 dark:text-amber-400">
+                  <strong>Note:</strong> Minimum investment of ₹{offer.min_investment.toLocaleString('en-IN')} required to use this offer.
+                </p>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
