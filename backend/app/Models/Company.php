@@ -14,10 +14,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
+use App\Traits\HasDeletionProtection;
 
 class Company extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasDeletionProtection;
 
     protected $fillable = [
         'name',
@@ -55,6 +56,16 @@ class Company extends Model
         'is_featured' => 'boolean',
         'is_verified' => 'boolean',
         'profile_completed' => 'boolean',
+    ];
+
+    /**
+     * Deletion protection rules.
+     * Prevents deletion if company has active dependencies.
+     */
+    protected $deletionProtectionRules = [
+        'deals' => 'active deals',
+        'products' => 'products/inventory',
+        'users' => 'company users',
     ];
 
     /**

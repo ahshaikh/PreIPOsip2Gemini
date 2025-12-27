@@ -9,10 +9,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use App\Traits\HasDeletionProtection;
 
 class Product extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasDeletionProtection;
 
     protected $fillable = [
         'name',
@@ -48,6 +49,16 @@ class Product extends Model
         'last_price_update' => 'datetime',
         // FSD-PROD-012: Compliance Casts
         'sebi_approval_date' => 'date',
+    ];
+
+    /**
+     * Deletion protection rules.
+     * Prevents deletion if product has active dependencies.
+     */
+    protected $deletionProtectionRules = [
+        'investments' => 'active investments',
+        'bulkPurchases' => 'bulk purchase inventory',
+        'deals' => 'active deals',
     ];
 
     /**

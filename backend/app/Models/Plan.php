@@ -9,10 +9,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use App\Traits\HasDeletionProtection;
 
 class Plan extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasDeletionProtection;
 
     protected $fillable = [
         'name',
@@ -43,6 +44,17 @@ class Plan extends Model
         'available_from' => 'datetime',
         'available_until' => 'datetime',
         'metadata' => 'array',
+    ];
+
+    /**
+     * Deletion protection rules.
+     * Prevents deletion if plan has active dependencies.
+     */
+    protected $deletionProtectionRules = [
+        'subscriptions' => function ($plan) {
+            // Only count active or paused subscriptions
+            return $plan->subscriptions()->whereIn('status', ['active', 'paused'])->count();
+        },
     ];
 
     /**
