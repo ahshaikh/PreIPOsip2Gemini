@@ -149,6 +149,7 @@ class PermissionsSeeder extends Seeder
             'system.manage_backups',
             'system.manage_ip_whitelist',
             'system.manage_feature_flags',
+            'system.developer_tools',
         ];
 
         // Create each permission
