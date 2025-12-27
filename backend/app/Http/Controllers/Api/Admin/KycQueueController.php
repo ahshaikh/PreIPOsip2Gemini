@@ -7,7 +7,8 @@ use App\Models\UserKyc;
 use App\Models\KycDocument;
 use App\Models\KycRejectionTemplate;
 use App\Notifications\KycVerified;
-use App\Enums\KycStatus; 
+use App\Enums\KycStatus;
+use App\Services\Kyc\KycStatusService; // [P1.2 FIX]: Use service for state transitions
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
@@ -15,6 +16,15 @@ use Illuminate\Support\Facades\Cache;
 
 class KycQueueController extends Controller
 {
+    /**
+     * [P1.2 FIX]: Inject KycStatusService to enforce state machine
+     */
+    protected KycStatusService $kycStatusService;
+
+    public function __construct(KycStatusService $kycStatusService)
+    {
+        $this->kycStatusService = $kycStatusService;
+    }
     /**
      * Get KYC queue with enhanced filtering and search.
      * Endpoint: GET /api/admin/kyc-queue
@@ -84,6 +94,8 @@ class KycQueueController extends Controller
     /**
      * Approve KYC with verification checklist
      * Endpoint: POST /api/admin/kyc-queue/{id}/approve
+     *
+     * [P1.2 FIX]: Uses KycStatusService to ensure events are fired
      */
     public function approve(Request $request, $id)
     {
@@ -101,9 +113,8 @@ class KycQueueController extends Controller
         }
 
         DB::transaction(function () use ($kyc, $admin, $request) {
-            $kyc->update([
-                'status' => KycStatus::VERIFIED->value,
-                'verified_at' => now(),
+            // [P1.2 FIX]: Use service to transition status (triggers events)
+            $this->kycStatusService->transitionTo($kyc, KycStatus::VERIFIED, [
                 'verified_by' => $admin->id,
                 'rejection_reason' => null,
                 'verification_checklist' => $request->verification_checklist,
@@ -133,6 +144,8 @@ class KycQueueController extends Controller
     /**
      * Reject KYC with reason and checklist
      * Endpoint: POST /api/admin/kyc-queue/{id}/reject
+     *
+     * [P1.2 FIX]: Uses KycStatusService to ensure events are fired
      */
     public function reject(Request $request, $id)
     {
@@ -145,10 +158,9 @@ class KycQueueController extends Controller
         $admin = $request->user();
 
         DB::transaction(function () use ($kyc, $admin, $request) {
-            $kyc->update([
-                'status' => KycStatus::REJECTED->value,
+            // [P1.2 FIX]: Use service to transition status (triggers events)
+            $this->kycStatusService->transitionTo($kyc, KycStatus::REJECTED, [
                 'rejection_reason' => $request->reason,
-                'verified_at' => null,
                 'verified_by' => $admin->id,
                 'verification_checklist' => $request->verification_checklist,
             ]);
@@ -167,6 +179,8 @@ class KycQueueController extends Controller
     /**
      * Request resubmission with instructions
      * Endpoint: POST /api/admin/kyc-queue/{id}/request-resubmission
+     *
+     * [P1.2 FIX]: Uses KycStatusService to ensure events are fired
      */
     public function requestResubmission(Request $request, $id)
     {
@@ -179,8 +193,8 @@ class KycQueueController extends Controller
         $admin = $request->user();
 
         DB::transaction(function () use ($kyc, $admin, $request) {
-            $kyc->update([
-                'status' => KycStatus::RESUBMISSION_REQUIRED->value,
+            // [P1.2 FIX]: Use service to transition status (triggers events)
+            $this->kycStatusService->transitionTo($kyc, KycStatus::RESUBMISSION_REQUIRED, [
                 'resubmission_instructions' => $request->instructions,
             ]);
 
