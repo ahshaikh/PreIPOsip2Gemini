@@ -62,13 +62,10 @@ export default function OfferDetailPage() {
     }
   };
 
-  const scrollToTerms = () => {
-    const termsElement = document.getElementById('terms-section');
-    if (termsElement) {
-      termsElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else {
-      // Fallback: scroll to bottom where terms/how-to-use info would be
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+  const scrollToHowToUse = () => {
+    const howToUseElement = document.getElementById('how-to-use-section');
+    if (howToUseElement) {
+      howToUseElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
 
@@ -307,9 +304,39 @@ export default function OfferDetailPage() {
               </>
             )}
 
+            {/* How to Use Section - ALWAYS EXISTS */}
+            <div id="how-to-use-section">
+              <h3>How to Use This Offer</h3>
+              <ol className="space-y-2">
+                <li>
+                  <strong>Step 1:</strong> Copy the promo code <code className="bg-primary/10 px-2 py-1 rounded text-primary font-mono">{offer.code}</code> above
+                </li>
+                <li>
+                  <strong>Step 2:</strong> Browse available companies on the <a href="/deals" className="text-primary underline">Deals page</a>
+                </li>
+                <li>
+                  <strong>Step 3:</strong> Select a company and choose how many shares to buy
+                </li>
+                <li>
+                  <strong>Step 4:</strong> At checkout, enter your campaign code in the "Campaign Code" field
+                </li>
+                <li>
+                  <strong>Step 5:</strong> Click "Apply" to validate the code and see your discount
+                </li>
+                <li>
+                  <strong>Step 6:</strong> Accept the campaign terms and complete your investment
+                </li>
+              </ol>
+              {offer.min_investment && (
+                <p className="text-sm text-muted-foreground mt-4">
+                  <strong>Note:</strong> Minimum investment of ₹{offer.min_investment.toLocaleString('en-IN')} required to use this offer.
+                </p>
+              )}
+            </div>
+
             {/* Terms and Conditions */}
             {offer.terms && (
-              <div id="terms-section">
+              <div>
                 <h3>Terms & Conditions</h3>
                 {typeof offer.terms === 'string' ? (
                   <p className="text-sm text-muted-foreground">{offer.terms}</p>
@@ -331,7 +358,7 @@ export default function OfferDetailPage() {
             <Button size="lg" className="flex-1" onClick={() => router.push('/deals')}>
               Start Investing Now
             </Button>
-            <Button size="lg" variant="outline" className="flex-1" onClick={scrollToTerms}>
+            <Button size="lg" variant="outline" className="flex-1" onClick={scrollToHowToUse}>
               <FileText className="mr-2 h-4 w-4" />
               How to Use
             </Button>
