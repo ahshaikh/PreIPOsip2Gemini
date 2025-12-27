@@ -1,16 +1,204 @@
-# PreIPOsip Platform Architecture
+# 🏛️ PreIPOsip Platform — Living Architecture Document
 
-## Purpose
+## 1. Purpose
 
-This document defines **structural invariants** that make entire classes of bugs **impossible** by design. These are not guidelines or best practices—they are **hard constraints** enforced at the database, type system, and service layer.
+This document defines the **architectural rules, invariants, and boundaries** of the PreIPOsip platform.
 
-Violating these invariants will cause compilation failures, runtime exceptions, or database constraint violations.
+Any change that violates this document **must not be merged** unless this document is explicitly updated as part of the change.
 
 ---
 
-## Protocol-1 Invariants
+## 2. Architectural Principles (Non-Negotiable)
 
-### INVARIANT 1: UserInvestment.subscription_id is Mandatory
+### 2.1 Single Source of Truth (SSOT)
+For any financial, compliance, or ownership-related concept:
+- There must be **exactly one authoritative model**
+- All other representations must be **derived or read-only**
+
+Violations are considered **P0 defects**.
+
+---
+
+### 2.2 Financial Immutability
+Once recorded, financial facts are:
+- append-only
+- reversible only via compensating records
+- never editable in place
+
+Applies to:
+- transactions
+- investments
+- bonuses
+- withdrawals
+- inventory allocations
+
+---
+
+### 2.3 Workflow Enforcement via State Machines
+Any multi-step business process must:
+- have explicit states
+- enforce allowed transitions
+- emit events on transitions
+- prohibit direct state mutation
+
+Manual updates that bypass workflows are forbidden.
+
+---
+
+### 2.4 Domain Isolation
+Domains may:
+- publish events
+- consume events
+- read exposed projections
+
+Domains must **not**:
+- directly query another domain’s core models
+- compute another domain’s business rules
+
+---
+
+## 3. Domain Model & Ownership
+
+### 3.1 Identity & Access Domain
+**Owns:** Users, Authentication, KYC lifecycle, Roles & Permissions
+
+**Rules:**
+- Does not create financial records
+- All KYC transitions go through state machine
+- Emits `KycVerified`, `KycRejected` events
+
+---
+
+### 3.2 Financial Domain
+**Owns:** Wallet, Transactions, Payments, Bonuses, Withdrawals, TDS
+
+**Invariant:**
+```
+Wallet.balance_paise = SUM(Transaction.amount_paise)
+```
+
+**Rules:**
+- All balance changes via WalletService
+- Paise-only storage (integers)
+- No floating-point math
+
+---
+
+### 3.3 Inventory & Allocation Domain
+**Owns:** BulkPurchase, Allocation logic, UserInvestment
+
+**Single Source of Truth:**
+```
+BulkPurchase.value_remaining
+```
+
+**Rules:**
+- FIFO allocation
+- Atomic transactions
+- Allocation creates UserInvestment
+- No parallel ownership models
+
+---
+
+### 3.4 Investment Ownership (Critical)
+**Authoritative Model:** `UserInvestment`
+
+**Rules:**
+- `Investment` model is deprecated
+- Portfolio and reporting read from `UserInvestment` only
+- Any duplicate ownership model is forbidden
+
+Violation severity: **P0**
+
+---
+
+### 3.5 Product & Deal Domain
+**Owns:** Product metadata, Deals, Pricing history, Disclosures
+
+**Rules:**
+- Deal inventory is derived from BulkPurchase
+- Deal stores no inventory state
+- Deal does not own ownership data
+
+---
+
+### 3.6 Campaign & Promotion Domain
+**Authoritative Model:** `Campaign`
+
+**Rules:**
+- `Offer` model is deprecated
+- All discounts via CampaignService
+- Campaign approval required before usage
+- Discount priority must be deterministic
+
+---
+
+### 3.7 Subscription & Plan Domain
+**Owns:** Plans, Subscriptions, SIP logic, Eligibility
+
+**Rules:**
+- Subscription does not calculate ownership
+- Reads summaries via projections
+- Lifecycle managed via states
+
+---
+
+### 3.8 Referral & Bonus Domain
+**Owns:** Referrals, Bonus calculation, Multipliers
+
+**Rules:**
+- Single BonusCalculatorService
+- Bonus logic must be idempotent
+- Bonus credits reference Payment IDs
+
+---
+
+## 4. Cross-Domain Communication
+
+### 4.1 Events (Preferred)
+Domains communicate via immutable events:
+- PaymentSuccessful
+- KycVerified
+- CampaignActivated
+- AllocationCompleted
+
+---
+
+### 4.2 Forbidden Patterns
+- Cross-domain model queries
+- Duplicate calculators
+- Manual DB updates
+- Workflow bypasses
+
+---
+
+## 5. Non-Negotiable Invariants
+
+### Financial
+```
+Payment.amount =
+  UserInvestment.value_allocated +
+  BonusTransaction.amount +
+  refunds
+```
+
+### Inventory
+```
+BulkPurchase.total_value_received =
+  BulkPurchase.value_remaining +
+  UserInvestment.value_allocated
+```
+
+### Compliance
+- Campaign must be approved
+- KYC required before allocation
+- All admin actions logged
+
+---
+
+### Protocol-1 Invariants (Mechanically Enforced)
+
+#### INVARIANT 1: UserInvestment.subscription_id is Mandatory
 
 **Declaration:**
 > **All UserInvestment records MUST have a non-null subscription_id.**
@@ -22,63 +210,40 @@ Violating these invariants will cause compilation failures, runtime exceptions, 
 
 **Enforcement Mechanisms:**
 
-1. **Database Constraint** (`user_investments` table):
+1. **Database Constraint:**
    ```sql
    subscription_id BIGINT UNSIGNED NOT NULL
    FOREIGN KEY (subscription_id) REFERENCES subscriptions(id) ON DELETE CASCADE
    ```
 
-2. **Model Validation** (`UserInvestment.php`):
-   ```php
-   protected $fillable = ['subscription_id', ...]; // Required in mass assignment
-   ```
+2. **Model Validation:** Required in `$fillable`, validated in `AllocationService`
 
-3. **Service Layer** (`AllocationService.php`):
-   - All allocation methods REQUIRE `subscription_id` parameter
-   - Cannot create UserInvestment without valid subscription
+3. **Service Layer:** All allocation methods REQUIRE `subscription_id` parameter
+
+**Verification:**
+```sql
+-- This MUST return 0 (no orphaned investments)
+SELECT COUNT(*) FROM user_investments WHERE subscription_id IS NULL;
+```
+
+```bash
+# Verify NOT NULL constraint exists
+SHOW CREATE TABLE user_investments;
+# Should show: subscription_id bigint unsigned NOT NULL
+```
+
+**Future Requirement:**
+> Any future admin allocation path MUST supply `subscription_id` or it will fail with database constraint violation.
 
 **What This Prevents:**
 - ❌ Admin creating allocations without subscription context
 - ❌ Manual database inserts bypassing subscription ownership
-- ❌ Legacy "free allocation" workflows that bypass payment plans
+- ❌ Legacy "free allocation" workflows
 - ❌ Data migration scripts creating orphaned investments
-
-**Migration Status:**
-- ✅ Schema updated with NOT NULL constraint
-- ✅ Legacy data backfilled (where applicable)
-- ✅ Data migration rollback scripts exist for audit trail
-
-**Future Requirements:**
-
-If ANY future feature requires admin-initiated allocations (e.g., promotional grants, bonus shares), it:
-1. MUST create a system-generated Subscription first
-2. MUST link UserInvestment to that Subscription
-3. MUST NOT bypass the subscription_id constraint
-
-**Example Violation (FORBIDDEN):**
-```php
-// ❌ THIS WILL FAIL
-UserInvestment::create([
-    'user_id' => $userId,
-    'product_id' => $productId,
-    'subscription_id' => null, // Database constraint violation
-]);
-```
-
-**Correct Pattern (ENFORCED):**
-```php
-// ✅ ONLY VALID APPROACH
-$subscription = Subscription::where('user_id', $userId)->first();
-UserInvestment::create([
-    'user_id' => $userId,
-    'product_id' => $productId,
-    'subscription_id' => $subscription->id, // Required
-]);
-```
 
 ---
 
-### INVARIANT 2: Campaign is the Sole Promotional Construct
+#### INVARIANT 2: Campaign is the Sole Promotional Construct
 
 **Declaration:**
 > **Campaign is the ONLY model for promotions, discounts, and offers.**
@@ -87,195 +252,69 @@ UserInvestment::create([
 **Rationale:**
 - Prevents dual models (Campaign + Offer) causing consistency issues
 - Single source of truth for all promotional logic
-- Eliminates semantic confusion about "campaign vs offer"
+- Eliminates semantic confusion
 
 **Enforcement Mechanisms:**
 
-1. **Model Layer:**
-   - Only `Campaign.php` model exists for promotions
-   - No `Offer.php` model in codebase
-   - All relationship methods named `campaigns()` (not `offers()`)
+1. **Model Layer:** Only `Campaign.php` model exists (no `Offer.php`)
+2. **Database Schema:** Table `campaigns` (not `offers`), pivot tables `campaign_*`
+3. **Service Layer:** Only `CampaignService` for promotional logic
+4. **Semantic Enforcement:** All relationships named `campaigns()` (not `offers()`)
 
-2. **Database Schema:**
-   - Table: `campaigns` (not `offers`)
-   - Pivot tables: `campaign_products`, `campaign_deals`, `campaign_plans`
-   - No `offer_*` tables permitted
+**Verification:**
+```bash
+# This MUST return empty (no Offer model exists)
+find . -name "Offer.php" -path "*/Models/*"
 
-3. **Service Layer:**
-   - `CampaignService.php` is the sole service for promotional logic
-   - No `OfferService` or parallel promotional services
+# This MUST return empty (all renamed to campaigns())
+grep -r "public function offers()" app/Models/*.php
 
-4. **Semantic Enforcement:**
-   - All methods/variables use `campaign` terminology
-   - Relationship methods: `Product::campaigns()`, `Deal::campaigns()`, `Plan::campaigns()`
-   - **NOT** `offers()` or `getActiveOffers()`
+# This MUST succeed (campaigns() exists)
+grep -r "public function campaigns()" app/Models/*.php
+```
+
+```sql
+-- This should FAIL (table doesn't exist)
+SELECT * FROM offers LIMIT 1;
+
+-- This should SUCCEED (table exists)
+SELECT * FROM campaigns LIMIT 1;
+```
+
+**Future Requirement:**
+> All promotional features MUST extend `Campaign` model. Creating parallel promotional models (Offer, Promotion, Discount, Deal) is forbidden.
 
 **What This Prevents:**
 - ❌ Creating new "Offer" model alongside Campaign
-- ❌ Creating parallel "Promotion", "Discount", "Deal" models
-- ❌ Splitting promotional logic across multiple services
+- ❌ Creating parallel "Promotion", "Discount" models
 - ❌ Method names like `offers()` that imply Offer still exists
-
-**Migration Status:**
-- ✅ Offer model deleted
-- ✅ `offers` table renamed to `campaigns`
-- ✅ All pivot tables renamed (`offer_products` → `campaign_products`)
-- ✅ All relationships updated to use Campaign model
-- ✅ All method names changed to `campaigns()` nomenclature
-
-**Future Requirements:**
-
-If ANY new promotional feature is needed (e.g., "flash sales", "coupons", "loyalty rewards"):
-1. MUST extend the `Campaign` model (not create new model)
-2. MUST use `CampaignService` for business logic
-3. MUST use existing `campaign_*` pivot tables
-4. MUST NOT create parallel promotional constructs
-
-**Example Violation (FORBIDDEN):**
-```php
-// ❌ FORBIDDEN: Creating parallel promotional model
-class Offer extends Model {
-    // This violates INVARIANT 2
-}
-
-// ❌ FORBIDDEN: Method name preserving legacy semantics
-public function offers() {
-    return $this->belongsToMany(Campaign::class);
-}
-```
-
-**Correct Pattern (ENFORCED):**
-```php
-// ✅ ONLY VALID APPROACH
-class Campaign extends Model {
-    // All promotional logic here
-}
-
-// ✅ Method name matches domain model
-public function campaigns() {
-    return $this->belongsToMany(Campaign::class, 'campaign_products');
-}
-```
+- ❌ Splitting promotional logic across multiple services
 
 ---
 
-## Architectural Principles
+## 6. Enforcement Mechanisms
 
-### 1. Single Source of Truth
-- Every entity has ONE authoritative model
-- Derived data is computed, not stored
-- When caching is needed, mark it explicitly
-
-### 2. State Machines for Workflows
-- KYC: Formal state transitions via `KycStatusService`
-- Subscription: Lifecycle managed via `SubscriptionService`
-- Campaign: Status controlled via `CampaignService`
-- No manual status field updates
-
-### 3. Service Layer for Complex Logic
-- Controllers are thin (routing, validation, response)
-- Models are rich (domain behavior, not anemic)
-- Services orchestrate multi-model operations
-
-### 4. Database Constraints Enforce Invariants
-- Use NOT NULL for required fields
-- Use FOREIGN KEY for referential integrity
-- Use CHECK constraints for business rules
-- Use UNIQUE constraints to prevent duplicates
-
-### 5. Type System Prevents Wrong Usage
-- Use value objects with private constructors (e.g., `TdsResult`)
-- Use enums for state transitions (e.g., `KycStatus`)
-- Use type hints to enforce correct parameters
+- PR architectural checklist
+- Explicit domain ownership
+- Deprecation warnings
+- Automated invariant tests
 
 ---
 
-## Invariant Verification
+## 7. Evolution Policy
 
-### How to Verify INVARIANT 1
+This document may change only when:
+- Domain boundaries change intentionally
+- Source of truth is moved
+- New domain is added
 
-**Database Check:**
-```sql
--- This should return 0 (no orphaned investments)
-SELECT COUNT(*) FROM user_investments WHERE subscription_id IS NULL;
-```
-
-**Schema Check:**
-```sql
--- Verify NOT NULL constraint exists
-SHOW CREATE TABLE user_investments;
--- Should show: subscription_id bigint unsigned NOT NULL
-```
-
-**Code Check:**
-```bash
-# No UserInvestment creation without subscription_id
-grep -r "UserInvestment::create" --include="*.php" | grep -v "subscription_id"
-# Should return empty (all creates include subscription_id)
-```
-
-### How to Verify INVARIANT 2
-
-**Model Check:**
-```bash
-# Verify no Offer model exists
-find . -name "Offer.php" -path "*/Models/*"
-# Should return empty
-
-# Verify no parallel promotional models
-find . -name "*Promotion*.php" -o -name "*Discount*.php" -path "*/Models/*"
-# Should only return Campaign-related files
-```
-
-**Database Check:**
-```sql
--- This should fail (table doesn't exist)
-SELECT * FROM offers;
-
--- This should succeed (table exists)
-SELECT * FROM campaigns;
-```
-
-**Relationship Check:**
-```bash
-# No methods named offers() should exist in models
-grep -r "public function offers()" app/Models/*.php
-# Should return empty (all renamed to campaigns())
-```
+All changes require:
+- Document update
+- Migration plan
+- Rollback strategy
 
 ---
 
-## Regression Prevention
+## Final Note
 
-### Adding New Features
-
-Before adding ANY new feature:
-
-1. **Check INVARIANT 1**: Does this create UserInvestments?
-   - If YES: Ensure `subscription_id` is required and validated
-   - Test with NULL `subscription_id` to verify constraint enforcement
-
-2. **Check INVARIANT 2**: Does this involve promotions/discounts?
-   - If YES: Extend `Campaign` model (do NOT create new model)
-   - Use `CampaignService` for logic
-   - Use `campaign_*` terminology in code
-
-### Code Review Checklist
-
-- [ ] No new promotional models created (only Campaign permitted)
-- [ ] All UserInvestment creates include `subscription_id`
-- [ ] No method names use legacy "offer" terminology
-- [ ] Database migrations include NOT NULL constraints for required fields
-- [ ] Service layer enforces invariants (not just database)
-
----
-
-## Contact
-
-For questions about these invariants or architectural decisions, refer to:
-- `ARCHITECTURAL_AUDIT_REPORT.md` - Detailed audit findings
-- `P0.1_FIX_PROOF.md` - Investment/UserInvestment consolidation
-- `P0.2_FIX_PROOF.md` - Campaign/Offer consolidation
-
-**Last Updated:** 2025-12-27
-**Audit Session:** claude/audit-fintech-architecture-Xi25l
+This document exists to **prevent architectural regression** and ensure PreIPOsip remains scalable, auditable, and enforceable as it grows.
