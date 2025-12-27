@@ -8,7 +8,7 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "Hardcoding removed from plan page"
+$CommitMessage = "Connected the dots of Architecture gaps"
 #----------------------
 
 function Get-GitCredential {
