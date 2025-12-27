@@ -89,6 +89,22 @@ class Product extends Model
     }
 
     /**
+     * Offers (campaigns) applicable to this product.
+     */
+    public function offers()
+    {
+        return $this->belongsToMany(Offer::class, 'offer_products')
+                    ->withPivot([
+                        'custom_discount_percent',
+                        'custom_discount_amount',
+                        'is_featured',
+                        'priority'
+                    ])
+                    ->withTimestamps()
+                    ->orderByPivot('priority', 'desc');
+    }
+
+    /**
      * Check if a plan can access this product.
      */
     public function isAccessibleByPlan(Plan $plan): bool
@@ -99,7 +115,17 @@ class Product extends Model
 
         return $this->plans()->where('plan_id', $plan->id)->exists();
     }
-    
+
+    /**
+     * Get active offers for this product.
+     */
+    public function getActiveOffers()
+    {
+        return $this->offers()
+                    ->active()
+                    ->get();
+    }
+
     // --- ACCESSORS ---
     protected function totalAllocated(): Attribute
     {

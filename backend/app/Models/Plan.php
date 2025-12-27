@@ -123,6 +123,31 @@ class Plan extends Model
         return $pivot ? (float) $pivot->discount_percentage : 0;
     }
 
+    /**
+     * Offers (campaigns) exclusive or available to this plan tier.
+     */
+    public function offers()
+    {
+        return $this->belongsToMany(Offer::class, 'offer_plans')
+                    ->withPivot([
+                        'additional_discount_percent',
+                        'is_exclusive',
+                        'priority'
+                    ])
+                    ->withTimestamps()
+                    ->orderByPivot('priority', 'desc');
+    }
+
+    /**
+     * Get active offers for this plan.
+     */
+    public function getActiveOffers()
+    {
+        return $this->offers()
+                    ->active()
+                    ->get();
+    }
+
     // --- SCOPES ---
 
     public function scopeActive(Builder $query): void

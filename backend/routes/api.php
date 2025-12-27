@@ -88,6 +88,7 @@ use App\Http\Controllers\Api\Admin\ContentReportController;
 use App\Http\Controllers\Api\Admin\CompanyUserController;
 use App\Http\Controllers\Api\Admin\AdminShareListingController;
 use App\Http\Controllers\Api\Admin\PlanProductController;
+use App\Http\Controllers\Api\Admin\OfferCampaignController;
 
 // Company User Controllers
 use App\Http\Controllers\Api\Company\AuthController as CompanyAuthController;
@@ -592,6 +593,27 @@ Route::prefix('v1')->group(function () {
                 Route::get('/products/statistics', [\App\Http\Controllers\Api\Admin\PlanProductController::class, 'statistics']);
                 Route::put('/products/{product}', [\App\Http\Controllers\Api\Admin\PlanProductController::class, 'update']);
                 Route::delete('/products/{product}', [\App\Http\Controllers\Api\Admin\PlanProductController::class, 'destroy']);
+            });
+
+            // Offer Campaign Management (NEW: Campaign Integration)
+            Route::prefix('offers/{offer}')->middleware('permission:settings.manage_cms')->group(function () {
+                // Offer-Product Campaigns
+                Route::get('/products', [OfferCampaignController::class, 'getProducts']);
+                Route::post('/products', [OfferCampaignController::class, 'assignProducts']);
+                Route::delete('/products/{product}', [OfferCampaignController::class, 'removeProduct']);
+
+                // Offer-Deal Campaigns
+                Route::get('/deals', [OfferCampaignController::class, 'getDeals']);
+                Route::post('/deals', [OfferCampaignController::class, 'assignDeals']);
+                Route::delete('/deals/{deal}', [OfferCampaignController::class, 'removeDeal']);
+
+                // Offer-Plan Campaigns
+                Route::get('/plans', [OfferCampaignController::class, 'getPlans']);
+                Route::post('/plans', [OfferCampaignController::class, 'assignPlans']);
+                Route::delete('/plans/{plan}', [OfferCampaignController::class, 'removePlan']);
+
+                // Campaign Performance
+                Route::get('/statistics', [OfferCampaignController::class, 'statistics']);
             });
 
             Route::apiResource('/products', ProductController::class)->middleware('permission:products.edit');

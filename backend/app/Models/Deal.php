@@ -85,6 +85,33 @@ class Deal extends Model
         return $this->hasMany(Investment::class);
     }
 
+    /**
+     * Offers (campaigns) applicable to this deal.
+     */
+    public function offers()
+    {
+        return $this->belongsToMany(Offer::class, 'offer_deals')
+                    ->withPivot([
+                        'custom_discount_percent',
+                        'custom_discount_amount',
+                        'min_investment_override',
+                        'is_featured',
+                        'priority'
+                    ])
+                    ->withTimestamps()
+                    ->orderByPivot('priority', 'desc');
+    }
+
+    /**
+     * Get active offers for this deal.
+     */
+    public function getActiveOffers()
+    {
+        return $this->offers()
+                    ->active()
+                    ->get();
+    }
+
     public function scopeLive($query)
     {
         return $query->where('deal_type', 'live')
