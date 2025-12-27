@@ -18,7 +18,7 @@ class CompanyDealController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
-        $deals = Deal::where('company_name', $company->name)
+        $deals = Deal::where('company_id', $company->id)
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -67,7 +67,7 @@ class CompanyDealController extends Controller
 
         try {
             $deal = Deal::create([
-                'company_name' => $company->name,
+                'company_id' => $company->id,
                 'title' => $request->title,
                 'slug' => Str::slug($request->title),
                 'description' => $request->description,
@@ -109,7 +109,7 @@ class CompanyDealController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
-        $deal = Deal::where('company_name', $company->name)
+        $deal = Deal::where('company_id', $company->id)
             ->where('id', $id)
             ->first();
 
@@ -134,7 +134,7 @@ class CompanyDealController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
-        $deal = Deal::where('company_name', $company->name)
+        $deal = Deal::where('company_id', $company->id)
             ->where('id', $id)
             ->first();
 
@@ -207,7 +207,7 @@ class CompanyDealController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
-        $deal = Deal::where('company_name', $company->name)
+        $deal = Deal::where('company_id', $company->id)
             ->where('id', $id)
             ->first();
 
@@ -243,10 +243,10 @@ class CompanyDealController extends Controller
         $company = $companyUser->company;
 
         $stats = [
-            'total_deals' => Deal::where('company_name', $company->name)->count(),
-            'live_deals' => Deal::where('company_name', $company->name)->live()->count(),
-            'upcoming_deals' => Deal::where('company_name', $company->name)->upcoming()->count(),
-            'draft_deals' => Deal::where('company_name', $company->name)->where('status', 'draft')->count(),
+            'total_deals' => Deal::where('company_id', $company->id)->count(),
+            'live_deals' => Deal::where('company_id', $company->id)->live()->count(),
+            'upcoming_deals' => Deal::where('company_id', $company->id)->upcoming()->count(),
+            'draft_deals' => Deal::where('company_id', $company->id)->where('status', 'draft')->count(),
         ];
 
         return response()->json([

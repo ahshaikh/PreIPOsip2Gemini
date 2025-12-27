@@ -47,7 +47,7 @@ class CompanyProfileController extends Controller
         CompanyAnalytics::incrementMetric($company->id, 'profile_views');
 
         // Get deals for this company
-        $deals = \App\Models\Deal::where('company_name', $company->name)
+        $deals = \App\Models\Deal::where('company_id', $company->id)
             ->where('status', 'active')
             ->get();
 

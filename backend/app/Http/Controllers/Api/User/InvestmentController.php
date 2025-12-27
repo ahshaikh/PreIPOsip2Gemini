@@ -245,7 +245,7 @@ class InvestmentController extends Controller
                 'user_id' => $user->id,
                 'subscription_id' => $subscription->id,
                 'deal_id' => $deal->id,
-                'company_id' => $deal->product->company_id ?? null,
+                'company_id' => $deal->company_id, // Deal now has company_id FK
                 'investment_code' => 'INV-' . strtoupper(uniqid()),
                 'shares_allocated' => $validated['shares_allocated'],
                 'price_per_share' => $deal->share_price,
