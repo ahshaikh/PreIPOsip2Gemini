@@ -82,6 +82,47 @@ class Plan extends Model
         return $this->hasMany(Subscription::class);
     }
 
+    /**
+     * Products available to this plan (many-to-many).
+     * Pivot includes: discount_percentage, min/max_investment_override, is_featured, priority
+     */
+    public function products()
+    {
+        return $this->belongsToMany(Product::class, 'plan_products')
+                    ->withPivot([
+                        'discount_percentage',
+                        'min_investment_override',
+                        'max_investment_override',
+                        'is_featured',
+                        'priority'
+                    ])
+                    ->withTimestamps()
+                    ->orderByPivot('priority', 'desc');
+    }
+
+    /**
+     * Check if user with this plan can access a product.
+     */
+    public function canAccessProduct(Product $product): bool
+    {
+        // If product is available to all plans
+        if ($product->eligibility_mode === 'all_plans') {
+            return true;
+        }
+
+        // Check if product is explicitly assigned to this plan
+        return $this->products()->where('product_id', $product->id)->exists();
+    }
+
+    /**
+     * Get effective discount for a product (plan discount + product discount).
+     */
+    public function getProductDiscount(Product $product): float
+    {
+        $pivot = $this->products()->where('product_id', $product->id)->first()?->pivot;
+        return $pivot ? (float) $pivot->discount_percentage : 0;
+    }
+
     // --- SCOPES ---
 
     public function scopeActive(Builder $query): void

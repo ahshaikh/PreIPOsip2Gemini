@@ -26,6 +26,7 @@ class Product extends Model
         'min_investment',
         'expected_ipo_date',
         'status',
+        'eligibility_mode', // Plan eligibility control
         'is_featured',
         'display_order',
         'description',
@@ -70,6 +71,34 @@ class Product extends Model
     public function fundingRounds(): HasMany { return $this->hasMany(ProductFundingRound::class)->orderBy('date'); }
     public function keyMetrics(): HasMany { return $this->hasMany(ProductKeyMetric::class); }
     public function riskDisclosures(): HasMany { return $this->hasMany(ProductRiskDisclosure::class)->orderBy('display_order'); }
+
+    /**
+     * Plans that can access this product (many-to-many).
+     */
+    public function plans()
+    {
+        return $this->belongsToMany(Plan::class, 'plan_products')
+                    ->withPivot([
+                        'discount_percentage',
+                        'min_investment_override',
+                        'max_investment_override',
+                        'is_featured',
+                        'priority'
+                    ])
+                    ->withTimestamps();
+    }
+
+    /**
+     * Check if a plan can access this product.
+     */
+    public function isAccessibleByPlan(Plan $plan): bool
+    {
+        if ($this->eligibility_mode === 'all_plans') {
+            return true;
+        }
+
+        return $this->plans()->where('plan_id', $plan->id)->exists();
+    }
     
     // --- ACCESSORS ---
     protected function totalAllocated(): Attribute

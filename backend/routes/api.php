@@ -580,6 +580,17 @@ Route::prefix('v1')->group(function () {
             // Business Management
             Route::get('/plans/stats', [PlanController::class, 'stats'])->middleware('permission:plans.edit');
             Route::apiResource('/plans', PlanController::class)->middleware('permission:plans.edit');
+
+            // Plan-Product Relationships (NEW: Plan eligibility management)
+            Route::prefix('plans/{plan}')->middleware('permission:plans.edit')->group(function () {
+                Route::get('/products', [\App\Http\Controllers\Api\Admin\PlanProductController::class, 'index']);
+                Route::post('/products', [\App\Http\Controllers\Api\Admin\PlanProductController::class, 'store']);
+                Route::post('/products/bulk', [\App\Http\Controllers\Api\Admin\PlanProductController::class, 'bulkAssign']);
+                Route::get('/products/statistics', [\App\Http\Controllers\Api\Admin\PlanProductController::class, 'statistics']);
+                Route::put('/products/{product}', [\App\Http\Controllers\Api\Admin\PlanProductController::class, 'update']);
+                Route::delete('/products/{product}', [\App\Http\Controllers\Api\Admin\PlanProductController::class, 'destroy']);
+            });
+
             Route::apiResource('/products', ProductController::class)->middleware('permission:products.edit');
 
             // Bulk Purchase Management (V-BULK-PURCHASE-ENHANCEMENT-005)
