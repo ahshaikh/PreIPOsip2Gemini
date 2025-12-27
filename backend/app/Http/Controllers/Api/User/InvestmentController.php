@@ -132,7 +132,9 @@ class InvestmentController extends Controller
             'deal_id' => 'required|exists:deals,id',
             'subscription_id' => 'required|exists:subscriptions,id',
             'shares_allocated' => 'required|integer|min:1',
-            'campaign_code' => 'nullable|string', // Optional campaign code
+            'campaign_code' => 'nullable|string',
+            'campaign_terms_accepted' => 'nullable|boolean',
+            'campaign_disclaimer_acknowledged' => 'nullable|boolean',
         ]);
 
         $user = $request->user();
@@ -258,7 +260,9 @@ class InvestmentController extends Controller
                     $campaign,
                     $user,
                     $investment,
-                    $totalAmount
+                    $totalAmount,
+                    $validated['campaign_terms_accepted'] ?? false,
+                    $validated['campaign_disclaimer_acknowledged'] ?? false
                 );
 
                 if (!$campaignResult['success']) {

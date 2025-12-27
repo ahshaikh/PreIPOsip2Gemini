@@ -66,6 +66,9 @@ export default function OfferDetailPage() {
     const termsElement = document.getElementById('terms-section');
     if (termsElement) {
       termsElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      // Fallback: scroll to bottom where terms/how-to-use info would be
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     }
   };
 
