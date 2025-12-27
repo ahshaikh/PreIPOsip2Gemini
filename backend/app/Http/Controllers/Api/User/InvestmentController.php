@@ -241,6 +241,7 @@ class InvestmentController extends Controller
             );
 
             // 2. Create investment record
+            // [P2.2 FIX]: Set status to 'pending', allocation happens async
             $investment = Investment::create([
                 'user_id' => $user->id,
                 'subscription_id' => $subscription->id,
@@ -250,7 +251,8 @@ class InvestmentController extends Controller
                 'shares_allocated' => $validated['shares_allocated'],
                 'price_per_share' => $deal->share_price,
                 'total_amount' => $totalAmount, // Original amount before discount
-                'status' => 'active',
+                'status' => 'pending', // [P2.2 FIX]: Pending until allocation completes
+                'allocation_status' => 'pending', // [P2.2 FIX]: Track async allocation
                 'invested_at' => now(),
             ]);
 
@@ -275,17 +277,11 @@ class InvestmentController extends Controller
                 }
             }
 
-            // 4. Allocate shares (creates UserInvestment records)
-            // Note: We pass a dummy payment for allocation tracking
-            // In the future, this should link to the actual payment that funded the wallet
-            $dummyPayment = new Payment([
-                'id' => null,
-                'user_id' => $user->id,
-                'amount' => $totalAmount,
-            ]);
-            $this->allocationService->allocateShares($dummyPayment, $totalAmount);
-
             DB::commit();
+
+            // [P2.2 FIX]: Dispatch allocation job (async, outside transaction)
+            // WHY: Prevents database locks, enables horizontal scaling, instant HTTP response
+            \App\Jobs\ProcessAllocationJob::dispatch($investment);
 
             Log::info("Investment created", [
                 'user_id' => $user->id,
@@ -297,10 +293,12 @@ class InvestmentController extends Controller
                 'campaign_code' => $campaign?->code,
             ]);
 
+            // [P2.2 FIX]: Inform user that allocation is processing in background
             $responseData = [
                 'success' => true,
-                'message' => 'Investment created successfully.',
+                'message' => 'Investment created successfully. Share allocation in progress...',
                 'investment' => $investment->load(['deal', 'company']),
+                'allocation_status' => 'pending', // [P2.2]: Indicates async processing
                 'original_amount' => $totalAmount,
                 'final_amount' => $finalAmount,
             ];

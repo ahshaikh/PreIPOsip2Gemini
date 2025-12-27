@@ -29,14 +29,16 @@ class TdsCalculationService
     private const VALID_TYPES = ['bonus', 'referral', 'withdrawal', 'profit_share'];
 
     /**
-     * Calculate TDS for a given amount and transaction type.
+     * [PROTOCOL 1 FIX]: Calculate TDS and return TdsResult value object.
+     *
+     * WHY: TdsResult can ONLY be created by this service, making bypass impossible.
      *
      * @param float $grossAmount The amount before TDS deduction
      * @param string $type Transaction type (bonus|referral|withdrawal|profit_share)
-     * @return array ['gross' => float, 'tds' => float, 'net' => float, 'rate' => float]
+     * @return TdsResult Immutable value object with TDS calculation
      * @throws InvalidArgumentException if type is invalid
      */
-    public function calculate(float $grossAmount, string $type): array
+    public function calculate(float $grossAmount, string $type): TdsResult
     {
         // Validate transaction type
         if (!in_array($type, self::VALID_TYPES)) {
@@ -51,14 +53,15 @@ class TdsCalculationService
         // Check exemption threshold
         $threshold = config("tds.exemption_threshold.{$type}", 0);
         if ($grossAmount <= $threshold) {
-            return [
-                'gross' => $grossAmount,
-                'tds' => 0.0,
-                'net' => $grossAmount,
-                'rate' => 0.0,
-                'exempt' => true,
-                'reason' => "Amount below exemption threshold (₹{$threshold})"
-            ];
+            return TdsResult::create(
+                grossAmount: $grossAmount,
+                tdsAmount: 0.0,
+                netAmount: $grossAmount,
+                rateApplied: 0.0,
+                transactionType: $type,
+                isExempt: true,
+                exemptReason: "Amount below exemption threshold (₹{$threshold})"
+            );
         }
 
         // Calculate TDS
@@ -68,13 +71,14 @@ class TdsCalculationService
         $tdsAmount = $this->applyRounding($tdsAmount);
         $netAmount = $this->applyRounding($grossAmount - $tdsAmount);
 
-        return [
-            'gross' => $grossAmount,
-            'tds' => $tdsAmount,
-            'net' => $netAmount,
-            'rate' => $rate,
-            'exempt' => false,
-        ];
+        return TdsResult::create(
+            grossAmount: $grossAmount,
+            tdsAmount: $tdsAmount,
+            netAmount: $netAmount,
+            rateApplied: $rate,
+            transactionType: $type,
+            isExempt: false
+        );
     }
 
     /**

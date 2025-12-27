@@ -91,15 +91,22 @@ class DealController extends Controller
             ->whereIn('status', ['active', 'pending'])
             ->first();
 
-        // Get user's active subscriptions for investment
+        // [P2.1 FIX]: Eliminate N+1 query - Eager load userInvestments sum
         $activeSubscriptions = $user->subscriptions()
             ->whereIn('status', ['active', 'paused'])
             ->with('plan')
+            ->withSum([
+                'userInvestments as total_invested' => function ($query) {
+                    $query->where('is_reversed', false);
+                }
+            ], 'value_allocated')
             ->get();
 
-        // Add available balance to each subscription
+        // [P2.1 FIX]: Calculate available balance using eager-loaded data (avoids N+1)
         foreach ($activeSubscriptions as $subscription) {
-            $subscription->available_balance = $subscription->availableBalance;
+            $totalValue = ($subscription->amount ?? $subscription->plan->monthly_amount)
+                * ($subscription->plan->duration_months ?? 12);
+            $subscription->available_balance = max(0, $totalValue - ($subscription->total_invested ?? 0));
         }
 
         return response()->json([

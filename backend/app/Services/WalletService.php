@@ -71,6 +71,58 @@ class WalletService
     }
 
     /**
+     * [PROTOCOL 1 FIX]: Deposit taxable funds with TDS enforcement.
+     *
+     * WHY: Makes TDS bypass STRUCTURALLY IMPOSSIBLE.
+     * - Cannot pass raw amount (must use TdsResult from TdsCalculationService)
+     * - TdsResult has private constructor (only service can create it)
+     * - Wallet ledger automatically includes TDS metadata
+     *
+     * BEFORE (BYPASSABLE):
+     * ```php
+     * $net = $gross * 0.9; // ❌ Hardcoded TDS
+     * $walletService->deposit($user, $net, ...);
+     * ```
+     *
+     * AFTER (ENFORCED):
+     * ```php
+     * $tdsResult = $tdsService->calculate($gross, 'bonus'); // ✓ TDS required
+     * $walletService->depositTaxable($user, $tdsResult, ...);
+     * ```
+     *
+     * @param User $user
+     * @param TdsResult $tdsResult TDS calculation result (CANNOT be created manually)
+     * @param TransactionType|string $type Transaction type
+     * @param string $baseDescription Base description (TDS info appended automatically)
+     * @param Model|null $reference
+     * @return Transaction
+     */
+    public function depositTaxable(
+        User $user,
+        TdsResult $tdsResult,
+        TransactionType|string $type,
+        string $baseDescription = '',
+        ?Model $reference = null
+    ): Transaction {
+        // Convert string to TransactionType enum if needed
+        if (is_string($type)) {
+            $type = TransactionType::from($type);
+        }
+
+        // Automatically append TDS information to description
+        $description = $tdsResult->getDescription($baseDescription);
+
+        // Use the internal deposit() method with net amount
+        return $this->deposit(
+            user: $user,
+            amount: $tdsResult->netAmount, // Credit net amount only
+            type: $type,
+            description: $description,
+            reference: $reference
+        );
+    }
+
+    /**
      * Safely withdraw funds from a user's wallet.
      * [AUDIT FIX]: Added $allowOverdraft parameter to support Admin corrections/recoveries.
      * [BACKWARD COMPATIBLE]: Accepts both float (Rupees) and int (Paise) amounts
