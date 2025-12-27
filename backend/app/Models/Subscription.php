@@ -85,7 +85,19 @@ class Subscription extends Model
     // --- ACCESSORS ---
 
     /**
+     * [P2.1 WARNING]: N+1 Query Risk - Use eager loading instead.
+     *
      * Calculate total months completed based on paid payments.
+     *
+     * @deprecated Use eager loading in controllers to avoid N+1 queries:
+     * ```php
+     * Subscription::withCount(['payments as months_completed' => function($q) {
+     *     $q->where('status', 'paid');
+     * }])->get();
+     * ```
+     *
+     * WHY: Calling this accessor in a loop triggers a COUNT query for each subscription.
+     * Example: 10 subscriptions = 10 queries instead of 1.
      */
     protected function monthsCompleted(): Attribute
     {
@@ -95,7 +107,18 @@ class Subscription extends Model
     }
 
     /**
+     * [P2.1 WARNING]: N+1 Query Risk - Use eager loading instead.
+     *
      * Calculate total amount paid by user.
+     *
+     * @deprecated Use eager loading in controllers to avoid N+1 queries:
+     * ```php
+     * Subscription::withSum(['payments as total_paid' => function($q) {
+     *     $q->where('status', 'paid');
+     * }], 'amount')->get();
+     * ```
+     *
+     * WHY: Calling this accessor in a loop triggers a SUM query for each subscription.
      */
     protected function totalPaid(): Attribute
     {
@@ -105,8 +128,22 @@ class Subscription extends Model
     }
 
     /**
+     * [P2.1 WARNING]: N+1 Query Risk - Use eager loading instead.
+     *
      * Calculate total amount invested from this subscription.
      * [P0.1 FIX]: Now queries UserInvestment (actual allocations) instead of Investment (deal tracking)
+     *
+     * @deprecated Use eager loading in controllers to avoid N+1 queries:
+     * ```php
+     * Subscription::withSum(['userInvestments as total_invested' => function($q) {
+     *     $q->where('is_reversed', false);
+     * }], 'value_allocated')->get();
+     * ```
+     *
+     * WHY: Calling this accessor in a loop triggers a SUM query on userInvestments for each subscription.
+     * Example: 10 subscriptions = 10 queries instead of 1.
+     *
+     * FIXED IN: DealController.php:94-103 (uses eager loading)
      */
     protected function totalInvested(): Attribute
     {
@@ -116,7 +153,29 @@ class Subscription extends Model
     }
 
     /**
+     * [P2.1 WARNING]: N+1 Query Risk - Use eager loading instead.
+     *
      * Calculate available balance for new investments.
+     *
+     * @deprecated Use eager loading + manual calculation in controllers to avoid N+1 queries:
+     * ```php
+     * $subscriptions = Subscription::with('plan')
+     *     ->withSum(['userInvestments as total_invested' => function($q) {
+     *         $q->where('is_reversed', false);
+     *     }], 'value_allocated')
+     *     ->get();
+     *
+     * foreach ($subscriptions as $subscription) {
+     *     $totalValue = ($subscription->amount ?? $subscription->plan->monthly_amount)
+     *         * ($subscription->plan->duration_months ?? 12);
+     *     $subscription->available_balance = max(0, $totalValue - ($subscription->total_invested ?? 0));
+     * }
+     * ```
+     *
+     * WHY: This accessor calls $this->total_invested, which triggers a SUM query for each subscription.
+     * Example: 10 subscriptions = 10 queries instead of 1.
+     *
+     * FIXED IN: DealController.php:94-110 (uses eager loading + manual calculation)
      */
     protected function availableBalance(): Attribute
     {
