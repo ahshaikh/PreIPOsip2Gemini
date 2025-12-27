@@ -10,9 +10,14 @@ use App\Notifications\BonusCredited;
 use Illuminate\Support\Facades\Log;
 // FIX: Import WalletService
 use App\Services\WalletService;
+// [P1.3 FIX]: Import TDS service for centralized tax calculations
+use App\Services\TdsCalculationService;
 
 /**
  * BonusCalculatorService
+ *
+ * [P1.1 FIX]: This is the CANONICAL production bonus calculator.
+ * Do NOT confuse with App\Services\Bonuses\BonusSimulatorService (renamed from duplicate class name).
  *
  * This service handles the calculation and awarding of all bonus types in the platform.
  * It supports 7 different bonus types:
@@ -49,11 +54,13 @@ class BonusCalculatorService
     private const MAX_MULTIPLIER_CAP = 10.0;
 
     protected $walletService;
+    protected $tdsService; // [P1.3 FIX]: TDS calculation service
 
-    // FIX: Inject WalletService
-    public function __construct(WalletService $walletService)
+    // FIX: Inject WalletService and TdsCalculationService
+    public function __construct(WalletService $walletService, TdsCalculationService $tdsService)
     {
         $this->walletService = $walletService;
+        $this->tdsService = $tdsService;
     }
 
     /**
@@ -468,13 +475,10 @@ class BonusCalculatorService
         // Apply rounding to referral bonus before creating transaction
         $referralBonusAmount = $this->applyRounding($referralBonusAmount);
 
-        // V-AUDIT-MODULE8-001: Calculate TDS for referral bonus as well
-        $tdsPercentage = (float) setting('bonus_tds_percentage', 10.0);
-        $tdsAmount = ($tdsPercentage / 100) * $referralBonusAmount;
-        $netAmount = $referralBonusAmount - $tdsAmount;
-
-        $tdsAmount = $this->applyRounding($tdsAmount);
-        $netAmount = $this->applyRounding($netAmount);
+        // [P1.3 FIX]: Use TdsCalculationService instead of hardcoded calculation
+        $tdsCalculation = $this->tdsService->calculate($referralBonusAmount, 'referral');
+        $tdsAmount = $tdsCalculation['tds'];
+        $netAmount = $tdsCalculation['net'];
 
         // Create bonus transaction for referrer
         $bonusTxn = \App\Models\BonusTransaction::create([
@@ -526,14 +530,10 @@ class BonusCalculatorService
      */
     private function createBonusTransaction(Payment $payment, string $type, float $amount, float $multiplier, string $description): void
     {
-        // V-AUDIT-MODULE8-001: Calculate TDS for tax compliance
-        $tdsPercentage = (float) setting('bonus_tds_percentage', 10.0); // Default 10% TDS
-        $tdsAmount = ($tdsPercentage / 100) * $amount;
-        $netAmount = $amount - $tdsAmount;
-
-        // Apply rounding to TDS and net amount
-        $tdsAmount = $this->applyRounding($tdsAmount);
-        $netAmount = $this->applyRounding($netAmount);
+        // [P1.3 FIX]: Use TdsCalculationService instead of hardcoded calculation
+        $tdsCalculation = $this->tdsService->calculate($amount, 'bonus');
+        $tdsAmount = $tdsCalculation['tds'];
+        $netAmount = $tdsCalculation['net'];
 
         $bonusTxn = BonusTransaction::create([
             'user_id' => $payment->user_id,
