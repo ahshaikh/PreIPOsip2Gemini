@@ -102,6 +102,12 @@ class Deal extends Model
                     ->where('status', 'active');
     }
 
+    public function scopeUpcoming($query)
+    {
+        return $query->where('deal_type', 'upcoming')
+                    ->where('status', 'active');
+    }
+
     // --- ACCESSORS ---
 
     /**
