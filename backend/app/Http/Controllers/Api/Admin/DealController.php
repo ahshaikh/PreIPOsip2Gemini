@@ -15,7 +15,7 @@ class DealController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Deal::query()->with('product');
+        $query = Deal::query()->with(['product', 'company']);
 
         // Filter by deal type
         if ($request->filled('deal_type')) {
@@ -37,8 +37,10 @@ class DealController extends Controller
             $search = $request->search;
             $query->where(function($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('company_name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                  ->orWhere('description', 'like', "%{$search}%")
+                  ->orWhereHas('company', function($cq) use ($search) {
+                      $cq->where('name', 'like', "%{$search}%");
+                  });
             });
         }
 
@@ -59,17 +61,15 @@ class DealController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
-            'company_name' => 'required|string|max:255',
+            'company_id' => 'required|exists:companies,id',
+            'product_id' => 'required|exists:products,id',
             'sector' => 'required|string|max:255',
             'deal_type' => 'required|in:live,upcoming,closed',
             'description' => 'nullable|string',
-            'company_logo' => 'nullable|string',
             'min_investment' => 'nullable|numeric|min:0',
             'max_investment' => 'nullable|numeric|min:0',
             'valuation' => 'nullable|numeric|min:0',
-            'share_price' => 'nullable|numeric|min:0',
-            'total_shares' => 'nullable|integer|min:0',
-            'available_shares' => 'nullable|integer|min:0',
+            'share_price' => 'required|numeric|min:0',
             'deal_opens_at' => 'nullable|date',
             'deal_closes_at' => 'nullable|date|after:deal_opens_at',
             'highlights' => 'nullable|array',
@@ -91,11 +91,30 @@ class DealController extends Controller
             $data['days_remaining'] = now()->diffInDays($data['deal_closes_at'], false);
         }
 
+        // Validate inventory exists for this product
+        $product = \App\Models\Product::findOrFail($data['product_id']);
+        $availableInventory = $product->bulkPurchases()->sum('value_remaining');
+
+        if ($availableInventory <= 0) {
+            return response()->json([
+                'errors' => ['product_id' => ['No inventory available for this product. Create BulkPurchase first.']]
+            ], 422);
+        }
+
         $deal = Deal::create($data);
+        $deal->load(['product', 'company']);
+
+        // Append calculated inventory for response
+        $deal->calculated_total_shares = $deal->total_shares;
+        $deal->calculated_available_shares = $deal->available_shares;
 
         return response()->json([
             'message' => 'Deal created successfully',
-            'deal' => $deal
+            'deal' => $deal,
+            'inventory_info' => [
+                'available_value' => $availableInventory,
+                'available_shares' => floor($availableInventory / $data['share_price'])
+            ]
         ], 201);
     }
 
@@ -104,7 +123,7 @@ class DealController extends Controller
      */
     public function show($id)
     {
-        $deal = Deal::with('product')->findOrFail($id);
+        $deal = Deal::with(['product', 'company'])->findOrFail($id);
         return response()->json($deal);
     }
 
@@ -117,17 +136,15 @@ class DealController extends Controller
 
         $validator = Validator::make($request->all(), [
             'title' => 'sometimes|required|string|max:255',
-            'company_name' => 'sometimes|required|string|max:255',
+            'company_id' => 'sometimes|required|exists:companies,id',
+            'product_id' => 'sometimes|required|exists:products,id',
             'sector' => 'sometimes|required|string|max:255',
             'deal_type' => 'sometimes|required|in:live,upcoming,closed',
             'description' => 'nullable|string',
-            'company_logo' => 'nullable|string',
             'min_investment' => 'nullable|numeric|min:0',
             'max_investment' => 'nullable|numeric|min:0',
             'valuation' => 'nullable|numeric|min:0',
-            'share_price' => 'nullable|numeric|min:0',
-            'total_shares' => 'nullable|integer|min:0',
-            'available_shares' => 'nullable|integer|min:0',
+            'share_price' => 'sometimes|required|numeric|min:0',
             'deal_opens_at' => 'nullable|date',
             'deal_closes_at' => 'nullable|date',
             'highlights' => 'nullable|array',

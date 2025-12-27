@@ -86,6 +86,10 @@ use App\Http\Controllers\Api\Admin\CompanyController;
 use App\Http\Controllers\Api\Admin\TutorialController;
 use App\Http\Controllers\Api\Admin\ContentReportController;
 use App\Http\Controllers\Api\Admin\CompanyUserController;
+use App\Http\Controllers\Api\Admin\AdminShareListingController;
+use App\Http\Controllers\Api\Admin\PlanProductController;
+use App\Http\Controllers\Api\Admin\OfferCampaignController;
+use App\Http\Controllers\Api\Admin\UnifiedDashboardController;
 
 // Company User Controllers
 use App\Http\Controllers\Api\Company\AuthController as CompanyAuthController;
@@ -101,6 +105,7 @@ use App\Http\Controllers\Api\Company\InvestorInterestController;
 use App\Http\Controllers\Api\Company\CompanyQnaController;
 use App\Http\Controllers\Api\Company\CompanyWebinarController;
 use App\Http\Controllers\Api\Company\OnboardingWizardController;
+use App\Http\Controllers\Api\Company\ShareListingController;
 
 // Public Company Controllers
 use App\Http\Controllers\Api\Public\CompanyProfileController as PublicCompanyProfileController;
@@ -397,6 +402,12 @@ Route::prefix('v1')->group(function () {
             
             Route::get('/dashboard', [AdminDashboardController::class, 'index']);
 
+            // Unified Dashboard (NEW: Comprehensive module consolidation)
+            Route::prefix('dashboard')->group(function () {
+                Route::get('/overview', [UnifiedDashboardController::class, 'overview']);
+                Route::get('/workflows', [UnifiedDashboardController::class, 'workflowSuggestions']);
+            });
+
             // -------------------------------------------------------------
             // ADMIN REPORTS & ANALYTICS
             // -------------------------------------------------------------
@@ -580,6 +591,38 @@ Route::prefix('v1')->group(function () {
             // Business Management
             Route::get('/plans/stats', [PlanController::class, 'stats'])->middleware('permission:plans.edit');
             Route::apiResource('/plans', PlanController::class)->middleware('permission:plans.edit');
+
+            // Plan-Product Relationships (NEW: Plan eligibility management)
+            Route::prefix('plans/{plan}')->middleware('permission:plans.edit')->group(function () {
+                Route::get('/products', [\App\Http\Controllers\Api\Admin\PlanProductController::class, 'index']);
+                Route::post('/products', [\App\Http\Controllers\Api\Admin\PlanProductController::class, 'store']);
+                Route::post('/products/bulk', [\App\Http\Controllers\Api\Admin\PlanProductController::class, 'bulkAssign']);
+                Route::get('/products/statistics', [\App\Http\Controllers\Api\Admin\PlanProductController::class, 'statistics']);
+                Route::put('/products/{product}', [\App\Http\Controllers\Api\Admin\PlanProductController::class, 'update']);
+                Route::delete('/products/{product}', [\App\Http\Controllers\Api\Admin\PlanProductController::class, 'destroy']);
+            });
+
+            // Offer Campaign Management (NEW: Campaign Integration)
+            Route::prefix('offers/{offer}')->middleware('permission:settings.manage_cms')->group(function () {
+                // Offer-Product Campaigns
+                Route::get('/products', [OfferCampaignController::class, 'getProducts']);
+                Route::post('/products', [OfferCampaignController::class, 'assignProducts']);
+                Route::delete('/products/{product}', [OfferCampaignController::class, 'removeProduct']);
+
+                // Offer-Deal Campaigns
+                Route::get('/deals', [OfferCampaignController::class, 'getDeals']);
+                Route::post('/deals', [OfferCampaignController::class, 'assignDeals']);
+                Route::delete('/deals/{deal}', [OfferCampaignController::class, 'removeDeal']);
+
+                // Offer-Plan Campaigns
+                Route::get('/plans', [OfferCampaignController::class, 'getPlans']);
+                Route::post('/plans', [OfferCampaignController::class, 'assignPlans']);
+                Route::delete('/plans/{plan}', [OfferCampaignController::class, 'removePlan']);
+
+                // Campaign Performance
+                Route::get('/statistics', [OfferCampaignController::class, 'statistics']);
+            });
+
             Route::apiResource('/products', ProductController::class)->middleware('permission:products.edit');
 
             // Bulk Purchase Management (V-BULK-PURCHASE-ENHANCEMENT-005)
@@ -800,6 +843,18 @@ Route::prefix('v1')->group(function () {
                 Route::delete('/{id}', [DealController::class, 'destroy'])->middleware('permission:products.delete');
             });
 
+            // Share Listings Review (Company Share Upload Workflow)
+            Route::prefix('share-listings')->middleware('permission:products.view')->group(function () {
+                Route::get('/', [AdminShareListingController::class, 'index']);
+                Route::get('/statistics', [AdminShareListingController::class, 'statistics']);
+                Route::get('/{id}', [AdminShareListingController::class, 'show']);
+                Route::post('/{id}/review', [AdminShareListingController::class, 'startReview'])->middleware('permission:products.edit');
+                Route::post('/{id}/approve', [AdminShareListingController::class, 'approve'])->middleware('permission:products.edit');
+                Route::post('/{id}/reject', [AdminShareListingController::class, 'reject'])->middleware('permission:products.edit');
+                Route::post('/{id}/create-deal', [AdminShareListingController::class, 'createDealFromListing'])->middleware('permission:products.create');
+                Route::post('/bulk-update', [AdminShareListingController::class, 'bulkUpdate'])->middleware('permission:products.edit');
+            });
+
             // Companies Directory
             Route::apiResource('/companies', CompanyController::class)->middleware('permission:products.view');
 
@@ -1018,6 +1073,16 @@ Route::prefix('v1')->group(function () {
                     Route::get('/{id}', [CompanyDealController::class, 'show']);
                     Route::put('/{id}', [CompanyDealController::class, 'update']);
                     Route::delete('/{id}', [CompanyDealController::class, 'destroy']);
+                });
+
+                // Company Share Listings (Self-Service Share Upload)
+                Route::prefix('share-listings')->group(function () {
+                    Route::get('/', [ShareListingController::class, 'index']);
+                    Route::post('/', [ShareListingController::class, 'store']);
+                    Route::get('/statistics', [ShareListingController::class, 'statistics']);
+                    Route::get('/{id}', [ShareListingController::class, 'show']);
+                    Route::put('/{id}', [ShareListingController::class, 'update']);
+                    Route::post('/{id}/withdraw', [ShareListingController::class, 'withdraw']);
                 });
 
                 // Analytics Dashboard

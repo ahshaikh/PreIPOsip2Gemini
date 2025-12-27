@@ -18,13 +18,19 @@ class AuditLog extends Model
     public const UPDATED_AT = null;
 
     protected $fillable = [
-        'admin_id', 'action', 'module', 'target_type', 'target_id',
-        'old_values', 'new_values', 'description', 'ip_address', 'user_agent'
+        'admin_id', 'actor_type', 'actor_id', 'actor_name', 'actor_email',
+        'action', 'module', 'target_type', 'target_id', 'target_name',
+        'old_values', 'new_values', 'description', 'ip_address', 'user_agent',
+        'request_method', 'request_url', 'session_id',
+        'risk_level', 'requires_review', 'metadata'
     ];
 
     protected $casts = [
         'old_values' => 'array',
         'new_values' => 'array',
+        'metadata' => 'array',
+        'requires_review' => 'boolean',
+        'created_at' => 'datetime',
     ];
 
     /**
@@ -63,5 +69,95 @@ class AuditLog extends Model
     public function prunable()
     {
         return static::where('created_at', '<=', now()->subDays(setting('audit_log_retention', 730)));
+    }
+
+    // --- SCOPES ---
+
+    public function scopeByActor($query, string $actorType, int $actorId)
+    {
+        return $query->where('actor_type', $actorType)
+                     ->where('actor_id', $actorId);
+    }
+
+    public function scopeByModule($query, string $module)
+    {
+        return $query->where('module', $module);
+    }
+
+    public function scopeByAction($query, string $action)
+    {
+        return $query->where('action', $action);
+    }
+
+    public function scopeHighRisk($query)
+    {
+        return $query->whereIn('risk_level', ['high', 'critical']);
+    }
+
+    public function scopeRequiringReview($query)
+    {
+        return $query->where('requires_review', true);
+    }
+
+    public function scopeToday($query)
+    {
+        return $query->whereDate('created_at', today());
+    }
+
+    public function scopeLastDays($query, int $days)
+    {
+        return $query->where('created_at', '>=', now()->subDays($days));
+    }
+
+    // --- HELPERS ---
+
+    /**
+     * Get changes summary (what fields changed).
+     */
+    public function getChangesSummary(): array
+    {
+        if (!$this->old_values || !$this->new_values) {
+            return [];
+        }
+
+        $changes = [];
+        foreach ($this->new_values as $field => $newValue) {
+            $oldValue = $this->old_values[$field] ?? null;
+            if ($oldValue !== $newValue) {
+                $changes[$field] = [
+                    'old' => $oldValue,
+                    'new' => $newValue,
+                ];
+            }
+        }
+
+        return $changes;
+    }
+
+    /**
+     * Check if this log involves sensitive data.
+     */
+    public function involvesSensitiveData(): bool
+    {
+        $sensitiveModules = ['users', 'kyc', 'payments', 'subscriptions'];
+        return in_array($this->module, $sensitiveModules);
+    }
+
+    /**
+     * Get human-readable action description.
+     */
+    public function getActionLabelAttribute(): string
+    {
+        return match($this->action) {
+            'created' => 'Created',
+            'updated' => 'Updated',
+            'deleted' => 'Deleted',
+            'approved' => 'Approved',
+            'rejected' => 'Rejected',
+            'verified' => 'Verified',
+            'suspended' => 'Suspended',
+            'reactivated' => 'Reactivated',
+            default => ucwords(str_replace('_', ' ', $this->action)),
+        };
     }
 }

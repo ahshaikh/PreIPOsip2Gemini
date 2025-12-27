@@ -9,10 +9,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use App\Traits\HasDeletionProtection;
 
 class Plan extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasDeletionProtection;
 
     protected $fillable = [
         'name',
@@ -43,6 +44,17 @@ class Plan extends Model
         'available_from' => 'datetime',
         'available_until' => 'datetime',
         'metadata' => 'array',
+    ];
+
+    /**
+     * Deletion protection rules.
+     * Prevents deletion if plan has active dependencies.
+     */
+    protected $deletionProtectionRules = [
+        'subscriptions' => function ($plan) {
+            // Only count active or paused subscriptions
+            return $plan->subscriptions()->whereIn('status', ['active', 'paused'])->count();
+        },
     ];
 
     /**
@@ -80,6 +92,72 @@ class Plan extends Model
     public function subscriptions(): HasMany
     {
         return $this->hasMany(Subscription::class);
+    }
+
+    /**
+     * Products available to this plan (many-to-many).
+     * Pivot includes: discount_percentage, min/max_investment_override, is_featured, priority
+     */
+    public function products()
+    {
+        return $this->belongsToMany(Product::class, 'plan_products')
+                    ->withPivot([
+                        'discount_percentage',
+                        'min_investment_override',
+                        'max_investment_override',
+                        'is_featured',
+                        'priority'
+                    ])
+                    ->withTimestamps()
+                    ->orderByPivot('priority', 'desc');
+    }
+
+    /**
+     * Check if user with this plan can access a product.
+     */
+    public function canAccessProduct(Product $product): bool
+    {
+        // If product is available to all plans
+        if ($product->eligibility_mode === 'all_plans') {
+            return true;
+        }
+
+        // Check if product is explicitly assigned to this plan
+        return $this->products()->where('product_id', $product->id)->exists();
+    }
+
+    /**
+     * Get effective discount for a product (plan discount + product discount).
+     */
+    public function getProductDiscount(Product $product): float
+    {
+        $pivot = $this->products()->where('product_id', $product->id)->first()?->pivot;
+        return $pivot ? (float) $pivot->discount_percentage : 0;
+    }
+
+    /**
+     * Offers (campaigns) exclusive or available to this plan tier.
+     */
+    public function offers()
+    {
+        return $this->belongsToMany(Offer::class, 'offer_plans')
+                    ->withPivot([
+                        'additional_discount_percent',
+                        'is_exclusive',
+                        'priority'
+                    ])
+                    ->withTimestamps()
+                    ->orderByPivot('priority', 'desc');
+    }
+
+    /**
+     * Get active offers for this plan.
+     */
+    public function getActiveOffers()
+    {
+        return $this->offers()
+                    ->active()
+                    ->get();
     }
 
     // --- SCOPES ---

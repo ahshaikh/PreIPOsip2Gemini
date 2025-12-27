@@ -19,11 +19,10 @@ class Deal extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'product_id', 'title', 'slug', 'description', 'company_name',
-        'company_logo', 'sector', 'deal_type', 'min_investment',
+        'product_id', 'company_id', 'title', 'slug', 'description',
+        'sector', 'deal_type', 'min_investment',
         'max_investment', 'valuation', 'valuation_currency',
-        'share_price', 'total_shares', 'available_shares',
-        'deal_opens_at', 'deal_closes_at', 'days_remaining',
+        'share_price', 'deal_opens_at', 'deal_closes_at', 'days_remaining',
         'highlights', 'documents', 'video_url', 'status',
         'is_featured', 'sort_order',
     ];
@@ -71,6 +70,11 @@ class Deal extends Model
 
     // --- RELATIONSHIPS & SCOPES ---
 
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
+
     public function product()
     {
         return $this->belongsTo(Product::class);
@@ -79,6 +83,33 @@ class Deal extends Model
     public function investments()
     {
         return $this->hasMany(Investment::class);
+    }
+
+    /**
+     * Offers (campaigns) applicable to this deal.
+     */
+    public function offers()
+    {
+        return $this->belongsToMany(Offer::class, 'offer_deals')
+                    ->withPivot([
+                        'custom_discount_percent',
+                        'custom_discount_amount',
+                        'min_investment_override',
+                        'is_featured',
+                        'priority'
+                    ])
+                    ->withTimestamps()
+                    ->orderByPivot('priority', 'desc');
+    }
+
+    /**
+     * Get active offers for this deal.
+     */
+    public function getActiveOffers()
+    {
+        return $this->offers()
+                    ->active()
+                    ->get();
     }
 
     public function scopeLive($query)
@@ -98,18 +129,58 @@ class Deal extends Model
                     ->where('status', 'active');
     }
 
+    public function scopeUpcoming($query)
+    {
+        return $query->where('deal_type', 'upcoming')
+                    ->where('status', 'active');
+    }
+
     // --- ACCESSORS ---
 
     /**
-     * Calculate remaining shares available for investment
+     * Calculate total shares from BulkPurchase inventory.
+     * Single source of truth: BulkPurchase.total_value_received
+     */
+    public function getTotalSharesAttribute()
+    {
+        if (!$this->product_id || !$this->share_price || $this->share_price == 0) {
+            return 0;
+        }
+
+        $totalValue = $this->product->bulkPurchases()->sum('total_value_received');
+        return floor($totalValue / $this->share_price);
+    }
+
+    /**
+     * Calculate available shares from BulkPurchase inventory.
+     * Single source of truth: BulkPurchase.value_remaining
+     *
+     * WHY THIS CANNOT DIVERGE:
+     * - AllocationService (line 102) updates BulkPurchase.value_remaining
+     * - This accessor reads BulkPurchase.value_remaining directly
+     * - No stored field to become stale
+     * - Calculation happens at query time
+     */
+    public function getAvailableSharesAttribute()
+    {
+        if (!$this->product_id || !$this->share_price || $this->share_price == 0) {
+            return 0;
+        }
+
+        $availableValue = $this->product->bulkPurchases()->sum('value_remaining');
+        return floor($availableValue / $this->share_price);
+    }
+
+    /**
+     * Calculate remaining shares available for investment.
+     *
+     * CRITICAL: This is now an ALIAS to available_shares
+     * Previously it calculated from stored field + Investment allocations
+     * Now it reads directly from BulkPurchase (single source of truth)
      */
     public function getRemainingSharesAttribute()
     {
-        $allocated = $this->investments()
-            ->whereIn('status', ['active', 'pending'])
-            ->sum('shares_allocated');
-
-        return max(0, $this->available_shares - $allocated);
+        return $this->available_shares;
     }
 
     /**
