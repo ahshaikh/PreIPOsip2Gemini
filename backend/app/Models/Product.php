@@ -10,10 +10,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use App\Traits\HasDeletionProtection;
+use App\Traits\HasWorkflowActions;
 
 class Product extends Model
 {
-    use HasFactory, SoftDeletes, HasDeletionProtection;
+    use HasFactory, SoftDeletes, HasDeletionProtection, HasWorkflowActions;
 
     protected $fillable = [
         'name',
@@ -143,5 +144,107 @@ class Product extends Model
         return Attribute::make(
             get: fn () => $this->investments()->sum('value_allocated')
         );
+    }
+
+    // --- WORKFLOW ACTIONS ---
+
+    /**
+     * Get workflow actions for this product.
+     */
+    public function getWorkflowActions(): array
+    {
+        $hasInventory = $this->bulkPurchases()->where('value_remaining', '>', 0)->exists();
+        $hasDeals = $this->deals()->where('status', 'active')->exists();
+        $investmentCount = $this->investments()->count();
+
+        return [
+            [
+                'key' => 'add_inventory',
+                'label' => 'Add Inventory',
+                'action' => "/admin/bulk-purchases/create?product_id={$this->id}",
+                'type' => 'primary',
+                'icon' => 'shopping-cart',
+                'condition' => true,
+                'suggested' => !$hasInventory,
+                'description' => 'Purchase shares for this product',
+            ],
+            [
+                'key' => 'create_deal',
+                'label' => 'Create Deal',
+                'action' => "/admin/deals/create?product_id={$this->id}",
+                'type' => 'success',
+                'icon' => 'plus-circle',
+                'condition' => $hasInventory,
+                'suggested' => $hasInventory && !$hasDeals,
+                'description' => 'Launch investment deal for this product',
+            ],
+            [
+                'key' => 'link_plans',
+                'label' => 'Link to Plans',
+                'action' => "/admin/products/{$this->id}/plans",
+                'type' => 'secondary',
+                'icon' => 'link',
+                'condition' => true,
+                'suggested' => $this->eligibility_mode === 'all_plans',
+                'description' => 'Configure plan-based access',
+            ],
+            [
+                'key' => 'create_campaign',
+                'label' => 'Create Campaign',
+                'action' => "/admin/offers/create?product_id={$this->id}",
+                'type' => 'warning',
+                'icon' => 'tag',
+                'condition' => $hasDeals,
+                'suggested' => $investmentCount > 0 && !$this->offers()->active()->exists(),
+                'description' => 'Launch promotional campaign',
+            ],
+            [
+                'key' => 'view_analytics',
+                'label' => 'View Analytics',
+                'action' => "/admin/products/{$this->id}/analytics",
+                'type' => 'secondary',
+                'icon' => 'chart-bar',
+                'condition' => $investmentCount > 0,
+                'suggested' => false,
+                'description' => 'View performance metrics',
+            ],
+        ];
+    }
+
+    protected function getCurrentState(): string
+    {
+        $hasInventory = $this->bulkPurchases()->where('value_remaining', '>', 0)->exists();
+        $hasDeals = $this->deals()->where('status', 'active')->exists();
+
+        if (!$hasInventory) {
+            return 'no_inventory';
+        } elseif (!$hasDeals) {
+            return 'inventory_available';
+        } else {
+            return 'active_deals';
+        }
+    }
+
+    protected function getBlockingIssues(): array
+    {
+        $issues = [];
+
+        if (!$this->bulkPurchases()->exists()) {
+            $issues[] = [
+                'severity' => 'high',
+                'message' => 'No inventory available. Add bulk purchase first.',
+                'action' => 'add_inventory',
+            ];
+        }
+
+        if ($this->face_value_per_unit <= 0) {
+            $issues[] = [
+                'severity' => 'critical',
+                'message' => 'Invalid face value. Must be greater than zero.',
+                'action' => 'edit',
+            ];
+        }
+
+        return $issues;
     }
 }
