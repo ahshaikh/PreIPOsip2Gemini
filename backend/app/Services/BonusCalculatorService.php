@@ -475,10 +475,8 @@ class BonusCalculatorService
         // Apply rounding to referral bonus before creating transaction
         $referralBonusAmount = $this->applyRounding($referralBonusAmount);
 
-        // [P1.3 FIX]: Use TdsCalculationService instead of hardcoded calculation
-        $tdsCalculation = $this->tdsService->calculate($referralBonusAmount, 'referral');
-        $tdsAmount = $tdsCalculation['tds'];
-        $netAmount = $tdsCalculation['net'];
+        // [PROTOCOL 1 FIX]: Use TdsResult value object (cannot bypass TDS)
+        $tdsResult = $this->tdsService->calculate($referralBonusAmount, 'referral');
 
         // Create bonus transaction for referrer
         $bonusTxn = \App\Models\BonusTransaction::create([
@@ -486,19 +484,19 @@ class BonusCalculatorService
             'subscription_id' => $payment->subscription_id,
             'payment_id' => $payment->id,
             'type' => 'referral_bonus',
-            'amount' => $referralBonusAmount, // V-AUDIT-MODULE8-001: Gross amount
-            'tds_deducted' => $tdsAmount, // V-AUDIT-MODULE8-001: TDS for compliance
+            'amount' => $tdsResult->grossAmount, // Gross amount
+            'tds_deducted' => $tdsResult->tdsAmount, // TDS for compliance
             'multiplier_applied' => 1.0,
             'base_amount' => $payment->amount,
             'description' => "Referral Bonus - {$referredUser->username} met completion criteria: {$criteria}"
         ]);
 
-        // V-AUDIT-MODULE8-001: Deposit only NET amount to wallet (after TDS)
-        $this->walletService->deposit(
+        // [PROTOCOL 1 FIX]: depositTaxable() REQUIRES TdsResult (cannot bypass)
+        $this->walletService->depositTaxable(
             $referrer,
-            $netAmount, // V-AUDIT-MODULE8-001: Credit net amount only
+            $tdsResult, // MUST provide TdsResult from TdsCalculationService
             'bonus_credit',
-            "Referral Bonus - Invited {$referredUser->username}" . ($tdsAmount > 0 ? " (TDS ₹{$tdsAmount} deducted)" : ""),
+            "Referral Bonus - Invited {$referredUser->username}",
             $bonusTxn
         );
 
@@ -530,35 +528,32 @@ class BonusCalculatorService
      */
     private function createBonusTransaction(Payment $payment, string $type, float $amount, float $multiplier, string $description): void
     {
-        // [P1.3 FIX]: Use TdsCalculationService instead of hardcoded calculation
-        $tdsCalculation = $this->tdsService->calculate($amount, 'bonus');
-        $tdsAmount = $tdsCalculation['tds'];
-        $netAmount = $tdsCalculation['net'];
+        // [PROTOCOL 1 FIX]: Use TdsResult value object (cannot bypass TDS)
+        $tdsResult = $this->tdsService->calculate($amount, 'bonus');
 
         $bonusTxn = BonusTransaction::create([
             'user_id' => $payment->user_id,
             'subscription_id' => $payment->subscription_id,
             'payment_id' => $payment->id,
             'type' => $type,
-            'amount' => $amount, // V-AUDIT-MODULE8-001: Gross amount (before TDS)
-            'tds_deducted' => $tdsAmount, // V-AUDIT-MODULE8-001: TDS amount for compliance
+            'amount' => $tdsResult->grossAmount, // Gross amount (before TDS)
+            'tds_deducted' => $tdsResult->tdsAmount, // TDS amount for compliance
             'multiplier_applied' => $multiplier,
             'base_amount' => $payment->amount,
             'description' => $description
         ]);
 
-        // V-AUDIT-MODULE8-001: Deposit only NET amount to wallet (after TDS deduction)
+        // [PROTOCOL 1 FIX]: depositTaxable() REQUIRES TdsResult (cannot bypass)
         // This ensures legal compliance - TDS is withheld and will be remitted to tax authorities
-        // FIX: This also fixes the "Phantom Money" bug where bonuses were logged but not usable
-        $this->walletService->deposit(
+        $this->walletService->depositTaxable(
             $payment->user,
-            $netAmount, // V-AUDIT-MODULE8-001: Credit net amount only
+            $tdsResult, // MUST provide TdsResult from TdsCalculationService
             'bonus_credit',
-            $description . ($tdsAmount > 0 ? " (TDS ₹{$tdsAmount} deducted)" : ""),
+            $description,
             $bonusTxn
         );
 
-        Log::info("Bonus created: Gross=₹{$amount}, TDS=₹{$tdsAmount} ({$tdsPercentage}%), Net=₹{$netAmount}", [
+        Log::info("Bonus created: Gross=₹{$tdsResult->grossAmount}, TDS=₹{$tdsResult->tdsAmount} ({$tdsResult->rateApplied}%), Net=₹{$tdsResult->netAmount}", [
             'user_id' => $payment->user_id,
             'type' => $type,
             'bonus_id' => $bonusTxn->id

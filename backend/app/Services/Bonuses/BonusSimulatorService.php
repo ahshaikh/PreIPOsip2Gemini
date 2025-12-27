@@ -21,6 +21,24 @@ use Exception;
 class BonusSimulatorService
 {
     /**
+     * [PROTOCOL 1 FIX]: Hard guard - prevent usage in production.
+     *
+     * WHY: Makes accidental production usage IMPOSSIBLE.
+     * Simulator is for testing/preview only. Using it in production
+     * would mean bonuses are calculated but never credited.
+     */
+    public function __construct()
+    {
+        if (!app()->environment('local', 'testing')) {
+            throw new \RuntimeException(
+                'PROTOCOL 1 VIOLATION: BonusSimulatorService can only be used in local/testing environments. ' .
+                'For production bonus calculations, use App\Services\BonusCalculatorService. ' .
+                'Current environment: ' . app()->environment()
+            );
+        }
+    }
+
+    /**
      * Get the appropriate strategy based on the bonus type.
      */
     public function getStrategy(BonusType $type)
