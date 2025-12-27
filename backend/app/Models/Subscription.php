@@ -73,6 +73,15 @@ class Subscription extends Model
         return $this->hasMany(Investment::class);
     }
 
+    /**
+     * [P0.1 FIX]: Relationship to UserInvestment (actual share allocations)
+     * This tracks the real FIFO-allocated shares from BulkPurchase inventory
+     */
+    public function userInvestments(): HasMany
+    {
+        return $this->hasMany(UserInvestment::class);
+    }
+
     // --- ACCESSORS ---
 
     /**
@@ -97,11 +106,12 @@ class Subscription extends Model
 
     /**
      * Calculate total amount invested from this subscription.
+     * [P0.1 FIX]: Now queries UserInvestment (actual allocations) instead of Investment (deal tracking)
      */
     protected function totalInvested(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->investments()->whereIn('status', ['active', 'pending'])->sum('total_amount')
+            get: fn () => $this->userInvestments()->where('is_reversed', false)->sum('value_allocated')
         );
     }
 

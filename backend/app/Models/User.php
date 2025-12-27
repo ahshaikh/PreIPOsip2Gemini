@@ -131,6 +131,13 @@ class User extends Authenticatable
     public function subscriptions(): HasMany { return $this->hasMany(Subscription::class); }
     public function investments(): HasMany { return $this->hasMany(Investment::class); }
     public function activeInvestments(): HasMany { return $this->investments()->where('status', 'active'); }
+
+    /**
+     * [P0.1 FIX]: Relationship to UserInvestment (actual share allocations from FIFO)
+     * This is the real source of truth for portfolio holdings
+     */
+    public function userInvestments(): HasMany { return $this->hasMany(UserInvestment::class); }
+
     public function bonuses(): HasMany { return $this->hasMany(BonusTransaction::class); }
     public function referrals(): HasMany { return $this->hasMany(Referral::class, 'referrer_id'); }
     public function referrer(): HasOne { return $this->hasOne(Referral::class, 'referred_id'); }

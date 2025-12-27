@@ -87,10 +87,12 @@ class AllocationService
                 }
 
                 // 2. Create the Investment Record (Linked to specific batch)
+                // [P0.1 FIX]: Added subscription_id to enable querying investments by subscription
                 UserInvestment::create([
                     'user_id' => $user->id,
                     'product_id' => $product->id,
                     'payment_id' => $payment->id,
+                    'subscription_id' => $payment->subscription_id, // [P0.1 FIX]: Link to subscription
                     'bulk_purchase_id' => $batch->id,
                     'units_allocated' => $unitsToAllocate,
                     'value_allocated' => $amountToTake,
