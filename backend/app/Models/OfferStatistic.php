@@ -1,5 +1,17 @@
 <?php
 
+/**
+ * DEPRECATED - P0.2 FIX
+ *
+ * This model has been DEPRECATED.
+ * The offer_statistics table was dropped in migration 2025_12_27_150000.
+ * Replaced by campaign_usages (created in migration 2025_12_26_000002).
+ *
+ * USE: Campaign statistics should be queried from campaign_usages table
+ *
+ * This model will throw an exception if instantiated to prevent dual semantics bug.
+ */
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
@@ -12,6 +24,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class OfferStatistic extends Model
 {
+    /**
+     * [PROTOCOL 1]: Make OfferStatistic model STRUCTURALLY IMPOSSIBLE to use.
+     *
+     * WHY: offer_statistics table was dropped and replaced by campaign_usages.
+     * This constructor throws exception to fail-fast on any instantiation attempt.
+     */
+    public function __construct(array $attributes = [])
+    {
+        throw new \RuntimeException(
+            'P0.2 FIX: OfferStatistic model is DEPRECATED. ' .
+            'The offer_statistics table was dropped. ' .
+            'Statistics should be queried from campaign_usages table. ' .
+            'See migration 2025_12_27_150000_consolidate_offer_to_campaign_rename_pivots.php'
+        );
+    }
     protected $fillable = [
         'offer_id',
         'product_id',
