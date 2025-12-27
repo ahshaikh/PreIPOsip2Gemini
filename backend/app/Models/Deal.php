@@ -86,12 +86,20 @@ class Deal extends Model
     }
 
     /**
+     * [PROTOCOL-1 ENFORCEMENT]: Renamed from offers() to campaigns()
+     *
      * Campaigns applicable to this deal.
+     *
+     * WHY: Method name must match domain model to prevent semantic drift.
+     * Preserving "offers()" allows future developers to infer "Offer" still exists,
+     * increasing chance of re-introducing parallel promotion primitives.
+     *
+     * INVARIANT: Campaign is the sole promotional construct.
      *
      * [P0.2 FIX]: Uses Campaign model (not Offer).
      * Pivot table renamed: offer_deals → campaign_deals
      */
-    public function offers()
+    public function campaigns()
     {
         return $this->belongsToMany(Campaign::class, 'campaign_deals')
                     ->withPivot([
@@ -106,11 +114,13 @@ class Deal extends Model
     }
 
     /**
+     * [PROTOCOL-1 ENFORCEMENT]: Renamed from getActiveOffers() to getActiveCampaigns()
+     *
      * Get active campaigns for this deal.
      */
-    public function getActiveOffers()
+    public function getActiveCampaigns()
     {
-        return $this->offers()
+        return $this->campaigns()
                     ->active()
                     ->get();
     }
