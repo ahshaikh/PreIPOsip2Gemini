@@ -34,7 +34,9 @@ class DealController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('company_name', 'like', "%{$search}%");
+                  ->orWhereHas('company', function($cq) use ($search) {
+                      $cq->where('name', 'like', "%{$search}%");
+                  });
             });
         }
 
