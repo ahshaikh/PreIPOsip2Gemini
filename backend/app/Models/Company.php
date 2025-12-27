@@ -122,7 +122,7 @@ class Company extends Model
 
     public function deals()
     {
-        return $this->hasMany(Deal::class, 'company_name', 'name');
+        return $this->hasMany(Deal::class); // Now uses company_id FK
     }
 
     public function financialReports()
