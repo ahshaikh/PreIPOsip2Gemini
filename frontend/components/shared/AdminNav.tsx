@@ -46,6 +46,7 @@ const navItems = [
   { href: '/admin/kyc-queue', label: 'KYC Queue', icon: FileCheck2 },
   { href: '/admin/withdrawal-queue', label: 'Withdrawal Queue', icon: DollarSign },
   { href: '/admin/reports', label: 'Reports', icon: LineChart },
+  { href: '/admin/campaigns', label: 'Campaigns', icon: Gift },
   { href: '/admin/lucky-draws', label: 'Lucky Draw', icon: Ticket },
   { href: '/admin/profit-sharing', label: 'Profit Sharing', icon: PieChart },
   { href: '/admin/support', label: 'Support Tickets', icon: LifeBuoy },

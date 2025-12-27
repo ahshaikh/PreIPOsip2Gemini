@@ -7,6 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Calendar,
   Gift,
   Percent,
@@ -17,15 +24,28 @@ import {
   ArrowLeft,
   Share2,
   TrendingUp,
+  FileText,
+  Facebook,
+  Twitter,
+  Linkedin,
+  Mail,
+  MessageCircle,
+  Send,
+  Bot,
+  Hash,
+  MessageSquareText,
+  Instagram,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useState } from "react";
 import api from "@/lib/api";
 
 export default function OfferDetailPage() {
   const params = useParams();
   const router = useRouter();
   const offerId = params.id;
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
 
   const { data: offer, isLoading } = useQuery({
     queryKey: ['campaign', offerId],
@@ -40,6 +60,80 @@ export default function OfferDetailPage() {
       navigator.clipboard.writeText(offer.code);
       toast.success("Code Copied!", { description: "Offer code copied to clipboard" });
     }
+  };
+
+  const scrollToTerms = () => {
+    const termsElement = document.getElementById('terms-section');
+    if (termsElement) {
+      termsElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  // Share functions
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://preiposip.com';
+  const offerLink = `${baseUrl}/offers/${offerId}`;
+  const offerCode = offer?.code || '';
+
+  const shareOnFacebook = () => {
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(offerLink)}`, '_blank');
+  };
+
+  const shareOnTwitter = () => {
+    const text = `Check out this amazing offer on PreIPO SIP! Use code ${offerCode} to get started:`;
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(offerLink)}`, '_blank');
+  };
+
+  const shareOnLinkedIn = () => {
+    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(offerLink)}`, '_blank');
+  };
+
+  const shareOnWhatsApp = () => {
+    const text = `Check out this offer on PreIPO SIP! Use code ${offerCode}: ${offerLink}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const shareViaEmail = () => {
+    const subject = `Check out this offer on PreIPO SIP - ${offer?.title || 'Special Offer'}`;
+    const body = `Hi,\n\nI found this great offer on PreIPO SIP!\n\n${offer?.title || 'Special Offer'}\n${offer?.description || ''}\n\nUse code: ${offerCode}\nView offer: ${offerLink}`;
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  const shareOnTelegram = () => {
+    const text = `Check out this offer on PreIPO SIP! Use code ${offerCode}`;
+    window.open(`https://t.me/share/url?url=${encodeURIComponent(offerLink)}&text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const shareOnReddit = () => {
+    const title = offer?.title || 'Great Investment Offer on PreIPO SIP';
+    window.open(`https://reddit.com/submit?url=${encodeURIComponent(offerLink)}&title=${encodeURIComponent(title)}`, '_blank');
+  };
+
+  const shareOnThreads = () => {
+    const text = `Check out this offer on PreIPO SIP! Use code: ${offerCode}`;
+    window.open(`https://threads.net/intent/post?text=${encodeURIComponent(text + ' ' + offerLink)}`, '_blank');
+  };
+
+  const shareOnDiscord = () => {
+    const message = `🎁 Great Offer on PreIPO SIP!\n\n${offer?.title || 'Special Offer'}\nUse code: **${offerCode}**\n${offerLink}`;
+    navigator.clipboard.writeText(message);
+    toast.success("Message Copied!", { description: "Paste this in Discord to share" });
+  };
+
+  const shareOnSignal = () => {
+    const message = `Check out this offer on PreIPO SIP! Use code ${offerCode}: ${offerLink}`;
+    navigator.clipboard.writeText(message);
+    toast.success("Message Copied!", { description: "Paste this in Signal to share" });
+  };
+
+  const shareOnLine = () => {
+    const text = `Check out this offer! Use code ${offerCode}`;
+    window.open(`https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(offerLink)}&text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const shareOnInstagram = () => {
+    const message = `📈 Great Offer on PreIPO SIP!\n\n${offer?.title || 'Special Offer'}\nUse code: ${offerCode}\nLink: ${offerLink}`;
+    navigator.clipboard.writeText(message);
+    toast.success("Message Copied!", { description: "Paste this in your Instagram Story or Bio" });
   };
 
   if (isLoading) {
@@ -212,7 +306,7 @@ export default function OfferDetailPage() {
 
             {/* Terms and Conditions */}
             {offer.terms && (
-              <>
+              <div id="terms-section">
                 <h3>Terms & Conditions</h3>
                 {typeof offer.terms === 'string' ? (
                   <p className="text-sm text-muted-foreground">{offer.terms}</p>
@@ -223,7 +317,7 @@ export default function OfferDetailPage() {
                     ))}
                   </ul>
                 )}
-              </>
+              </div>
             )}
           </div>
 
@@ -231,20 +325,70 @@ export default function OfferDetailPage() {
 
           {/* CTA Section */}
           <div className="flex flex-col sm:flex-row gap-4">
-            <Button size="lg" className="flex-1" onClick={() => router.push('/plans')}>
+            <Button size="lg" className="flex-1" onClick={() => router.push('/deals')}>
               Start Investing Now
             </Button>
-            <Button size="lg" variant="outline" className="flex-1" onClick={copyCode}>
-              <Copy className="mr-2 h-4 w-4" />
-              Copy Offer Code
+            <Button size="lg" variant="outline" className="flex-1" onClick={scrollToTerms}>
+              <FileText className="mr-2 h-4 w-4" />
+              How to Use
             </Button>
-            <Button size="lg" variant="outline">
+            <Button size="lg" variant="outline" onClick={() => setShareDialogOpen(true)}>
               <Share2 className="mr-2 h-4 w-4" />
               Share Offer
             </Button>
           </div>
         </CardContent>
       </Card>
+
+      {/* Share Dialog */}
+      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Share This Offer</DialogTitle>
+            <DialogDescription>
+              Share this amazing offer with your friends and family
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-wrap gap-2 py-4">
+            <Button variant="outline" size="sm" onClick={shareOnWhatsApp} className="bg-green-500/10 hover:bg-green-500/20 border-green-500/30">
+              <MessageCircle className="h-4 w-4 mr-2 text-green-500" /> WhatsApp
+            </Button>
+            <Button variant="outline" size="sm" onClick={shareOnTelegram} className="bg-sky-400/10 hover:bg-sky-400/20 border-sky-400/30">
+              <Send className="h-4 w-4 mr-2 text-sky-400" /> Telegram
+            </Button>
+            <Button variant="outline" size="sm" onClick={shareOnFacebook} className="bg-blue-500/10 hover:bg-blue-500/20 border-blue-500/30">
+              <Facebook className="h-4 w-4 mr-2 text-blue-500" /> Facebook
+            </Button>
+            <Button variant="outline" size="sm" onClick={shareOnInstagram} className="bg-pink-500/10 hover:bg-pink-500/20 border-pink-500/30">
+              <Instagram className="h-4 w-4 mr-2 text-pink-500" /> Instagram
+            </Button>
+            <Button variant="outline" size="sm" onClick={shareOnTwitter} className="bg-sky-500/10 hover:bg-sky-500/20 border-sky-500/30">
+              <Twitter className="h-4 w-4 mr-2 text-sky-500" /> Twitter
+            </Button>
+            <Button variant="outline" size="sm" onClick={shareOnThreads} className="bg-black/10 hover:bg-black/20 border-black/30 dark:bg-white/10 dark:hover:bg-white/20 dark:border-white/30">
+              <MessageSquareText className="h-4 w-4 mr-2" /> Threads
+            </Button>
+            <Button variant="outline" size="sm" onClick={shareOnLinkedIn} className="bg-blue-700/10 hover:bg-blue-700/20 border-blue-700/30">
+              <Linkedin className="h-4 w-4 mr-2 text-blue-700" /> LinkedIn
+            </Button>
+            <Button variant="outline" size="sm" onClick={shareOnReddit} className="bg-orange-500/10 hover:bg-orange-500/20 border-orange-500/30">
+              <Hash className="h-4 w-4 mr-2 text-orange-500" /> Reddit
+            </Button>
+            <Button variant="outline" size="sm" onClick={shareOnDiscord} className="bg-indigo-500/10 hover:bg-indigo-500/20 border-indigo-500/30">
+              <Bot className="h-4 w-4 mr-2 text-indigo-500" /> Discord
+            </Button>
+            <Button variant="outline" size="sm" onClick={shareOnSignal} className="bg-blue-600/10 hover:bg-blue-600/20 border-blue-600/30">
+              <MessageCircle className="h-4 w-4 mr-2 text-blue-600" /> Signal
+            </Button>
+            <Button variant="outline" size="sm" onClick={shareOnLine} className="bg-green-600/10 hover:bg-green-600/20 border-green-600/30">
+              <MessageCircle className="h-4 w-4 mr-2 text-green-600" /> Line
+            </Button>
+            <Button variant="outline" size="sm" onClick={shareViaEmail}>
+              <Mail className="h-4 w-4 mr-2" /> Email
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
