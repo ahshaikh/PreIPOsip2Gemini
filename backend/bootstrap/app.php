@@ -19,6 +19,7 @@ use App\Http\Middleware\ValidateFileUpload;
 use App\Http\Middleware\ForceHttps;
 use App\Http\Middleware\TrustProxies;
 use App\Http\Middleware\EnsureMfaVerified; // [AUDIT FIX] Import MFA Middleware
+use App\Http\Middleware\CheckPlanEligibility; // [ENHANCEMENT] Plan eligibility check
 
 // ----------------------------------------------------------
 // 1. Build the application instance
@@ -57,10 +58,13 @@ $app = Application::configure(basePath: dirname(__DIR__))
             'webhook.verify' => VerifyWebhookSignature::class,
             'session.control' => ConcurrentSessionControl::class,
             'file.validate' => ValidateFileUpload::class,
-            
+
             // [AUDIT FIX]: Register the MFA Gating middleware
             // Use this in routes/api.php to protect high-risk transactions.
             'mfa.verified' => EnsureMfaVerified::class,
+
+            // [ENHANCEMENT]: Plan eligibility middleware for product access control
+            'plan.eligible' => CheckPlanEligibility::class,
 
             // Spatie Roles & Permissions
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
