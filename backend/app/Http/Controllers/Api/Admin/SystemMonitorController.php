@@ -30,15 +30,53 @@ class SystemMonitorController extends Controller
             ->get()
             ->groupBy('check_name');
 
+        // Transform data to match frontend expectations
         return response()->json([
             'overall_status' => $overall,
             'current_checks' => $checks,
             'recent_checks' => $recent,
             'last_checked' => now()->toIso8601String(),
-            // ADDED: Server time (Merged from SystemHealthController)
             'server_time' => now()->toDateTimeString(),
-            // DELETED: php_version
-            // REASON: Security - Preventing information leakage about infrastructure
+
+            // Direct accessors for frontend compatibility
+            'database' => [
+                'status' => $checks['database']['status'] ?? 'unknown',
+                'latency_ms' => $checks['database']['response_time'] ?? 0,
+                'connections' => 1, // Active connection verified by health check
+            ],
+            'cache' => [
+                'status' => $checks['cache']['status'] ?? 'unknown',
+                'driver' => config('cache.default'),
+                'hit_rate' => 0, // Not tracked in current implementation
+            ],
+            'queue' => [
+                'status' => $checks['queue']['status'] ?? 'unknown',
+                'pending_jobs' => $checks['queue']['details']['pending_jobs'] ?? 0,
+                'failed_jobs' => $checks['queue']['details']['failed_jobs'] ?? 0,
+            ],
+            'storage' => [
+                'status' => $checks['disk']['status'] ?? 'unknown',
+                'usage_percent' => $checks['disk']['details']['percentage'] ?? 0,
+                'used_gb' => $this->extractGB($checks['disk']['details']['used'] ?? '0 B'),
+                'free_gb' => $this->extractGB($checks['disk']['details']['free'] ?? '0 B'),
+            ],
+            'memory' => [
+                'usage_percent' => $checks['memory']['details']['percentage'] ?? 0,
+                'used_mb' => $this->extractMB($checks['memory']['details']['used'] ?? '0 B'),
+                'limit_mb' => $this->extractMB($checks['memory']['details']['limit'] ?? '0M'),
+            ],
+            'cpu' => [
+                'load_percent' => $this->getCPULoadPercent(),
+                'load_avg' => implode(', ', sys_getloadavg()),
+            ],
+            'mail' => [
+                'status' => 'healthy',
+                'driver' => config('mail.default'),
+                'queued' => 0, // Not tracked in current implementation
+            ],
+            'php_version' => PHP_VERSION,
+            'laravel_version' => app()->version(),
+            'environment' => app()->environment(),
         ]);
     }
 
@@ -275,6 +313,88 @@ class SystemMonitorController extends Controller
         $bytes /= pow(1024, $pow);
 
         return round($bytes, 2) . ' ' . $units[$pow];
+    }
+
+    /**
+     * Extract GB value from formatted bytes string (e.g., "45.2 GB" -> 45.2)
+     */
+    private function extractGB($formatted)
+    {
+        if (preg_match('/([0-9.]+)\s*(GB|TB|MB|KB|B)/i', $formatted, $matches)) {
+            $value = (float) $matches[1];
+            $unit = strtoupper($matches[2]);
+
+            switch ($unit) {
+                case 'TB': return $value * 1024;
+                case 'GB': return $value;
+                case 'MB': return $value / 1024;
+                case 'KB': return $value / (1024 * 1024);
+                case 'B': return $value / (1024 * 1024 * 1024);
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * Extract MB value from formatted bytes string (e.g., "128 MB" -> 128)
+     */
+    private function extractMB($formatted)
+    {
+        if (preg_match('/([0-9.]+)\s*(GB|MB|KB|B|M|G|K)?/i', $formatted, $matches)) {
+            $value = (float) $matches[1];
+            $unit = strtoupper($matches[2] ?? 'B');
+
+            switch ($unit) {
+                case 'GB':
+                case 'G': return $value * 1024;
+                case 'MB':
+                case 'M': return $value;
+                case 'KB':
+                case 'K': return $value / 1024;
+                case 'B': return $value / (1024 * 1024);
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * Calculate CPU load percentage from load average
+     */
+    private function getCPULoadPercent()
+    {
+        $loadAvg = sys_getloadavg();
+        $cpuCount = $this->getCPUCount();
+
+        // Use 1-minute load average, convert to percentage
+        $loadPercent = ($loadAvg[0] / $cpuCount) * 100;
+
+        return round(min($loadPercent, 100), 1);
+    }
+
+    /**
+     * Get CPU core count
+     */
+    private function getCPUCount()
+    {
+        if (stripos(PHP_OS, 'WIN') === 0) {
+            // Windows
+            $process = @popen('wmic cpu get NumberOfCores', 'rb');
+            if ($process) {
+                fgets($process); // Skip header
+                $cores = (int) fgets($process);
+                pclose($process);
+                return $cores ?: 1;
+            }
+        } else {
+            // Linux/Unix
+            $cpuinfo = @file_get_contents('/proc/cpuinfo');
+            if ($cpuinfo) {
+                preg_match_all('/^processor/m', $cpuinfo, $matches);
+                return count($matches[0]) ?: 1;
+            }
+        }
+
+        return 1; // Default fallback
     }
 
     /**

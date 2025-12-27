@@ -281,7 +281,11 @@ export default function ProductManagerPage() {
   // We fetch the simple list
   const { data: products, isLoading } = useQuery({
     queryKey: ['adminProducts'],
-    queryFn: async () => (await api.get('/admin/products')).data,
+    queryFn: async () => {
+      const response = await api.get('/admin/products');
+      // Backend returns paginated response - extract data array
+      return response.data?.data || response.data;
+    },
   });
 
   // Update mutation

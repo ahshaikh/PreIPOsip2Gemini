@@ -98,6 +98,12 @@ class Deal extends Model
                     ->where('status', 'active');
     }
 
+    public function scopeUpcoming($query)
+    {
+        return $query->where('status', 'active')
+                    ->where('deal_opens_at', '>', now());
+    }
+
     // --- ACCESSORS ---
 
     /**
