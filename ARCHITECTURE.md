@@ -196,6 +196,102 @@ BulkPurchase.total_value_received =
 
 ---
 
+### Protocol-1 Invariants (Mechanically Enforced)
+
+#### INVARIANT 1: UserInvestment.subscription_id is Mandatory
+
+**Declaration:**
+> **All UserInvestment records MUST have a non-null subscription_id.**
+
+**Rationale:**
+- Ownership and allocation rights exist ONLY within the context of a Subscription
+- No investment can exist without a payment plan
+- No "orphaned" allocations are permitted in the system
+
+**Enforcement Mechanisms:**
+
+1. **Database Constraint:**
+   ```sql
+   subscription_id BIGINT UNSIGNED NOT NULL
+   FOREIGN KEY (subscription_id) REFERENCES subscriptions(id) ON DELETE CASCADE
+   ```
+
+2. **Model Validation:** Required in `$fillable`, validated in `AllocationService`
+
+3. **Service Layer:** All allocation methods REQUIRE `subscription_id` parameter
+
+**Verification:**
+```sql
+-- This MUST return 0 (no orphaned investments)
+SELECT COUNT(*) FROM user_investments WHERE subscription_id IS NULL;
+```
+
+```bash
+# Verify NOT NULL constraint exists
+SHOW CREATE TABLE user_investments;
+# Should show: subscription_id bigint unsigned NOT NULL
+```
+
+**Future Requirement:**
+> Any future admin allocation path MUST supply `subscription_id` or it will fail with database constraint violation.
+
+**What This Prevents:**
+- ❌ Admin creating allocations without subscription context
+- ❌ Manual database inserts bypassing subscription ownership
+- ❌ Legacy "free allocation" workflows
+- ❌ Data migration scripts creating orphaned investments
+
+---
+
+#### INVARIANT 2: Campaign is the Sole Promotional Construct
+
+**Declaration:**
+> **Campaign is the ONLY model for promotions, discounts, and offers.**
+> **No parallel promotion primitives are permitted.**
+
+**Rationale:**
+- Prevents dual models (Campaign + Offer) causing consistency issues
+- Single source of truth for all promotional logic
+- Eliminates semantic confusion
+
+**Enforcement Mechanisms:**
+
+1. **Model Layer:** Only `Campaign.php` model exists (no `Offer.php`)
+2. **Database Schema:** Table `campaigns` (not `offers`), pivot tables `campaign_*`
+3. **Service Layer:** Only `CampaignService` for promotional logic
+4. **Semantic Enforcement:** All relationships named `campaigns()` (not `offers()`)
+
+**Verification:**
+```bash
+# This MUST return empty (no Offer model exists)
+find . -name "Offer.php" -path "*/Models/*"
+
+# This MUST return empty (all renamed to campaigns())
+grep -r "public function offers()" app/Models/*.php
+
+# This MUST succeed (campaigns() exists)
+grep -r "public function campaigns()" app/Models/*.php
+```
+
+```sql
+-- This should FAIL (table doesn't exist)
+SELECT * FROM offers LIMIT 1;
+
+-- This should SUCCEED (table exists)
+SELECT * FROM campaigns LIMIT 1;
+```
+
+**Future Requirement:**
+> All promotional features MUST extend `Campaign` model. Creating parallel promotional models (Offer, Promotion, Discount, Deal) is forbidden.
+
+**What This Prevents:**
+- ❌ Creating new "Offer" model alongside Campaign
+- ❌ Creating parallel "Promotion", "Discount" models
+- ❌ Method names like `offers()` that imply Offer still exists
+- ❌ Splitting promotional logic across multiple services
+
+---
+
 ## 6. Enforcement Mechanisms
 
 - PR architectural checklist
