@@ -89,6 +89,7 @@ use App\Http\Controllers\Api\Admin\CompanyUserController;
 use App\Http\Controllers\Api\Admin\AdminShareListingController;
 use App\Http\Controllers\Api\Admin\PlanProductController;
 use App\Http\Controllers\Api\Admin\OfferCampaignController;
+use App\Http\Controllers\Api\Admin\UnifiedDashboardController;
 
 // Company User Controllers
 use App\Http\Controllers\Api\Company\AuthController as CompanyAuthController;
@@ -400,6 +401,12 @@ Route::prefix('v1')->group(function () {
         Route::prefix('admin')->middleware(['admin.ip', 'role:admin|super-admin'])->group(function () {
             
             Route::get('/dashboard', [AdminDashboardController::class, 'index']);
+
+            // Unified Dashboard (NEW: Comprehensive module consolidation)
+            Route::prefix('dashboard')->group(function () {
+                Route::get('/overview', [UnifiedDashboardController::class, 'overview']);
+                Route::get('/workflows', [UnifiedDashboardController::class, 'workflowSuggestions']);
+            });
 
             // -------------------------------------------------------------
             // ADMIN REPORTS & ANALYTICS
