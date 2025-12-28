@@ -403,6 +403,69 @@ public function archiveOldLogs(Carbon $cutoffDate): void
 }
 ```
 
+**CRITICAL FIX: DB-LEVEL ARCHIVED RECORD PROTECTION**
+
+ISSUE (addressing audit feedback):
+- Archival without enforcement is just metadata
+- archived ≠ immutable unless enforced at DB level
+- archived ≠ write-protected unless writes are denied
+- archived ≠ access-controlled unless access is logged
+
+ENFORCEMENT LAYERS:
+
+**Layer 1: Archival Reversal Prevention (DB Constraint)**
+```sql
+-- Once archived, cannot be un-archived
+ALTER TABLE audit_logs
+ADD CONSTRAINT check_archive_no_reversal
+CHECK (
+    (is_archived = FALSE AND archived_at IS NULL)
+    OR (is_archived = TRUE AND archived_at IS NOT NULL)
+);
+
+-- Applied to all audit tables:
+-- - audit_logs
+-- - benefit_audit_log
+-- - tds_deductions
+```
+
+**Layer 2: Archived Record Access Logging**
+```sql
+-- Track ALL access to archived records
+CREATE TABLE archived_record_access_log (
+    id BIGINT PRIMARY KEY,
+    table_name VARCHAR,           -- 'audit_logs', 'benefit_audit_log'
+    record_id BIGINT,
+    accessor_type VARCHAR,        -- 'admin', 'system', 'auditor'
+    accessor_id BIGINT,
+    access_reason VARCHAR,        -- 'compliance_review', 'investigation'
+    access_method VARCHAR,        -- 'read', 'export', 'print'
+    justification TEXT,           -- Required for compliance access
+    approved BOOLEAN DEFAULT FALSE,
+    accessed_at TIMESTAMP,
+    ip_address VARCHAR
+);
+```
+
+**Layer 3: Write Protection (PostgreSQL Trigger)**
+```sql
+-- For PostgreSQL: Full write protection
+CREATE OR REPLACE FUNCTION prevent_archived_record_modification()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD.is_archived = TRUE THEN
+        RAISE EXCEPTION 'IMMUTABILITY VIOLATION: Archived records are write-protected';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER audit_logs_archived_protection
+BEFORE UPDATE ON audit_logs
+FOR EACH ROW
+EXECUTE FUNCTION prevent_archived_record_modification();
+```
+
 **Result:**
 ```
 BEFORE: Audit logs can be edited/deleted
@@ -412,15 +475,22 @@ BEFORE: Audit logs can be edited/deleted
   Admin: DELETE FROM audit_logs WHERE id = 123
   Result: ✓ Deleted (EVIDENCE DESTROYED) ❌
 
-AFTER: Audit logs are IMMUTABLE
+AFTER: Audit logs are IMMUTABLE (Observer + DB Constraints)
   Admin: UPDATE audit_logs SET action = 'approved' WHERE id = 123
   Observer: RuntimeException("IMMUTABILITY VIOLATION") ✓
 
   Admin: DELETE FROM audit_logs WHERE id = 123
   Observer: RuntimeException("IMMUTABILITY VIOLATION") ✓
 
+  Admin: UPDATE audit_logs SET is_archived = FALSE WHERE id = 123
+  Database: CHECK constraint violation ✓
+
+  Compliance Officer: SELECT * FROM audit_logs WHERE id = 123 AND is_archived = TRUE
+  System: Logs access to archived_record_access_log ✓
+
   Correct approach: Records are PERMANENT
-  Old records can be ARCHIVED but NEVER deleted
+  Old records can be ARCHIVED but NEVER deleted or un-archived
+  All access to archived records is logged for audit trail
 ```
 
 ---
@@ -437,6 +507,9 @@ php artisan migrate --path=database/migrations/2025_12_28_150001_create_tds_dedu
 
 # Audit log immutability constraints
 php artisan migrate --path=database/migrations/2025_12_28_160001_enforce_audit_log_immutability.php
+
+# Archived record protection (DB-level enforcement)
+php artisan migrate --path=database/migrations/2025_12_28_170001_enforce_archived_record_protection.php
 ```
 
 ### Phase 2: Observer Registration
