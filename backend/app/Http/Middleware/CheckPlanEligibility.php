@@ -8,13 +8,24 @@ use App\Models\Product;
 use App\Models\Subscription;
 
 /**
- * Middleware to check if user's plan allows access to a product.
+ * [P1 FIX]: Middleware to check if user's CURRENT PLAN allows access to a product.
+ *
+ * PURPOSE: Product access control (NOT plan subscription eligibility).
+ *
+ * IMPORTANT DISTINCTION:
+ * - PlanEligibilityService: "Can user SUBSCRIBE to this plan?" (eligibility to join)
+ * - This middleware: "Can user with THEIR plan ACCESS this product?" (access control)
+ *
+ * These are DIFFERENT concerns and both are needed.
  *
  * EXECUTION PATH:
  * 1. User requests investment/deal access
  * 2. Check user's active subscription plan
  * 3. Check if product is accessible by that plan
  * 4. Allow or block with upgrade prompt
+ *
+ * USAGE: Apply to routes with 'plan.eligible' middleware
+ * (Currently registered but not applied to any routes)
  *
  * WHY IT CANNOT FAIL:
  * - Database relationships enforce plan-product linkage

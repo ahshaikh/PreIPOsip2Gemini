@@ -71,6 +71,17 @@ class BulkPurchase extends Model
         return $this->belongsTo(User::class, 'admin_id');
     }
 
+    /**
+     * [P1 FIX]: UserInvestments allocated from this bulk purchase batch.
+     *
+     * This enables Deal to traverse to UserInvestment via:
+     * Deal → Product → BulkPurchase → UserInvestment
+     */
+    public function userInvestments()
+    {
+        return $this->hasMany(UserInvestment::class);
+    }
+
     // --- ACCESSORS (CALCULATIONS) ---
 
     /**

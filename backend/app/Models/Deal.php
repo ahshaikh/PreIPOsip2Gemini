@@ -80,9 +80,55 @@ class Deal extends Model
         return $this->belongsTo(Product::class);
     }
 
+    /**
+     * [P1 FIX]: Get UserInvestments for this deal.
+     *
+     * Traverses: Deal → Product → BulkPurchase → UserInvestment
+     *
+     * BEFORE (BROKEN):
+     * return $this->hasMany(Investment::class);
+     * // Investment model is deprecated, never written to
+     *
+     * AFTER (FIXED):
+     * Queries UserInvestment through product's bulk purchases
+     *
+     * WHY: Investment model was deprecated in favor of UserInvestment.
+     * AllocationService only creates UserInvestment records.
+     * This method now queries the actual allocation records.
+     */
     public function investments()
     {
-        return $this->hasMany(Investment::class);
+        return UserInvestment::query()
+            ->whereIn('bulk_purchase_id', function($query) {
+                $query->select('id')
+                    ->from('bulk_purchases')
+                    ->where('product_id', $this->product_id);
+            })
+            ->where('is_reversed', false);
+    }
+
+    /**
+     * [P1 FIX]: Get count of investments for this deal.
+     */
+    public function investmentsCount(): int
+    {
+        return $this->investments()->count();
+    }
+
+    /**
+     * [P1 FIX]: Get total value invested in this deal.
+     */
+    public function totalInvestedAmount(): float
+    {
+        return $this->investments()->sum('value_allocated') ?? 0;
+    }
+
+    /**
+     * [P1 FIX]: Get count of unique investors in this deal.
+     */
+    public function uniqueInvestorsCount(): int
+    {
+        return $this->investments()->distinct('user_id')->count('user_id');
     }
 
     /**

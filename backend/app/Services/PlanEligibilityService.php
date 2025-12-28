@@ -7,6 +7,22 @@ use App\Models\Plan;
 use App\Models\User;
 use Illuminate\Support\Collection;
 
+/**
+ * [P1 FIX]: Canonical Plan Eligibility Service
+ *
+ * PURPOSE: Determines if a user is eligible to SUBSCRIBE to a plan.
+ *
+ * CONSOLIDATION HISTORY:
+ * - Removed: app/Services/Plans/PlanEligibilityService.php (duplicate, unused)
+ * - Removed: app/Rules/Eligibility/* (only used by removed duplicate)
+ * - Kept: This service (actively used in SubscriptionController)
+ * - Kept: app/Http/Middleware/CheckPlanEligibility.php (different purpose - product access control)
+ *
+ * IMPORTANT: This is the ONLY service for plan subscription eligibility.
+ * Do NOT create duplicate services. Extend this one if new rules are needed.
+ *
+ * INVARIANT: Single source of truth for plan eligibility logic.
+ */
 class PlanEligibilityService
 {
     /**
