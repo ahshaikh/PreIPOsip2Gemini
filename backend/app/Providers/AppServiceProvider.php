@@ -58,9 +58,16 @@ class AppServiceProvider extends ServiceProvider
         }
 
         // =================================================================
+        // OBSERVER REGISTRATION (Model Event Listeners)
+        // =================================================================
+
+        // [E.16]: Enforce transaction immutability via observer
+        \App\Models\Transaction::observe(\App\Observers\TransactionObserver::class);
+
+        // =================================================================
         // EVENT LISTENER REGISTRATION
         // =================================================================
-        
+
         Event::listen(
             KycVerified::class,
             ProcessPendingReferralsOnKycVerify::class
