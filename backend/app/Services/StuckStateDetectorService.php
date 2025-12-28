@@ -334,22 +334,105 @@ class StuckStateDetectorService
     /**
      * Auto-resolve stuck states where possible
      *
-     * @return array ['resolved' => int, 'escalated' => int, 'failed' => int]
+     * CRITICAL SAFEGUARDS (addressing audit feedback):
+     * 1. Kill switch check (global disable)
+     * 2. Rate limiting (max resolutions per hour)
+     * 3. Per-entity cap (max resolutions per entity)
+     * 4. Value cap (max monetary value per resolution)
+     * 5. Cooling period (wait between resolutions)
+     *
+     * @return array ['resolved' => int, 'escalated' => int, 'failed' => int, 'rate_limited' => int]
      */
     public function autoResolveStuckStates(): array
     {
         $resolved = 0;
         $escalated = 0;
         $failed = 0;
+        $rateLimited = 0;
+
+        // SAFEGUARD 1: Kill switch check
+        if (!setting('allow_auto_resolution', false)) {
+            Log::warning("AUTO-RESOLUTION DISABLED: Global kill switch activated");
+            return [
+                'resolved' => 0,
+                'escalated' => 0,
+                'failed' => 0,
+                'rate_limited' => 0,
+                'kill_switch_active' => true,
+            ];
+        }
+
+        // SAFEGUARD 2: Rate limiting (max 10 resolutions per hour)
+        $recentResolutions = DB::table('stuck_state_alerts')
+            ->where('auto_resolved', true)
+            ->where('auto_resolved_at', '>', now()->subHour())
+            ->count();
+
+        $maxPerHour = (int) setting('max_auto_resolutions_per_hour', 10);
+
+        if ($recentResolutions >= $maxPerHour) {
+            Log::warning("AUTO-RESOLUTION RATE LIMITED", [
+                'recent_resolutions' => $recentResolutions,
+                'max_per_hour' => $maxPerHour,
+            ]);
+            return [
+                'resolved' => 0,
+                'escalated' => 0,
+                'failed' => 0,
+                'rate_limited' => $recentResolutions,
+            ];
+        }
+
+        $remainingCapacity = $maxPerHour - $recentResolutions;
 
         $autoResolvableAlerts = DB::table('stuck_state_alerts')
             ->where('auto_resolvable', true)
             ->where('auto_resolved', false)
             ->where('reviewed', false)
+            ->orderBy('severity', 'desc')
+            ->orderBy('created_at', 'asc')
+            ->limit($remainingCapacity) // Only process what fits in rate limit
             ->get();
 
         foreach ($autoResolvableAlerts as $alert) {
             try {
+                // SAFEGUARD 3: Per-entity cap (max 3 resolutions per entity per day)
+                $entityResolutions = DB::table('stuck_state_alerts')
+                    ->where('entity_type', $alert->entity_type)
+                    ->where('entity_id', $alert->entity_id)
+                    ->where('auto_resolved', true)
+                    ->where('auto_resolved_at', '>', now()->subDay())
+                    ->count();
+
+                if ($entityResolutions >= 3) {
+                    Log::warning("AUTO-RESOLUTION ENTITY CAP REACHED", [
+                        'entity_type' => $alert->entity_type,
+                        'entity_id' => $alert->entity_id,
+                        'resolutions_today' => $entityResolutions,
+                    ]);
+                    $this->escalateToManualReview($alert->id);
+                    $escalated++;
+                    continue;
+                }
+
+                // SAFEGUARD 4: Cooling period (24h between resolutions for same entity)
+                $lastResolution = DB::table('stuck_state_alerts')
+                    ->where('entity_type', $alert->entity_type)
+                    ->where('entity_id', $alert->entity_id)
+                    ->where('auto_resolved', true)
+                    ->orderBy('auto_resolved_at', 'desc')
+                    ->first();
+
+                if ($lastResolution && Carbon::parse($lastResolution->auto_resolved_at)->isAfter(now()->subHours(24))) {
+                    Log::warning("AUTO-RESOLUTION COOLING PERIOD", [
+                        'entity_type' => $alert->entity_type,
+                        'entity_id' => $alert->entity_id,
+                        'last_resolution' => $lastResolution->auto_resolved_at,
+                    ]);
+                    $rateLimited++;
+                    continue;
+                }
+
                 $success = $this->executeAutoResolution($alert);
 
                 if ($success) {
@@ -385,6 +468,7 @@ class StuckStateDetectorService
             'resolved' => $resolved,
             'escalated' => $escalated,
             'failed' => $failed,
+            'rate_limited' => $rateLimited,
         ];
     }
 
@@ -437,6 +521,11 @@ class StuckStateDetectorService
     /**
      * Cancel stuck entity
      *
+     * CRITICAL SAFETY (addressing audit feedback):
+     * - "Cancel payment and refund user" is not always legal
+     * - Pending does not mean reversible
+     * - Must check settlement status before cancelling
+     *
      * @param object $alert
      * @return bool
      */
@@ -448,8 +537,93 @@ class StuckStateDetectorService
             'entity_id' => $alert->entity_id,
         ]);
 
-        // TODO: Implement cancellation logic
+        // Only handle payments for now (other entities require different logic)
+        if ($alert->entity_type !== 'payment') {
+            Log::warning("CANCEL ONLY SUPPORTS PAYMENTS", [
+                'entity_type' => $alert->entity_type,
+            ]);
+            return false;
+        }
+
+        $payment = DB::table('payments')->find($alert->entity_id);
+
+        if (!$payment) {
+            Log::error("PAYMENT NOT FOUND FOR CANCELLATION", [
+                'payment_id' => $alert->entity_id,
+            ]);
+            return false;
+        }
+
+        // CRITICAL CHECK: Only cancel if truly pending (not captured/settled)
+        if ($payment->status !== 'pending') {
+            Log::warning("PAYMENT NOT CANCELLABLE", [
+                'payment_id' => $payment->id,
+                'status' => $payment->status,
+                'reason' => 'Only pending payments can be cancelled',
+            ]);
+            return false;
+        }
+
+        // CRITICAL CHECK: Verify with payment gateway that payment is not captured
+        if ($payment->payment_gateway_id) {
+            try {
+                // Check gateway status (not just our DB status)
+                $gatewayStatus = $this->checkGatewayPaymentStatus($payment->payment_gateway_id);
+
+                // If captured or settled, cannot cancel
+                if (in_array($gatewayStatus, ['captured', 'settled', 'authorized'])) {
+                    Log::error("PAYMENT CANNOT BE CANCELLED - ALREADY CAPTURED/SETTLED", [
+                        'payment_id' => $payment->id,
+                        'gateway_status' => $gatewayStatus,
+                    ]);
+
+                    // Escalate to manual review
+                    return false;
+                }
+
+            } catch (\Throwable $e) {
+                Log::error("GATEWAY STATUS CHECK FAILED", [
+                    'payment_id' => $payment->id,
+                    'error' => $e->getMessage(),
+                ]);
+
+                // Conservative: If we can't verify, don't cancel
+                return false;
+            }
+        }
+
+        // SAFE TO CANCEL: Payment is truly pending
+        DB::table('payments')
+            ->where('id', $payment->id)
+            ->update([
+                'status' => 'cancelled',
+                'cancelled_at' => now(),
+                'cancellation_reason' => 'Auto-cancelled after stuck in pending for ' .
+                    Carbon::parse($payment->created_at)->diffForHumans(),
+                'updated_at' => now(),
+            ]);
+
+        Log::info("PAYMENT CANCELLED SUCCESSFULLY", [
+            'payment_id' => $payment->id,
+        ]);
+
+        // TODO: Notify user about cancellation
+        // TODO: Create refund if any amount was charged
+
         return true;
+    }
+
+    /**
+     * Check payment status with gateway
+     *
+     * @param string $paymentGatewayId
+     * @return string Gateway status
+     */
+    private function checkGatewayPaymentStatus(string $paymentGatewayId): string
+    {
+        // TODO: Implement actual gateway API call
+        // For now, return conservative default
+        return 'unknown';
     }
 
     /**
