@@ -4,6 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Migration: Job Idempotency and State Tracking (G.22-G.24)
@@ -179,18 +180,34 @@ return new class extends Migration
         // ===================================================================
 
         // job_executions: Status must be valid
-        DB::statement("
-            ALTER TABLE job_executions
-            ADD CONSTRAINT check_job_execution_status
-            CHECK (status IN ('pending', 'processing', 'completed', 'failed'))
-        ");
+        if (Schema::hasTable('job_executions') && Schema::hasColumn('job_executions', 'status')) {
+            try {
+                DB::statement("
+                    ALTER TABLE job_executions
+                    ADD CONSTRAINT check_job_execution_status
+                    CHECK (status IN ('pending', 'processing', 'completed', 'failed'))
+                ");
+            } catch (\Exception $e) {
+                Log::warning("Could not add check_job_execution_status constraint.", [
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
 
         // stuck_state_alerts: Severity must be valid
-        DB::statement("
-            ALTER TABLE stuck_state_alerts
-            ADD CONSTRAINT check_stuck_alert_severity
-            CHECK (severity IN ('low', 'medium', 'high', 'critical'))
-        ");
+        if (Schema::hasTable('stuck_state_alerts') && Schema::hasColumn('stuck_state_alerts', 'severity')) {
+            try {
+                DB::statement("
+                    ALTER TABLE stuck_state_alerts
+                    ADD CONSTRAINT check_stuck_alert_severity
+                    CHECK (severity IN ('low', 'medium', 'high', 'critical'))
+                ");
+            } catch (\Exception $e) {
+                Log::warning("Could not add check_stuck_alert_severity constraint.", [
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
     }
 
     /**

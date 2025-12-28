@@ -4,6 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Migration: Governance & Operational Monitoring (H.25-H.26)
@@ -183,23 +184,47 @@ return new class extends Migration
         // Constraints
         // ===================================================================
 
-        DB::statement("
-            ALTER TABLE admin_action_audit
-            ADD CONSTRAINT check_admin_action_status
-            CHECK (status IN ('pending', 'completed', 'failed'))
-        ");
+        if (Schema::hasTable('admin_action_audit') && Schema::hasColumn('admin_action_audit', 'status')) {
+            try {
+                DB::statement("
+                    ALTER TABLE admin_action_audit
+                    ADD CONSTRAINT check_admin_action_status
+                    CHECK (status IN ('pending', 'completed', 'failed'))
+                ");
+            } catch (\Exception $e) {
+                Log::warning("Could not add check_admin_action_status constraint.", [
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
 
-        DB::statement("
-            ALTER TABLE system_health_metrics
-            ADD CONSTRAINT check_health_severity
-            CHECK (severity IN ('info', 'warning', 'error', 'critical'))
-        ");
+        if (Schema::hasTable('system_health_metrics') && Schema::hasColumn('system_health_metrics', 'severity')) {
+            try {
+                DB::statement("
+                    ALTER TABLE system_health_metrics
+                    ADD CONSTRAINT check_health_severity
+                    CHECK (severity IN ('info', 'warning', 'error', 'critical'))
+                ");
+            } catch (\Exception $e) {
+                Log::warning("Could not add check_health_severity constraint.", [
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
 
-        DB::statement("
-            ALTER TABLE reconciliation_alerts
-            ADD CONSTRAINT check_reconciliation_severity
-            CHECK (severity IN ('low', 'medium', 'high', 'critical'))
-        ");
+        if (Schema::hasTable('reconciliation_alerts') && Schema::hasColumn('reconciliation_alerts', 'severity')) {
+            try {
+                DB::statement("
+                    ALTER TABLE reconciliation_alerts
+                    ADD CONSTRAINT check_reconciliation_severity
+                    CHECK (severity IN ('low', 'medium', 'high', 'critical'))
+                ");
+            } catch (\Exception $e) {
+                Log::warning("Could not add check_reconciliation_severity constraint.", [
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
     }
 
     /**

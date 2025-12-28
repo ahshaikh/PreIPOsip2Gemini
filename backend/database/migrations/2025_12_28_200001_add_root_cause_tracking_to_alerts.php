@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Migration: Add Root Cause Tracking to Alerts
@@ -30,33 +31,79 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('stuck_state_alerts', function (Blueprint $table) {
-            // Root cause identification
-            $table->string('root_cause')->nullable()->after('description');
-            $table->timestamp('root_cause_identified_at')->nullable()->after('root_cause');
-            $table->unsignedBigInteger('root_cause_identified_by')->nullable()->after('root_cause_identified_at');
+        // Add columns to stuck_state_alerts
+        if (Schema::hasTable('stuck_state_alerts')) {
+            Schema::table('stuck_state_alerts', function (Blueprint $table) {
+                // Root cause identification
+                if (!Schema::hasColumn('stuck_state_alerts', 'root_cause')) {
+                    if (Schema::hasColumn('stuck_state_alerts', 'description')) {
+                        $table->string('root_cause')->nullable()->after('description');
+                    } else {
+                        $table->string('root_cause')->nullable();
+                    }
+                }
+                if (!Schema::hasColumn('stuck_state_alerts', 'root_cause_identified_at')) {
+                    $table->timestamp('root_cause_identified_at')->nullable();
+                }
+                if (!Schema::hasColumn('stuck_state_alerts', 'root_cause_identified_by')) {
+                    $table->unsignedBigInteger('root_cause_identified_by')->nullable();
+                }
 
-            // Root cause grouping (for alert aggregation)
-            $table->string('root_cause_group')->nullable()->after('root_cause_identified_by');
+                // Root cause grouping (for alert aggregation)
+                if (!Schema::hasColumn('stuck_state_alerts', 'root_cause_group')) {
+                    $table->string('root_cause_group')->nullable();
+                }
+            });
 
-            // Index for root cause queries
-            $table->index('root_cause');
-            $table->index('root_cause_group');
-        });
+            // Add indexes separately
+            if (!$this->indexExists('stuck_state_alerts', 'stuck_state_alerts_root_cause_index')) {
+                Schema::table('stuck_state_alerts', function (Blueprint $table) {
+                    $table->index('root_cause');
+                });
+            }
+            if (!$this->indexExists('stuck_state_alerts', 'stuck_state_alerts_root_cause_group_index')) {
+                Schema::table('stuck_state_alerts', function (Blueprint $table) {
+                    $table->index('root_cause_group');
+                });
+            }
+        }
 
-        Schema::table('reconciliation_alerts', function (Blueprint $table) {
-            // Root cause identification
-            $table->string('root_cause')->nullable()->after('description');
-            $table->timestamp('root_cause_identified_at')->nullable()->after('root_cause');
-            $table->unsignedBigInteger('root_cause_identified_by')->nullable()->after('root_cause_identified_at');
+        // Add columns to reconciliation_alerts
+        if (Schema::hasTable('reconciliation_alerts')) {
+            Schema::table('reconciliation_alerts', function (Blueprint $table) {
+                // Root cause identification
+                if (!Schema::hasColumn('reconciliation_alerts', 'root_cause')) {
+                    if (Schema::hasColumn('reconciliation_alerts', 'description')) {
+                        $table->string('root_cause')->nullable()->after('description');
+                    } else {
+                        $table->string('root_cause')->nullable();
+                    }
+                }
+                if (!Schema::hasColumn('reconciliation_alerts', 'root_cause_identified_at')) {
+                    $table->timestamp('root_cause_identified_at')->nullable();
+                }
+                if (!Schema::hasColumn('reconciliation_alerts', 'root_cause_identified_by')) {
+                    $table->unsignedBigInteger('root_cause_identified_by')->nullable();
+                }
 
-            // Root cause grouping
-            $table->string('root_cause_group')->nullable()->after('root_cause_identified_by');
+                // Root cause grouping
+                if (!Schema::hasColumn('reconciliation_alerts', 'root_cause_group')) {
+                    $table->string('root_cause_group')->nullable();
+                }
+            });
 
-            // Index for root cause queries
-            $table->index('root_cause');
-            $table->index('root_cause_group');
-        });
+            // Add indexes separately
+            if (!$this->indexExists('reconciliation_alerts', 'reconciliation_alerts_root_cause_index')) {
+                Schema::table('reconciliation_alerts', function (Blueprint $table) {
+                    $table->index('root_cause');
+                });
+            }
+            if (!$this->indexExists('reconciliation_alerts', 'reconciliation_alerts_root_cause_group_index')) {
+                Schema::table('reconciliation_alerts', function (Blueprint $table) {
+                    $table->index('root_cause_group');
+                });
+            }
+        }
 
         // Create root cause catalog table
         Schema::create('alert_root_causes', function (Blueprint $table) {
@@ -99,18 +146,66 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('stuck_state_alerts', function (Blueprint $table) {
-            $table->dropIndex(['root_cause']);
-            $table->dropIndex(['root_cause_group']);
-            $table->dropColumn(['root_cause', 'root_cause_identified_at', 'root_cause_identified_by', 'root_cause_group']);
-        });
+        if (Schema::hasTable('stuck_state_alerts')) {
+            // Drop indexes
+            if ($this->indexExists('stuck_state_alerts', 'stuck_state_alerts_root_cause_index')) {
+                Schema::table('stuck_state_alerts', function (Blueprint $table) {
+                    $table->dropIndex(['root_cause']);
+                });
+            }
+            if ($this->indexExists('stuck_state_alerts', 'stuck_state_alerts_root_cause_group_index')) {
+                Schema::table('stuck_state_alerts', function (Blueprint $table) {
+                    $table->dropIndex(['root_cause_group']);
+                });
+            }
 
-        Schema::table('reconciliation_alerts', function (Blueprint $table) {
-            $table->dropIndex(['root_cause']);
-            $table->dropIndex(['root_cause_group']);
-            $table->dropColumn(['root_cause', 'root_cause_identified_at', 'root_cause_identified_by', 'root_cause_group']);
-        });
+            // Drop columns
+            Schema::table('stuck_state_alerts', function (Blueprint $table) {
+                $columns = ['root_cause', 'root_cause_identified_at', 'root_cause_identified_by', 'root_cause_group'];
+                foreach ($columns as $column) {
+                    if (Schema::hasColumn('stuck_state_alerts', $column)) {
+                        $table->dropColumn($column);
+                    }
+                }
+            });
+        }
+
+        if (Schema::hasTable('reconciliation_alerts')) {
+            // Drop indexes
+            if ($this->indexExists('reconciliation_alerts', 'reconciliation_alerts_root_cause_index')) {
+                Schema::table('reconciliation_alerts', function (Blueprint $table) {
+                    $table->dropIndex(['root_cause']);
+                });
+            }
+            if ($this->indexExists('reconciliation_alerts', 'reconciliation_alerts_root_cause_group_index')) {
+                Schema::table('reconciliation_alerts', function (Blueprint $table) {
+                    $table->dropIndex(['root_cause_group']);
+                });
+            }
+
+            // Drop columns
+            Schema::table('reconciliation_alerts', function (Blueprint $table) {
+                $columns = ['root_cause', 'root_cause_identified_at', 'root_cause_identified_by', 'root_cause_group'];
+                foreach ($columns as $column) {
+                    if (Schema::hasColumn('reconciliation_alerts', $column)) {
+                        $table->dropColumn($column);
+                    }
+                }
+            });
+        }
 
         Schema::dropIfExists('alert_root_causes');
+    }
+
+    /**
+     * Check if an index exists on a table
+     */
+    private function indexExists(string $table, string $index): bool
+    {
+        if (!Schema::hasTable($table)) {
+            return false;
+        }
+        $indexes = \Illuminate\Support\Facades\DB::select("SHOW INDEX FROM {$table} WHERE Key_name = '{$index}'");
+        return !empty($indexes);
     }
 };

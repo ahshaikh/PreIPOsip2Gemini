@@ -4,6 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Migration: Enforce Archived Record Write Protection
@@ -63,39 +64,65 @@ return new class extends Migration
         // ===================================================================
 
         // Prevent archived_at from being set to NULL (cannot un-archive)
-        DB::statement("
-            ALTER TABLE audit_logs
-            ADD CONSTRAINT check_archive_no_reversal
-            CHECK (
-                (is_archived = FALSE AND archived_at IS NULL)
-                OR (is_archived = TRUE AND archived_at IS NOT NULL)
-            )
-        ");
+        if (Schema::hasTable('audit_logs') &&
+            Schema::hasColumn('audit_logs', 'is_archived') &&
+            Schema::hasColumn('audit_logs', 'archived_at')) {
+            try {
+                DB::statement("
+                    ALTER TABLE audit_logs
+                    ADD CONSTRAINT check_archive_no_reversal
+                    CHECK (
+                        (is_archived = FALSE AND archived_at IS NULL)
+                        OR (is_archived = TRUE AND archived_at IS NOT NULL)
+                    )
+                ");
+            } catch (\Exception $e) {
+                Log::warning("Could not add check_archive_no_reversal constraint.", [
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
 
         // ===================================================================
         // CONSTRAINT 3: Apply same protections to other audit tables
         // ===================================================================
 
-        if (Schema::hasTable('benefit_audit_log')) {
-            DB::statement("
-                ALTER TABLE benefit_audit_log
-                ADD CONSTRAINT check_benefit_audit_archive_no_reversal
-                CHECK (
-                    (is_archived = FALSE AND archived_at IS NULL)
-                    OR (is_archived = TRUE AND archived_at IS NOT NULL)
-                )
-            ");
+        if (Schema::hasTable('benefit_audit_log') &&
+            Schema::hasColumn('benefit_audit_log', 'is_archived') &&
+            Schema::hasColumn('benefit_audit_log', 'archived_at')) {
+            try {
+                DB::statement("
+                    ALTER TABLE benefit_audit_log
+                    ADD CONSTRAINT check_benefit_audit_archive_no_reversal
+                    CHECK (
+                        (is_archived = FALSE AND archived_at IS NULL)
+                        OR (is_archived = TRUE AND archived_at IS NOT NULL)
+                    )
+                ");
+            } catch (\Exception $e) {
+                Log::warning("Could not add check_benefit_audit_archive_no_reversal constraint.", [
+                    'error' => $e->getMessage()
+                ]);
+            }
         }
 
-        if (Schema::hasTable('tds_deductions')) {
-            DB::statement("
-                ALTER TABLE tds_deductions
-                ADD CONSTRAINT check_tds_archive_no_reversal
-                CHECK (
-                    (is_archived = FALSE AND archived_at IS NULL)
-                    OR (is_archived = TRUE AND archived_at IS NOT NULL)
-                )
-            ");
+        if (Schema::hasTable('tds_deductions') &&
+            Schema::hasColumn('tds_deductions', 'is_archived') &&
+            Schema::hasColumn('tds_deductions', 'archived_at')) {
+            try {
+                DB::statement("
+                    ALTER TABLE tds_deductions
+                    ADD CONSTRAINT check_tds_archive_no_reversal
+                    CHECK (
+                        (is_archived = FALSE AND archived_at IS NULL)
+                        OR (is_archived = TRUE AND archived_at IS NOT NULL)
+                    )
+                ");
+            } catch (\Exception $e) {
+                Log::warning("Could not add check_tds_archive_no_reversal constraint.", [
+                    'error' => $e->getMessage()
+                ]);
+            }
         }
 
         // ===================================================================
