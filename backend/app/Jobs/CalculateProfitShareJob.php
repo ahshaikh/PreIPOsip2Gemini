@@ -58,22 +58,46 @@ class CalculateProfitShareJob implements ShouldQueue
 
     /**
      * Execute the job.
+     *
+     * [G.22 FIX]: Added idempotency protection to prevent duplicate profit share calculations
      */
-    public function handle(ProfitShareService $service): void
-    {
+    public function handle(
+        ProfitShareService $service,
+        \App\Services\IdempotencyService $idempotency
+    ): void {
         Log::info("Starting async profit share calculation for Period #{$this->profitShare->id} initiated by Admin #{$this->admin->id}");
 
+        $idempotencyKey = "profit_share_calculation:{$this->profitShare->id}";
+
+        // [G.22]: Check if already calculated to prevent duplicate distributions
+        if ($idempotency->isAlreadyExecuted($idempotencyKey, self::class)) {
+            Log::info("Profit share already calculated for Period #{$this->profitShare->id}. Skipping.");
+            return;
+        }
+
+        // [G.22]: Execute with idempotency protection
         try {
-            // Call the service method which uses cursor() for memory efficiency
-            $result = $service->calculateDistribution($this->profitShare, false);
+            $result = $idempotency->executeOnce($idempotencyKey, function () use ($service) {
+                // Call the service method which uses cursor() for memory efficiency
+                $result = $service->calculateDistribution($this->profitShare, false);
 
-            Log::info("Async calculation completed successfully for Period #{$this->profitShare->id}", [
-                'eligible_users' => $result['eligible_users'],
-                'total_distributed' => $result['total_distributed']
+                Log::info("Async calculation completed successfully for Period #{$this->profitShare->id}", [
+                    'eligible_users' => $result['eligible_users'],
+                    'total_distributed' => $result['total_distributed']
+                ]);
+
+                // TODO: Optionally send notification to admin when complete
+                // $this->admin->notify(new ProfitShareCalculationComplete($this->profitShare));
+
+                return $result;
+
+            }, [
+                'job_class' => self::class,
+                'input_data' => [
+                    'profit_share_id' => $this->profitShare->id,
+                    'admin_id' => $this->admin->id,
+                ],
             ]);
-
-            // TODO: Optionally send notification to admin when complete
-            // $this->admin->notify(new ProfitShareCalculationComplete($this->profitShare));
 
         } catch (\Exception $e) {
             Log::error("Async calculation failed for Period #{$this->profitShare->id}: " . $e->getMessage(), [
