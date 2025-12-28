@@ -64,6 +64,9 @@ class AppServiceProvider extends ServiceProvider
         // [E.16]: Enforce transaction immutability via observer
         \App\Models\Transaction::observe(\App\Observers\TransactionObserver::class);
 
+        // [F.21]: Enforce audit log immutability via observer
+        \App\Models\AuditLog::observe(\App\Observers\AuditLogObserver::class);
+
         // =================================================================
         // EVENT LISTENER REGISTRATION
         // =================================================================
