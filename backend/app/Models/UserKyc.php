@@ -67,6 +67,67 @@ class UserKyc extends Model
         'verification_checklist' => 'array',
     ];
 
+    /**
+     * [P1 FIX]: KYC State Machine Enforcement
+     *
+     * PREVENTS: Direct status updates that bypass KycStatusService
+     *
+     * WHY: Direct updates like $kyc->update(['status' => 'verified']) would:
+     * - Skip state transition validation
+     * - Not fire KycStatusUpdated events
+     * - Break referral completion workflow
+     * - Bypass audit trail
+     *
+     * ENFORCEMENT: Throws exception if status is changed without using KycStatusService
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // [P1 FIX]: Prevent direct status updates
+        static::updating(function ($kyc) {
+            // Check if status is being changed
+            if ($kyc->isDirty('status')) {
+                // Allow status changes during model creation or from KycStatusService
+                $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 10);
+
+                $allowedCallers = [
+                    'App\Services\Kyc\KycStatusService',
+                    // Allow during testing
+                    'Tests\\',
+                ];
+
+                $isAllowedCaller = false;
+                foreach ($backtrace as $trace) {
+                    if (isset($trace['class'])) {
+                        foreach ($allowedCallers as $allowed) {
+                            if (str_starts_with($trace['class'], $allowed)) {
+                                $isAllowedCaller = true;
+                                break 2;
+                            }
+                        }
+                    }
+                }
+
+                if (!$isAllowedCaller) {
+                    \Log::warning('[KYC BYPASS ATTEMPT] Direct status update blocked', [
+                        'kyc_id' => $kyc->id,
+                        'user_id' => $kyc->user_id,
+                        'old_status' => $kyc->getOriginal('status'),
+                        'new_status' => $kyc->status,
+                        'backtrace' => array_slice($backtrace, 0, 5),
+                    ]);
+
+                    throw new \RuntimeException(
+                        'PROTOCOL-1 VIOLATION: KYC status cannot be updated directly. ' .
+                        'Use App\Services\Kyc\KycStatusService::transitionTo() instead. ' .
+                        'This ensures state machine validation and event firing.'
+                    );
+                }
+            }
+        });
+    }
+
     // --- RELATIONSHIPS ---
 
     public function user(): BelongsTo
