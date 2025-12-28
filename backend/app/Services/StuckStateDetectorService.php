@@ -396,6 +396,24 @@ class StuckStateDetectorService
 
         foreach ($autoResolvableAlerts as $alert) {
             try {
+                // SAFEGUARD 2.5: Severity-gated auto-fix (NEW - addressing audit feedback)
+                // AUTO-FIX ONLY FOR LOW-IMPACT SCENARIOS
+                // ESCALATE everything else to manual review
+                $economicImpact = $this->assessAlertEconomicImpact($alert);
+
+                if ($economicImpact !== 'LOW') {
+                    Log::warning("AUTO-RESOLUTION BLOCKED - HIGH IMPACT", [
+                        'alert_id' => $alert->id,
+                        'entity_type' => $alert->entity_type,
+                        'entity_id' => $alert->entity_id,
+                        'economic_impact' => $economicImpact,
+                        'reason' => 'Auto-fix only allowed for LOW impact scenarios',
+                    ]);
+                    $this->escalateToManualReview($alert->id);
+                    $escalated++;
+                    continue;
+                }
+
                 // SAFEGUARD 3: Per-entity cap (max 3 resolutions per entity per day)
                 $entityResolutions = DB::table('stuck_state_alerts')
                     ->where('entity_type', $alert->entity_type)
@@ -742,5 +760,61 @@ class StuckStateDetectorService
                 ->where('reviewed', false)
                 ->count(),
         ];
+    }
+
+    /**
+     * Assess economic impact of a stuck state alert
+     *
+     * SEVERITY-GATED AUTO-FIX (addressing audit feedback):
+     * - Only LOW impact scenarios are auto-fixable
+     * - MEDIUM, HIGH, CRITICAL must go to manual review
+     *
+     * IMPACT ASSESSMENT MATRIX (same as SystemHealthMonitoringService):
+     * - LOW: <₹10k AND <12h stuck AND <5 users
+     * - MEDIUM: ₹10k-100k OR 12-48h stuck OR 5-20 users
+     * - HIGH: ₹100k-500k OR 48-168h stuck OR 20-100 users
+     * - CRITICAL: >₹500k OR >168h stuck OR >100 users
+     *
+     * @param object $alert Stuck state alert
+     * @return string Impact level (LOW, MEDIUM, HIGH, CRITICAL)
+     */
+    private function assessAlertEconomicImpact(object $alert): string
+    {
+        $amount = 0;
+        $hoursStuck = 0;
+        $usersAffected = 1; // Default: at least 1 user affected
+
+        // Get monetary exposure based on entity type
+        if ($alert->entity_type === 'payment') {
+            $payment = DB::table('payments')->where('id', $alert->entity_id)->first();
+            $amount = $payment->amount ?? 0;
+            $hoursStuck = Carbon::parse($alert->stuck_since)->diffInHours(now());
+        } elseif ($alert->entity_type === 'investment') {
+            $investment = DB::table('investments')->where('id', $alert->entity_id)->first();
+            $amount = $investment->amount ?? 0;
+            $hoursStuck = Carbon::parse($alert->stuck_since)->diffInHours(now());
+        } elseif ($alert->entity_type === 'bonus') {
+            $bonus = DB::table('bonus_transactions')->where('id', $alert->entity_id)->first();
+            $amount = $bonus->amount ?? 0;
+            $hoursStuck = Carbon::parse($alert->stuck_since)->diffInHours(now());
+        }
+
+        // CRITICAL thresholds (any one triggers CRITICAL)
+        if ($amount > 500000 || $hoursStuck > 168 || $usersAffected > 100) {
+            return 'CRITICAL';
+        }
+
+        // HIGH thresholds (any one triggers HIGH)
+        if ($amount > 100000 || $hoursStuck > 48 || $usersAffected > 20) {
+            return 'HIGH';
+        }
+
+        // MEDIUM thresholds (any one triggers MEDIUM)
+        if ($amount > 10000 || $hoursStuck > 12 || $usersAffected > 5) {
+            return 'MEDIUM';
+        }
+
+        // LOW - safe for auto-fix
+        return 'LOW';
     }
 }

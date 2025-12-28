@@ -100,7 +100,7 @@ class SystemHealthMonitoringService
     }
 
     /**
-     * Check wallet balance mismatches
+     * Check wallet balance mismatches (ENHANCED with economic impact metrics)
      *
      * @return array
      */
@@ -129,7 +129,25 @@ class SystemHealthMonitoringService
                            AND is_reversed = FALSE
                         ), 0
                     )
-                ) as computed_balance
+                ) as computed_balance,
+                ABS(w.balance_paise - (
+                    COALESCE(
+                        (SELECT SUM(amount_paise)
+                         FROM transactions
+                         WHERE wallet_id = w.id
+                           AND type IN ('deposit', 'credit', 'bonus', 'refund', 'referral_bonus')
+                           AND is_reversed = FALSE
+                        ), 0
+                    ) -
+                    COALESCE(
+                        (SELECT SUM(amount_paise)
+                         FROM transactions
+                         WHERE wallet_id = w.id
+                           AND type IN ('debit', 'withdrawal', 'investment', 'fee', 'tds')
+                           AND is_reversed = FALSE
+                        ), 0
+                    )
+                )) as discrepancy_paise
             FROM wallets w
             HAVING stored_balance != computed_balance
             LIMIT 100
@@ -137,6 +155,18 @@ class SystemHealthMonitoringService
 
         $count = count($mismatches);
         $isHealthy = $count === 0;
+
+        // Calculate total monetary discrepancy
+        $totalDiscrepancy = 0;
+        foreach ($mismatches as $mismatch) {
+            $totalDiscrepancy += $mismatch->discrepancy_paise;
+        }
+        $totalDiscrepancyRupees = $totalDiscrepancy / 100;
+
+        // ECONOMIC IMPACT ASSESSMENT
+        // For balance mismatches, time-weighted risk is not applicable (use 0)
+        // User impact is the count of affected wallets
+        $impactLevel = $this->assessEconomicImpact($totalDiscrepancyRupees, 0, $count);
 
         // Create alerts for mismatches
         if (!$isHealthy) {
@@ -155,6 +185,11 @@ class SystemHealthMonitoringService
             }
         }
 
+        // Enhanced message with economic context
+        $message = $isHealthy
+            ? "All wallet balances reconciled"
+            : "₹" . number_format($totalDiscrepancyRupees, 2) . " total discrepancy across {$count} wallets. Impact: {$impactLevel}";
+
         return $this->createMetric(
             'wallet_balance_mismatches',
             'financial',
@@ -164,8 +199,13 @@ class SystemHealthMonitoringService
             0, // critical threshold
             'count',
             $isHealthy,
-            $isHealthy ? "All wallet balances reconciled" : "{$count} wallet balance mismatches detected",
-            ['mismatches' => array_slice($mismatches, 0, 10)] // First 10
+            $message,
+            [
+                'mismatches' => array_slice($mismatches, 0, 10), // First 10
+                'total_discrepancy' => $totalDiscrepancyRupees,
+                'unique_users_affected' => $count,
+                'economic_impact' => $impactLevel,
+            ]
         );
     }
 
@@ -272,56 +312,118 @@ class SystemHealthMonitoringService
     }
 
     /**
-     * Check stuck payments
+     * Check stuck payments (ENHANCED with economic impact metrics)
      *
      * @return array
      */
     private function checkStuckPayments(): array
     {
-        $stuck = DB::table('payments')
-            ->where('status', 'pending')
-            ->where('created_at', '<', now()->subHours(24))
-            ->count();
+        // Get stuck payment details with economic impact
+        $stuckPayments = DB::select("
+            SELECT
+                COUNT(*) as count,
+                COALESCE(SUM(amount), 0) as total_amount,
+                COUNT(DISTINCT user_id) as unique_users,
+                AVG(TIMESTAMPDIFF(HOUR, created_at, NOW())) as avg_hours_stuck,
+                MAX(TIMESTAMPDIFF(HOUR, created_at, NOW())) as max_hours_stuck
+            FROM payments
+            WHERE status = 'pending'
+              AND created_at < NOW() - INTERVAL 24 HOUR
+        ");
 
-        $isHealthy = $stuck === 0;
+        $data = $stuckPayments[0];
+        $count = $data->count ?? 0;
+        $totalAmount = $data->total_amount ?? 0;
+        $uniqueUsers = $data->unique_users ?? 0;
+        $avgHoursStuck = round($data->avg_hours_stuck ?? 0, 1);
+        $maxHoursStuck = round($data->max_hours_stuck ?? 0, 1);
+
+        $isHealthy = $count === 0;
+
+        // ECONOMIC IMPACT ASSESSMENT
+        $impactLevel = $this->assessEconomicImpact($totalAmount, $avgHoursStuck, $uniqueUsers);
+
+        // Enhanced message with economic context
+        $message = $isHealthy
+            ? "No stuck payments"
+            : "₹" . number_format($totalAmount, 2) . " stuck for {$avgHoursStuck}h (max {$maxHoursStuck}h) affecting {$uniqueUsers} users ({$count} payments). Impact: {$impactLevel}";
 
         return $this->createMetric(
             'stuck_payments',
             'operational',
-            $stuck > 10 ? 'error' : ($stuck > 0 ? 'warning' : 'info'),
-            $stuck,
+            $count > 10 ? 'error' : ($count > 0 ? 'warning' : 'info'),
+            $count,
             5,
             10,
             'count',
             $isHealthy,
-            $isHealthy ? "No stuck payments" : "{$stuck} payments pending > 24h"
+            $message,
+            [
+                'monetary_exposure' => $totalAmount,
+                'avg_hours_stuck' => $avgHoursStuck,
+                'max_hours_stuck' => $maxHoursStuck,
+                'unique_users_affected' => $uniqueUsers,
+                'economic_impact' => $impactLevel,
+            ]
         );
     }
 
     /**
-     * Check stuck investments
+     * Check stuck investments (ENHANCED with economic impact metrics)
      *
      * @return array
      */
     private function checkStuckInvestments(): array
     {
-        $stuck = DB::table('investments')
-            ->where('allocation_status', 'processing')
-            ->where('updated_at', '<', now()->subMinutes(30))
-            ->count();
+        // Get stuck investment details with economic impact
+        $stuckInvestments = DB::select("
+            SELECT
+                COUNT(*) as count,
+                COALESCE(SUM(amount), 0) as total_amount,
+                COUNT(DISTINCT user_id) as unique_users,
+                AVG(TIMESTAMPDIFF(MINUTE, updated_at, NOW())) as avg_minutes_stuck,
+                MAX(TIMESTAMPDIFF(MINUTE, updated_at, NOW())) as max_minutes_stuck
+            FROM investments
+            WHERE allocation_status = 'processing'
+              AND updated_at < NOW() - INTERVAL 30 MINUTE
+        ");
 
-        $isHealthy = $stuck === 0;
+        $data = $stuckInvestments[0];
+        $count = $data->count ?? 0;
+        $totalAmount = $data->total_amount ?? 0;
+        $uniqueUsers = $data->unique_users ?? 0;
+        $avgMinutesStuck = round($data->avg_minutes_stuck ?? 0, 1);
+        $maxMinutesStuck = round($data->max_minutes_stuck ?? 0, 1);
+
+        $avgHoursStuck = round($avgMinutesStuck / 60, 1);
+
+        $isHealthy = $count === 0;
+
+        // ECONOMIC IMPACT ASSESSMENT
+        $impactLevel = $this->assessEconomicImpact($totalAmount, $avgHoursStuck, $uniqueUsers);
+
+        // Enhanced message with economic context
+        $message = $isHealthy
+            ? "No stuck investments"
+            : "₹" . number_format($totalAmount, 2) . " stuck for {$avgMinutesStuck}min (max {$maxMinutesStuck}min) affecting {$uniqueUsers} users ({$count} investments). Impact: {$impactLevel}";
 
         return $this->createMetric(
             'stuck_investments',
             'operational',
-            $stuck > 5 ? 'error' : ($stuck > 0 ? 'warning' : 'info'),
-            $stuck,
+            $count > 5 ? 'error' : ($count > 0 ? 'warning' : 'info'),
+            $count,
             3,
             5,
             'count',
             $isHealthy,
-            $isHealthy ? "No stuck investments" : "{$stuck} investments processing > 30min"
+            $message,
+            [
+                'monetary_exposure' => $totalAmount,
+                'avg_minutes_stuck' => $avgMinutesStuck,
+                'max_minutes_stuck' => $maxMinutesStuck,
+                'unique_users_affected' => $uniqueUsers,
+                'economic_impact' => $impactLevel,
+            ]
         );
     }
 
@@ -654,5 +756,40 @@ class SystemHealthMonitoringService
             default:
                 return $health;
         }
+    }
+
+    /**
+     * Assess economic impact of a stuck/unhealthy state
+     *
+     * IMPACT ASSESSMENT MATRIX:
+     * - LOW: <₹10k OR <12h stuck OR <5 users
+     * - MEDIUM: ₹10k-100k OR 12-48h stuck OR 5-20 users
+     * - HIGH: ₹100k-500k OR 48-168h stuck OR 20-100 users
+     * - CRITICAL: >₹500k OR >168h stuck OR >100 users
+     *
+     * @param float $amount Monetary exposure (rupees)
+     * @param float $hoursStuck Time-weighted risk (hours)
+     * @param int $usersAffected User impact count
+     * @return string Impact level
+     */
+    private function assessEconomicImpact(float $amount, float $hoursStuck, int $usersAffected): string
+    {
+        // CRITICAL thresholds (any one triggers CRITICAL)
+        if ($amount > 500000 || $hoursStuck > 168 || $usersAffected > 100) {
+            return 'CRITICAL - Immediate escalation required';
+        }
+
+        // HIGH thresholds (any one triggers HIGH)
+        if ($amount > 100000 || $hoursStuck > 48 || $usersAffected > 20) {
+            return 'HIGH - Manual intervention needed';
+        }
+
+        // MEDIUM thresholds (any one triggers MEDIUM)
+        if ($amount > 10000 || $hoursStuck > 12 || $usersAffected > 5) {
+            return 'MEDIUM - Monitor closely';
+        }
+
+        // LOW
+        return 'LOW - Auto-fix eligible';
     }
 }
