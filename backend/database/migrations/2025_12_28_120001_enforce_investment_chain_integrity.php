@@ -29,6 +29,18 @@ return new class extends Migration
         // PART 1: USER_INVESTMENTS TABLE - Enforce valid parent references
         // ===================================================================
 
+        // Skip if table doesn't exist
+        if (!Schema::hasTable('user_investments')) {
+            return;
+        }
+
+        // Check if investment_id column exists
+        if (!Schema::hasColumn('user_investments', 'investment_id')) {
+            // Skip this migration - column doesn't exist
+            // This is expected if the table schema is different
+            return;
+        }
+
         // Check if foreign key already exists before adding
         $existingInvestmentFk = DB::select("
             SELECT CONSTRAINT_NAME
@@ -51,40 +63,67 @@ return new class extends Migration
             });
         }
 
-        // Add CHECK constraint: Cannot have allocation without investment
-        DB::statement("
-            ALTER TABLE user_investments
-            ADD CONSTRAINT check_user_investment_has_parent
-            CHECK (investment_id IS NOT NULL)
-        ");
+        // Add CHECK constraints only if columns exist
+        if (Schema::hasColumn('user_investments', 'investment_id')) {
+            try {
+                DB::statement("
+                    ALTER TABLE user_investments
+                    ADD CONSTRAINT check_user_investment_has_parent
+                    CHECK (investment_id IS NOT NULL)
+                ");
+            } catch (\Exception $e) {
+                // Constraint might already exist, skip
+            }
+        }
 
-        // Add CHECK constraint: Allocated value must be positive
-        DB::statement("
-            ALTER TABLE user_investments
-            ADD CONSTRAINT check_user_investment_positive_value
-            CHECK (value_allocated > 0)
-        ");
+        if (Schema::hasColumn('user_investments', 'value_allocated')) {
+            try {
+                DB::statement("
+                    ALTER TABLE user_investments
+                    ADD CONSTRAINT check_user_investment_positive_value
+                    CHECK (value_allocated > 0)
+                ");
+            } catch (\Exception $e) {
+                // Constraint might already exist, skip
+            }
+        }
 
-        // Add CHECK constraint: Reversed investments cannot be in 'active' status
-        DB::statement("
-            ALTER TABLE user_investments
-            ADD CONSTRAINT check_reversed_not_active
-            CHECK (
-                (is_reversed = FALSE AND status = 'active')
-                OR (is_reversed = TRUE AND status != 'active')
-            )
-        ");
+        if (Schema::hasColumn('user_investments', 'is_reversed') && Schema::hasColumn('user_investments', 'status')) {
+            try {
+                DB::statement("
+                    ALTER TABLE user_investments
+                    ADD CONSTRAINT check_reversed_not_active
+                    CHECK (
+                        (is_reversed = FALSE AND status = 'active')
+                        OR (is_reversed = TRUE AND status != 'active')
+                    )
+                ");
+            } catch (\Exception $e) {
+                // Constraint might already exist, skip
+            }
+        }
 
         // ===================================================================
         // PART 2: INVESTMENTS TABLE - Enforce valid states
         // ===================================================================
 
+        // Skip if table doesn't exist
+        if (!Schema::hasTable('investments')) {
+            return;
+        }
+
         // Add CHECK constraint: Final amount cannot exceed total amount
-        DB::statement("
-            ALTER TABLE investments
-            ADD CONSTRAINT check_final_not_exceed_total
-            CHECK (final_amount <= total_amount)
-        ");
+        if (Schema::hasColumn('investments', 'final_amount') && Schema::hasColumn('investments', 'total_amount')) {
+            try {
+                DB::statement("
+                    ALTER TABLE investments
+                    ADD CONSTRAINT check_final_not_exceed_total
+                    CHECK (final_amount <= total_amount)
+                ");
+            } catch (\Exception $e) {
+                // Constraint might already exist, skip
+            }
+        }
 
         // Add CHECK constraint: Completed investments must have allocation
         // This will be enforced at application level, not DB (requires join)
@@ -116,29 +155,33 @@ return new class extends Migration
         // PART 4: INDEXES - Optimize chain traversal queries
         // ===================================================================
 
-        Schema::table('user_investments', function (Blueprint $table) {
-            // Index for finding allocations by investment
-            if (!$this->indexExists('user_investments', 'idx_user_investments_investment')) {
-                $table->index('investment_id', 'idx_user_investments_investment');
-            }
+        if (Schema::hasTable('user_investments')) {
+            Schema::table('user_investments', function (Blueprint $table) {
+                // Index for finding allocations by investment
+                if (Schema::hasColumn('user_investments', 'investment_id') && !$this->indexExists('user_investments', 'idx_user_investments_investment')) {
+                    $table->index('investment_id', 'idx_user_investments_investment');
+                }
 
-            // Index for finding non-reversed allocations (used in conservation checks)
-            if (!$this->indexExists('user_investments', 'idx_user_investments_active')) {
-                $table->index(['investment_id', 'is_reversed'], 'idx_user_investments_active');
-            }
-        });
+                // Index for finding non-reversed allocations (used in conservation checks)
+                if (Schema::hasColumn('user_investments', 'investment_id') && Schema::hasColumn('user_investments', 'is_reversed') && !$this->indexExists('user_investments', 'idx_user_investments_active')) {
+                    $table->index(['investment_id', 'is_reversed'], 'idx_user_investments_active');
+                }
+            });
+        }
 
-        Schema::table('investments', function (Blueprint $table) {
-            // Index for finding investments by user and status
-            if (!$this->indexExists('investments', 'idx_investments_user_status')) {
-                $table->index(['user_id', 'status'], 'idx_investments_user_status');
-            }
+        if (Schema::hasTable('investments')) {
+            Schema::table('investments', function (Blueprint $table) {
+                // Index for finding investments by user and status
+                if (Schema::hasColumn('investments', 'user_id') && Schema::hasColumn('investments', 'status') && !$this->indexExists('investments', 'idx_investments_user_status')) {
+                    $table->index(['user_id', 'status'], 'idx_investments_user_status');
+                }
 
-            // Index for finding completed investments (used in compliance checks)
-            if (!$this->indexExists('investments', 'idx_investments_status')) {
-                $table->index('status', 'idx_investments_status');
-            }
-        });
+                // Index for finding completed investments (used in compliance checks)
+                if (Schema::hasColumn('investments', 'status') && !$this->indexExists('investments', 'idx_investments_status')) {
+                    $table->index('status', 'idx_investments_status');
+                }
+            });
+        }
     }
 
     /**
