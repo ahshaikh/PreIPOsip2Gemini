@@ -15,6 +15,13 @@ class BulkPurchase extends Model
     protected $fillable = [
         'product_id',
         'admin_id',
+        'company_id', // PROVENANCE: Which company supplied this inventory
+        'company_share_listing_id', // PROVENANCE: Source listing (if from listing)
+        'source_type', // PROVENANCE: 'company_listing' or 'manual_entry'
+        'approved_by_admin_id', // PROVENANCE: Admin who approved manual entry
+        'manual_entry_reason', // PROVENANCE: Why manual entry was needed
+        'source_documentation', // PROVENANCE: Supporting documents
+        'verified_at', // PROVENANCE: When provenance was verified
         'face_value_purchased',
         'actual_cost_paid',
         'discount_percentage',
@@ -28,6 +35,7 @@ class BulkPurchase extends Model
 
     protected $casts = [
         'purchase_date' => 'date',
+        'verified_at' => 'datetime',
         'face_value_purchased' => 'decimal:2',
         'actual_cost_paid' => 'decimal:2',
         'discount_percentage' => 'decimal:2',
@@ -80,6 +88,30 @@ class BulkPurchase extends Model
     public function userInvestments()
     {
         return $this->hasMany(UserInvestment::class);
+    }
+
+    /**
+     * PROVENANCE: Company that supplied this inventory
+     */
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
+    }
+
+    /**
+     * PROVENANCE: Company share listing (if inventory from approved listing)
+     */
+    public function companyShareListing(): BelongsTo
+    {
+        return $this->belongsTo(CompanyShareListing::class);
+    }
+
+    /**
+     * PROVENANCE: Admin who approved manual inventory entry
+     */
+    public function approvedByAdmin(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by_admin_id');
     }
 
     // --- ACCESSORS (CALCULATIONS) ---
