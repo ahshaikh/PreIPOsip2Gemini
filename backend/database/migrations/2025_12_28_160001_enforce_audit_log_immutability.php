@@ -42,14 +42,28 @@ return new class extends Migration
 
         Schema::table('audit_logs', function (Blueprint $table) {
             if (!Schema::hasColumn('audit_logs', 'is_archived')) {
-                $table->boolean('is_archived')->default(false)->after('requires_review');
+                // Check if reference column exists for 'after' clause
+                if (Schema::hasColumn('audit_logs', 'requires_review')) {
+                    $table->boolean('is_archived')->default(false)->after('requires_review');
+                } else {
+                    $table->boolean('is_archived')->default(false);
+                }
             }
             if (!Schema::hasColumn('audit_logs', 'archived_at')) {
-                $table->timestamp('archived_at')->nullable()->after('is_archived');
+                if (Schema::hasColumn('audit_logs', 'is_archived')) {
+                    $table->timestamp('archived_at')->nullable()->after('is_archived');
+                } else {
+                    $table->timestamp('archived_at')->nullable();
+                }
             }
             if (!Schema::hasColumn('audit_logs', 'retention_period')) {
-                $table->string('retention_period')->default('permanent')->after('archived_at')
-                    ->comment('permanent, 7years, etc.');
+                if (Schema::hasColumn('audit_logs', 'archived_at')) {
+                    $table->string('retention_period')->default('permanent')->after('archived_at')
+                        ->comment('permanent, 7years, etc.');
+                } else {
+                    $table->string('retention_period')->default('permanent')
+                        ->comment('permanent, 7years, etc.');
+                }
             }
         });
 
@@ -85,10 +99,18 @@ return new class extends Migration
         if (Schema::hasTable('benefit_audit_log')) {
             Schema::table('benefit_audit_log', function (Blueprint $table) {
                 if (!Schema::hasColumn('benefit_audit_log', 'is_archived')) {
-                    $table->boolean('is_archived')->default(false)->after('created_at');
+                    if (Schema::hasColumn('benefit_audit_log', 'created_at')) {
+                        $table->boolean('is_archived')->default(false)->after('created_at');
+                    } else {
+                        $table->boolean('is_archived')->default(false);
+                    }
                 }
                 if (!Schema::hasColumn('benefit_audit_log', 'archived_at')) {
-                    $table->timestamp('archived_at')->nullable()->after('is_archived');
+                    if (Schema::hasColumn('benefit_audit_log', 'is_archived')) {
+                        $table->timestamp('archived_at')->nullable()->after('is_archived');
+                    } else {
+                        $table->timestamp('archived_at')->nullable();
+                    }
                 }
             });
 
@@ -106,14 +128,27 @@ return new class extends Migration
         if (Schema::hasTable('tds_deductions')) {
             Schema::table('tds_deductions', function (Blueprint $table) {
                 if (!Schema::hasColumn('tds_deductions', 'is_archived')) {
-                    $table->boolean('is_archived')->default(false)->after('form_16a_generated_at');
+                    if (Schema::hasColumn('tds_deductions', 'form_16a_generated_at')) {
+                        $table->boolean('is_archived')->default(false)->after('form_16a_generated_at');
+                    } else {
+                        $table->boolean('is_archived')->default(false);
+                    }
                 }
                 if (!Schema::hasColumn('tds_deductions', 'archived_at')) {
-                    $table->timestamp('archived_at')->nullable()->after('is_archived');
+                    if (Schema::hasColumn('tds_deductions', 'is_archived')) {
+                        $table->timestamp('archived_at')->nullable()->after('is_archived');
+                    } else {
+                        $table->timestamp('archived_at')->nullable();
+                    }
                 }
                 if (!Schema::hasColumn('tds_deductions', 'retention_period')) {
-                    $table->string('retention_period')->default('7years')->after('archived_at')
-                        ->comment('Minimum 7 years as per Income Tax Act');
+                    if (Schema::hasColumn('tds_deductions', 'archived_at')) {
+                        $table->string('retention_period')->default('7years')->after('archived_at')
+                            ->comment('Minimum 7 years as per Income Tax Act');
+                    } else {
+                        $table->string('retention_period')->default('7years')
+                            ->comment('Minimum 7 years as per Income Tax Act');
+                    }
                 }
             });
 
