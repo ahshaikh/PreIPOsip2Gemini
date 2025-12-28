@@ -35,7 +35,7 @@ return new class extends Migration
         // ===================================================================
         // TABLE 1: job_executions - Idempotency Tracking
         // ===================================================================
-
+	if (!Schema::hasTable('job_executions')) {
         Schema::create('job_executions', function (Blueprint $table) {
             $table->id();
 
@@ -68,11 +68,12 @@ return new class extends Migration
             $table->index('started_at');
             $table->index('created_at');
         });
+	}
 
         // ===================================================================
         // TABLE 2: job_state_tracking - Workflow State Tracking
         // ===================================================================
-
+	if (!Schema::hasTable('job_state_tracking')) {
         Schema::create('job_state_tracking', function (Blueprint $table) {
             $table->id();
 
@@ -97,7 +98,7 @@ return new class extends Migration
 
             // Timeout detection
             $table->timestamp('started_at');
-            $table->timestamp('last_updated_at');
+            $table->timestamp('last_updated_at')->useCurrent()->useCurrentOnUpdate();
             $table->timestamp('expected_completion_at')->nullable();
             $table->timestamp('completed_at')->nullable();
 
@@ -118,11 +119,13 @@ return new class extends Migration
             $table->index('started_at');
             $table->index('last_updated_at');
         });
+	}
 
         // ===================================================================
         // TABLE 3: stuck_state_alerts - Escalation Tracking
         // ===================================================================
 
+	if (!Schema::hasTable('stuck_state_alerts')) {
         Schema::create('stuck_state_alerts', function (Blueprint $table) {
             $table->id();
 
@@ -174,6 +177,7 @@ return new class extends Migration
             $table->index('escalated');
             $table->index('created_at');
         });
+	}
 
         // ===================================================================
         // Constraints
