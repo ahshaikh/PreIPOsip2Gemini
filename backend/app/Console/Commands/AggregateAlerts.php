@@ -99,7 +99,8 @@ class AggregateAlerts extends Command
             return Command::SUCCESS;
         }
 
-        $this->warn("Found {count($result['root_causes'])} systemic issues:");
+        $count = count($result['root_causes']);
+        $this->warn("Found {$count} systemic issues:");
         $this->newLine();
 
         foreach ($result['root_causes'] as $rootCause) {
