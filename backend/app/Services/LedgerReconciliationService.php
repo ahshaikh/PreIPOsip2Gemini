@@ -284,16 +284,51 @@ class LedgerReconciliationService
     }
 
     /**
-     * Auto-fix wallet balance discrepancy (DANGEROUS - use with caution)
+     * Auto-fix wallet balance discrepancy (DANGEROUS - use with extreme caution)
      *
-     * Creates adjustment transaction to match calculated balance
+     * CRITICAL SAFEGUARDS (addressing audit feedback):
+     * 1. HARD LIMITS: Maximum adjustment amount (configuration + invariant)
+     * 2. APPROVAL REQUIRED: Explicit admin approval token
+     * 3. KILL SWITCH: Global setting can disable all auto-fix
+     * 4. AUDIT TRAIL: All attempts logged (approved + rejected)
+     * 5. BALANCE RECOMPUTATION: Verify against transaction history, not stored balance
+     * 6. HUMAN REVIEW: Requires manual confirmation for each wallet
      *
      * @param Wallet $wallet
      * @param string $reason
+     * @param string $approvalToken Admin approval token (cryptographically signed)
      * @return Transaction|null The adjustment transaction if created
+     * @throws \RuntimeException if safeguards fail
      */
-    public function autoFixWalletBalance(Wallet $wallet, string $reason): ?Transaction
+    public function autoFixWalletBalance(Wallet $wallet, string $reason, string $approvalToken): ?Transaction
     {
+        // SAFEGUARD 1: Kill switch check
+        if (!setting('allow_auto_fix', false)) {
+            Log::critical("AUTO-FIX BLOCKED: Kill switch activated", [
+                'wallet_id' => $wallet->id,
+                'reason' => $reason,
+            ]);
+
+            throw new \RuntimeException(
+                "AUTO-FIX DISABLED: Global kill switch is activated. " .
+                "Manual reconciliation required."
+            );
+        }
+
+        // SAFEGUARD 2: Verify approval token
+        if (!$this->verifyApprovalToken($approvalToken, $wallet->id)) {
+            Log::critical("AUTO-FIX BLOCKED: Invalid approval token", [
+                'wallet_id' => $wallet->id,
+                'token' => substr($approvalToken, 0, 10) . '...',
+            ]);
+
+            throw new \RuntimeException(
+                "AUTO-FIX BLOCKED: Invalid or expired approval token. " .
+                "Each auto-fix requires explicit admin approval."
+            );
+        }
+
+        // SAFEGUARD 3: Recompute balance from transaction history (don't trust stored balance)
         $reconciliation = $this->reconcileWallet($wallet);
 
         if ($reconciliation['is_balanced']) {
@@ -303,10 +338,31 @@ class LedgerReconciliationService
 
         $discrepancy = $reconciliation['discrepancy_paise'];
 
-        // Create adjustment transaction
-        return DB::transaction(function () use ($wallet, $discrepancy, $reason) {
+        // SAFEGUARD 4: Hard limits (configuration + invariant)
+        $configuredMaxPaise = (int) (setting('max_auto_fix_amount', 1000) * 100); // ₹1,000 default
+        $invariantMaxPaise = 500000; // ₹5,000 HARD UPPER LIMIT
+
+        $maxAllowedPaise = min($configuredMaxPaise, $invariantMaxPaise);
+
+        if (abs($discrepancy) > $maxAllowedPaise) {
+            Log::critical("AUTO-FIX BLOCKED: Exceeds maximum allowed amount", [
+                'wallet_id' => $wallet->id,
+                'discrepancy_paise' => $discrepancy,
+                'discrepancy_rupees' => $discrepancy / 100,
+                'max_allowed_paise' => $maxAllowedPaise,
+                'max_allowed_rupees' => $maxAllowedPaise / 100,
+            ]);
+
+            throw new \RuntimeException(
+                "AUTO-FIX BLOCKED: Discrepancy ₹" . ($discrepancy / 100) . " exceeds maximum allowed ₹" . ($maxAllowedPaise / 100) . ". " .
+                "Manual investigation required."
+            );
+        }
+
+        // SAFEGUARD 5: Create adjustment transaction with full audit trail
+        return DB::transaction(function () use ($wallet, $discrepancy, $reason, $approvalToken, $reconciliation) {
             $currentBalance = $wallet->balance_paise;
-            $correctBalance = $currentBalance - $discrepancy;
+            $correctBalance = $reconciliation['calculated_balance_paise'];
 
             $adjustmentType = $discrepancy > 0 ? 'debit' : 'credit';
             $adjustmentAmount = abs($discrepancy);
@@ -319,13 +375,40 @@ class LedgerReconciliationService
                 'amount_paise' => $adjustmentAmount,
                 'balance_before_paise' => $currentBalance,
                 'balance_after_paise' => $correctBalance,
-                'description' => "BALANCE ADJUSTMENT: {$reason}",
+                'description' => "BALANCE ADJUSTMENT (AUTO-FIX): {$reason}",
                 'reference_type' => 'system_adjustment',
                 'reference_id' => null,
             ]);
 
             // Update wallet balance
             $wallet->update(['balance_paise' => $correctBalance]);
+
+            // CRITICAL: Log to audit_logs for permanent record
+            \App\Models\AuditLog::create([
+                'actor_type' => 'system',
+                'actor_id' => null,
+                'actor_name' => 'Auto-Fix Robot',
+                'action' => 'auto_fix_balance',
+                'module' => 'reconciliation',
+                'description' => "AUTO-FIX executed on wallet #{$wallet->id}",
+                'target_type' => 'Wallet',
+                'target_id' => $wallet->id,
+                'old_values' => json_encode([
+                    'balance_paise' => $currentBalance,
+                ]),
+                'new_values' => json_encode([
+                    'balance_paise' => $correctBalance,
+                    'adjustment_amount_paise' => $adjustmentAmount,
+                ]),
+                'metadata' => json_encode([
+                    'reason' => $reason,
+                    'approval_token' => substr($approvalToken, 0, 20) . '...',
+                    'adjustment_transaction_id' => $adjustmentTransaction->id,
+                    'reconciliation_details' => $reconciliation,
+                ]),
+                'risk_level' => 'critical',
+                'requires_review' => true,
+            ]);
 
             Log::warning("WALLET BALANCE AUTO-FIXED", [
                 'wallet_id' => $wallet->id,
@@ -335,9 +418,87 @@ class LedgerReconciliationService
                 'old_balance' => $currentBalance,
                 'new_balance' => $correctBalance,
                 'reason' => $reason,
+                'approval_token_hash' => hash('sha256', $approvalToken),
             ]);
 
             return $adjustmentTransaction;
         });
+    }
+
+    /**
+     * Verify admin approval token for auto-fix
+     *
+     * Token format: AUTOFIX|WALLET_ID|TIMESTAMP|ADMIN_ID|SIGNATURE
+     *
+     * @param string $token
+     * @param int $walletId
+     * @return bool
+     */
+    private function verifyApprovalToken(string $token, int $walletId): bool
+    {
+        $parts = explode('|', $token);
+
+        if (count($parts) !== 5) {
+            return false;
+        }
+
+        [$prefix, $tokenWalletId, $timestamp, $adminId, $signature] = $parts;
+
+        // Check 1: Correct prefix
+        if ($prefix !== 'AUTOFIX') {
+            return false;
+        }
+
+        // Check 2: Wallet ID matches
+        if ((int) $tokenWalletId !== $walletId) {
+            return false;
+        }
+
+        // Check 3: Token not expired (5 minutes)
+        if (time() - (int) $timestamp > 300) {
+            Log::warning("AUTO-FIX TOKEN EXPIRED", [
+                'wallet_id' => $walletId,
+                'token_age_seconds' => time() - (int) $timestamp,
+            ]);
+            return false;
+        }
+
+        // Check 4: Verify signature
+        $expectedSignature = hash_hmac(
+            'sha256',
+            "{$prefix}|{$tokenWalletId}|{$timestamp}|{$adminId}",
+            config('app.key')
+        );
+
+        if (!hash_equals($expectedSignature, $signature)) {
+            Log::critical("AUTO-FIX TOKEN SIGNATURE MISMATCH", [
+                'wallet_id' => $walletId,
+                'admin_id' => $adminId,
+            ]);
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Generate approval token for auto-fix (admin only)
+     *
+     * @param int $walletId
+     * @param int $adminId
+     * @return string
+     */
+    public function generateApprovalToken(int $walletId, int $adminId): string
+    {
+        $timestamp = time();
+        $prefix = 'AUTOFIX';
+
+        $signature = hash_hmac(
+            'sha256',
+            "{$prefix}|{$walletId}|{$timestamp}|{$adminId}",
+            config('app.key')
+        );
+
+        return "{$prefix}|{$walletId}|{$timestamp}|{$adminId}|{$signature}";
     }
 }

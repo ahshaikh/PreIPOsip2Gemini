@@ -36,6 +36,11 @@ class ImmutableTransactionService
      * - Links reversal to original via reversed_by_transaction_id
      * - Updates wallet balance
      *
+     * CRITICAL FIX (addressing audit feedback):
+     * - RECOMPUTES balance from transaction history (doesn't trust stored balance)
+     * - Verifies stored balance matches computed balance before reversal
+     * - If mismatch detected: Logs critical error and blocks reversal
+     *
      * @param Transaction $originalTransaction
      * @param string $reason
      * @return Transaction The reversal transaction
@@ -51,7 +56,31 @@ class ImmutableTransactionService
         return DB::transaction(function () use ($originalTransaction, $reason) {
             // Get wallet
             $wallet = $originalTransaction->wallet;
-            $currentBalance = $wallet->balance_paise;
+            $storedBalance = $wallet->balance_paise;
+
+            // CRITICAL FIX: Recompute balance from transaction history
+            // Do NOT trust stored balance - verify it first
+            $computedBalance = $this->recomputeWalletBalance($wallet);
+
+            // SAFEGUARD: Verify stored balance matches computed balance
+            if ($storedBalance !== $computedBalance) {
+                Log::critical("REVERSAL BLOCKED: Stored balance doesn't match computed balance", [
+                    'wallet_id' => $wallet->id,
+                    'stored_balance_paise' => $storedBalance,
+                    'computed_balance_paise' => $computedBalance,
+                    'discrepancy_paise' => $storedBalance - $computedBalance,
+                    'original_transaction_id' => $originalTransaction->id,
+                ]);
+
+                throw new \RuntimeException(
+                    "REVERSAL BLOCKED: Wallet balance corruption detected. " .
+                    "Stored balance (₹" . ($storedBalance / 100) . ") doesn't match computed balance (₹" . ($computedBalance / 100) . "). " .
+                    "Manual reconciliation required before reversal."
+                );
+            }
+
+            // Balance verified - safe to proceed with reversal
+            $currentBalance = $computedBalance;
 
             // Determine reversal type (opposite of original)
             $reversalType = $this->getReversalType($originalTransaction->type);
@@ -181,6 +210,25 @@ class ImmutableTransactionService
             return 0;
         }
 
+        return $this->recomputeWalletBalance($wallet);
+    }
+
+    /**
+     * Recompute wallet balance from transaction history
+     *
+     * This is the SOURCE OF TRUTH for wallet balance.
+     * Stored balance should always match this computation.
+     *
+     * CRITICAL FIX (addressing audit feedback):
+     * - Does NOT trust stored balance
+     * - Recomputes from transaction history
+     * - Used for verification before reversals
+     *
+     * @param Wallet $wallet
+     * @return int Balance in paise
+     */
+    private function recomputeWalletBalance(Wallet $wallet): int
+    {
         // Calculate balance from active transactions only
         $credits = Transaction::where('wallet_id', $wallet->id)
             ->where('is_reversed', false)
@@ -239,7 +287,12 @@ class ImmutableTransactionService
     /**
      * Verify transaction chain integrity
      *
-     * Checks that all transactions in a chain are properly linked and balanced
+     * CRITICAL FIX (addressing audit feedback):
+     * - Now verifies ECONOMIC CORRECTNESS, not just existence
+     * - Checks opposite sign (debit pairs with credit)
+     * - Checks equal amount
+     * - Checks correct reference
+     * - Checks semantic correctness
      *
      * @param Transaction $transaction
      * @return array ['is_valid' => bool, 'violations' => array]
@@ -257,20 +310,50 @@ class ImmutableTransactionService
         if ($this->isCredit($transaction->type)) {
             $expectedBalance = $transaction->balance_before_paise + $transaction->amount_paise;
             if ($transaction->balance_after_paise !== $expectedBalance) {
-                $violations[] = "Balance conservation violated for CREDIT transaction";
+                $violations[] = "Balance conservation violated for CREDIT transaction (expected: {$expectedBalance}, actual: {$transaction->balance_after_paise})";
             }
         } else {
             $expectedBalance = $transaction->balance_before_paise - $transaction->amount_paise;
             if ($transaction->balance_after_paise !== $expectedBalance) {
-                $violations[] = "Balance conservation violated for DEBIT transaction";
+                $violations[] = "Balance conservation violated for DEBIT transaction (expected: {$expectedBalance}, actual: {$transaction->balance_after_paise})";
             }
         }
 
-        // Check 3: Paired transaction exists if claimed
+        // Check 3: DEEP paired transaction verification (ECONOMIC CORRECTNESS)
         if ($transaction->paired_transaction_id) {
             $pairedTransaction = Transaction::find($transaction->paired_transaction_id);
+
             if (!$pairedTransaction) {
                 $violations[] = "Paired transaction #{$transaction->paired_transaction_id} not found";
+            } else {
+                // Check 3a: Opposite sign (debit pairs with credit, or vice versa)
+                $isCreditA = $this->isCredit($transaction->type);
+                $isCreditB = $this->isCredit($pairedTransaction->type);
+
+                if ($isCreditA === $isCreditB) {
+                    $violations[] = "Paired transaction has SAME sign (both credits or both debits) - violates double-entry";
+                }
+
+                // Check 3b: Equal amount
+                if ($transaction->amount_paise !== $pairedTransaction->amount_paise) {
+                    $violations[] = "Paired transaction has different amount ({$transaction->amount_paise} vs {$pairedTransaction->amount_paise})";
+                }
+
+                // Check 3c: Same user/wallet (for double-entry within wallet)
+                if ($transaction->wallet_id === $pairedTransaction->wallet_id) {
+                    // Same wallet pairing - should be reversal
+                    if (!$transaction->is_reversed && !$pairedTransaction->is_reversed) {
+                        $violations[] = "Same-wallet paired transactions without reversal flag - suspicious";
+                    }
+                }
+
+                // Check 3d: Reference consistency
+                if ($transaction->reference_type && $pairedTransaction->reference_type) {
+                    if ($transaction->reference_type !== $pairedTransaction->reference_type ||
+                        $transaction->reference_id !== $pairedTransaction->reference_id) {
+                        $violations[] = "Paired transaction has different reference (type/id mismatch)";
+                    }
+                }
             }
         }
 
