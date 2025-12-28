@@ -74,43 +74,81 @@ class ProcessAllocationJob implements ShouldQueue
      * Execute the allocation job.
      *
      * [P2.2]: Atomic allocation with status tracking.
+     * [G.22 FIX]: Added idempotency protection to prevent double allocation
+     * [G.23 FIX]: Added workflow state tracking for partial completion detection
      */
-    public function handle(AllocationService $allocationService): void
-    {
+    public function handle(
+        AllocationService $allocationService,
+        \App\Services\IdempotencyService $idempotency,
+        \App\Services\JobStateTrackerService $stateTracker
+    ): void {
         Log::info("[P2.2] Processing allocation for Investment #{$this->investment->id}");
+
+        $idempotencyKey = "share_allocation:{$this->investment->id}";
+
+        // [G.22]: Check if already allocated to prevent double allocation
+        if ($idempotency->isAlreadyExecuted($idempotencyKey, self::class)) {
+            Log::info("[G.22] Investment #{$this->investment->id} already allocated. Skipping to prevent double allocation.");
+            return;
+        }
+
+        // [G.23]: Start workflow tracking
+        $stateTracker->startWorkflow('investment_flow', 'investment', $this->investment->id, [
+            'steps' => ['share_allocation'],
+            'timeout_minutes' => 30,
+            'metadata' => [
+                'user_id' => $this->investment->user_id,
+                'amount' => $this->investment->total_amount,
+            ],
+        ]);
 
         // [P2.2]: Mark as processing
         $this->investment->update([
             'allocation_status' => 'processing',
         ]);
 
+        $stateTracker->updateState('investment_flow', 'investment', $this->investment->id, 'processing');
+
         try {
-            DB::transaction(function () use ($allocationService) {
+            // [G.22]: Execute with idempotency protection
+            $idempotency->executeOnce($idempotencyKey, function () use ($allocationService, $stateTracker) {
+                DB::transaction(function () use ($allocationService, $stateTracker) {
 
-                // Create a Payment record for allocation tracking
-                // Note: This links the share allocation to the original payment
-                $dummyPayment = new Payment([
-                    'id' => null,
+                    // Create a Payment record for allocation tracking
+                    // Note: This links the share allocation to the original payment
+                    $dummyPayment = new Payment([
+                        'id' => null,
+                        'user_id' => $this->investment->user_id,
+                        'subscription_id' => $this->investment->subscription_id,
+                        'amount' => $this->investment->total_amount,
+                    ]);
+
+                    // [P2.2]: Allocate shares (creates UserInvestment records)
+                    $allocationService->allocateShares(
+                        $dummyPayment,
+                        $this->investment->total_amount
+                    );
+
+                    // [P2.2]: Mark as completed
+                    $this->investment->update([
+                        'allocation_status' => 'completed',
+                        'allocated_at' => now(),
+                        'status' => 'active', // Also mark investment as active
+                    ]);
+
+                    // [G.23]: Mark step completed
+                    $stateTracker->completeStep('investment_flow', 'investment', $this->investment->id, 'share_allocation');
+
+                    Log::info("[P2.2] Allocation completed for Investment #{$this->investment->id}");
+                });
+            }, [
+                'job_class' => self::class,
+                'input_data' => [
+                    'investment_id' => $this->investment->id,
                     'user_id' => $this->investment->user_id,
-                    'subscription_id' => $this->investment->subscription_id,
                     'amount' => $this->investment->total_amount,
-                ]);
-
-                // [P2.2]: Allocate shares (creates UserInvestment records)
-                $allocationService->allocateShares(
-                    $dummyPayment,
-                    $this->investment->total_amount
-                );
-
-                // [P2.2]: Mark as completed
-                $this->investment->update([
-                    'allocation_status' => 'completed',
-                    'allocated_at' => now(),
-                    'status' => 'active', // Also mark investment as active
-                ]);
-
-                Log::info("[P2.2] Allocation completed for Investment #{$this->investment->id}");
-            });
+                ],
+            ]);
 
         } catch (\Exception $e) {
             // [P2.2]: Mark as failed with error message
@@ -119,6 +157,9 @@ class ProcessAllocationJob implements ShouldQueue
                 'allocated_at' => now(),
                 'allocation_error' => $e->getMessage(),
             ]);
+
+            // [G.23]: Mark step failed
+            $stateTracker->failStep('investment_flow', 'investment', $this->investment->id, 'share_allocation', $e->getMessage());
 
             Log::error("[P2.2] Allocation failed for Investment #{$this->investment->id}: " . $e->getMessage(), [
                 'investment_id' => $this->investment->id,

@@ -31,6 +31,7 @@ class ProcessSuccessfulPaymentJob implements ShouldQueue
      *
      * V-AUDIT-MODULE4-008 (LOW) - Separated Critical and Non-Critical Logic
      * V-FIX-PAYMENT-FLOW: Changed to only credit wallet, allowing manual share selection
+     * [G.22 FIX]: Added idempotency protection to prevent double wallet credits
      *
      * CRITICAL PATH (Must succeed atomically):
      * - Credit payment amount to wallet
@@ -53,27 +54,47 @@ class ProcessSuccessfulPaymentJob implements ShouldQueue
      * 2. User selects shares → Wallet debited → Shares allocated (InvestmentController)
      */
     public function handle(
-        WalletService $walletService
+        WalletService $walletService,
+        \App\Services\IdempotencyService $idempotency
     ): void
     {
-        // CRITICAL TRANSACTION: Payment Processing - Credit Wallet Only
-        // Share allocation happens when user manually selects shares
-        DB::transaction(function () use ($walletService) {
-            $user = $this->payment->user;
+        $idempotencyKey = "payment_processing:{$this->payment->id}";
 
-            // 1. Credit Payment Amount to Wallet
-            $walletService->deposit(
-                $user,
-                $this->payment->amount,
-                'payment_received',
-                "Payment received for SIP installment #{$this->payment->id}",
-                $this->payment
-            );
-            Log::info("Payment #{$this->payment->id}: Credited ₹{$this->payment->amount} to user wallet. User can now select shares to purchase.");
+        // [G.22]: Check if already processed to prevent double wallet credit
+        if ($idempotency->isAlreadyExecuted($idempotencyKey, self::class)) {
+            Log::info("Payment #{$this->payment->id} already processed. Skipping to prevent double credit.");
+            return;
+        }
 
-        }); // End Critical Transaction
+        // [G.22]: Execute with idempotency protection
+        $idempotency->executeOnce($idempotencyKey, function () use ($walletService) {
+            // CRITICAL TRANSACTION: Payment Processing - Credit Wallet Only
+            // Share allocation happens when user manually selects shares
+            DB::transaction(function () use ($walletService) {
+                $user = $this->payment->user;
 
-        Log::info("Payment processing completed for Payment {$this->payment->id}. Funds available in wallet for share selection.");
+                // 1. Credit Payment Amount to Wallet
+                $walletService->deposit(
+                    $user,
+                    $this->payment->amount,
+                    'payment_received',
+                    "Payment received for SIP installment #{$this->payment->id}",
+                    $this->payment
+                );
+                Log::info("Payment #{$this->payment->id}: Credited ₹{$this->payment->amount} to user wallet. User can now select shares to purchase.");
+
+            }); // End Critical Transaction
+
+            Log::info("Payment processing completed for Payment {$this->payment->id}. Funds available in wallet for share selection.");
+
+        }, [
+            'job_class' => self::class,
+            'input_data' => [
+                'payment_id' => $this->payment->id,
+                'amount' => $this->payment->amount,
+                'user_id' => $this->payment->user_id,
+            ],
+        ]);
 
         // NON-CRITICAL OPERATIONS: Dispatch to separate jobs for independent retry
         // If any of these fail, they won't affect the payment or share allocation above
@@ -82,8 +103,8 @@ class ProcessSuccessfulPaymentJob implements ShouldQueue
         ProcessPaymentBonusJob::dispatch($this->payment);
 
         // 5. Process Referrals (if this is the first payment)
-        if ($user->payments()->where('status', 'paid')->count() === 1) {
-            ProcessReferralJob::dispatch($user);
+        if ($this->payment->user->payments()->where('status', 'paid')->count() === 1) {
+            ProcessReferralJob::dispatch($this->payment->user);
         }
 
         // 6. Generate Lucky Draw Entries
