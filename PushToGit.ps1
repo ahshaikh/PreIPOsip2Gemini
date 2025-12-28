@@ -8,7 +8,7 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "Connected the dots of Architecture gaps"
+$CommitMessage = "Fixed architecture audit gaps"
 #----------------------
 
 function Get-GitCredential {
