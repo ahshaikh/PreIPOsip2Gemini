@@ -9,6 +9,10 @@ use Carbon\Carbon;
 /**
  * StuckStateDetectorService - Timeout and Escalation (G.24)
  *
+ * META-FIX (I.28): This service DELEGATES to EconomicImpactService
+ * - No longer has assessAlertEconomicImpact() logic (REMOVED)
+ * - Delegates all economic impact assessment to unified authority
+ *
  * PURPOSE:
  * - Add timeout and escalation for stuck states
  * - Pending investments, rewards, or allocations must not remain indefinite
@@ -47,6 +51,16 @@ use Carbon\Carbon;
  */
 class StuckStateDetectorService
 {
+    /**
+     * Unified economic impact service (DELEGATION)
+     */
+    private EconomicImpactService $economicImpact;
+
+    public function __construct(EconomicImpactService $economicImpact)
+    {
+        $this->economicImpact = $economicImpact;
+    }
+
     /**
      * Detect all stuck states across the system
      *
@@ -399,7 +413,8 @@ class StuckStateDetectorService
                 // SAFEGUARD 2.5: Severity-gated auto-fix (NEW - addressing audit feedback)
                 // AUTO-FIX ONLY FOR LOW-IMPACT SCENARIOS
                 // ESCALATE everything else to manual review
-                $economicImpact = $this->assessAlertEconomicImpact($alert);
+                // DELEGATED to unified authority (I.28)
+                $economicImpact = $this->economicImpact->assessByAlert($alert);
 
                 if ($economicImpact !== 'LOW') {
                     Log::warning("AUTO-RESOLUTION BLOCKED - HIGH IMPACT", [
@@ -763,58 +778,18 @@ class StuckStateDetectorService
     }
 
     /**
-     * Assess economic impact of a stuck state alert
+     * REMOVED: assessAlertEconomicImpact() - DELEGATED to EconomicImpactService (I.28)
      *
-     * SEVERITY-GATED AUTO-FIX (addressing audit feedback):
-     * - Only LOW impact scenarios are auto-fixable
-     * - MEDIUM, HIGH, CRITICAL must go to manual review
+     * This method has been removed to eliminate fragmentation.
+     * All economic impact assessment now happens in EconomicImpactService.
      *
-     * IMPACT ASSESSMENT MATRIX (same as SystemHealthMonitoringService):
-     * - LOW: <₹10k AND <12h stuck AND <5 users
-     * - MEDIUM: ₹10k-100k OR 12-48h stuck OR 5-20 users
-     * - HIGH: ₹100k-500k OR 48-168h stuck OR 20-100 users
-     * - CRITICAL: >₹500k OR >168h stuck OR >100 users
+     * Migration:
+     * - Old: $this->assessAlertEconomicImpact($alert)
+     * - New: $this->economicImpact->assessByAlert($alert)
      *
-     * @param object $alert Stuck state alert
-     * @return string Impact level (LOW, MEDIUM, HIGH, CRITICAL)
+     * UNIFIED AUTHORITY: EconomicImpactService is the ONLY place where:
+     * - Impact thresholds are defined
+     * - Impact assessment logic lives
+     * - Impact-based decisions are made
      */
-    private function assessAlertEconomicImpact(object $alert): string
-    {
-        $amount = 0;
-        $hoursStuck = 0;
-        $usersAffected = 1; // Default: at least 1 user affected
-
-        // Get monetary exposure based on entity type
-        if ($alert->entity_type === 'payment') {
-            $payment = DB::table('payments')->where('id', $alert->entity_id)->first();
-            $amount = $payment->amount ?? 0;
-            $hoursStuck = Carbon::parse($alert->stuck_since)->diffInHours(now());
-        } elseif ($alert->entity_type === 'investment') {
-            $investment = DB::table('investments')->where('id', $alert->entity_id)->first();
-            $amount = $investment->amount ?? 0;
-            $hoursStuck = Carbon::parse($alert->stuck_since)->diffInHours(now());
-        } elseif ($alert->entity_type === 'bonus') {
-            $bonus = DB::table('bonus_transactions')->where('id', $alert->entity_id)->first();
-            $amount = $bonus->amount ?? 0;
-            $hoursStuck = Carbon::parse($alert->stuck_since)->diffInHours(now());
-        }
-
-        // CRITICAL thresholds (any one triggers CRITICAL)
-        if ($amount > 500000 || $hoursStuck > 168 || $usersAffected > 100) {
-            return 'CRITICAL';
-        }
-
-        // HIGH thresholds (any one triggers HIGH)
-        if ($amount > 100000 || $hoursStuck > 48 || $usersAffected > 20) {
-            return 'HIGH';
-        }
-
-        // MEDIUM thresholds (any one triggers MEDIUM)
-        if ($amount > 10000 || $hoursStuck > 12 || $usersAffected > 5) {
-            return 'MEDIUM';
-        }
-
-        // LOW - safe for auto-fix
-        return 'LOW';
-    }
 }

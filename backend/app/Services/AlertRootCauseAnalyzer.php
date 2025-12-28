@@ -9,6 +9,10 @@ use Carbon\Carbon;
 /**
  * AlertRootCauseAnalyzer - Root Cause Tracking (Addressing Audit Feedback)
  *
+ * META-FIX (I.28): This service DELEGATES to EconomicImpactService
+ * - No longer has calculateSeverity() logic (REMOVED)
+ * - Delegates all economic impact assessment to unified authority
+ *
  * PURPOSE:
  * - "Alert volume can itself become a failure mode" - prevent alert fatigue
  * - Group similar alerts by root cause
@@ -46,6 +50,16 @@ use Carbon\Carbon;
  */
 class AlertRootCauseAnalyzer
 {
+    /**
+     * Unified economic impact service (DELEGATION)
+     */
+    private EconomicImpactService $economicImpact;
+
+    public function __construct(EconomicImpactService $economicImpact)
+    {
+        $this->economicImpact = $economicImpact;
+    }
+
     /**
      * Identify root causes for all unresolved alerts
      *
@@ -347,6 +361,11 @@ class AlertRootCauseAnalyzer
         }
 
         // Create new root cause
+        // DELEGATED to unified authority (I.28)
+        // For root causes, calculate hours stuck from first occurrence
+        $hoursStuck = Carbon::parse($firstOccurrence)->diffInHours(now());
+        $severity = strtolower($this->economicImpact->assessByValues($monetaryImpact, $hoursStuck, $usersAffected));
+
         return DB::table('alert_root_causes')->insertGetId([
             'root_cause_type' => $type,
             'description' => $description,
@@ -355,39 +374,24 @@ class AlertRootCauseAnalyzer
             'affected_users_count' => $usersAffected,
             'first_occurrence' => $firstOccurrence,
             'last_occurrence' => now(),
-            'severity' => $this->calculateSeverity($affectedCount, $monetaryImpact, $usersAffected),
+            'severity' => $severity,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
     }
 
     /**
-     * Calculate severity based on impact
+     * REMOVED: calculateSeverity() - DELEGATED to EconomicImpactService (I.28)
      *
-     * @param int $affectedCount
-     * @param float $monetaryImpact
-     * @param int $usersAffected
-     * @return string
+     * This method has been removed to eliminate fragmentation.
+     * All severity/impact assessment now happens in EconomicImpactService.
+     *
+     * Migration:
+     * - Old: $this->calculateSeverity($count, $amount, $users)
+     * - New: $this->economicImpact->assessByValues($amount, $hours, $users)
+     *
+     * Note: For root causes, calculate hours from first_occurrence
      */
-    private function calculateSeverity(int $affectedCount, float $monetaryImpact, int $usersAffected): string
-    {
-        // CRITICAL: >100 alerts OR >₹5L OR >50 users
-        if ($affectedCount > 100 || $monetaryImpact > 500000 || $usersAffected > 50) {
-            return 'critical';
-        }
-
-        // HIGH: >50 alerts OR >₹1L OR >20 users
-        if ($affectedCount > 50 || $monetaryImpact > 100000 || $usersAffected > 20) {
-            return 'high';
-        }
-
-        // MEDIUM: >20 alerts OR >₹50k OR >10 users
-        if ($affectedCount > 20 || $monetaryImpact > 50000 || $usersAffected > 10) {
-            return 'medium';
-        }
-
-        return 'low';
-    }
 
     /**
      * Get aggregated view of alerts grouped by root cause

@@ -10,6 +10,10 @@ use Carbon\Carbon;
 /**
  * SystemHealthMonitoringService - Operational Visibility (H.26)
  *
+ * META-FIX (I.28): This service DELEGATES to EconomicImpactService
+ * - No longer has assessEconomicImpact() logic (REMOVED)
+ * - Delegates all economic impact assessment to unified authority
+ *
  * PURPOSE:
  * - Provide dashboards and alerts for system health
  * - Detect mismatches, stuck funds, reconciliation gaps
@@ -51,6 +55,16 @@ use Carbon\Carbon;
  */
 class SystemHealthMonitoringService
 {
+    /**
+     * Unified economic impact service (DELEGATION)
+     */
+    private EconomicImpactService $economicImpact;
+
+    public function __construct(EconomicImpactService $economicImpact)
+    {
+        $this->economicImpact = $economicImpact;
+    }
+
     /**
      * Check all health metrics
      *
@@ -163,10 +177,10 @@ class SystemHealthMonitoringService
         }
         $totalDiscrepancyRupees = $totalDiscrepancy / 100;
 
-        // ECONOMIC IMPACT ASSESSMENT
+        // ECONOMIC IMPACT ASSESSMENT (DELEGATED to unified authority)
         // For balance mismatches, time-weighted risk is not applicable (use 0)
         // User impact is the count of affected wallets
-        $impactLevel = $this->assessEconomicImpact($totalDiscrepancyRupees, 0, $count);
+        $impactLevel = $this->economicImpact->assessByValues($totalDiscrepancyRupees, 0, $count);
 
         // Create alerts for mismatches
         if (!$isHealthy) {
@@ -340,8 +354,8 @@ class SystemHealthMonitoringService
 
         $isHealthy = $count === 0;
 
-        // ECONOMIC IMPACT ASSESSMENT
-        $impactLevel = $this->assessEconomicImpact($totalAmount, $avgHoursStuck, $uniqueUsers);
+        // ECONOMIC IMPACT ASSESSMENT (DELEGATED to unified authority)
+        $impactLevel = $this->economicImpact->assessByValues($totalAmount, $avgHoursStuck, $uniqueUsers);
 
         // Enhanced message with economic context
         $message = $isHealthy
@@ -399,8 +413,8 @@ class SystemHealthMonitoringService
 
         $isHealthy = $count === 0;
 
-        // ECONOMIC IMPACT ASSESSMENT
-        $impactLevel = $this->assessEconomicImpact($totalAmount, $avgHoursStuck, $uniqueUsers);
+        // ECONOMIC IMPACT ASSESSMENT (DELEGATED to unified authority)
+        $impactLevel = $this->economicImpact->assessByValues($totalAmount, $avgHoursStuck, $uniqueUsers);
 
         // Enhanced message with economic context
         $message = $isHealthy
@@ -759,37 +773,13 @@ class SystemHealthMonitoringService
     }
 
     /**
-     * Assess economic impact of a stuck/unhealthy state
+     * REMOVED: assessEconomicImpact() - DELEGATED to EconomicImpactService (I.28)
      *
-     * IMPACT ASSESSMENT MATRIX:
-     * - LOW: <₹10k OR <12h stuck OR <5 users
-     * - MEDIUM: ₹10k-100k OR 12-48h stuck OR 5-20 users
-     * - HIGH: ₹100k-500k OR 48-168h stuck OR 20-100 users
-     * - CRITICAL: >₹500k OR >168h stuck OR >100 users
+     * This method has been removed to eliminate fragmentation.
+     * All economic impact assessment now happens in EconomicImpactService.
      *
-     * @param float $amount Monetary exposure (rupees)
-     * @param float $hoursStuck Time-weighted risk (hours)
-     * @param int $usersAffected User impact count
-     * @return string Impact level
+     * Migration:
+     * - Old: $this->assessEconomicImpact($amount, $hours, $users)
+     * - New: $this->economicImpact->assessByValues($amount, $hours, $users)
      */
-    private function assessEconomicImpact(float $amount, float $hoursStuck, int $usersAffected): string
-    {
-        // CRITICAL thresholds (any one triggers CRITICAL)
-        if ($amount > 500000 || $hoursStuck > 168 || $usersAffected > 100) {
-            return 'CRITICAL - Immediate escalation required';
-        }
-
-        // HIGH thresholds (any one triggers HIGH)
-        if ($amount > 100000 || $hoursStuck > 48 || $usersAffected > 20) {
-            return 'HIGH - Manual intervention needed';
-        }
-
-        // MEDIUM thresholds (any one triggers MEDIUM)
-        if ($amount > 10000 || $hoursStuck > 12 || $usersAffected > 5) {
-            return 'MEDIUM - Monitor closely';
-        }
-
-        // LOW
-        return 'LOW - Auto-fix eligible';
-    }
 }
