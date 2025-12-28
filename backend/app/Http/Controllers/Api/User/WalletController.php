@@ -10,7 +10,9 @@ use App\Models\Wallet;
 use App\Models\Transaction; // ADDED: Import Transaction model
 use App\Services\WithdrawalService;
 use App\Services\WalletService;
+use App\Services\ComplianceGateService; // [C.8]: Compliance gate for KYC enforcement
 use App\Http\Requests\User\WithdrawalRequest;
+use App\Http\Requests\Financial\WalletDepositRequest; // [C.8]: KYC-enforced deposit request
 use App\Enums\TransactionType;
 use App\Exceptions\Financial\InsufficientBalanceException;
 use Illuminate\Http\Request;
@@ -111,15 +113,17 @@ class WalletController extends Controller
 
     /**
      * Initiate a deposit (Add Money to Wallet)
+     *
+     * [C.8 FIX]: KYC ENFORCEMENT - No cash ingress before KYC complete
+     * Uses WalletDepositRequest which enforces compliance gates
      */
-    public function initiateDeposit(Request $request)
+    public function initiateDeposit(WalletDepositRequest $request)
     {
-        $request->validate([
-            'amount' => 'required|numeric|min:100|max:100000', // Min ₹100, Max ₹1L
-        ]);
+        // If we reach here, compliance gates have passed (KYC approved, account active)
+        $validated = $request->validated();
 
         $user = $request->user();
-        $amount = (string) $request->amount;
+        $amount = (string) $validated['amount'];
 
         $orderId = 'WD_' . time() . '_' . Str::random(8);
 

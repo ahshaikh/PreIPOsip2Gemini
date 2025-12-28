@@ -5,6 +5,9 @@
  * 1. Enforce Atomic Operations: Uses lockForUpdate() and increment()/decrement().
  * 2. Smallest Denomination Storage: All math is performed in Paise (Integers).
  * 3. Unified Transaction Types: Enforces strict Enum usage for ledger consistency.
+ *
+ * V-COMPLIANCE-GATE-2025 | C.8 FIX:
+ * 4. KYC Enforcement: No cash ingress before KYC complete (except internal operations).
  */
 
 namespace App\Services;
@@ -15,6 +18,7 @@ use App\Models\Transaction;
 use Illuminate\Database\Eloquent\Model; // [AUDIT FIX]: Use Eloquent base model for broader compatibility
 use App\Enums\TransactionType; // [AUDIT FIX]: Use strict Enums
 use App\Exceptions\Financial\InsufficientBalanceException;
+use App\Exceptions\Financial\ComplianceBlockedException; // [C.8]: KYC enforcement
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -24,15 +28,24 @@ class WalletService
      * Safely deposit funds into a user's wallet.
      * [AUDIT FIX]: Uses integer-based Paise math to eliminate float errors.
      * [BACKWARD COMPATIBLE]: Accepts both float (Rupees) and int (Paise) amounts
+     * [C.8 FIX]: KYC enforcement for external cash ingress
+     *
      * @param User $user
      * @param int|float $amount Amount in Paise (int) or Rupees (float)
      * @param TransactionType|string $type Transaction type (enum or string)
      * @param string $description
      * @param Model|null $reference
+     * @param bool $bypassComplianceCheck If true, skips KYC check (for internal operations)
      * @return Transaction
      */
-    public function deposit(User $user, int|float $amount, TransactionType|string $type, string $description = '', ?Model $reference = null): Transaction
-    {
+    public function deposit(
+        User $user,
+        int|float $amount,
+        TransactionType|string $type,
+        string $description = '',
+        ?Model $reference = null,
+        bool $bypassComplianceCheck = false
+    ): Transaction {
         // [BACKWARD COMPATIBLE]: Convert float (Rupees) to int (Paise) if needed
         $amountPaise = is_float($amount) ? (int)round($amount * 100) : $amount;
 
@@ -43,6 +56,11 @@ class WalletService
 
         if ($amountPaise <= 0) {
             throw new \InvalidArgumentException("Deposit amount must be positive.");
+        }
+
+        // [C.8 FIX]: COMPLIANCE GATE - Block external cash ingress before KYC
+        if (!$bypassComplianceCheck) {
+            $this->enforceComplianceGate($user, $type);
         }
 
         return DB::transaction(function () use ($user, $amountPaise, $type, $description, $reference) {
@@ -68,6 +86,48 @@ class WalletService
                 'reference_id' => $reference ? $reference->id : null,
             ]);
         });
+    }
+
+    /**
+     * [C.8]: Enforce compliance gate for cash ingress operations
+     *
+     * @param User $user
+     * @param TransactionType $type
+     * @return void
+     * @throws ComplianceBlockedException
+     */
+    private function enforceComplianceGate(User $user, TransactionType $type): void
+    {
+        // Only enforce for external cash ingress (not internal operations like bonuses, refunds)
+        $externalCashTypes = [
+            TransactionType::PAYMENT_RECEIVED->value,
+            TransactionType::WALLET_DEPOSIT->value,
+        ];
+
+        if (!in_array($type->value, $externalCashTypes)) {
+            // Internal operation (bonus, refund, admin credit) - bypass KYC
+            return;
+        }
+
+        // External cash ingress - enforce KYC
+        $complianceGate = app(ComplianceGateService::class);
+        $canReceiveFunds = $complianceGate->canReceiveFunds($user);
+
+        if (!$canReceiveFunds['allowed']) {
+            Log::warning("WALLET DEPOSIT BLOCKED: KYC incomplete", [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'reason' => $canReceiveFunds['reason'],
+            ]);
+
+            // Log compliance block for audit trail
+            $complianceGate->logComplianceBlock($user, 'wallet_deposit', $canReceiveFunds);
+
+            throw new ComplianceBlockedException(
+                $canReceiveFunds['reason'],
+                $canReceiveFunds['requirements'] ?? []
+            );
+        }
     }
 
     /**

@@ -1,15 +1,19 @@
 <?php
 // V-SECURITY-VALIDATION - Wallet Deposit Request Validation
+// V-COMPLIANCE-GATE-2025 - KYC enforcement for cash ingress
 
 namespace App\Http\Requests\Financial;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use App\Services\ComplianceGateService;
 
 class WalletDepositRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
+     *
+     * [COMPLIANCE GATE]: Enforces KYC requirement BEFORE allowing cash ingress
      */
     public function authorize(): bool
     {
@@ -19,12 +23,36 @@ class WalletDepositRequest extends FormRequest
             return false;
         }
 
-        // Check if wallet deposits are enabled
+        // Check if wallet deposits are enabled globally
         if (!setting('wallet_deposits_enabled', true)) {
             return false;
         }
 
+        // [C.8 FIX]: COMPLIANCE GATE - Block cash ingress before KYC
+        $complianceGate = app(ComplianceGateService::class);
+        $canReceiveFunds = $complianceGate->canReceiveFunds($user);
+
+        if (!$canReceiveFunds['allowed']) {
+            // Log the compliance block for audit trail
+            $complianceGate->logComplianceBlock($user, 'wallet_deposit', $canReceiveFunds);
+
+            // Store reason for failedAuthorization() method to access
+            $this->merge(['_compliance_block_reason' => $canReceiveFunds['reason']]);
+
+            return false;
+        }
+
         return true;
+    }
+
+    /**
+     * Get the error messages for authorization failures.
+     */
+    protected function failedAuthorization()
+    {
+        $reason = $this->input('_compliance_block_reason', 'You are not authorized to perform this action.');
+
+        throw new \Illuminate\Auth\Access\AuthorizationException($reason);
     }
 
     /**
