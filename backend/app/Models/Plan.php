@@ -51,10 +51,7 @@ class Plan extends Model
      * Prevents deletion if plan has active dependencies.
      */
     protected $deletionProtectionRules = [
-        'subscriptions' => function ($plan) {
-            // Only count active or paused subscriptions
-            return $plan->subscriptions()->whereIn('status', ['active', 'paused'])->count();
-        },
+        'activeSubscriptions' => 'active or paused subscriptions',
     ];
 
     /**
@@ -92,6 +89,15 @@ class Plan extends Model
     public function subscriptions(): HasMany
     {
         return $this->hasMany(Subscription::class);
+    }
+
+    /**
+     * Active or paused subscriptions (used for deletion protection).
+     */
+    public function activeSubscriptions(): HasMany
+    {
+        return $this->hasMany(Subscription::class)
+            ->whereIn('status', ['active', 'paused']);
     }
 
     /**
