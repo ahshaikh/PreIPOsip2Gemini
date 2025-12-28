@@ -80,33 +80,40 @@ class FinancialOrchestrator
         try {
             return $this->sagaCoordinator->execute($sagaContext, [
                 // Step 1: Verify compliance gates (KYC, limits, etc.)
+                // [C.8]: Blocks all operations if KYC not approved
                 new \App\Services\Orchestration\Operations\VerifyComplianceOperation(
                     $payment->user,
                     'investment',
                     $payment->amount
                 ),
 
-                // Step 2: Calculate campaign benefit (if any)
-                new \App\Services\Orchestration\Operations\CalculateCampaignBenefitOperation(
-                    $campaign,
-                    $payment->user,
-                    $investment->total_amount
-                ),
-
-                // Step 3: Credit user wallet (ATOMIC)
+                // Step 2: Credit user wallet (ATOMIC)
+                // Money enters user's wallet first (reversible via compensation)
                 new \App\Services\Orchestration\Operations\CreditUserWalletOperation(
                     $payment->user,
                     $payment->amount,
                     $payment
                 ),
 
-                // Step 4: Record admin receipt in ledger
+                // Step 3: Record admin receipt in ledger
+                // [CRITICAL FIX]: Admin cash MUST be secured BEFORE calculating benefits
+                // This ensures we never calculate discounts on unconfirmed funds
                 new \App\Services\Orchestration\Operations\RecordAdminReceiptOperation(
                     $payment->amount,
                     $payment
                 ),
 
+                // Step 4: Calculate campaign benefit (if any)
+                // [CRITICAL FIX]: NOW safe - admin HAS the cash irrevocably
+                // Benefit calculation is gated on confirmed funds, not intent
+                new \App\Services\Orchestration\Operations\CalculateCampaignBenefitOperation(
+                    $campaign,
+                    $payment->user,
+                    $investment->total_amount
+                ),
+
                 // Step 5: Debit user wallet for investment (ATOMIC)
+                // Uses final_amount calculated in Step 4 (after discount if applicable)
                 new \App\Services\Orchestration\Operations\DebitUserWalletOperation(
                     $payment->user,
                     $investment->final_amount, // After campaign discount
@@ -114,6 +121,9 @@ class FinancialOrchestrator
                 ),
 
                 // Step 6: Record campaign discount as admin liability (if any)
+                // [CRITICAL FIX]: Executes IMMEDIATELY after wallet debit
+                // No temporal gap - admin solvency provable at all times
+                // Crash between Step 5-6 → saga compensation reverses both
                 new \App\Services\Orchestration\Operations\RecordCampaignLiabilityOperation(
                     $campaign,
                     $investment->total_amount - $investment->final_amount, // Discount amount
@@ -121,12 +131,14 @@ class FinancialOrchestrator
                 ),
 
                 // Step 7: Allocate shares from inventory (SYNC, not async!)
+                // [C.10]: Prevents orphan allocations via database constraints
                 new \App\Services\Orchestration\Operations\AllocateSharesOperation(
                     $investment,
                     $payment->user
                 ),
 
                 // Step 8: Mark investment as complete
+                // Final state transition only after all operations succeeded
                 new \App\Services\Orchestration\Operations\CompleteInvestmentOperation(
                     $investment
                 ),

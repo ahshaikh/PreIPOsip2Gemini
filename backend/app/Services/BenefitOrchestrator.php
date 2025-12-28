@@ -120,14 +120,25 @@ class BenefitOrchestrator
                 $finalAmount = $investment->total_amount - $benefitAmount;
 
                 // Apply maximum benefit cap
-                $maxBenefitPercent = (float) setting('max_benefit_percentage', 20);
+                // [CRITICAL FIX]: Use BOTH configuration AND invariant bounds
+                // Configuration sets policy limit (e.g., 20%)
+                // Invariant sets system-level safety limit (25% HARD MAXIMUM)
+                // This prevents misconfigured settings from allowing excessive discounts
+                $configuredMaxPercent = (float) setting('max_benefit_percentage', 20);
+                $invariantMaxPercent = 25; // HARD UPPER LIMIT - cannot be bypassed by configuration
+
+                $maxBenefitPercent = min($configuredMaxPercent, $invariantMaxPercent);
                 $maxBenefitAmount = $investment->total_amount * ($maxBenefitPercent / 100);
 
                 if ($benefitAmount > $maxBenefitAmount) {
                     Log::warning("BENEFIT CAPPED: Campaign benefit exceeds maximum", [
                         'campaign_id' => $campaign->id,
                         'calculated_benefit' => $benefitAmount,
-                        'max_allowed' => $maxBenefitAmount,
+                        'configured_max_percent' => $configuredMaxPercent,
+                        'invariant_max_percent' => $invariantMaxPercent,
+                        'effective_max_percent' => $maxBenefitPercent,
+                        'max_allowed_amount' => $maxBenefitAmount,
+                        'capped_by' => $configuredMaxPercent > $invariantMaxPercent ? 'invariant' : 'configuration',
                     ]);
                     $benefitAmount = $maxBenefitAmount;
                     $finalAmount = $investment->total_amount - $benefitAmount;
@@ -182,10 +193,20 @@ class BenefitOrchestrator
         $finalAmount = $investment->total_amount - $benefitAmount;
 
         // Apply maximum benefit cap
-        $maxBenefitPercent = (float) setting('max_benefit_percentage', 20);
+        // [CRITICAL FIX]: Use BOTH configuration AND invariant bounds
+        $configuredMaxPercent = (float) setting('max_benefit_percentage', 20);
+        $invariantMaxPercent = 25; // HARD UPPER LIMIT - cannot be bypassed by configuration
+
+        $maxBenefitPercent = min($configuredMaxPercent, $invariantMaxPercent);
         $maxBenefitAmount = $investment->total_amount * ($maxBenefitPercent / 100);
 
         if ($benefitAmount > $maxBenefitAmount) {
+            Log::warning("REFERRAL BENEFIT CAPPED", [
+                'configured_max_percent' => $configuredMaxPercent,
+                'invariant_max_percent' => $invariantMaxPercent,
+                'effective_max_percent' => $maxBenefitPercent,
+                'capped_by' => $configuredMaxPercent > $invariantMaxPercent ? 'invariant' : 'configuration',
+            ]);
             $benefitAmount = $maxBenefitAmount;
             $finalAmount = $investment->total_amount - $benefitAmount;
         }
