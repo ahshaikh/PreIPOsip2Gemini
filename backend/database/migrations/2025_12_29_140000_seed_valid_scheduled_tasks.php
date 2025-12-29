@@ -11,8 +11,8 @@ return new class extends Migration
         // Remove any invalid tasks first
         DB::table('scheduled_tasks')->truncate();
 
-        // Get first admin user
-        $adminId = DB::table('users')->where('role', 'admin')->value('id') ?? 1;
+        // Get first user (admin or system user)
+        $adminId = DB::table('users')->orderBy('id')->value('id') ?? 1;
 
         // Seed valid tasks from actual commands that exist
         $validTasks = [
