@@ -104,7 +104,7 @@ jobs:
           DB_PASSWORD: password
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         if: matrix.php == '8.2'
         with:
           files: backend/coverage.xml
