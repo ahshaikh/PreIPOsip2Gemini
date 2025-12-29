@@ -202,17 +202,14 @@ export default function BlogSettingsPage() {
                         </Link>
                       </div>
                       <Select
-                        value={categoryId?.toString() || ''}
+                        value={categoryId?.toString() || undefined}
                         onValueChange={(val) => setCategoryId(val ? parseInt(val) : null)}
                         disabled={categoriesLoading}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder={categoriesLoading ? "Loading categories..." : "Select category..."} />
+                          <SelectValue placeholder={categoriesLoading ? "Loading categories..." : "Select category (optional)..."} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">
-                            <span className="text-muted-foreground">None</span>
-                          </SelectItem>
                           {categories?.filter((c: any) => c.is_active).map((cat: any) => (
                             <SelectItem key={cat.id} value={cat.id.toString()}>
                               <div className="flex items-center gap-2">
