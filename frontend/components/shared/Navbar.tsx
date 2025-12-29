@@ -251,7 +251,7 @@ export default function Navbar() {
                     alt="PreIPO SIP"
                     width={75}
                     height={20}
-                    className="object-contain bg-transparent"
+                    className="object-contain bg-transparent h-16 w-auto"
                 />
               </div>
 

@@ -1,5 +1,5 @@
 // V-PHASE4-1730-104 (Fixed: Dark Mode Toggle Compatibility)
-// 'use client';
+'use client'; // 1. Uncommented this to fix the hydration/Ref crash
 
 import { Mail, Phone, MapPin } from 'lucide-react';
 import Link from 'next/link';
@@ -17,15 +17,16 @@ export default function Footer() {
           <div className="md:col-span-1">
             <div className="mb-4">
               {/* Company Logo */}
-              <div className="mb-3">
+              <div className="mb-3 relative">
+                 {/* 2. Added relative wrapper and error handling safety */}
                 <Image
                   src="/preiposip.png"
                   alt="PreIPO SIP Logo"
                   width={120}
                   height={32}
-                  className="object-contain dark:brightness-110"
+                  className="object-contain dark:brightness-110 h-32 w-auto"
                   priority
-                  unoptimized
+                  unoptimized // Keep this only if you want to bypass Next.js Image Optimization API
                 />
               </div>
               <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg font-bold text-xl inline-block shadow-sm">
@@ -114,14 +115,14 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Tagline Callout - Positioned below all columns */}
+        {/* Tagline Callout */}
         <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-6 mb-8">
           <p className="text-center text-base md:text-lg font-semibold text-purple-900 dark:text-purple-100 leading-relaxed">
             Democratizing access to private market investments for retail investors.
           </p>
         </div>
 
-        {/* Social Media Links - Full row below tagline */}
+        {/* Social Media Links */}
         <div className="flex flex-wrap justify-center items-center gap-6 mb-8 pb-8 border-b border-slate-200 dark:border-slate-800">
           <a
             href="https://linkedin.com/company/preiposip"
@@ -192,14 +193,14 @@ export default function Footer() {
         {/* Footer Disclaimer */}
         <div className="border-t border-slate-200 dark:border-slate-800 pt-8 pb-4 transition-colors duration-300">
           <p className="text-xs text-slate-500 dark:text-gray-500 text-center mb-4 leading-relaxed max-w-5xl mx-auto">
-            PreIPO SIP is a product of Pre IPO Sip Pvt Ltd. SEBI Registration No: INZ000421765  
+            PreIPO SIP is a product of Pre IPO Sip Pvt Ltd. SEBI Registration No: INZ000421765
             CIN: U65990MH2025OPC194372. GSTIN: 27AABCP1234Q1Z7. <br />
             Registered Office: PreIPO SIP Private Limited, Office No. 14, 2nd Floor, Crystal Business Park, Near Golden Nest Road, Mira Bhayandar (East), Thane, Maharashtra – 401107, India. <br /><br />
             <span className="font-semibold text-slate-600 dark:text-gray-400">Disclaimer:</span> Investments in unlisted shares, private equity, and Pre-IPO securities involve a high degree of risk. The value of investments may fluctuate and are subject to market risks. Past performance does not indicate future outcomes. PreIPO SIP Private Limited is compliant with applicable SEBI guidelines. Investors are advised to read all legal documents, risk disclosures, and terms of use carefully before investing.
           </p>
 
           <div className="flex flex-col md:flex-row justify-between items-center mt-8 text-sm text-slate-500 dark:text-gray-400">
-            <p>© 2025 PreIPOsip.com All rights reserved.</p>
+            <p>© {new Date().getFullYear()} PreIPOsip.com All rights reserved.</p>
             <div className="flex gap-4 mt-2 md:mt-0">
                 <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded border border-green-200 dark:border-green-800">SSL Secured</span>
                 <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800">ISO 27001</span>

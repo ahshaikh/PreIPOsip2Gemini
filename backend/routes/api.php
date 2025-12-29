@@ -143,6 +143,9 @@ Route::prefix('v1')->group(function () {
     Route::get('/auth/{provider}/redirect', [SocialLoginController::class, 'redirectToProvider']);
     Route::get('/auth/{provider}/callback', [SocialLoginController::class, 'handleProviderCallback']);
 
+    // Banner Public Access:
+    Route::get('/public/banners', [CmsController::class, 'getPublicBanners']);
+    
     // --- Public Data Routes ---
     Route::get('/plans', [PublicPlanController::class, 'index']);
     Route::get('/plans/{slug}', [PublicPlanController::class, 'show']);

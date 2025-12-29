@@ -1,4 +1,4 @@
-// V-FINAL-1730-246 (Created) | V-FINAL-1730-520 | V-FINAL-1730-526 (Advanced Popups)
+// V-FINAL-1730-246 (Created) | V-FINAL-1730-520 | V-FINAL-1730-526 (Advanced Popups) | V-FIX-NAN-ERROR
 
 'use client';
 
@@ -70,16 +70,18 @@ function BannerForm({
             <SelectContent>
                 <SelectItem value="top_bar">Top Announcement Bar</SelectItem>
                 <SelectItem value="popup">Modal Popup</SelectItem>
+                <SelectItem value="banner">Inline Banner</SelectItem>
+                <SelectItem value="slider">Slider Image</SelectItem>
             </SelectContent>
         </Select>
       </div>
       <div className="space-y-2">
         <Label>Content (Text/HTML)</Label>
-        <Textarea value={formData.content} onChange={e => handleChange('content', e.target.value)} rows={3} />
+        <Textarea value={formData.content || ''} onChange={e => handleChange('content', e.target.value)} rows={3} />
       </div>
       <div className="space-y-2">
         <Label>Link URL</Label>
-        <Input value={formData.link_url} onChange={e => handleChange('link_url', e.target.value)} placeholder="https://..." />
+        <Input value={formData.link_url || ''} onChange={e => handleChange('link_url', e.target.value)} placeholder="https://..." />
       </div>
 
       <hr />
@@ -100,7 +102,17 @@ function BannerForm({
         </div>
         <div className="space-y-2">
             <Label>Trigger Value</Label>
-            <Input type="number" value={formData.trigger_value} onChange={e => handleChange('trigger_value', parseInt(e.target.value))} />
+            {/* FIX: Handle empty string safely to prevent NaN error */}
+            <Input 
+                type="number" 
+                min="0"
+                placeholder="e.g. 5"
+                value={formData.trigger_value ?? ''} 
+                onChange={e => {
+                    const val = e.target.value;
+                    handleChange('trigger_value', val === '' ? 0 : parseInt(val));
+                }} 
+            />
         </div>
       </div>
       
@@ -136,7 +148,11 @@ export default function BannerManagerPage() {
 
   const { data: banners, isLoading } = useQuery({
     queryKey: ['adminBanners'],
-    queryFn: async () => (await api.get('/admin/banners')).data,
+    queryFn: async () => {
+        const res = await api.get('/admin/banners');
+        // Handle both { data: [...] } and [...] formats
+        return Array.isArray(res.data) ? res.data : (res.data?.data || []);
+    },
   });
 
   const mutation = useMutation({
@@ -149,7 +165,7 @@ export default function BannerManagerPage() {
     onSuccess: () => {
       toast.success(editingBanner ? "Banner Updated" : "Banner Created");
       queryClient.invalidateQueries({ queryKey: ['adminBanners'] });
-      queryClient.invalidateQueries({ queryKey: ['globalSettings'] });
+      queryClient.invalidateQueries({ queryKey: ['publicBanners'] }); // Invalidate public cache too
       setIsDialogOpen(false);
       setEditingBanner(null);
     }
@@ -160,7 +176,7 @@ export default function BannerManagerPage() {
     onSuccess: () => {
       toast.success("Banner Deleted");
       queryClient.invalidateQueries({ queryKey: ['adminBanners'] });
-      queryClient.invalidateQueries({ queryKey: ['globalSettings'] });
+      queryClient.invalidateQueries({ queryKey: ['publicBanners'] });
     }
   });
 
@@ -193,28 +209,34 @@ export default function BannerManagerPage() {
               <TableHead>Actions</TableHead>
             </TableRow></TableHeader>
             <TableBody>
-              {banners?.map((banner: any) => (
-                <TableRow key={banner.id}>
-                  <TableCell className="font-medium">{banner.title}</TableCell>
-                  <TableCell><span className="bg-muted px-2 py-1 rounded text-xs">{banner.type}</span></TableCell>
-                  <TableCell className="text-xs">{banner.trigger_type} ({banner.trigger_value})</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                        banner.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {banner.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </TableCell>
-                  <TableCell className="space-x-2">
-                    <Button variant="outline" size="sm" onClick={() => handleOpen(banner)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="destructive" size="sm" onClick={() => deleteMutation.mutate(banner.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {banners?.length > 0 ? (
+                  banners.map((banner: any) => (
+                    <TableRow key={banner.id}>
+                      <TableCell className="font-medium">{banner.title}</TableCell>
+                      <TableCell><span className="bg-muted px-2 py-1 rounded text-xs">{banner.type}</span></TableCell>
+                      <TableCell className="text-xs">{banner.trigger_type} ({banner.trigger_value})</TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            banner.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {banner.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </TableCell>
+                      <TableCell className="space-x-2">
+                        <Button variant="outline" size="sm" onClick={() => handleOpen(banner)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="destructive" size="sm" onClick={() => deleteMutation.mutate(banner.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+              ) : (
+                  <TableRow>
+                      <TableCell colSpan={5} className="text-center h-24">No banners found. Create one to get started.</TableCell>
+                  </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>

@@ -30,13 +30,13 @@ Defines clear system boundaries to answer:
 │  (Third-party owned, External source of truth)              │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
-│  │  Razorpay   │  │   MSG91     │  │ DigiLocker  │         │
-│  │  (Payments) │  │  (SMS/OTP)  │  │    (KYC)    │         │
-│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘         │
-│         │                 │                 │                │
-│         │ Webhooks        │ API Calls       │ API Calls      │
-│         ↓                 ↓                 ↓                │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │
+│  │  Razorpay   │  │   MSG91     │  │ DigiLocker  │          │
+│  │  (Payments) │  │  (SMS/OTP)  │  │    (KYC)    │          │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘          │
+│         │                │                │                 │
+│         │ Webhooks       │ API Calls      │ API Calls       │
+│         ↓                ↓                ↓                 │
 ├─────────────────────────────────────────────────────────────┤
 │                    SYSTEM BOUNDARY                          │
 │              (Reconciliation Required)                      │
@@ -44,18 +44,18 @@ Defines clear system boundaries to answer:
 │                                                             │
 │         ┌───────────────────────────────────┐               │
 │         │     PREIPOSITY INTERNAL SYSTEM    │               │
-│         │   (We control, We are truth)      │               │
+│         │     (We control, We are truth)    │               │
 │         ├───────────────────────────────────┤               │
 │         │                                   │               │
-│         │  ┌──────────┐  ┌──────────┐      │               │
-│         │  │  Wallet  │  │Investment│      │               │
-│         │  │ (Ledger) │  │ (Shares) │      │               │
-│         │  └──────────┘  └──────────┘      │               │
+│         │  ┌──────────┐  ┌──────────┐       │               │
+│         │  │  Wallet  │  │Investment│       │               │
+│         │  │ (Ledger) │  │ (Shares) │       │               │
+│         │  └──────────┘  └──────────┘       │               │
 │         │                                   │               │
-│         │  ┌──────────┐  ┌──────────┐      │               │
-│         │  │  Bonus   │  │ Referral │      │               │
-│         │  │ (Rewards)│  │ (Network)│      │               │
-│         │  └──────────┘  └──────────┘      │               │
+│         │  ┌──────────┐  ┌──────────┐       │               │
+│         │  │  Bonus   │  │ Referral │       │               │
+│         │  │ (Rewards)│  │ (Network)│       │               │
+│         │  └──────────┘  └──────────┘       │               │
 │         │                                   │               │
 │         └───────────────────────────────────┘               │
 │                                                             │

@@ -13,16 +13,16 @@
 
 ### **VIOLATIONS FOUND** in ExhaustivePreIPOSeeder.php:
 
-| # | Requirement | ExhaustivePreIPOSeeder | ProductionSafeSeeder | Status |
-|---|-------------|------------------------|----------------------|--------|
-| 1 | **Production Safe** | ❌ Uses `create()` - fails on re-run | ✅ Uses `updateOrCreate()` + existence checks | **FIXED** |
-| 2 | **Admin Configurable** | ❌ Hardcoded business values (lines 155-197, 786-873) | ✅ All values in settings table | **FIXED** |
-| 3 | **Financial Safety** | ❌ No genesis balance, broken conservation | ✅ Genesis balance + invariant verification | **FIXED** |
-| 4 | **Idempotent** | ❌ Not idempotent | ✅ Fully idempotent with natural keys | **FIXED** |
-| 5 | **Dependency Order** | ⚠️ Bulk purchases after subscriptions | ✅ Correct dependency order | **FIXED** |
-| 6 | **Missing Tables** | ❌ No companies, sectors, campaigns | ✅ All critical tables seeded | **FIXED** |
-| 7 | **Invariant Verification** | ❌ No verification | ✅ Full financial invariant checks | **FIXED** |
-| 8 | **Documentation** | ❌ No assumptions documented | ✅ Comprehensive documentation | **FIXED** |
+| # | Requirement 	     	 | ExhaustivePreIPOSeeder 				 | ProductionSafeSeeder 			| Status    |
+|---|----------------------------|-------------------------------------------------------|----------------------------------------------|-----------|
+| 1 | **Production Safe**    	 | ❌ Uses `create()` - fails on re-run 			 | ✅ Uses `updateOrCreate()` + existence checks| **FIXED** |
+| 2 | **Admin Configurable** 	 | ❌ Hardcoded business values (lines 155-197, 786-873) | ✅ All values in settings table 		| **FIXED** |
+| 3 | **Financial Safety**   	 | ❌ No genesis balance, broken conservation 		 | ✅ Genesis balance + invariant verification 	| **FIXED** |
+| 4 | **Idempotent** 	     	 | ❌ Not idempotent 					 | ✅ Fully idempotent with natural keys 	| **FIXED** |
+| 5 | **Dependency Order**    	 | ⚠️ Bulk purchases after subscriptions 		 | ✅ Correct dependency order 			| **FIXED** |
+| 6 | **Missing Tables**     	 | ❌ No companies, sectors, campaigns 			 | ✅ All critical tables seeded 		| **FIXED** |
+| 7 | **Invariant Verification** | ❌ No verification 					 | ✅ Full financial invariant checks 		| **FIXED** |
+| 8 | **Documentation**      	 | ❌ No assumptions documented 				 | ✅ Comprehensive documentation 		| **FIXED** |
 
 ---
 
@@ -418,26 +418,26 @@ php artisan db:seed --class=ProductionSafeSeeder
 
 ## Seeded Data Summary
 
-| Entity | Count | Notes |
-|--------|-------|-------|
-| **Admin Users** | 5 | All roles covered |
-| **Regular Users** | 60 | Various scenarios (new, pending, verified, active) |
-| **Company Users** | Variable | From CompanyUserSeeder |
-| **Wallets** | 65+ | Admin has genesis balance (₹1 Cr) |
-| **Sectors** | 8 | Technology, Healthcare, Fintech, etc. |
-| **Companies** | 5 | TechUnicorn, GreenEnergy, HealthFirst, EduTech, FinPay |
-| **Products** | Variable | From ProductSeeder |
-| **Plans** | 4 | Starter, Growth, Premium, Elite |
-| **Bulk Purchases** | ~10 | Inventory for allocations |
-| **Subscriptions** | ~40 | Only for verified KYC users |
-| **Payments** | ~200 | Historical payments with wallet credits |
-| **User Investments** | ~100 | Share allocations from bulk purchases |
-| **Transactions** | ~300+ | All wallet movements (deposits, bonuses) |
-| **Bonus Transactions** | ~150 | Progressive + Milestone bonuses |
-| **Withdrawals** | ~20 | Various statuses |
-| **Referrals** | ~30 | Referral chains |
-| **Lucky Draw Entries** | ~30 | With 3 winners |
-| **Support Tickets** | ~20 | Various statuses |
+| Entity 		 | Count| Notes 						|
+|------------------------|------|-------------------------------------------------------|
+| **Admin Users** 	 | 5 	| All roles covered 					|
+| **Regular Users** 	 | 60 	| Various scenarios (new, pending, verified, active) 	|
+| **Company Users** 	 |Variab| From CompanyUserSeeder 				|
+| **Wallets** 		 | 65+ 	| Admin has genesis balance (₹1 Cr) 			|
+| **Sectors** 		 | 8 	| Technology, Healthcare, Fintech, etc. 		|
+| **Companies** 	 | 5 	| TechUnicorn, GreenEnergy, HealthFirst, EduTech, FinPay|
+| **Products** 		 |Variab| From ProductSeeder 					|
+| **Plans** 		 | 4 	| Starter, Growth, Premium, Elite 			|
+| **Bulk Purchases** 	 | ~10 	| Inventory for allocations 				|
+| **Subscriptions** 	 | ~40 	| Only for verified KYC users 				|
+| **Payments** 		 | ~200 | Historical payments with wallet credits 		|
+| **User Investments** 	 | ~100 | Share allocations from bulk purchases 		|
+| **Transactions** 	 | ~300+| All wallet movements (deposits, bonuses) 		|
+| **Bonus Transactions** | ~150 | Progressive + Milestone bonuses 			|
+| **Withdrawals** 	 | ~20 	| Various statuses 					|
+| **Referrals** 	 | ~30 	| Referral chains 					|
+| **Lucky Draw Entries** | ~30 	| With 3 winners 					|
+| **Support Tickets** 	 | ~20 	| Various statuses 					|
 
 ---
 

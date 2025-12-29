@@ -8,7 +8,7 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "Full-System Architectural Coherence & Drift Audit - Fixes"
+$CommitMessage = "Fixed banner, logo, backup, sys health, blog etc"
 #----------------------
 
 function Get-GitCredential {

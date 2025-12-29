@@ -70,8 +70,6 @@ api.interceptors.request.use(
       } else {
         console.warn('[API INTERCEPTOR] No token found in localStorage!');
       }
-    } else {
-      console.log('[API INTERCEPTOR] Server-side execution, token skipped');
     }
 
     return config;
@@ -135,7 +133,7 @@ api.interceptors.response.use(
     }
 
     const status = axiosError?.response?.status;
-    const data = axiosError?.response?.data;
+    const data = axiosError?.response?.data as any;
 
     /**
      * MESSAGE RESOLUTION

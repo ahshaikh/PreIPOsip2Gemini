@@ -1,129 +1,109 @@
+// V-FINAL-1730-530 (Fix 404: Offers -> Campaigns Migration)
 'use client';
 
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Calendar, Gift, Percent, Tag, ArrowRight, Clock, CheckCircle } from "lucide-react";
-import Link from "next/link";
 import api from "@/lib/api";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Calendar, Tag, ArrowRight, Loader2, AlertCircle } from "lucide-react";
+import Link from "next/link";
 
 export default function OffersPage() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['activeCampaigns'],
-    queryFn: async () => {
-      const response = await api.get('/campaigns/active');
-      const responseData = response.data;
-      if (Array.isArray(responseData)) return responseData;
-      if (responseData?.data && Array.isArray(responseData.data)) return responseData.data;
-      if (responseData?.campaigns && Array.isArray(responseData.campaigns)) return responseData.campaigns;
-      return [];
-    },
+  const { data: campaigns, isLoading, error } = useQuery({
+    queryKey: ['campaigns-active'], // Renamed from 'offers-active'
+    // FIX: Pointed to correct backend endpoint
+    queryFn: async () => (await api.get('/campaigns/active')).data, 
   });
-
-  const offers = data || []; // Keep variable name for compatibility
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-muted-foreground">Loading offers...</div>
+      <div className="flex justify-center items-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-8 text-center text-red-500">
+        <AlertCircle className="h-12 w-12 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold">Unable to load offers</h3>
+        <p className="text-sm">Please check your connection and try again.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="container py-10 space-y-8">
       <div>
-        <h1 className="text-3xl font-bold">Active Offers</h1>
-        <p className="text-muted-foreground">
-          Exclusive deals and promotions for our valued investors
+        <h1 className="text-3xl font-bold tracking-tight">Active Offers & Campaigns</h1>
+        <p className="text-muted-foreground mt-2">
+          Exclusive deals and investment opportunities curated for you.
         </p>
       </div>
 
-      {/* Offers Grid */}
-      {offers.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Gift className="h-16 w-16 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No Active Offers</h3>
-            <p className="text-sm text-muted-foreground text-center">
-              Check back soon for exciting deals and promotions!
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
+      {campaigns && campaigns.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {offers.map((offer: any) => (
-            <Card key={offer.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-              {/* Offer Image/Banner */}
-              {offer.image_url && (
-                <div className="relative h-48 bg-gradient-to-r from-primary/20 to-primary/5">
-                  <img
-                    src={offer.image_url}
-                    alt={offer.title}
-                    className="w-full h-full object-cover"
-                  />
-                  {offer.discount_percent && (
-                    <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full font-bold">
-                      {offer.discount_percent}% OFF
+          {campaigns.map((campaign: any) => (
+            <Card key={campaign.id} className="flex flex-col h-full hover:shadow-lg transition-shadow">
+              {/* Image Handling (Optional) */}
+              <div className="h-48 bg-gradient-to-br from-primary/10 to-primary/5 relative overflow-hidden rounded-t-xl">
+                 {campaign.meta_data?.banner_url ? (
+                    <img 
+                      src={campaign.meta_data.banner_url} 
+                      alt={campaign.title}
+                      className="w-full h-full object-cover"
+                    />
+                 ) : (
+                    <div className="flex items-center justify-center h-full text-primary/40">
+                       <Tag className="h-16 w-16" />
                     </div>
-                  )}
-                </div>
-              )}
+                 )}
+                 <Badge className="absolute top-4 right-4 capitalize">
+                    {campaign.type}
+                 </Badge>
+              </div>
 
               <CardHeader>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1">
-                    <CardTitle className="text-xl mb-2">{offer.title || offer.code}</CardTitle>
-                    <CardDescription className="line-clamp-2">
-                      {offer.description}
-                    </CardDescription>
-                  </div>
-                  <Badge variant="secondary" className="font-mono">
-                    {offer.code}
-                  </Badge>
-                </div>
+                <CardTitle className="line-clamp-1">{campaign.title}</CardTitle>
+                <CardDescription className="line-clamp-2">
+                  {campaign.description}
+                </CardDescription>
               </CardHeader>
 
-              <CardContent className="space-y-4">
-                {/* Offer Details */}
-                <div className="space-y-2 text-sm">
-                  {offer.discount_amount && (
-                    <div className="flex items-center gap-2">
-                      <Tag className="h-4 w-4 text-muted-foreground" />
-                      <span>Save ₹{offer.discount_amount.toLocaleString('en-IN')}</span>
-                    </div>
-                  )}
-                  {offer.min_investment && (
-                    <div className="flex items-center gap-2">
-                      <Percent className="h-4 w-4 text-muted-foreground" />
-                      <span>Min. investment: ₹{offer.min_investment.toLocaleString('en-IN')}</span>
-                    </div>
-                  )}
-                  {offer.end_at && (
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span>Valid until {new Date(offer.end_at).toLocaleDateString('en-IN')}</span>
-                    </div>
-                  )}
-                  {offer.usage_limit && (
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-muted-foreground" />
-                      <span>{offer.usage_limit - (offer.usage_count || 0)} uses remaining</span>
-                    </div>
-                  )}
+              <CardContent className="flex-grow">
+                <div className="space-y-4">
+                   <div className="flex items-center text-sm text-muted-foreground">
+                      <Calendar className="mr-2 h-4 w-4" />
+                      <span>Valid until {new Date(campaign.end_date).toLocaleDateString()}</span>
+                   </div>
+                   {/* Display Benefit Summary */}
+                   <div className="bg-muted/50 p-3 rounded-md text-sm">
+                      <span className="font-semibold text-primary">Benefit: </span>
+                      {campaign.benefit_type === 'percentage_discount' && `${campaign.benefit_value}% Off`}
+                      {campaign.benefit_type === 'fixed_amount' && `₹${campaign.benefit_value} Flat Discount`}
+                      {campaign.benefit_type === 'bonus_credit' && `₹${campaign.benefit_value} Bonus Credits`}
+                   </div>
                 </div>
+              </CardContent>
 
-                {/* CTA Button */}
-                <Button className="w-full" asChild>
-                  <Link href={`/offers/${offer.id}`}>
+              <CardFooter>
+                <Button asChild className="w-full">
+                  {/* Updated Link to Campaign Detail */}
+                  <Link href={`/offers/${campaign.id}`}>
                     View Details <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
-              </CardContent>
+              </CardFooter>
             </Card>
           ))}
+        </div>
+      ) : (
+        <div className="text-center py-20 bg-muted/30 rounded-xl border border-dashed">
+          <Tag className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-xl font-semibold">No Active Campaigns</h3>
+          <p className="text-muted-foreground">Check back later for new exclusive offers.</p>
         </div>
       )}
     </div>

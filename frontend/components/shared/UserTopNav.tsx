@@ -155,7 +155,7 @@ export function UserTopNav({ user }: { user: any }) {
   const { data: offers } = useQuery({
     queryKey: ["active-offers"],
     queryFn: async () => {
-      const response = await api.get("/offers/active");
+      const response = await api.get("/campaigns/active");
       const data = response.data;
       if (Array.isArray(data)) return data;
       if (data?.data && Array.isArray(data.data)) return data.data;
@@ -295,6 +295,7 @@ export function UserTopNav({ user }: { user: any }) {
     { href: "/learn", label: "Learn", icon: BookOpen },
     { href: "/referrals", label: "Invite Friends", icon: Users },
     { href: "/materials", label: "Download", icon: Download },
+    { href: "/blog", label: "Blog", icon: Package },    
   ];
 
   const languages = [
