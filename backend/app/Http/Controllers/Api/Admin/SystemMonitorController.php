@@ -67,7 +67,7 @@ class SystemMonitorController extends Controller
             ],
             'cpu' => [
                 'load_percent' => $this->getCPULoadPercent(),
-                'load_avg' => implode(', ', sys_getloadavg()),
+                'load_avg' => implode(', ', $this->getLoadAverage()),
             ],
             'mail' => [
                 'status' => 'healthy',
@@ -358,11 +358,29 @@ class SystemMonitorController extends Controller
     }
 
     /**
+     * Get load average (cross-platform)
+     * Returns [1min, 5min, 15min] load averages
+     */
+    private function getLoadAverage()
+    {
+        // sys_getloadavg() is not available on Windows
+        if (function_exists('sys_getloadavg')) {
+            $loadAvg = \sys_getloadavg();
+            if ($loadAvg !== false) {
+                return $loadAvg;
+            }
+        }
+
+        // Fallback for Windows or when function is unavailable
+        return [0.0, 0.0, 0.0];
+    }
+
+    /**
      * Calculate CPU load percentage from load average
      */
     private function getCPULoadPercent()
     {
-        $loadAvg = sys_getloadavg();
+        $loadAvg = $this->getLoadAverage();
         $cpuCount = $this->getCPUCount();
 
         // Use 1-minute load average, convert to percentage
