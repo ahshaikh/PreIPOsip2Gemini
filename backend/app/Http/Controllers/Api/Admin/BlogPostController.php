@@ -21,7 +21,7 @@ class BlogPostController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = BlogPost::with(['author:id,name,email', 'blogCategory:id,name,color'])
+        $query = BlogPost::with(['author:id,username,email', 'blogCategory:id,name,color'])
             ->latest();
 
         // Filter by status
@@ -91,7 +91,7 @@ class BlogPostController extends Controller
 
         return response()->json([
             'message' => 'Blog post created successfully',
-            'data' => $post->load(['author:id,name', 'blogCategory:id,name,color'])
+            'data' => $post->load(['author:id,username', 'blogCategory:id,name,color'])
         ], 201);
     }
 
@@ -102,7 +102,7 @@ class BlogPostController extends Controller
     public function show(BlogPost $blogPost): JsonResponse
     {
         return response()->json([
-            'data' => $blogPost->load(['author:id,name,email', 'blogCategory:id,name,color,slug'])
+            'data' => $blogPost->load(['author:id,username,email', 'blogCategory:id,name,color,slug'])
         ]);
     }
 
@@ -155,7 +155,7 @@ class BlogPostController extends Controller
 
         return response()->json([
             'message' => 'Blog post updated successfully',
-            'data' => $blogPost->fresh()->load(['author:id,name', 'blogCategory:id,name,color'])
+            'data' => $blogPost->fresh()->load(['author:id,username', 'blogCategory:id,name,color'])
         ]);
     }
 
@@ -223,7 +223,7 @@ class BlogPostController extends Controller
 
         // V-AUDIT-MODULE12-001: Cache the paginated blog listing
         $posts = Cache::remember($cacheKey, $cacheDuration * 60, function () use ($request) {
-            $query = BlogPost::with(['author:id,name', 'blogCategory:id,name,slug,color'])
+            $query = BlogPost::with(['author:id,username', 'blogCategory:id,name,slug,color'])
                 ->published()
                 ->latest('published_at');
 
@@ -265,13 +265,13 @@ class BlogPostController extends Controller
 
         // V-AUDIT-MODULE12-001: Cache the blog post query
         $data = Cache::remember("cms_blog_post_{$slug}", $cacheDuration * 60, function () use ($slug) {
-            $post = BlogPost::with(['author:id,name', 'blogCategory:id,name,slug,color'])
+            $post = BlogPost::with(['author:id,username', 'blogCategory:id,name,slug,color'])
                 ->where('slug', $slug)
                 ->published()
                 ->firstOrFail();
 
             // Get related posts (same category, exclude current post)
-            $relatedPosts = BlogPost::with(['author:id,name', 'blogCategory:id,name,color'])
+            $relatedPosts = BlogPost::with(['author:id,username', 'blogCategory:id,name,color'])
                 ->where('id', '!=', $post->id)
                 ->where('category_id', $post->category_id)
                 ->published()
