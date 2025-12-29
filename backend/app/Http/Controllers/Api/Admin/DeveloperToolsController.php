@@ -454,9 +454,18 @@ class DeveloperToolsController extends Controller
         $start = microtime(true);
 
         try {
+            // Validate command exists before execution
+            $availableCommands = array_keys(Artisan::all());
+            if (!in_array($task->command, $availableCommands)) {
+                throw new \Exception(
+                    "The command \"{$task->command}\" does not exist. " .
+                    "Available commands: " . implode(', ', array_slice($availableCommands, 0, 10))
+                );
+            }
+
             Artisan::call($task->command, $task->parameters ?? []);
             $output = Artisan::output();
-            $duration = (int) (microtime(true) - $start);
+            $duration = (int) ((microtime(true) - $start) * 1000);
 
             $task->update([
                 'last_run_at' => now(),
@@ -472,7 +481,7 @@ class DeveloperToolsController extends Controller
                 'duration' => $duration,
             ]);
         } catch (\Exception $e) {
-            $duration = (int) (microtime(true) - $start);
+            $duration = (int) ((microtime(true) - $start) * 1000);
 
             $task->update([
                 'last_run_at' => now(),
