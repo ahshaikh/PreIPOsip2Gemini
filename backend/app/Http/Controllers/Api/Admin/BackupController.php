@@ -116,6 +116,7 @@ class BackupController extends Controller
      * Create manual backup
      * POST /api/v1/admin/system/backup/create
      * FIX: Module 20 - Rewrite Backup Logic (Critical)
+     * CROSS-PLATFORM: Works on Windows and Linux with fallback to PHP-based backup
      */
     public function createBackup(Request $request)
     {
@@ -128,43 +129,60 @@ class BackupController extends Controller
         try {
             // Create backup directory if it doesn't exist
             Storage::disk('local')->makeDirectory('backups');
-            
+
             $dbName = env('DB_DATABASE');
             $fileName = 'backup_' . $dbName . '_' . date('Y-m-d_H-i-s') . '.sql';
             $filePath = 'backups/' . $fileName;
             $fullPath = storage_path('app/' . $filePath);
 
-            /*
-             * DELETED: The PHP looping logic (Critical Failure)
-             * REASON: This causes Fatal Error: Allowed memory size exhausted on large tables.
-             */
+            // Try mysqldump first (preferred method)
+            $mysqldumpPath = $this->findMysqldump();
 
-            // [AUDIT FIX] Create secure auth file
-            $authFilePath = $this->createDbAuthFile();
+            if ($mysqldumpPath) {
+                // [AUDIT FIX] Create secure auth file
+                $authFilePath = $this->createDbAuthFile();
 
-            // ADDED: Use system mysqldump command with defaults-extra-file
-            // This runs outside PHP memory space and streams the backup efficiently.
-            // [AUDIT FIX] Password is no longer exposed in CLI arguments
-            $command = sprintf(
-                'mysqldump --defaults-extra-file=%s %s > %s',
-                escapeshellarg($authFilePath),
-                escapeshellarg($dbName),
-                escapeshellarg($fullPath)
-            );
-            
-            // Execute the command
-            $returnVar = null;
-            $output = [];
-            exec($command, $output, $returnVar);
+                // ADDED: Use system mysqldump command with defaults-extra-file
+                // This runs outside PHP memory space and streams the backup efficiently.
+                // [AUDIT FIX] Password is no longer exposed in CLI arguments
+                $command = sprintf(
+                    '%s --defaults-extra-file=%s %s > %s 2>&1',
+                    escapeshellcmd($mysqldumpPath),
+                    escapeshellarg($authFilePath),
+                    escapeshellarg($dbName),
+                    escapeshellarg($fullPath)
+                );
 
-            if ($returnVar !== 0) {
-                 throw new \Exception("Backup failed with error code $returnVar. Check mysqldump availability.");
+                // Execute the command
+                $returnVar = null;
+                $output = [];
+                exec($command, $output, $returnVar);
+
+                if ($returnVar !== 0) {
+                    // mysqldump failed, fall back to PHP method
+                    \Log::warning('mysqldump failed, falling back to PHP backup', [
+                        'return_code' => $returnVar,
+                        'output' => implode("\n", $output)
+                    ]);
+                    $this->createBackupWithPHP($fullPath);
+                }
+            } else {
+                // mysqldump not available, use PHP method
+                \Log::info('mysqldump not found, using PHP backup method');
+                $this->createBackupWithPHP($fullPath);
+            }
+
+            // Verify backup file was created and has content
+            if (!file_exists($fullPath) || filesize($fullPath) < 100) {
+                throw new \Exception('Backup file was not created or is empty');
             }
 
             return response()->json([
                 'message' => 'Backup created successfully',
                 'filename' => $fileName,
                 'path' => $filePath,
+                'size' => filesize($fullPath),
+                'method' => $mysqldumpPath ? 'mysqldump' : 'php',
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -176,6 +194,130 @@ class BackupController extends Controller
             if ($authFilePath && file_exists($authFilePath)) {
                 unlink($authFilePath);
             }
+        }
+    }
+
+    /**
+     * Find mysqldump executable (cross-platform)
+     * Returns full path to mysqldump or null if not found
+     */
+    private function findMysqldump()
+    {
+        // Common locations to check
+        $possiblePaths = [
+            'mysqldump', // In PATH
+            '/usr/bin/mysqldump', // Linux
+            '/usr/local/bin/mysqldump', // Linux/macOS
+            '/usr/local/mysql/bin/mysqldump', // macOS with MySQL
+            'C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\mysqldump.exe', // Windows MySQL 8.0
+            'C:\\Program Files\\MySQL\\MySQL Server 5.7\\bin\\mysqldump.exe', // Windows MySQL 5.7
+            'C:\\xampp\\mysql\\bin\\mysqldump.exe', // XAMPP on Windows
+            'C:\\wamp64\\bin\\mysql\\mysql8.0.31\\bin\\mysqldump.exe', // WAMP on Windows
+        ];
+
+        // Check if mysqldump is in PATH
+        $which = stripos(PHP_OS, 'WIN') === 0 ? 'where' : 'which';
+        $output = [];
+        $returnVar = null;
+        exec("$which mysqldump 2>&1", $output, $returnVar);
+
+        if ($returnVar === 0 && !empty($output[0])) {
+            return trim($output[0]);
+        }
+
+        // Check common paths
+        foreach ($possiblePaths as $path) {
+            if (file_exists($path)) {
+                return $path;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Create backup using pure PHP (fallback method)
+     * Memory-efficient streaming approach for moderate databases
+     */
+    private function createBackupWithPHP($outputPath)
+    {
+        $dbHost = env('DB_HOST');
+        $dbName = env('DB_DATABASE');
+        $dbUser = env('DB_USERNAME');
+        $dbPass = env('DB_PASSWORD');
+        $dbPort = env('DB_PORT', 3306);
+
+        // Open output file for writing
+        $handle = fopen($outputPath, 'w');
+        if (!$handle) {
+            throw new \Exception('Cannot create backup file');
+        }
+
+        try {
+            // Write header
+            fwrite($handle, "-- MySQL Database Backup\n");
+            fwrite($handle, "-- Generated: " . date('Y-m-d H:i:s') . "\n");
+            fwrite($handle, "-- Database: {$dbName}\n\n");
+            fwrite($handle, "SET FOREIGN_KEY_CHECKS=0;\n");
+            fwrite($handle, "SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';\n\n");
+
+            // Get all tables
+            $tables = DB::select('SHOW TABLES');
+            $tableKey = 'Tables_in_' . $dbName;
+
+            foreach ($tables as $table) {
+                $tableName = $table->$tableKey;
+
+                // Skip certain system tables if needed
+                if (in_array($tableName, ['migrations', 'failed_jobs', 'cache', 'cache_locks'])) {
+                    continue;
+                }
+
+                fwrite($handle, "\n-- Table: {$tableName}\n");
+
+                // Get CREATE TABLE statement
+                $createTable = DB::select("SHOW CREATE TABLE `{$tableName}`");
+                if (!empty($createTable)) {
+                    fwrite($handle, "DROP TABLE IF EXISTS `{$tableName}`;\n");
+                    fwrite($handle, $createTable[0]->{'Create Table'} . ";\n\n");
+                }
+
+                // Export data in chunks to avoid memory issues
+                $chunkSize = 100;
+                $offset = 0;
+
+                while (true) {
+                    $rows = DB::table($tableName)
+                        ->limit($chunkSize)
+                        ->offset($offset)
+                        ->get();
+
+                    if ($rows->isEmpty()) {
+                        break;
+                    }
+
+                    foreach ($rows as $row) {
+                        $values = array_map(function ($value) {
+                            if ($value === null) {
+                                return 'NULL';
+                            }
+                            return "'" . addslashes($value) . "'";
+                        }, (array) $row);
+
+                        $sql = "INSERT INTO `{$tableName}` VALUES (" . implode(', ', $values) . ");\n";
+                        fwrite($handle, $sql);
+                    }
+
+                    $offset += $chunkSize;
+                }
+            }
+
+            fwrite($handle, "\nSET FOREIGN_KEY_CHECKS=1;\n");
+            fclose($handle);
+
+        } catch (\Exception $e) {
+            fclose($handle);
+            throw $e;
         }
     }
 
@@ -279,48 +421,63 @@ class BackupController extends Controller
     /**
      * Stream a full database dump to the browser (legacy method)
      * GET /api/v1/admin/system/backup/db
+     * CROSS-PLATFORM: Works with or without mysqldump
      */
     public function downloadDbDump()
     {
-        /*
-         * DELETED: Legacy Memory-Hog Implementation
-         * Logic that built the SQL string in a PHP variable.
-         * REASON: Will crash server on production data volume.
-         */
-        
         $dbName = env('DB_DATABASE');
         $fileName = 'backup_' . $dbName . '_' . date('Y-m-d_H-i-s') . '.sql';
-        
+
         $headers = [
             'Content-Type' => 'application/sql',
             'Content-Disposition' => "attachment; filename=\"{$fileName}\"",
         ];
 
-        // ADDED: Streamed Response using popen (Pipe Open)
+        $mysqldumpPath = $this->findMysqldump();
+
+        // ADDED: Streamed Response using popen (Pipe Open) if mysqldump available
         // Streams the output of mysqldump directly to the browser output buffer.
         // PHP memory usage stays near zero regardless of DB size.
-        return new StreamedResponse(function() {
+        return new StreamedResponse(function() use ($mysqldumpPath) {
             $authFilePath = null; // [AUDIT FIX] Initialize for cleanup
 
             try {
-                // [AUDIT FIX] Create secure auth file
-                $authFilePath = $this->createDbAuthFile();
+                if ($mysqldumpPath) {
+                    // [AUDIT FIX] Create secure auth file
+                    $authFilePath = $this->createDbAuthFile();
 
-                $command = sprintf(
-                    'mysqldump --defaults-extra-file=%s %s',
-                    escapeshellarg($authFilePath),
-                    escapeshellarg(env('DB_DATABASE'))
-                );
-                
-                $handle = fopen('php://output', 'w');
-                $proc = popen($command, 'r');
-                while (!feof($proc)) {
-                    fwrite($handle, fread($proc, 4096)); // Buffer size 4KB
+                    $command = sprintf(
+                        '%s --defaults-extra-file=%s %s 2>&1',
+                        escapeshellcmd($mysqldumpPath),
+                        escapeshellarg($authFilePath),
+                        escapeshellarg(env('DB_DATABASE'))
+                    );
+
+                    $handle = fopen('php://output', 'w');
+                    $proc = popen($command, 'r');
+                    if ($proc) {
+                        while (!feof($proc)) {
+                            fwrite($handle, fread($proc, 4096)); // Buffer size 4KB
+                        }
+                        pclose($proc);
+                        fclose($handle);
+                    }
+                } else {
+                    // Fallback to PHP method - stream directly to output
+                    $tempFile = tempnam(sys_get_temp_dir(), 'backup_');
+                    $this->createBackupWithPHP($tempFile);
+
+                    // Stream the file
+                    $handle = fopen($tempFile, 'r');
+                    while (!feof($handle)) {
+                        echo fread($handle, 8192);
+                        flush();
+                    }
+                    fclose($handle);
+                    unlink($tempFile);
                 }
-                pclose($proc);
-                fclose($handle);
             } catch (\Exception $e) {
-                // Log error if needed
+                echo "-- Backup Error: " . $e->getMessage() . "\n";
             } finally {
                 // [AUDIT FIX] Cleanup temp file
                 if ($authFilePath && file_exists($authFilePath)) {
