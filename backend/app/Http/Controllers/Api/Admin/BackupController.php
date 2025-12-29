@@ -88,28 +88,43 @@ class BackupController extends Controller
      */
     public function getHistory()
     {
-        // Check storage disk for backup files
-        $disk = Storage::disk('local');
+        $backupDir = storage_path('app/backups');
         $backups = [];
-        
-        if ($disk->exists('backups')) {
-            $files = $disk->files('backups');
-            foreach ($files as $file) {
-                $backups[] = [
-                    'filename' => basename($file),
-                    'size' => $disk->size($file),
-                    'created_at' => date('Y-m-d H:i:s', $disk->lastModified($file)),
-                    'path' => $file,
-                ];
+
+        // Ensure backup directory exists
+        if (!is_dir($backupDir)) {
+            if (!mkdir($backupDir, 0755, true) && !is_dir($backupDir)) {
+                \Log::warning('Failed to create backup directory in getHistory');
             }
         }
 
-        // Sort by created_at descending
-        usort($backups, function($a, $b) {
-            return strtotime($b['created_at']) - strtotime($a['created_at']);
-        });
+        // Get all SQL files from the backup directory
+        if (is_dir($backupDir)) {
+            $files = glob($backupDir . '/*.sql');
 
-        return response()->json(['backups' => $backups]);
+            foreach ($files as $filePath) {
+                if (is_file($filePath)) {
+                    $backups[] = [
+                        'filename' => basename($filePath),
+                        'size' => filesize($filePath),
+                        'created_at' => date('Y-m-d H:i:s', filemtime($filePath)),
+                        'path' => 'backups/' . basename($filePath),
+                    ];
+                }
+            }
+
+            // Sort by created_at descending (newest first)
+            usort($backups, function($a, $b) {
+                return strtotime($b['created_at']) - strtotime($a['created_at']);
+            });
+        }
+
+        return response()->json([
+            'backups' => $backups,
+            'backup_directory' => $backupDir,
+            'directory_exists' => is_dir($backupDir),
+            'total_backups' => count($backups),
+        ]);
     }
 
     /**
@@ -129,10 +144,24 @@ class BackupController extends Controller
         try {
             // Create backup directory if it doesn't exist
             $backupDir = storage_path('app/backups');
+
+            \Log::info('Backup creation started', [
+                'backup_dir' => $backupDir,
+                'dir_exists' => is_dir($backupDir),
+                'dir_writable' => is_writable(storage_path('app')),
+            ]);
+
             if (!is_dir($backupDir)) {
-                if (!mkdir($backupDir, 0755, true) && !is_dir($backupDir)) {
-                    throw new \Exception('Failed to create backup directory');
+                $mkdirResult = mkdir($backupDir, 0755, true);
+                if (!$mkdirResult && !is_dir($backupDir)) {
+                    throw new \Exception('Failed to create backup directory at: ' . $backupDir);
                 }
+                \Log::info('Backup directory created', ['path' => $backupDir]);
+            }
+
+            // Verify directory is writable
+            if (!is_writable($backupDir)) {
+                throw new \Exception('Backup directory is not writable: ' . $backupDir);
             }
 
             $dbName = env('DB_DATABASE');
@@ -140,8 +169,14 @@ class BackupController extends Controller
             $filePath = 'backups/' . $fileName;
             $fullPath = $backupDir . DIRECTORY_SEPARATOR . $fileName;
 
+            \Log::info('Backup file path', [
+                'filename' => $fileName,
+                'full_path' => $fullPath,
+            ]);
+
             // Try mysqldump first (preferred method)
             $mysqldumpPath = $this->findMysqldump();
+            $method = 'unknown';
 
             if ($mysqldumpPath) {
                 // [AUDIT FIX] Create secure auth file
@@ -158,6 +193,8 @@ class BackupController extends Controller
                     escapeshellarg($fullPath)
                 );
 
+                \Log::info('Executing mysqldump command');
+
                 // Execute the command
                 $returnVar = null;
                 $output = [];
@@ -170,24 +207,46 @@ class BackupController extends Controller
                         'output' => implode("\n", $output)
                     ]);
                     $this->createBackupWithPHP($fullPath);
+                    $method = 'php';
+                } else {
+                    $method = 'mysqldump';
+                    \Log::info('mysqldump completed successfully');
                 }
             } else {
                 // mysqldump not available, use PHP method
                 \Log::info('mysqldump not found, using PHP backup method');
                 $this->createBackupWithPHP($fullPath);
+                $method = 'php';
             }
 
             // Verify backup file was created and has content
-            if (!file_exists($fullPath) || filesize($fullPath) < 100) {
-                throw new \Exception('Backup file was not created or is empty');
+            \Log::info('Verifying backup file', [
+                'exists' => file_exists($fullPath),
+                'size' => file_exists($fullPath) ? filesize($fullPath) : 0,
+            ]);
+
+            if (!file_exists($fullPath)) {
+                throw new \Exception('Backup file was not created at: ' . $fullPath);
             }
+
+            $fileSize = filesize($fullPath);
+            if ($fileSize < 100) {
+                throw new \Exception('Backup file is too small (' . $fileSize . ' bytes). Backup may have failed.');
+            }
+
+            \Log::info('Backup created successfully', [
+                'filename' => $fileName,
+                'size' => $fileSize,
+                'method' => $method,
+            ]);
 
             return response()->json([
                 'message' => 'Backup created successfully',
                 'filename' => $fileName,
                 'path' => $filePath,
-                'size' => filesize($fullPath),
-                'method' => $mysqldumpPath ? 'mysqldump' : 'php',
+                'full_path' => $fullPath,
+                'size' => $fileSize,
+                'method' => $method,
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -349,10 +408,14 @@ class BackupController extends Controller
             ], 400);
         }
 
-        $filePath = 'backups/' . $filename;
+        $backupDir = storage_path('app/backups');
+        $restoreFilePath = $backupDir . DIRECTORY_SEPARATOR . $filename;
 
-        if (!Storage::disk('local')->exists($filePath)) {
-            return response()->json(['error' => 'Backup file not found'], 404);
+        if (!file_exists($restoreFilePath)) {
+            return response()->json([
+                'error' => 'Backup file not found',
+                'path_checked' => $restoreFilePath,
+            ], 404);
         }
 
         $authFilePath = null;
@@ -360,7 +423,6 @@ class BackupController extends Controller
 
         try {
             // Step 1: Create a safety backup before restore
-            $backupDir = storage_path('app/backups');
             $dbName = env('DB_DATABASE');
             $safetyBackupFile = 'backup_' . $dbName . '_pre-restore_' . date('Y-m-d_H-i-s') . '.sql';
             $safetyBackupPath = $backupDir . DIRECTORY_SEPARATOR . $safetyBackupFile;
@@ -394,7 +456,6 @@ class BackupController extends Controller
             }
 
             // Step 2: Restore from the selected backup file
-            $restoreFilePath = storage_path('app/' . $filePath);
 
             \Log::info('Starting database restore', ['source' => $filename]);
 
@@ -651,13 +712,19 @@ class BackupController extends Controller
         }
 
         // V-AUDIT-MODULE19-LOW: Safely construct path (filename is now validated as basename-only)
-        $filePath = 'backups/' . $filename;
+        $backupDir = storage_path('app/backups');
+        $fullPath = $backupDir . DIRECTORY_SEPARATOR . $filename;
 
-        if (!Storage::disk('local')->exists($filePath)) {
-            return response()->json(['error' => 'Backup file not found'], 404);
+        if (!file_exists($fullPath)) {
+            return response()->json([
+                'error' => 'Backup file not found',
+                'path_checked' => $fullPath,
+            ], 404);
         }
 
-        return Storage::disk('local')->download($filePath);
+        return response()->download($fullPath, $filename, [
+            'Content-Type' => 'application/sql',
+        ]);
     }
 
     /**
@@ -693,13 +760,24 @@ class BackupController extends Controller
         }
 
         // V-AUDIT-MODULE19-LOW: Safely construct path (filename is now validated as basename-only)
-        $filePath = 'backups/' . $filename;
+        $backupDir = storage_path('app/backups');
+        $fullPath = $backupDir . DIRECTORY_SEPARATOR . $filename;
 
-        if (!Storage::disk('local')->exists($filePath)) {
-            return response()->json(['error' => 'Backup file not found'], 404);
+        if (!file_exists($fullPath)) {
+            return response()->json([
+                'error' => 'Backup file not found',
+                'path_checked' => $fullPath,
+            ], 404);
         }
 
-        Storage::disk('local')->delete($filePath);
+        if (!unlink($fullPath)) {
+            return response()->json([
+                'error' => 'Failed to delete backup file',
+                'message' => 'The file exists but could not be deleted. Check file permissions.',
+            ], 500);
+        }
+
+        \Log::info('Backup file deleted', ['filename' => $filename]);
 
         return response()->json(['message' => 'Backup deleted successfully']);
     }
