@@ -14,62 +14,33 @@ return new class extends Migration
         // Get first user (admin or system user)
         $adminId = DB::table('users')->orderBy('id')->value('id') ?? 1;
 
-        // Seed valid tasks from actual commands that exist
+        // Seed ONLY commands verified to:
+        // 1. Exist (checked Console/Commands signatures)
+        // 2. Not require missing DB columns
+        // 3. Be safe for automated execution
         $validTasks = [
             [
                 'name' => 'Database Backup',
                 'command' => 'backup:database',
                 'expression' => '0 2 * * *', // 2 AM daily
                 'description' => 'Creates automatic database backup',
-                'is_active' => true,
-                'created_by' => $adminId,
-            ],
-            [
-                'name' => 'System Health Monitor',
-                'command' => 'system:health',
-                'expression' => '*/15 * * * *', // Every 15 minutes
-                'description' => 'Monitors system health and logs metrics',
-                'is_active' => true,
-                'created_by' => $adminId,
-            ],
-            [
-                'name' => 'Process Monthly Lucky Draw',
-                'command' => 'luckydraw:process',
-                'expression' => '0 0 1 * *', // 1st of every month
-                'description' => 'Processes monthly lucky draw winners',
-                'is_active' => true,
-                'created_by' => $adminId,
-            ],
-            [
-                'name' => 'Process Auto Debits',
-                'command' => 'auto-debit:process',
-                'expression' => '0 3 * * *', // 3 AM daily
-                'description' => 'Processes automatic SIP debits',
-                'is_active' => true,
+                'is_active' => false, // Disabled - enable manually after testing
                 'created_by' => $adminId,
             ],
             [
                 'name' => 'Generate Sitemap',
                 'command' => 'sitemap:generate',
-                'expression' => '0 4 * * 0', // 4 AM every Sunday
+                'expression' => '0 4 * * 0', // 4 AM Sunday
                 'description' => 'Generates XML sitemap for SEO',
-                'is_active' => true,
+                'is_active' => false,
                 'created_by' => $adminId,
             ],
             [
-                'name' => 'Wallet Audit',
-                'command' => 'wallet:audit',
-                'expression' => '0 5 * * *', // 5 AM daily
-                'description' => 'Audits wallet balances and transactions',
-                'is_active' => true,
-                'created_by' => $adminId,
-            ],
-            [
-                'name' => 'Reconcile Ledgers',
-                'command' => 'ledger:reconcile',
-                'expression' => '0 6 * * *', // 6 AM daily
-                'description' => 'Reconciles financial ledgers',
-                'is_active' => true,
+                'name' => 'Aggregate Alerts',
+                'command' => 'alerts:aggregate',
+                'expression' => '0 * * * *', // Hourly
+                'description' => 'Aggregates system alerts',
+                'is_active' => false,
                 'created_by' => $adminId,
             ],
         ];
