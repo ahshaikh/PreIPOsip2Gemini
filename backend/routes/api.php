@@ -489,6 +489,7 @@ Route::prefix('v1')->group(function () {
                 Route::put('/config', [BackupController::class, 'updateConfig']);
                 Route::get('/history', [BackupController::class, 'getHistory']);
                 Route::post('/create', [BackupController::class, 'createBackup']);
+                Route::post('/restore/{filename}', [BackupController::class, 'restoreBackup']);
                 Route::get('/download/{filename}', [BackupController::class, 'downloadBackup']);
                 Route::delete('/{filename}', [BackupController::class, 'deleteBackup']);
                 Route::get('/db', [BackupController::class, 'downloadDbDump']); // Legacy endpoint
