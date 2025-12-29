@@ -81,7 +81,6 @@ const settingsNav = [
     { href: '/admin/settings/theme-seo', label: 'Theme & SEO', icon: Palette },
     { href: '/admin/settings/blog', label: 'Blog Manager', icon: BookOpen },
     { href: '/admin/settings/faq', label: 'FAQ Manager', icon: HelpCircle },
-    { href: '/admin/settings/notifications', label: 'Notifications', icon: Mail },
     { href: '/admin/settings/system-health', label: 'System Health', icon: Activity },
     { href: '/admin/settings/activity', label: 'Global Audit Log', icon: FileText },
     { href: '/admin/settings/backups', label: 'Backups', icon: Database },
