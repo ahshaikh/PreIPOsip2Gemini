@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import api from "@/lib/api";
-import { Download, Database, AlertTriangle, Trash2, RefreshCw, Save, Clock, HardDrive, Mail } from "lucide-react";
+import { Download, Database, AlertTriangle, Trash2, RefreshCw, Save, Clock, HardDrive, Mail, RotateCcw } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -112,6 +112,28 @@ export default function BackupPage() {
     },
   });
 
+  const restoreBackupMutation = useMutation({
+    mutationFn: async (filename: string) => {
+      const response = await api.post(`/admin/system/backup/restore/${filename}`);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message || "Database restored successfully", {
+        description: data.warning || `A safety backup was created: ${data.safety_backup}`,
+        duration: 10000,
+      });
+      refetchHistory();
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || "Failed to restore database";
+      const recoveryNote = error?.response?.data?.recovery_note;
+      toast.error(message, {
+        description: recoveryNote,
+        duration: 15000,
+      });
+    },
+  });
+
   const downloadBackup = async (filename: string) => {
     try {
       const response = await api.get(`/admin/system/backup/download/${filename}`, {
@@ -127,6 +149,41 @@ export default function BackupPage() {
       toast.success("Backup downloaded");
     } catch (e) {
       toast.error("Download failed");
+    }
+  };
+
+  const handleRestoreBackup = (filename: string) => {
+    const confirmed = window.confirm(
+      `⚠️ WARNING: Database Restore\n\n` +
+      `This will restore the database from backup: ${filename}\n\n` +
+      `BEFORE YOU PROCEED:\n` +
+      `• A safety backup of the current database will be created automatically\n` +
+      `• All current data will be replaced with data from this backup\n` +
+      `• This action may take several minutes for large databases\n` +
+      `• Active user sessions may be affected\n\n` +
+      `Are you sure you want to continue?`
+    );
+
+    if (confirmed) {
+      const doubleConfirmed = window.confirm(
+        `Final Confirmation\n\n` +
+        `Type 'RESTORE' in the next prompt to confirm.\n` +
+        `Click OK to continue or Cancel to abort.`
+      );
+
+      if (doubleConfirmed) {
+        const userInput = window.prompt(
+          `Please type RESTORE (all caps) to confirm database restore from:\n${filename}`
+        );
+
+        if (userInput === 'RESTORE') {
+          restoreBackupMutation.mutate(filename);
+        } else {
+          toast.info("Database restore cancelled - confirmation text did not match");
+        }
+      } else {
+        toast.info("Database restore cancelled");
+      }
     }
   };
 
@@ -362,7 +419,17 @@ export default function BackupPage() {
                         <Button
                           variant="outline"
                           size="sm"
+                          onClick={() => handleRestoreBackup(backup.filename)}
+                          disabled={restoreBackupMutation.isPending}
+                          title="Restore database from this backup"
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => downloadBackup(backup.filename)}
+                          title="Download backup file"
                         >
                           <Download className="h-4 w-4" />
                         </Button>
@@ -374,6 +441,7 @@ export default function BackupPage() {
                               deleteBackupMutation.mutate(backup.filename);
                             }
                           }}
+                          title="Delete backup file"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

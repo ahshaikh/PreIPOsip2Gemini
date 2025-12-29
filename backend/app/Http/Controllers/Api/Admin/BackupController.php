@@ -327,6 +327,287 @@ class BackupController extends Controller
     }
 
     /**
+     * Restore database from backup file
+     * POST /api/v1/admin/system/backup/restore/{filename}
+     * CRITICAL: Creates safety backup before restore, cross-platform support
+     */
+    public function restoreBackup($filename)
+    {
+        // V-AUDIT-MODULE19-LOW: Validate filename for path traversal attacks
+        if (str_contains($filename, '/') || str_contains($filename, '\\') || str_contains($filename, '..')) {
+            return response()->json([
+                'error' => 'Invalid filename',
+                'message' => 'Filename must not contain directory separators or parent directory references',
+            ], 400);
+        }
+
+        // V-AUDIT-MODULE19-LOW: Additional validation - must end with .sql
+        if (!str_ends_with($filename, '.sql')) {
+            return response()->json([
+                'error' => 'Invalid file type',
+                'message' => 'Only .sql backup files can be restored',
+            ], 400);
+        }
+
+        $filePath = 'backups/' . $filename;
+
+        if (!Storage::disk('local')->exists($filePath)) {
+            return response()->json(['error' => 'Backup file not found'], 404);
+        }
+
+        $authFilePath = null;
+        $safetyBackupFile = null;
+
+        try {
+            // Step 1: Create a safety backup before restore
+            $backupDir = storage_path('app/backups');
+            $dbName = env('DB_DATABASE');
+            $safetyBackupFile = 'backup_' . $dbName . '_pre-restore_' . date('Y-m-d_H-i-s') . '.sql';
+            $safetyBackupPath = $backupDir . DIRECTORY_SEPARATOR . $safetyBackupFile;
+
+            \Log::info('Creating safety backup before restore', ['filename' => $safetyBackupFile]);
+
+            // Create safety backup using the same methods
+            $mysqldumpPath = $this->findMysqldump();
+            if ($mysqldumpPath) {
+                $authFilePath = $this->createDbAuthFile();
+                $command = sprintf(
+                    '%s --defaults-extra-file=%s %s > %s 2>&1',
+                    escapeshellcmd($mysqldumpPath),
+                    escapeshellarg($authFilePath),
+                    escapeshellarg($dbName),
+                    escapeshellarg($safetyBackupPath)
+                );
+                $returnVar = null;
+                $output = [];
+                exec($command, $output, $returnVar);
+
+                if ($returnVar !== 0) {
+                    $this->createBackupWithPHP($safetyBackupPath);
+                }
+            } else {
+                $this->createBackupWithPHP($safetyBackupPath);
+            }
+
+            if (!file_exists($safetyBackupPath) || filesize($safetyBackupPath) < 100) {
+                throw new \Exception('Failed to create safety backup before restore');
+            }
+
+            // Step 2: Restore from the selected backup file
+            $restoreFilePath = storage_path('app/' . $filePath);
+
+            \Log::info('Starting database restore', ['source' => $filename]);
+
+            $mysqlPath = $this->findMysql();
+
+            if ($mysqlPath) {
+                // Use mysql command line tool
+                if (!$authFilePath) {
+                    $authFilePath = $this->createDbAuthFile();
+                }
+
+                $command = sprintf(
+                    '%s --defaults-extra-file=%s %s < %s 2>&1',
+                    escapeshellcmd($mysqlPath),
+                    escapeshellarg($authFilePath),
+                    escapeshellarg($dbName),
+                    escapeshellarg($restoreFilePath)
+                );
+
+                $returnVar = null;
+                $output = [];
+                exec($command, $output, $returnVar);
+
+                if ($returnVar !== 0) {
+                    // mysql command failed, fall back to PHP
+                    \Log::warning('mysql command failed, falling back to PHP restore', [
+                        'return_code' => $returnVar,
+                        'output' => implode("\n", $output)
+                    ]);
+                    $this->restoreWithPHP($restoreFilePath);
+                }
+            } else {
+                // Fallback to PHP method
+                \Log::info('mysql not found, using PHP restore method');
+                $this->restoreWithPHP($restoreFilePath);
+            }
+
+            \Log::info('Database restore completed successfully', [
+                'restored_from' => $filename,
+                'safety_backup' => $safetyBackupFile
+            ]);
+
+            return response()->json([
+                'message' => 'Database restored successfully',
+                'restored_from' => $filename,
+                'safety_backup' => $safetyBackupFile,
+                'warning' => 'A safety backup was created before restore: ' . $safetyBackupFile,
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Database restore failed', [
+                'error' => $e->getMessage(),
+                'file' => $filename,
+            ]);
+
+            return response()->json([
+                'error' => 'Database restore failed',
+                'message' => $e->getMessage(),
+                'safety_backup' => $safetyBackupFile,
+                'recovery_note' => $safetyBackupFile
+                    ? 'A safety backup was created: ' . $safetyBackupFile . '. You can restore from it if needed.'
+                    : 'No safety backup was created. The database may be in an inconsistent state.',
+            ], 500);
+        } finally {
+            // Cleanup temp auth file
+            if ($authFilePath && file_exists($authFilePath)) {
+                unlink($authFilePath);
+            }
+        }
+    }
+
+    /**
+     * Find mysql executable (cross-platform)
+     * Returns full path to mysql or null if not found
+     */
+    private function findMysql()
+    {
+        // Common locations to check
+        $possiblePaths = [
+            'mysql', // In PATH
+            '/usr/bin/mysql', // Linux
+            '/usr/local/bin/mysql', // Linux/macOS
+            '/usr/local/mysql/bin/mysql', // macOS with MySQL
+            'C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\mysql.exe', // Windows MySQL 8.0
+            'C:\\Program Files\\MySQL\\MySQL Server 5.7\\bin\\mysql.exe', // Windows MySQL 5.7
+            'C:\\xampp\\mysql\\bin\\mysql.exe', // XAMPP on Windows
+            'C:\\wamp64\\bin\\mysql\\mysql8.0.31\\bin\\mysql.exe', // WAMP on Windows
+        ];
+
+        // Check if mysql is in PATH
+        $which = stripos(PHP_OS, 'WIN') === 0 ? 'where' : 'which';
+        $output = [];
+        $returnVar = null;
+        exec("$which mysql 2>&1", $output, $returnVar);
+
+        if ($returnVar === 0 && !empty($output[0])) {
+            return trim($output[0]);
+        }
+
+        // Check common paths
+        foreach ($possiblePaths as $path) {
+            if (file_exists($path)) {
+                return $path;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Restore database using pure PHP (fallback method)
+     * Executes SQL statements from backup file
+     */
+    private function restoreWithPHP($sqlFilePath)
+    {
+        if (!file_exists($sqlFilePath)) {
+            throw new \Exception('Backup file not found');
+        }
+
+        // Read and execute SQL file
+        $sql = file_get_contents($sqlFilePath);
+
+        if ($sql === false || empty($sql)) {
+            throw new \Exception('Failed to read backup file or file is empty');
+        }
+
+        // Disable foreign key checks during restore
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+
+        try {
+            // Split SQL into individual statements
+            // This is a simple parser - handles most common SQL backup formats
+            $statements = $this->parseSqlStatements($sql);
+
+            foreach ($statements as $statement) {
+                $statement = trim($statement);
+                if (empty($statement) || str_starts_with($statement, '--')) {
+                    continue;
+                }
+
+                try {
+                    DB::statement($statement);
+                } catch (\Exception $e) {
+                    // Log but continue with other statements
+                    \Log::warning('Failed to execute SQL statement during restore', [
+                        'error' => $e->getMessage(),
+                        'statement' => substr($statement, 0, 100) . '...'
+                    ]);
+                }
+            }
+
+        } finally {
+            // Re-enable foreign key checks
+            DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        }
+    }
+
+    /**
+     * Parse SQL file into individual statements
+     * Handles multi-line statements and comments
+     */
+    private function parseSqlStatements($sql)
+    {
+        // Remove comments
+        $sql = preg_replace('/^--.*$/m', '', $sql);
+        $sql = preg_replace('/\/\*.*?\*\//s', '', $sql);
+
+        // Split by semicolon (considering strings and escaped characters)
+        $statements = [];
+        $currentStatement = '';
+        $inString = false;
+        $stringChar = '';
+        $escaped = false;
+
+        for ($i = 0; $i < strlen($sql); $i++) {
+            $char = $sql[$i];
+
+            if ($escaped) {
+                $currentStatement .= $char;
+                $escaped = false;
+                continue;
+            }
+
+            if ($char === '\\') {
+                $currentStatement .= $char;
+                $escaped = true;
+                continue;
+            }
+
+            if (($char === "'" || $char === '"') && !$inString) {
+                $inString = true;
+                $stringChar = $char;
+                $currentStatement .= $char;
+            } elseif ($char === $stringChar && $inString) {
+                $inString = false;
+                $currentStatement .= $char;
+            } elseif ($char === ';' && !$inString) {
+                $statements[] = trim($currentStatement);
+                $currentStatement = '';
+            } else {
+                $currentStatement .= $char;
+            }
+        }
+
+        // Add last statement if not empty
+        if (!empty(trim($currentStatement))) {
+            $statements[] = trim($currentStatement);
+        }
+
+        return array_filter($statements, fn($s) => !empty($s));
+    }
+
+    /**
      * V-AUDIT-MODULE19-LOW: Fixed Backup Download Security (Path Traversal)
      *
      * PROBLEM: The $filename parameter was directly concatenated into the file path
