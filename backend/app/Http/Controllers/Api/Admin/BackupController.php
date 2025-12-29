@@ -128,12 +128,17 @@ class BackupController extends Controller
 
         try {
             // Create backup directory if it doesn't exist
-            Storage::disk('local')->makeDirectory('backups');
+            $backupDir = storage_path('app/backups');
+            if (!is_dir($backupDir)) {
+                if (!mkdir($backupDir, 0755, true) && !is_dir($backupDir)) {
+                    throw new \Exception('Failed to create backup directory');
+                }
+            }
 
             $dbName = env('DB_DATABASE');
             $fileName = 'backup_' . $dbName . '_' . date('Y-m-d_H-i-s') . '.sql';
             $filePath = 'backups/' . $fileName;
-            $fullPath = storage_path('app/' . $filePath);
+            $fullPath = $backupDir . DIRECTORY_SEPARATOR . $fileName;
 
             // Try mysqldump first (preferred method)
             $mysqldumpPath = $this->findMysqldump();
