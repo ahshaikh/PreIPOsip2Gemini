@@ -1,4 +1,4 @@
-// V-PHASE4-1730-101 (Created - Revised) | V-FINAL-1730-634 (AuthContext Fix) | V-FINAL-1730-658 (Providers Integration) | V-FIX-BANNER-MOUNT
+// V-PHASE4-1730-101 (Created - Revised) | V-FINAL-1730-634 (AuthContext Fix) | V-FINAL-1730-658 (Providers Integration) | V-FIX-BANNER-MOUNT | V-COMPLIANCE-GUARD-ADDED
 'use client';
 
 import { Inter } from 'next/font/google';
@@ -12,6 +12,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { CookieConsent } from '@/components/shared/CookieConsent';
 import { Providers } from "@/components/shared/Providers";
 import PopupBanner from "@/components/shared/PopupBanner"; // Imported
+import ComplianceGuard from "@/components/shared/ComplianceGuard"; // Imported Guard
 
 const inter = Inter({ subsets: ['latin'], weight: ['300', '400', '500', '600', '700', '800', '900'] });
 
@@ -36,12 +37,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* V-FIX-BANNER-MOUNT: Added the component here so it actually renders */}
           <PopupBanner /> 
 
-          <div className="flex flex-col min-h-screen">
-            {isPublicPage && <Navbar />}
-            <main className="flex-grow">{children}</main>
-            {isPublicPage && <Footer />}
-            <ScrollToTop />
-          </div>
+          {/* Wrapper for Global Compliance Checks */}
+          <ComplianceGuard>
+            <div className="flex flex-col min-h-screen">
+              {isPublicPage && <Navbar />}
+              <main className="flex-grow">{children}</main>
+              {isPublicPage && <Footer />}
+              <ScrollToTop />
+            </div>
+          </ComplianceGuard>
+
           <CookieConsent />
           <Toaster richColors />
         </Providers>

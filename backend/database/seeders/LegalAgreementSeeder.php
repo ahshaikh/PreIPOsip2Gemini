@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\LegalAgreement;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class LegalAgreementSeeder extends Seeder
 {
@@ -16,83 +17,114 @@ class LegalAgreementSeeder extends Seeder
         $now = Carbon::now();
         $effectiveDate = $now->format('Y-m-d');
 
+        $this->command->info('Seeding Legal Agreements with HTML content...');
+
         // 1. Terms of Service
-        LegalAgreement::create([
-            'type' => 'terms_of_service',
-            'title' => 'Terms of Service',
-            'description' => 'Comprehensive terms and conditions governing your use of PreIPO SIP platform and services.',
-            'content' => $this->getTermsOfServiceContent(),
-            'version' => '1.0.0',
-            'status' => 'active',
-            'effective_date' => $effectiveDate,
-            'require_signature' => false,
-            'is_template' => false,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
+        LegalAgreement::updateOrCreate(
+            ['type' => 'terms_of_service'],
+            [
+                'title' => 'Terms of Service',
+                'description' => 'Comprehensive terms and conditions governing your use of PreIPO SIP platform and services.',
+                'content' => $this->getTermsOfServiceContent(),
+                'version' => '1.2.0',
+                'status' => 'active',
+                'effective_date' => $effectiveDate,
+                'require_signature' => true,
+                'is_template' => false,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]
+        );
 
         // 2. Privacy Policy
-        LegalAgreement::create([
-            'type' => 'privacy_policy',
-            'title' => 'Privacy Policy',
-            'description' => 'How we collect, use, protect, and handle your personal information.',
-            'content' => $this->getPrivacyPolicyContent(),
-            'version' => '1.0.0',
-            'status' => 'active',
-            'effective_date' => $effectiveDate,
-            'require_signature' => false,
-            'is_template' => false,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
+        LegalAgreement::updateOrCreate(
+            ['type' => 'privacy_policy'],
+            [
+                'title' => 'Privacy Policy',
+                'description' => 'How we collect, use, protect, and handle your personal information.',
+                'content' => $this->getPrivacyPolicyContent(),
+                'version' => '1.1.0',
+                'status' => 'active',
+                'effective_date' => $effectiveDate,
+                'require_signature' => true,
+                'is_template' => false,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]
+        );
 
         // 3. Cookie Policy
-        LegalAgreement::create([
-            'type' => 'cookie_policy',
-            'title' => 'Cookie Policy',
-            'description' => 'Information about how we use cookies and similar tracking technologies.',
-            'content' => $this->getCookiePolicyContent(),
-            'version' => '1.0.0',
-            'status' => 'active',
-            'effective_date' => $effectiveDate,
-            'require_signature' => false,
-            'is_template' => false,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
+        LegalAgreement::updateOrCreate(
+            ['type' => 'cookie_policy'],
+            [
+                'title' => 'Cookie Policy',
+                'description' => 'Information about how we use cookies and similar tracking technologies.',
+                'content' => $this->getCookiePolicyContent(),
+                'version' => '1.0.0',
+                'status' => 'active',
+                'effective_date' => $effectiveDate,
+                'require_signature' => false,
+                'is_template' => false,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]
+        );
 
         // 4. Refund Policy
-        LegalAgreement::create([
-            'type' => 'refund_policy',
-            'title' => 'Refund Policy',
-            'description' => 'Terms and conditions regarding refunds, cancellations, and payment processing.',
-            'content' => $this->getRefundPolicyContent(),
-            'version' => '1.0.0',
-            'status' => 'active',
-            'effective_date' => $effectiveDate,
-            'require_signature' => false,
-            'is_template' => false,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
+        LegalAgreement::updateOrCreate(
+            ['type' => 'refund_policy'],
+            [
+                'title' => 'Refund Policy',
+                'description' => 'Terms and conditions regarding refunds, cancellations, and payment processing.',
+                'content' => $this->getRefundPolicyContent(),
+                'version' => '1.0.0',
+                'status' => 'active',
+                'effective_date' => $effectiveDate,
+                'require_signature' => true,
+                'is_template' => false,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]
+        );
 
         // 5. AML & KYC Policy
-        LegalAgreement::create([
-            'type' => 'aml_kyc_policy',
-            'title' => 'Anti-Money Laundering & Know Your Customer Policy',
-            'description' => 'Our Anti-Money Laundering and Know Your Customer compliance procedures.',
-            'content' => $this->getAMLKYCPolicyContent(),
-            'version' => '1.0.0',
-            'status' => 'active',
-            'effective_date' => $effectiveDate,
-            'require_signature' => false,
-            'is_template' => false,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
+        LegalAgreement::updateOrCreate(
+            ['type' => 'aml_kyc_policy'], // Matches your standard key
+            [
+                'title' => 'Anti-Money Laundering & KYC Policy',
+                'description' => 'Our Anti-Money Laundering and Know Your Customer compliance procedures.',
+                'content' => $this->getAMLKYCPolicyContent(),
+                'version' => '1.1.0',
+                'status' => 'active',
+                'effective_date' => $effectiveDate,
+                'require_signature' => true,
+                'is_template' => false,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]
+        );
 
-        $this->command->info('✓ Legal agreements seeded successfully!');
+        // 6. Risk Disclosure
+        LegalAgreement::updateOrCreate(
+            ['type' => 'risk_disclosure'], 
+            [
+                'title' => 'Risk Disclosure Document',
+                'description' => 'Critical information regarding the risks associated with unlisted investments.',
+                'content' => $this->getRiskDisclosureContent(),
+                'version' => '1.0.0',
+                'status' => 'active',
+                'effective_date' => $effectiveDate,
+                'require_signature' => true,
+                'is_template' => false,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]
+        );
+
+        $this->command->info('✓ All 6 Legal Agreements seeded successfully!');
     }
+
+    // --- Content Generators (HTML Structure preserved from your codebase) ---
 
     private function getTermsOfServiceContent(): string
     {
@@ -105,9 +137,7 @@ class LegalAgreementSeeder extends Seeder
     <section>
         <h2>1. Introduction and Acceptance</h2>
         <p>Welcome to PreIPO SIP, a product of Pre IPO SIP Private Limited (hereinafter referred to as "PreIPO SIP," "we," "us," or "our"). These Terms of Service ("Terms") constitute a legally binding agreement between you ("User," "Investor," or "you") and PreIPO SIP governing your access to and use of our platform, services, and associated features.</p>
-
         <p>By creating an account, accessing our platform, or using any of our services, you acknowledge that you have read, understood, and agree to be bound by these Terms, along with our Privacy Policy, Cookie Policy, AML & KYC Policy, and all other policies referenced herein.</p>
-
         <p><strong>If you do not agree to these Terms, you must not access or use our platform or services.</strong></p>
     </section>
 
@@ -461,7 +491,7 @@ class LegalAgreementSeeder extends Seeder
     </section>
 
     <hr>
-    <p class="footer-note"><em>Last Updated: January 15, 2025 | Version 1.0.0</em></p>
+    <p class="footer-note"><em>Last Updated: January 15, 2025 | Version 1.2.0</em></p>
 </div>
 HTML;
     }
@@ -952,8 +982,69 @@ HTML;
     <p class="last-updated"><strong>Last Updated:</strong> January 15, 2025</p>
 
     <section>
-        <p>This Privacy Policy is maintained as a reference document. The complete and current privacy policy can be found on our website.</p>
+        <h2>1. Overview</h2>
+        <p>At PreIPO SIP, we take your privacy seriously. This Privacy Policy explains how Pre IPO SIP Private Limited ("we," "us," or "our") collects, uses, discloses, and safeguards your information when you visit our website or use our services. Please read this privacy policy carefully. If you do not agree with the terms of this privacy policy, please do not access the site.</p>
     </section>
+
+    <section>
+        <h2>2. Information We Collect</h2>
+        <h3>2.1 Personal Data</h3>
+        <p>We collect personally identifiable information that you voluntarily provide to us when registering on the platform, expressing interest in obtaining information about us or our products and services, or otherwise contacting us. This includes:</p>
+        <ul>
+            <li><strong>Identity Data:</strong> Name, date of birth, PAN card details, Aadhaar number, photographs.</li>
+            <li><strong>Contact Data:</strong> Email address, mobile number, residential address.</li>
+            <li><strong>Financial Data:</strong> Bank account details, payment instrument details, investment history.</li>
+        </ul>
+
+        <h3>2.2 Derivative Data</h3>
+        <p>Information our servers automatically collect when you access the Site, such as your IP address, your browser type, your operating system, your access times, and the pages you have viewed directly before and after accessing the Site.</p>
+    </section>
+
+    <section>
+        <h2>3. Use of Your Information</h2>
+        <p>Having accurate information about you permits us to provide you with a smooth, efficient, and customized experience. Specifically, we may use information collected about you via the Site to:</p>
+        <ul>
+            <li>Create and manage your account.</li>
+            <li>Process your transactions and investments.</li>
+            <li>Verify your identity in compliance with KYC/AML regulations.</li>
+            <li>Email you regarding your account or order status.</li>
+            <li>Fulfill and manage purchases, orders, payments, and other transactions related to the Site.</li>
+            <li>Prevent fraudulent transactions, monitor against theft, and protect against criminal activity.</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>4. Disclosure of Your Information</h2>
+        <p>We may share information we have collected about you in certain situations. Your information may be disclosed as follows:</p>
+        
+        <h3>4.1 By Law or to Protect Rights</h3>
+        <p>If we believe the release of information about you is necessary to respond to legal process, to investigate or remedy potential violations of our policies, or to protect the rights, property, and safety of others, we may share your information as permitted or required by any applicable law, rule, or regulation.</p>
+        
+        <h3>4.2 Third-Party Service Providers</h3>
+        <p>We may share your information with third parties that perform services for us or on our behalf, including payment processing, data analysis, email delivery, hosting services, customer service, and marketing assistance.</p>
+    </section>
+
+    <section>
+        <h2>5. Security of Your Information</h2>
+        <p>We use administrative, technical, and physical security measures to help protect your personal information. While we have taken reasonable steps to secure the personal information you provide to us, please be aware that despite our efforts, no security measures are perfect or impenetrable, and no method of data transmission can be guaranteed against any interception or other type of misuse.</p>
+    </section>
+
+    <section>
+        <h2>6. Policy for Children</h2>
+        <p>We do not knowingly solicit information from or market to children under the age of 18. If you become aware of any data we have collected from children under age 18, please contact us using the contact information provided below.</p>
+    </section>
+
+    <section>
+        <h2>7. Contact Us</h2>
+        <p>If you have questions or comments about this Privacy Policy, please contact us at:</p>
+        <ul>
+            <li><strong>Email:</strong> legal@preiposip.com</li>
+            <li><strong>Address:</strong> PreIPO SIP Private Limited, Office No. 14, 2nd Floor, Crystal Business Park, Near Golden Nest Road, Mira Bhayandar (East), Thane, Maharashtra – 401107, India</li>
+        </ul>
+    </section>
+
+    <hr>
+    <p class="footer-note"><em>Last Updated: January 15, 2025 | Version 1.0.0</em></p>
 </div>
 HTML;
     }
@@ -967,8 +1058,41 @@ HTML;
     <p class="last-updated"><strong>Last Updated:</strong> January 15, 2025</p>
 
     <section>
-        <p>This Cookie Policy is maintained as a reference document. The complete and current cookie policy can be found on our website.</p>
+        <h2>1. Introduction</h2>
+        <p>This Cookie Policy explains how PreIPO SIP ("we", "us", or "our") uses cookies and similar technologies to recognize you when you visit our website. It explains what these technologies are and why we use them, as well as your rights to control our use of them.</p>
     </section>
+
+    <section>
+        <h2>2. What are Cookies?</h2>
+        <p>Cookies are small data files that are placed on your computer or mobile device when you visit a website. Cookies are widely used by website owners in order to make their websites work, or to work more efficiently, as well as to provide reporting information.</p>
+    </section>
+
+    <section>
+        <h2>3. Why We Use Cookies</h2>
+        <p>We use first-party and third-party cookies for several reasons. Some cookies are required for technical reasons in order for our Website to operate, and we refer to these as "essential" or "strictly necessary" cookies. Other cookies also enable us to track and target the interests of our users to enhance the experience on our Online Properties.</p>
+    </section>
+
+    <section>
+        <h2>4. Types of Cookies Used</h2>
+        <ul>
+            <li><strong>Essential Cookies:</strong> These cookies are strictly necessary to provide you with services available through our Website and to use some of its features, such as access to secure areas.</li>
+            <li><strong>Performance and Functionality Cookies:</strong> These cookies are used to enhance the performance and functionality of our Website but are non-essential to their use. However, without these cookies, certain functionality (like videos) may become unavailable.</li>
+            <li><strong>Analytics and Customization Cookies:</strong> These cookies collect information that is used either in aggregate form to help us understand how our Website is being used or how effective our marketing campaigns are, or to help us customize our Website for you.</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>5. Managing Cookies</h2>
+        <p>You have the right to decide whether to accept or reject cookies. You can exercise your cookie rights by setting your browser controls to accept or refuse cookies. If you choose to reject cookies, you may still use our website though your access to some functionality and areas of our website may be restricted.</p>
+    </section>
+
+    <section>
+        <h2>6. Updates to This Policy</h2>
+        <p>We may update this Cookie Policy from time to time in order to reflect, for example, changes to the cookies we use or for other operational, legal, or regulatory reasons. Please therefore re-visit this Cookie Policy regularly to stay informed about our use of cookies and related technologies.</p>
+    </section>
+
+    <hr>
+    <p class="footer-note"><em>Last Updated: January 15, 2025 | Version 1.0.0</em></p>
 </div>
 HTML;
     }
@@ -982,8 +1106,88 @@ HTML;
     <p class="last-updated"><strong>Last Updated:</strong> January 15, 2025</p>
 
     <section>
-        <p>This Refund Policy is maintained as a reference document. The complete and current refund policy can be found on our website.</p>
+        <h2>1. General Principle</h2>
+        <p>PreIPO SIP facilitates investments in financial securities. Due to the nature of financial markets and regulatory requirements, investments once executed are generally non-refundable. However, we have specific policies to handle failed transactions, errors, and exceptional circumstances.</p>
     </section>
+
+    <section>
+        <h2>2. Failed Transactions</h2>
+        <p>If a payment amount has been deducted from your bank account but the transaction status is shown as 'failed' or 'pending' on our platform, please do not worry. The amount will be automatically refunded to your source bank account within <strong>5-7 working days</strong>, depending on your bank's policy.</p>
+    </section>
+
+    <section>
+        <h2>3. Cancellations</h2>
+        <h3>3.1 Before Execution</h3>
+        <p>Investment orders placed on the platform can be cancelled only before the order has been processed or executed. Once the order is in the 'Processing' or 'Completed' state, it cannot be cancelled.</p>
+        
+        <h3>3.2 After Execution</h3>
+        <p>Once shares or units have been allocated to you, the transaction is final and cannot be cancelled or refunded. You may, however, choose to exit the investment by selling the securities, subject to liquidity and applicable laws.</p>
+    </section>
+
+    <section>
+        <h2>4. Subscription Fees</h2>
+        <p>Any subscription fees paid for premium platform access are non-refundable. If you cancel your subscription, you will continue to have access until the end of your current billing period, but no refund will be issued for the remaining period.</p>
+    </section>
+
+    <section>
+        <h2>5. Dispute Resolution</h2>
+        <p>If you believe an error has occurred in transaction processing, please contact our support team immediately at <a href="mailto:support@preiposip.com">support@preiposip.com</a> with the transaction details. We will investigate and resolve the issue within 7 business days.</p>
+    </section>
+
+    <hr>
+    <p class="footer-note"><em>Last Updated: January 15, 2025 | Version 1.0.0</em></p>
+</div>
+HTML;
+    }
+
+    private function getRiskDisclosureContent(): string
+    {
+        return <<<'HTML'
+<div class="legal-document">
+    <h1>Risk Disclosure Document</h1>
+    <p class="effective-date"><strong>Effective Date:</strong> January 15, 2025</p>
+    <p class="last-updated"><strong>Last Updated:</strong> January 15, 2025</p>
+
+    <section>
+        <h2>1. Introduction</h2>
+        <p>Investing in unlisted securities, pre-IPO shares, and private equity involves a high degree of risk. This document outlines the key risks associated with such investments. You should carefully consider these risks before making any investment decision.</p>
+    </section>
+
+    <section>
+        <h2>2. Market and Liquidity Risks</h2>
+        <h3>2.1 Liquidity Risk</h3>
+        <p>Unlisted securities are not traded on recognized stock exchanges. There is no guarantee that a liquid market will develop for these securities. You may not be able to sell your shares quickly or at the price you desire. You should be prepared to hold these investments for an indefinite period.</p>
+
+        <h3>2.2 Valuation Risk</h3>
+        <p>The price of unlisted securities is not determined by market forces on a public exchange. Valuations are often based on internal estimates, last round funding prices, or third-party reports, which may not reflect the true realizable value of the asset.</p>
+    </section>
+
+    <section>
+        <h2>3. Company and Business Risks</h2>
+        <h3>3.1 Early-Stage Risk</h3>
+        <p>Many unlisted companies are in early or growth stages. They may face significant challenges, including lack of profitability, uncertain business models, and intense competition. There is a risk of total capital loss if the company fails.</p>
+
+        <h3>3.2 Information Asymmetry</h3>
+        <p>Unlike public companies, unlisted companies are not required to disclose as much information. You may have access to less data regarding the company's financial health, operations, and management than you would for a publicly traded company.</p>
+    </section>
+
+    <section>
+        <h2>4. Regulatory Risks</h2>
+        <p>The regulatory environment for unlisted investments is subject to change. Changes in laws, taxation policies, or SEBI regulations could adversely affect the value of your investment or your ability to exit.</p>
+    </section>
+
+    <section>
+        <h2>5. No Guarantee of Returns</h2>
+        <p>PreIPO SIP does not guarantee any returns on investment. Past performance of any company or sector is not indicative of future results. You may lose some or all of your invested capital.</p>
+    </section>
+
+    <section>
+        <h2>6. Acknowledgment</h2>
+        <p>By proceeding with investments on PreIPO SIP, you acknowledge that you have read this Risk Disclosure Document, understood the risks involved, and are making investment decisions based on your own judgment and risk appetite.</p>
+    </section>
+
+    <hr>
+    <p class="footer-note"><em>Last Updated: January 15, 2025 | Version 1.0.0</em></p>
 </div>
 HTML;
     }

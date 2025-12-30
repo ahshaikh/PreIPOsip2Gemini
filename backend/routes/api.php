@@ -1,5 +1,5 @@
 <?php
-// V-PHASE1-1730-014 (Created) | V-PHASE2-1730-049 | V-PHASE3-1730-087 | V-REMEDIATE-1730-087 | V-FINAL-1730-421 (Granular Perms) | V-FINAL-1730-435 (Security Hardened) | V-FINAL-1730-443 (SEC-8 Applied) | V-FINAL-1730-471 (2FA Routes Added) | V-FINAL-1730-593 (Notification Routes Added)
+// V-PHASE1-1730-014 (Created) | V-PHASE2-1730-049 | V-PHASE3-1730-087 | V-REMEDIATE-1730-087 | V-FINAL-1730-421 (Granular Perms) | V-FINAL-1730-435 (Security Hardened) | V-FINAL-1730-443 (SEC-8 Applied) | V-FINAL-1730-471 (2FA Routes Added) | V-FINAL-1730-593 (Notification Routes Added) | V-COMPLIANCE-ROUTES
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -40,6 +40,7 @@ use App\Http\Controllers\Api\User\UserDashboardController;
 use App\Http\Controllers\Api\User\KnowledgeBaseController as UserKnowledgeBaseController;
 use App\Http\Controllers\Api\User\ReportsController as UserReportsController;
 use App\Http\Controllers\Api\User\LearningCenterController as UserLearningCenterController;
+use App\Http\Controllers\Api\User\ComplianceStatusController; // Added for User Compliance
 use App\Http\Controllers\Api\SupportAIController;
 use App\Http\Controllers\Api\ArticleController;
 use App\Http\Controllers\Api\CategoryController;
@@ -222,11 +223,17 @@ Route::prefix('v1')->group(function () {
         Route::post('/user/withdrawals', [WithdrawalController::class, 'store']);
         Route::post('/user/security/change-password', [SecurityController::class, 'update']);
         Route::get('/user/dashboard/overview', [UserDashboardController::class, 'overview']);
-    
+        
         Route::post('/logout', [AuthController::class, 'logout']);
 
         // === USER ROUTES ===
         Route::prefix('user')->group(function () {
+            
+            // --- NEW: User Compliance Check ---
+            Route::get('compliance/status', [ComplianceStatusController::class, 'status']);
+            Route::post('compliance/accept', [ComplianceStatusController::class, 'accept']);
+            // ---------------------------------
+
             // Profile & Security
             Route::get('/profile', [ProfileController::class, 'show']);
             Route::put('/profile', [ProfileController::class, 'update']);
@@ -532,7 +539,7 @@ Route::prefix('v1')->group(function () {
                 Route::delete('{id}', [AdminNotificationController::class, 'destroy']);
 
                 // Push Campaigns
-                Route::get('push', [AdminNotificationController::class, 'pushIndex']);       
+                Route::get('push', [AdminNotificationController::class, 'pushIndex']);        
                 Route::get('push/stats', [AdminNotificationController::class, 'pushStats']); 
                 Route::get('templates', [AdminNotificationController::class, 'templates']);  
                 Route::post('push/send', [AdminNotificationController::class, 'sendPush']);

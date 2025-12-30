@@ -1,5 +1,5 @@
 <?php
-// V-FINAL-1730-527 (Created)
+// V-FINAL-1730-527 (Fixed: Undefined Array Key 'type')
 
 namespace App\Services;
 
@@ -58,7 +58,10 @@ class SeoAnalyzerService
         $missingAltTags = 0;
         if (is_array($page->content)) {
             foreach ($page->content as $block) {
-                if ($block['type'] === 'image' && empty($block['alt'])) {
+                // FIX: Safe access to 'type'
+                $type = $block['type'] ?? ''; 
+                
+                if ($type === 'image' && empty($block['alt'])) {
                     $missingAltTags++;
                 }
             }
@@ -95,8 +98,11 @@ class SeoAnalyzerService
 
         $text = '';
         foreach ($content as $block) {
-            if ($block['type'] === 'heading') $text .= $block['text'] . " ";
-            if ($block['type'] === 'text') $text .= $block['content'] . " ";
+            // FIX: Safe access using null coalescing operator
+            $type = $block['type'] ?? '';
+            
+            if ($type === 'heading') $text .= ($block['text'] ?? '') . " ";
+            if ($type === 'text') $text .= ($block['content'] ?? '') . " ";
         }
         return $text;
     }

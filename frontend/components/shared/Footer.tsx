@@ -1,11 +1,27 @@
-// V-PHASE4-1730-104 (Fixed: Dark Mode Toggle Compatibility)
+// V-PHASE4-1730-104 (Fixed: Dark Mode Toggle Compatibility) | V-COMPLIANCE-DYNAMIC-FOOTER-RESTRUCTURED
 'use client'; // 1. Uncommented this to fix the hydration/Ref crash
 
 import { Mail, Phone, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useQuery } from '@tanstack/react-query';
+import api from '@/lib/api';
 
 export default function Footer() {
+  // Fetch active legal documents for the footer
+  const { data: legalDocs } = useQuery({
+    queryKey: ['footerLegalDocs'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/legal/documents'); // Uses the public endpoint
+        return res.data;
+      } catch (e) {
+        return []; // Fail gracefully in footer
+      }
+    },
+    staleTime: 1000 * 60 * 60, // Cache for 1 hour
+  });
+
   return (
     <footer className="bg-slate-50 dark:bg-[#1a1f2e] text-slate-600 dark:text-gray-300 py-12 border-t border-slate-200 dark:border-slate-800 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4">
@@ -96,21 +112,50 @@ export default function Footer() {
               <li><Link href="/faq" className="hover:text-blue-600 dark:hover:text-white transition-colors">FAQs</Link></li>
               <li><Link href="/grievance-redressal" className="hover:text-blue-600 dark:hover:text-white transition-colors">Grievance Redressal</Link></li>
               <li><Link href="/investor-charter" className="hover:text-blue-600 dark:hover:text-white transition-colors">Investor Charter</Link></li>
-              <li><Link href="/aml-kyc-policy" className="hover:text-blue-600 dark:hover:text-white transition-colors">AML & KYC Policy</Link></li>
+              {/* Moved Risk Disclosure Here */}
+              <li><Link href="/risk-disclosure" className="hover:text-blue-600 dark:hover:text-white transition-colors">Risk Disclosure</Link></li>
             </ul>
           </div>
 
-          {/* Legal Column */}
+          {/* Legal Column (Restructured) */}
           <div>
             <h4 className="font-bold text-slate-900 dark:text-white mb-4 uppercase tracking-wide text-xs">Legal</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/legal" className="hover:text-blue-600 dark:hover:text-white transition-colors">Legal Docs</Link></li>
-              <li><Link href="/terms" className="hover:text-blue-600 dark:hover:text-white transition-colors">Terms of Service</Link></li>
-              <li><Link href="/privacy-policy" className="hover:text-blue-600 dark:hover:text-white transition-colors">Privacy Policy</Link></li>
-              <li><Link href="/cookie-policy" className="hover:text-blue-600 dark:hover:text-white transition-colors">Cookie Policy</Link></li>
+              
+              {/* 1. Main Legal Docs Page */}
+              <li>
+                <Link href="/legal" className="hover:text-blue-600 dark:hover:text-white transition-colors font-medium text-primary/90">
+                  Legal Docs
+                </Link>
+              </li>
+
+              {/* 2. Dynamic Documents from DB */}
+              {legalDocs && legalDocs.length > 0 ? (
+                legalDocs.map((doc: any) => {
+                  // Skip Risk Disclosure here as it is now in Resources
+                  if (doc.type === 'risk_disclosure') return null;
+                  
+                  return (
+                    <li key={doc.id}>
+                      <Link href={`/legal?type=${doc.type}`} className="hover:text-blue-600 dark:hover:text-white transition-colors capitalize">
+                        {doc.title}
+                      </Link>
+                    </li>
+                  );
+                })
+              ) : (
+                // Fallback static links if API fails or loading (matching the requested structure)
+                <>
+                   <li><Link href="/aml-kyc-policy" className="hover:text-blue-600 dark:hover:text-white transition-colors">AML & KYC Policy</Link></li>
+                   <li><Link href="/cookie-policy" className="hover:text-blue-600 dark:hover:text-white transition-colors">Cookie Policy</Link></li>
+                   <li><Link href="/privacy-policy" className="hover:text-blue-600 dark:hover:text-white transition-colors">Privacy Policy</Link></li>
+                   <li><Link href="/refund-policy" className="hover:text-blue-600 dark:hover:text-white transition-colors">Refund Policy</Link></li>
+                   <li><Link href="/terms" className="hover:text-blue-600 dark:hover:text-white transition-colors">Terms of Service</Link></li>
+                </>
+              )}
+              
+              {/* 3. SEBI Regulations (Last) */}
               <li><Link href="/sebi-regulations" className="hover:text-blue-600 dark:hover:text-white transition-colors">SEBI Regulations</Link></li>
-              <li><Link href="/refund-policy" className="hover:text-blue-600 dark:hover:text-white transition-colors">Refund Policy</Link></li>
-              <li><Link href="/risk-disclosure" className="hover:text-blue-600 dark:hover:text-white transition-colors">Risk Disclosure</Link></li>
             </ul>
           </div>
         </div>

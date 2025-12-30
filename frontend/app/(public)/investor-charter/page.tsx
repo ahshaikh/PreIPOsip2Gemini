@@ -102,7 +102,7 @@ const commitments = [
 
 export default function InvestorCharterPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 pt-20 pb-12">
       {/* Hero Section */}
       <div className="bg-gradient-to-r from-primary/10 to-primary/5 py-20">
         <div className="max-w-6xl mx-auto px-4 text-center">

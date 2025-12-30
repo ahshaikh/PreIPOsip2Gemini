@@ -92,7 +92,7 @@ const importantDisclosures = [
 
 export default function RiskDisclosurePage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 pt-20 pb-12">
       {/* Hero Section */}
       <div className="bg-gradient-to-r from-orange-500/10 to-red-500/10 py-20">
         <div className="max-w-6xl mx-auto px-4 text-center">
@@ -128,7 +128,7 @@ export default function RiskDisclosurePage() {
                     <li>Are willing to hold investments through market volatility</li>
                   </ul>
                   <p className="font-semibold pt-2 text-orange-600">
-                    If you cannot accept these conditions, pre-ipo investing is NOT suitable for you. Please do NOT Invest in pre-ipo shares, spcially through preiposip.com
+                    If you cannot accept these conditions, pre-ipo investing is NOT suitable for you. Please do NOT Invest in pre-ipo shares, specially through preiposip.com
                   </p>
                 </div>
               </div>
