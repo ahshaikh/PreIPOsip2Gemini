@@ -2,18 +2,19 @@
 // V-PHASE3-1730-094 (Created) | V-REMEDIATE-1730-257 (Auto-Withdrawal) | V-FINAL-1730-360 (Refactored)
 // V-FINAL-1730-429 (FormRequest) | V-FINAL-1730-447 (WalletService) | V-AUDIT-FIX-MODULE7 (Statement Optimization)
 // V-AUDIT-FIX-OOM-PROTECTION | V-AUDIT-MODULE3-004 (Comprehensive Module 3 Fixes) | V-AUDIT-FIX-2025 (Transactions API)
+// [PROTOCOL 1 MERGE]: Added Rules Authority Endpoint
 
 namespace App\Http\Controllers\Api\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\Wallet;
-use App\Models\Transaction; // ADDED: Import Transaction model
+use App\Models\Transaction;
 use App\Services\WithdrawalService;
 use App\Services\WalletService;
-use App\Services\ComplianceGateService; // [C.8]: Compliance gate for KYC enforcement
 use App\Http\Requests\User\WithdrawalRequest;
-use App\Http\Requests\Financial\WalletDepositRequest; // [C.8]: KYC-enforced deposit request
+use App\Http\Requests\Financial\WalletDepositRequest;
 use App\Enums\TransactionType;
+use App\Enums\KycStatus;
 use App\Exceptions\Financial\InsufficientBalanceException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +22,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Auth; // ADDED: Import Auth
+use Illuminate\Support\Facades\Auth;
 
 class WalletController extends Controller
 {
@@ -32,6 +33,60 @@ class WalletController extends Controller
     {
         $this->withdrawalService = $withdrawalService;
         $this->walletService = $walletService;
+    }
+
+    /**
+     * [PROTOCOL 1] FINANCIAL AUTHORITY ENDPOINT
+     * This method provides the Single Source of Truth for wallet capabilities and limits.
+     * Frontend MUST query this instead of hardcoding limits.
+     */
+    public function getRules(Request $request)
+    {
+        $user = Auth::user();
+        
+        // RBI/Compliance Logic
+        // Check if we have an Enum class, otherwise fallback to string comparison
+        $isKycVerified = false;
+        if (class_exists(KycStatus::class)) {
+             $isKycVerified = $user->kyc_status === KycStatus::VERIFIED;
+        } else {
+             $isKycVerified = $user->kyc_status === 'verified';
+        }
+
+        // Dynamic Limits based on risk profile
+        $maxLoad = $isKycVerified ? 500000 : 10000; 
+        $dailyWithdrawalLimit = $isKycVerified ? 500000 : 0; 
+        $autoApproveThreshold = (int) setting('finance.auto_approve_threshold', 50000);
+
+        return response()->json([
+            'meta' => [
+                'timestamp' => now()->toIso8601String(),
+                'version' => 'v2.financial_rules'
+            ],
+            'data' => [
+                'currency' => 'INR',
+                'capabilities' => [
+                    'can_deposit' => true,
+                    'can_withdraw' => $isKycVerified,
+                ],
+                'limits' => [
+                    'deposit' => [
+                        'min' => 100,
+                        'max' => $maxLoad,
+                        'step' => 100,
+                    ],
+                    'withdrawal' => [
+                        'min' => 500,
+                        'max' => $dailyWithdrawalLimit,
+                        'requires_manual_approval_above' => $autoApproveThreshold,
+                    ]
+                ],
+                'messages' => [
+                    'withdrawal_blocked' => $isKycVerified ? null : 'Compliance Requirement: Complete KYC to unlock withdrawals.',
+                    'sla_text' => 'Processed within T+1 bank working days.',
+                ]
+            ]
+        ]);
     }
 
     /**
@@ -92,11 +147,11 @@ class WalletController extends Controller
         }
 
         // Pagination
-            $perPage = (int) setting('records_per_page', 15);
+        $perPage = (int) setting('records_per_page', 15);
 
-            return response()->json(
-                $query->latest()->paginate($perPage)
-            );
+        return response()->json(
+            $query->latest()->paginate($perPage)
+        );
     }
 
     /**
@@ -113,9 +168,6 @@ class WalletController extends Controller
 
     /**
      * Initiate a deposit (Add Money to Wallet)
-     *
-     * [C.8 FIX]: KYC ENFORCEMENT - No cash ingress before KYC complete
-     * Uses WalletDepositRequest which enforces compliance gates
      */
     public function initiateDeposit(WalletDepositRequest $request)
     {

@@ -8,7 +8,7 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "Fixed banner, logo, backup, sys health, blog etc"
+$CommitMessage = "Refactored UserTopNav bar"
 #----------------------
 
 function Get-GitCredential {

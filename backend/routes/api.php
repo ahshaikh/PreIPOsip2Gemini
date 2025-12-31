@@ -329,6 +329,10 @@ Route::prefix('v1')->group(function () {
             Route::get('/wallet/statement', [WalletController::class, 'downloadStatement']);
             Route::get('/wallet/withdrawals', [WalletController::class, 'withdrawals']);
 
+            // WALLET USER Route updates
+            Route::get('/user/wallet/rules', [WalletController::class, 'getRules']);
+            Route::post('/user/wallet/withdraw/preview', [WithdrawalController::class, 'preview']);
+
             Route::middleware('throttle:financial')->group(function () {
                 Route::post('/wallet/deposit/initiate', [WalletController::class, 'initiateDeposit']);
                 Route::post('/wallet/withdraw', [WalletController::class, 'requestWithdrawal']);
