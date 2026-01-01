@@ -94,12 +94,10 @@ class ProfileController extends Controller
      * NEW: Update the authenticated user's avatar.
      * Test: testUploadAvatarSucceeds
      *
-     * V-FIX-AVATAR-DISPLAY: Complete rewrite to fix avatar display issues
-     * - Ensure profile exists
-     * - Use relative URLs instead of absolute
-     * - Delete old avatar files
-     * - Add comprehensive logging
-     * - Return fresh user data
+     * V-FIX-AVATAR-STORAGE: Bypass FileUploadService, use direct Laravel storage
+     * - Save directly to public disk to avoid conflicts with KYC uploads
+     * - Use simple file storage without encryption
+     * - Ensure correct path and URL generation
      */
     public function updateAvatar(Request $request)
     {
@@ -110,7 +108,7 @@ class ProfileController extends Controller
         $user = $request->user();
 
         try {
-            // V-FIX-AVATAR-DISPLAY: Create profile if it doesn't exist
+            // V-FIX-AVATAR-STORAGE: Create profile if it doesn't exist
             if (!$user->profile) {
                 $user->profile()->create([
                     'first_name' => $user->username ?? 'User',
@@ -121,7 +119,6 @@ class ProfileController extends Controller
 
             // Delete old avatar if exists
             if ($user->profile->avatar_url) {
-                // Extract path from URL (e.g., /storage/avatars/1/file.jpg -> avatars/1/file.jpg)
                 $oldPath = str_replace('/storage/', '', $user->profile->avatar_url);
                 if (Storage::disk('public')->exists($oldPath)) {
                     Storage::disk('public')->delete($oldPath);
@@ -129,29 +126,33 @@ class ProfileController extends Controller
                 }
             }
 
-            // Use the secure FileUploadService
-            $path = $this->fileUploader->upload($request->file('avatar'), [
-                'disk' => 'public',
-                'path' => "avatars/{$user->id}",
-                'encrypt' => false,
-                'virus_scan' => true
-            ]);
+            // V-FIX-AVATAR-STORAGE: Use direct Laravel storage instead of FileUploadService
+            // Store directly to public disk to avoid KYC upload confusion
+            $file = $request->file('avatar');
+            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $path = "avatars/{$user->id}/{$filename}";
 
-            // V-FIX-AVATAR-DISPLAY: Use RELATIVE URL, not absolute
-            // FileUploadService returns path like: avatars/1/filename.jpg
-            // We want URL like: /storage/avatars/1/filename.jpg
+            // Store file to public disk
+            Storage::disk('public')->put($path, file_get_contents($file->getRealPath()));
+
+            // Generate relative URL
             $avatarUrl = '/storage/' . $path;
 
-            // Verify file actually exists
+            // Verify file was saved
             if (!Storage::disk('public')->exists($path)) {
-                Log::error("Avatar file not found after upload for user {$user->id}: {$path}");
+                Log::error("Avatar file verification failed for user {$user->id}: {$path}");
                 throw new \Exception("File upload verification failed");
             }
 
+            Log::info("Avatar stored successfully", [
+                'user_id' => $user->id,
+                'path' => $path,
+                'full_path' => Storage::disk('public')->path($path),
+                'url' => $avatarUrl
+            ]);
+
             // Save the new URL
             $user->profile->update(['avatar_url' => $avatarUrl]);
-
-            Log::info("Avatar updated successfully for user {$user->id}: {$avatarUrl}");
 
             // V-FIX-AVATAR-DISPLAY: Return fresh user data so frontend React Query updates
             $user->refresh();
@@ -160,7 +161,7 @@ class ProfileController extends Controller
             return response()->json([
                 'message' => 'Avatar updated successfully',
                 'avatar_url' => $avatarUrl,
-                'user' => $user, // Return complete user object for React Query cache update
+                'user' => $user,
             ]);
 
         } catch (\Exception $e) {

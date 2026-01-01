@@ -803,6 +803,7 @@ Route::prefix('v1')->group(function () {
 
             // Payment Details & Analytics
             Route::get('/payments/{payment}', [AdminPaymentController::class, 'show'])->middleware('permission:payments.view');
+            Route::get('/payments/{payment}/proof', [AdminPaymentController::class, 'viewPaymentProof'])->middleware('permission:payments.view'); // V-FIX-PAYMENT-PROOF-403
             Route::get('/payments/failed', [AdminPaymentController::class, 'failedPayments'])->middleware('permission:payments.view');
             Route::get('/payments/analytics', [AdminPaymentController::class, 'analytics'])->middleware('permission:payments.view');
             Route::get('/payments/export', [AdminPaymentController::class, 'export'])->middleware('permission:payments.view');
