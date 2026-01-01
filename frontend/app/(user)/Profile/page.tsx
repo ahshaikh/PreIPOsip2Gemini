@@ -84,18 +84,37 @@ export default function ProfilePage() {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       toast.success("Avatar Updated");
-      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      // V-FIX-AVATAR-DISPLAY: Update cache with returned user data instead of just invalidating
+      if (response.data?.user) {
+        queryClient.setQueryData(['userProfile'], response.data.user);
+      }
+      // Update preview with actual uploaded URL
+      if (response.data?.avatar_url) {
+        setAvatarPreview(response.data.avatar_url);
+      }
       setAvatarFile(null);
+      // Also invalidate to ensure all components refresh
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
     },
     onError: (e: any) => toast.error("Upload Failed", { description: e.response?.data?.message })
   });
 
   const bankMutation = useMutation({
     mutationFn: (data: any) => api.put('/user/bank-details', data),
-    onSuccess: () => {
+    onSuccess: (response) => {
       toast.success("Bank Details Updated");
+      // V-FIX-BANK-DETAILS: Update local state with returned data
+      if (response.data?.bank_details) {
+        setBankData({
+          account_number: response.data.bank_details.account_number || '',
+          ifsc_code: response.data.bank_details.ifsc_code || '',
+          bank_name: response.data.bank_details.bank_name || '',
+          branch_name: bankData.branch_name, // Preserve branch name (not stored in backend)
+          account_holder_name: response.data.bank_details.account_holder_name || '',
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ['userProfile'] });
     },
     onError: (e: any) => toast.error("Error", { description: e.response?.data?.message })
