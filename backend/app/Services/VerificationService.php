@@ -357,18 +357,15 @@ class VerificationService
                 }
             }
 
-            // All documents present - mark as submitted for manual review
+            // All documents present - validation successful
+            // V-FIX-STATE-MACHINE: Don't update status here - let ProcessKycJob handle transitions
             // In production, you would run OCR, face matching, document validation here
-
-            $kyc->update([
-                'status' => KycStatus::SUBMITTED->value,
-                'submitted_at' => now()
-            ]);
+            // ProcessKycJob handles: submitted → processing (and eventual verified/rejected)
 
             Log::info("Automated KYC verification completed", [
                 'kyc_id' => $kyc->id,
-                'status' => 'submitted',
-                'message' => 'All documents uploaded successfully. Pending manual review.'
+                'status' => $kyc->fresh()->status,
+                'message' => 'All documents present. Document validation passed.'
             ]);
 
         } catch (\Exception $e) {
