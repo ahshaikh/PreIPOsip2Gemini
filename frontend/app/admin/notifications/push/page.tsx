@@ -279,14 +279,19 @@ export default function PushNotificationsPage() {
 
     // FIX: Backend expects 'target_type' not 'target_audience'
     // FIX: Backend expects 'user_ids' not 'target_users'
-    const payload = {
+    // FIX: Don't send null fields to avoid validation errors
+    const payload: any = {
       title: composeForm.title,
       body: composeForm.body,
-      image_url: composeForm.image_url || null,
-      action_url: composeForm.action_url || null,
-      target_type: composeForm.target_audience, // FIX: Changed from target_audience to target_type
-      user_ids: composeForm.target_audience === "specific" ? composeForm.target_users : null // FIX: Changed from target_users to user_ids
+      target_type: composeForm.target_audience,
     };
+
+    // Only add optional fields if they have values (don't send null)
+    if (composeForm.image_url) payload.image_url = composeForm.image_url;
+    if (composeForm.action_url) payload.action_url = composeForm.action_url;
+    if (composeForm.target_audience === "specific" && composeForm.target_users.length > 0) {
+      payload.user_ids = composeForm.target_users;
+    }
 
     if (composeForm.schedule_type === "scheduled") {
       if (!composeForm.scheduled_date || !composeForm.scheduled_time) {
