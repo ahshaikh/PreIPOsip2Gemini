@@ -25,6 +25,7 @@ class ProfileController extends Controller
      * Test: testProfileIncludesKycStatus
      *
      * V-FIX-AVATAR-DISPLAY: Ensure profile exists before returning
+     * V-FIX-PROFILE-VISIBILITY: Include bank details from KYC for frontend display
      */
     public function show(Request $request)
     {
@@ -42,7 +43,24 @@ class ProfileController extends Controller
         // Eager load the profile, kyc, subscription status, and roles for proper admin detection
         $user->load('profile', 'kyc', 'subscription', 'roles');
 
-        return response()->json($user);
+        // V-FIX-PROFILE-VISIBILITY: Add bank details from KYC for frontend consumption
+        // Frontend expects user.bank_details object with account info
+        $userData = $user->toArray();
+        $userData['bank_details'] = null;
+
+        if ($user->kyc) {
+            $userData['bank_details'] = [
+                'account_number' => $user->kyc->bank_account,
+                'ifsc_code' => $user->kyc->bank_ifsc,
+                'bank_name' => $user->kyc->bank_name,
+                'branch_name' => null, // KYC doesn't store branch name
+                'account_holder_name' => $user->profile
+                    ? trim(($user->profile->first_name ?? '') . ' ' . ($user->profile->last_name ?? ''))
+                    : $user->username,
+            ];
+        }
+
+        return response()->json($userData);
     }
 
     /**
