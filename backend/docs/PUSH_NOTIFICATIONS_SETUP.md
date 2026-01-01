@@ -19,9 +19,9 @@ cd backend
 php artisan migrate
 ```
 
-This creates two tables:
-- **`user_devices`**: Stores FCM/OneSignal device tokens
-- **`push_logs`**: Tracks notification delivery (sent, delivered, opened)
+This creates/updates the following tables:
+- **`user_devices`**: Stores FCM/OneSignal device tokens (NEW)
+- **`push_logs`**: Already exists, adds missing `clicked_at` column if needed
 
 ### 2. Verify Tables Created
 ```bash
