@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('subscription_code')->unique();
             $table->string('razorpay_subscription_id')->nullable();
             
-            $table->string('status')->default('active'); // active, paused, cancelled, completed
+            $table->string('status')->default('active'); // pending, active, paused, cancelled, completed
             $table->boolean('is_auto_debit')->default(false);
             
             $table->date('start_date');

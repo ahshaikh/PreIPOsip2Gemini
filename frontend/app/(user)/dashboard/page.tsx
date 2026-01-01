@@ -54,8 +54,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setIsClient(true);
-    const dismissedCount = parseInt(localStorage.getItem('kyc_banner_dismissed') || '0');
-    setKycBannerDismissed(dismissedCount >= 2);
+    // V-FIX-KYC-BANNER: Check if banner was dismissed (boolean, not count)
+    const dismissed = localStorage.getItem('kyc_banner_dismissed') === 'true';
+    setKycBannerDismissed(dismissed);
   }, []);
 
   // 2. Fetch Data from Laravel
@@ -70,9 +71,9 @@ export default function DashboardPage() {
   });
 
   const handleDismissKycBanner = () => {
-    const count = parseInt(localStorage.getItem('kyc_banner_dismissed') || '0');
-    localStorage.setItem('kyc_banner_dismissed', (count + 1).toString());
-    setKycBannerDismissed(count + 1 >= 2);
+    // V-FIX-KYC-BANNER: Set to permanently dismissed immediately (show only once per user)
+    localStorage.setItem('kyc_banner_dismissed', 'true');
+    setKycBannerDismissed(true);
   };
 
   if (isError) {

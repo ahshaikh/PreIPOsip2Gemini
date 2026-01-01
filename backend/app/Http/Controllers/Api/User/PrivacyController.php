@@ -43,18 +43,35 @@ class PrivacyController extends Controller
             'ip_address' => $request->ip(),
         ]);
 
-        // 1. Gather Data
-        $data = [
-            'profile' => $user->load('profile'),
-            'kyc' => $user->kyc,
-            'subscriptions' => $user->subscription()->with('plan')->get(),
-            'wallet' => $user->wallet,
-            'investments' => $user->investments()->with('product')->get(),
-            'transactions' => $user->wallet->transactions()->latest()->get(),
-            'bonuses' => $user->bonuses,
-            'referrals' => $user->referrals,
-            'activity_logs' => $user->activityLogs()->latest()->limit(100)->get(),
-        ];
+        // 1. Gather Data (V-FIX-EXPORT-500: Added null-safety checks)
+        try {
+            $data = [
+                'profile' => $user->profile ?? null,
+                'kyc' => $user->kyc ?? null,
+                'subscriptions' => $user->subscriptions ?? [],
+                'wallet' => $user->wallet ?? null,
+                'investments' => method_exists($user, 'investments')
+                    ? $user->investments()->with('product')->get()
+                    : [],
+                'transactions' => $user->wallet
+                    ? ($user->wallet->transactions()->latest()->get() ?? [])
+                    : [],
+                'bonuses' => method_exists($user, 'bonuses')
+                    ? $user->bonuses
+                    : [],
+                'referrals' => method_exists($user, 'referrals')
+                    ? $user->referrals
+                    : [],
+                'activity_logs' => method_exists($user, 'activityLogs')
+                    ? $user->activityLogs()->latest()->limit(100)->get()
+                    : [],
+            ];
+        } catch (\Exception $e) {
+            \Log::error('Error gathering export data: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to gather export data: ' . $e->getMessage()
+            ], 500);
+        }
 
         // 2. Create JSON Content
         $jsonContent = json_encode($data, JSON_PRETTY_PRINT);
