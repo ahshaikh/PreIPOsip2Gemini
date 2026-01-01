@@ -14,14 +14,39 @@ The push notification system uses FCM (Firebase Cloud Messaging) or OneSignal to
 ## Database Setup
 
 ### 1. Run Migrations
+
+**Option A: Standard Migration (Recommended)**
 ```bash
 cd backend
 php artisan migrate
 ```
 
+**Option B: Safe Migration (If you encounter errors)**
+```bash
+cd backend
+bash scripts/migrate-safe.sh
+```
+
 This creates/updates the following tables:
 - **`user_devices`**: Stores FCM/OneSignal device tokens (NEW)
 - **`push_logs`**: Already exists, adds missing `clicked_at` column if needed
+
+**Common Migration Errors:**
+
+If you see "Table already exists" errors:
+1. The table was created by an earlier migration
+2. The migration is now idempotent (safe to run multiple times)
+3. Pull latest changes: `git pull origin claude/bug-fix-validation-protocol-LgM7q`
+4. Re-run migrations: `php artisan migrate`
+
+If migrations still fail, manually mark them as completed:
+```sql
+INSERT INTO migrations (migration, batch) VALUES
+  ('2025_11_26_000005_create_webhook_logs_table', 1),
+  ('2025_01_01_000001_create_user_devices_table', 1),
+  ('2025_01_01_000002_add_clicked_at_to_push_logs', 1)
+ON DUPLICATE KEY UPDATE batch=batch;
+```
 
 ### 2. Verify Tables Created
 ```bash
