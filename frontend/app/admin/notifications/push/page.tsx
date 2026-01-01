@@ -1022,6 +1022,7 @@ export default function PushNotificationsPage() {
                         <SelectItem value="log">Log (Disable SMS, write to log)</SelectItem>
                         <SelectItem value="msg91">MSG91</SelectItem>
                         <SelectItem value="twilio">Twilio</SelectItem>
+                        <SelectItem value="gupshup">Gupshup</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1089,6 +1090,45 @@ export default function PushNotificationsPage() {
                       </div>
                     </Card>
                   )}
+
+                  {/* Gupshup Settings */}
+                  {settings['sms_provider'] === 'gupshup' && (
+                    <Card className="p-4 bg-muted/30">
+                      <CardTitle className="text-lg mb-4">Gupshup Settings</CardTitle>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>API Key</Label>
+                          <Input
+                            type="password"
+                            value={settings['gupshup_api_key'] || ''}
+                            onChange={(e) => handleSettingChange('gupshup_api_key', e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>User ID</Label>
+                          <Input
+                            value={settings['gupshup_user_id'] || ''}
+                            onChange={(e) => handleSettingChange('gupshup_user_id', e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Password</Label>
+                          <Input
+                            type="password"
+                            value={settings['gupshup_password'] || ''}
+                            onChange={(e) => handleSettingChange('gupshup_password', e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Sender Mask (From Number/ID)</Label>
+                          <Input
+                            value={settings['gupshup_sender'] || ''}
+                            onChange={(e) => handleSettingChange('gupshup_sender', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </Card>
+                  )}
                 </CardContent>
               </Card>
 
@@ -1120,11 +1160,328 @@ export default function PushNotificationsPage() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="push">
+            <TabsContent value="push" className="space-y-6">
               <Card>
-                <CardHeader><CardTitle>Push Notifications (Firebase)</CardTitle></CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">Coming in V2.0.</p>
+                <CardHeader>
+                  <CardTitle>Push Notification Provider</CardTitle>
+                  <CardDescription>Configure your preferred push notification service</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Provider</Label>
+                    <Select
+                      value={settings['push_provider'] || 'fcm'}
+                      onValueChange={(v) => handleSettingChange('push_provider', v)}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="fcm">Firebase Cloud Messaging (FCM)</SelectItem>
+                        <SelectItem value="onesignal">OneSignal</SelectItem>
+                        <SelectItem value="apn">Apple Push Notification (APN)</SelectItem>
+                        <SelectItem value="clevertap">CleverTap</SelectItem>
+                        <SelectItem value="moengage">MoEngage</SelectItem>
+                        <SelectItem value="aws-sns">AWS SNS</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* FCM Settings */}
+                  {settings['push_provider'] === 'fcm' && (
+                    <Card className="p-4 bg-muted/30">
+                      <CardTitle className="text-lg mb-4">Firebase Cloud Messaging (FCM)</CardTitle>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>Server Key</Label>
+                          <Input
+                            type="password"
+                            placeholder="AAAA..."
+                            value={settings['fcm_server_key'] || ''}
+                            onChange={(e) => handleSettingChange('fcm_server_key', e.target.value)}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Get from Firebase Console → Project Settings → Cloud Messaging → Server Key
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Sender ID</Label>
+                          <Input
+                            placeholder="123456789012"
+                            value={settings['fcm_sender_id'] || ''}
+                            onChange={(e) => handleSettingChange('fcm_sender_id', e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Default Icon URL (optional)</Label>
+                          <Input
+                            placeholder="https://..."
+                            value={settings['push_default_icon'] || ''}
+                            onChange={(e) => handleSettingChange('push_default_icon', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* OneSignal Settings */}
+                  {settings['push_provider'] === 'onesignal' && (
+                    <Card className="p-4 bg-muted/30">
+                      <CardTitle className="text-lg mb-4">OneSignal</CardTitle>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>App ID</Label>
+                          <Input
+                            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                            value={settings['onesignal_app_id'] || ''}
+                            onChange={(e) => handleSettingChange('onesignal_app_id', e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>REST API Key</Label>
+                          <Input
+                            type="password"
+                            placeholder="YOUR_REST_API_KEY"
+                            value={settings['onesignal_api_key'] || ''}
+                            onChange={(e) => handleSettingChange('onesignal_api_key', e.target.value)}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Get from OneSignal Dashboard → Settings → Keys & IDs
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* Apple Push Notification (APN) Settings */}
+                  {settings['push_provider'] === 'apn' && (
+                    <Card className="p-4 bg-muted/30">
+                      <CardTitle className="text-lg mb-4">Apple Push Notification (APN)</CardTitle>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>Team ID</Label>
+                          <Input
+                            placeholder="XXXXXXXXXX"
+                            value={settings['apn_team_id'] || ''}
+                            onChange={(e) => handleSettingChange('apn_team_id', e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Key ID</Label>
+                          <Input
+                            placeholder="YYYYYYYYYY"
+                            value={settings['apn_key_id'] || ''}
+                            onChange={(e) => handleSettingChange('apn_key_id', e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Bundle ID</Label>
+                          <Input
+                            placeholder="com.yourcompany.app"
+                            value={settings['apn_bundle_id'] || ''}
+                            onChange={(e) => handleSettingChange('apn_bundle_id', e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Private Key (.p8 file content)</Label>
+                          <textarea
+                            className="w-full h-32 px-3 py-2 text-sm border rounded-md"
+                            placeholder="-----BEGIN PRIVATE KEY-----
+MIGTAgEAMBMGByqGSM49AgEG...
+-----END PRIVATE KEY-----"
+                            value={settings['apn_private_key'] || ''}
+                            onChange={(e) => handleSettingChange('apn_private_key', e.target.value)}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Get from Apple Developer Portal → Certificates, Identifiers & Profiles → Keys
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Environment</Label>
+                          <Select
+                            value={settings['apn_environment'] || 'production'}
+                            onValueChange={(v) => handleSettingChange('apn_environment', v)}
+                          >
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="production">Production</SelectItem>
+                              <SelectItem value="sandbox">Sandbox (Development)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* CleverTap Settings */}
+                  {settings['push_provider'] === 'clevertap' && (
+                    <Card className="p-4 bg-muted/30">
+                      <CardTitle className="text-lg mb-4">CleverTap</CardTitle>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>Account ID</Label>
+                          <Input
+                            placeholder="YOUR_ACCOUNT_ID"
+                            value={settings['clevertap_account_id'] || ''}
+                            onChange={(e) => handleSettingChange('clevertap_account_id', e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Passcode</Label>
+                          <Input
+                            type="password"
+                            placeholder="YOUR_PASSCODE"
+                            value={settings['clevertap_passcode'] || ''}
+                            onChange={(e) => handleSettingChange('clevertap_passcode', e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Region</Label>
+                          <Select
+                            value={settings['clevertap_region'] || 'in1'}
+                            onValueChange={(v) => handleSettingChange('clevertap_region', v)}
+                          >
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="in1">India (in1)</SelectItem>
+                              <SelectItem value="us1">US (us1)</SelectItem>
+                              <SelectItem value="sg1">Singapore (sg1)</SelectItem>
+                              <SelectItem value="eu1">Europe (eu1)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">
+                            Get from CleverTap Dashboard → Settings → Account
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* MoEngage Settings */}
+                  {settings['push_provider'] === 'moengage' && (
+                    <Card className="p-4 bg-muted/30">
+                      <CardTitle className="text-lg mb-4">MoEngage</CardTitle>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>App ID</Label>
+                          <Input
+                            placeholder="YOUR_APP_ID"
+                            value={settings['moengage_app_id'] || ''}
+                            onChange={(e) => handleSettingChange('moengage_app_id', e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Data API ID</Label>
+                          <Input
+                            placeholder="YOUR_DATA_API_ID"
+                            value={settings['moengage_data_api_id'] || ''}
+                            onChange={(e) => handleSettingChange('moengage_data_api_id', e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Data API Key</Label>
+                          <Input
+                            type="password"
+                            placeholder="YOUR_DATA_API_KEY"
+                            value={settings['moengage_data_api_key'] || ''}
+                            onChange={(e) => handleSettingChange('moengage_data_api_key', e.target.value)}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Get from MoEngage Dashboard → Settings → APIs
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* AWS SNS Settings */}
+                  {settings['push_provider'] === 'aws-sns' && (
+                    <Card className="p-4 bg-muted/30">
+                      <CardTitle className="text-lg mb-4">AWS Simple Notification Service (SNS)</CardTitle>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>AWS Access Key ID</Label>
+                          <Input
+                            placeholder="AKIAIOSFODNN7EXAMPLE"
+                            value={settings['aws_access_key_id'] || ''}
+                            onChange={(e) => handleSettingChange('aws_access_key_id', e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>AWS Secret Access Key</Label>
+                          <Input
+                            type="password"
+                            placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+                            value={settings['aws_secret_access_key'] || ''}
+                            onChange={(e) => handleSettingChange('aws_secret_access_key', e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>AWS Region</Label>
+                          <Select
+                            value={settings['aws_region'] || 'ap-south-1'}
+                            onValueChange={(v) => handleSettingChange('aws_region', v)}
+                          >
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="us-east-1">US East (N. Virginia)</SelectItem>
+                              <SelectItem value="us-west-2">US West (Oregon)</SelectItem>
+                              <SelectItem value="ap-south-1">Asia Pacific (Mumbai)</SelectItem>
+                              <SelectItem value="ap-southeast-1">Asia Pacific (Singapore)</SelectItem>
+                              <SelectItem value="eu-west-1">Europe (Ireland)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Platform Application ARN (iOS)</Label>
+                          <Input
+                            placeholder="arn:aws:sns:region:account-id:app/APNS/your-app-name"
+                            value={settings['aws_sns_ios_arn'] || ''}
+                            onChange={(e) => handleSettingChange('aws_sns_ios_arn', e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Platform Application ARN (Android)</Label>
+                          <Input
+                            placeholder="arn:aws:sns:region:account-id:app/GCM/your-app-name"
+                            value={settings['aws_sns_android_arn'] || ''}
+                            onChange={(e) => handleSettingChange('aws_sns_android_arn', e.target.value)}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Get from AWS SNS Console → Mobile → Push notifications → Platform applications
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Advanced Settings */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Advanced Push Settings</CardTitle>
+                  <CardDescription>Configure delivery behavior and retry logic</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Default Sound</Label>
+                      <Input
+                        placeholder="default"
+                        value={settings['push_sound'] || 'default'}
+                        onChange={(e) => handleSettingChange('push_sound', e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Time to Live (TTL) in seconds</Label>
+                      <Input
+                        type="number"
+                        placeholder="86400"
+                        value={settings['push_ttl'] || '86400'}
+                        onChange={(e) => handleSettingChange('push_ttl', e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">How long to retry delivery (default: 24 hours)</p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
