@@ -567,13 +567,15 @@ Route::prefix('v1')->group(function () {
             });
 
             // User Management
-            Route::apiResource('/users', AdminUserController::class)->except(['store', 'update']);
+            // FIX: Specific routes MUST come before apiResource to avoid route conflicts
+            // apiResource creates /users/{user} which would match /users/segments incorrectly
             Route::get('/users/export/csv', [AdminUserController::class, 'export'])->middleware('permission:users.view');
-
-            // User Search and Segmentation
             Route::post('/users/advanced-search', [AdminUserController::class, 'advancedSearch'])->middleware('permission:users.view');
             Route::get('/users/segments', [AdminUserController::class, 'segments'])->middleware('permission:users.view');
             Route::get('/users/segment/{segment}', [AdminUserController::class, 'getUsersBySegment'])->middleware('permission:users.view');
+
+            // Now define resource routes (these create /users/{user} patterns)
+            Route::apiResource('/users', AdminUserController::class)->except(['store', 'update']);
 
             // Critical admin actions - Rate limited
             Route::middleware('throttle:admin-actions')->group(function () {

@@ -198,7 +198,9 @@ class NotificationController extends Controller
         $validated = $request->validate([
             'target_type' => 'required|in:all,active,inactive,incomplete_kyc,kyc_verified,high_value,low_activity,new_users,user,users',
             'user_id' => 'required_if:target_type,user|exists:users,id',
-            'user_ids' => 'required_if:target_type,users|array',
+            // FIX: Added 'nullable' to prevent "must be an array" error when field is null
+            'user_ids' => 'nullable|required_if:target_type,users|array',
+            'user_ids.*' => 'integer|exists:users,id', // Validate each ID in array
             'title' => 'required|string|max:255',
             'body' => 'required|string|max:500',
             'image_url' => 'nullable|url|regex:/^https?:\/\//i', // V-AUDIT-MODULE16: Only HTTP/HTTPS
