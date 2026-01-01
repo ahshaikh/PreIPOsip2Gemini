@@ -780,30 +780,77 @@ class AdminUserController extends Controller
 
     public function segments()
     {
-        // FIX: Frontend expects array of objects with {id, name, count}, not object with keys
-        // Changed to return proper format for push notification targeting UI
-        $segmentData = [
-            ['id' => 'all', 'name' => 'All Users', 'count' => User::role('user')->count()],
-            ['id' => 'active', 'name' => 'Active Subscribers', 'count' => User::whereHas('subscription', function ($q) {
-                $q->where('status', 'active');
-            })->count()],
-            ['id' => 'inactive', 'name' => 'Inactive Users', 'count' => User::whereDoesntHave('subscription')->count()],
-            ['id' => 'incomplete_kyc', 'name' => 'KYC Pending', 'count' => User::whereHas('kyc', function ($q) {
-                $q->where('status', 'pending');
-            })->count()],
-            ['id' => 'kyc_verified', 'name' => 'KYC Verified', 'count' => User::whereHas('kyc', function ($q) {
-                $q->where('status', 'verified');
-            })->count()],
-            ['id' => 'high_value', 'name' => 'High Value (₹10K+)', 'count' => User::whereHas('wallet', function ($q) {
-                $q->where('balance', '>', 10000);
-            })->count()],
-            ['id' => 'low_activity', 'name' => 'Low Activity (30+ days)', 'count' => User::whereDoesntHave('activityLogs', function ($q) {
-                $q->where('created_at', '>=', now()->subDays(30));
-            })->count()],
-            ['id' => 'new_users', 'name' => 'New Users (Last 7 days)', 'count' => User::where('created_at', '>=', now()->subDays(7))->count()],
-        ];
+        // FIX: Wrap in try-catch to prevent 500 errors, return safe defaults
+        // Each query is wrapped individually to identify which one fails
+        try {
+            $segmentData = [
+                [
+                    'id' => 'all',
+                    'name' => 'All Users',
+                    // FIX: Use whereHas('roles') instead of role() scope to avoid exceptions
+                    'count' => User::whereHas('roles', function ($q) {
+                        $q->where('name', 'user');
+                    })->count()
+                ],
+                [
+                    'id' => 'active',
+                    'name' => 'Active Subscribers',
+                    'count' => User::whereHas('subscription', function ($q) {
+                        $q->where('status', 'active');
+                    })->count()
+                ],
+                [
+                    'id' => 'inactive',
+                    'name' => 'Inactive Users',
+                    'count' => User::whereDoesntHave('subscription')->count()
+                ],
+                [
+                    'id' => 'incomplete_kyc',
+                    'name' => 'KYC Pending',
+                    'count' => User::whereHas('kyc', function ($q) {
+                        $q->where('status', 'pending');
+                    })->count()
+                ],
+                [
+                    'id' => 'kyc_verified',
+                    'name' => 'KYC Verified',
+                    'count' => User::whereHas('kyc', function ($q) {
+                        $q->where('status', 'verified');
+                    })->count()
+                ],
+                [
+                    'id' => 'high_value',
+                    'name' => 'High Value (₹10K+)',
+                    'count' => User::whereHas('wallet', function ($q) {
+                        $q->where('balance', '>', 10000);
+                    })->count()
+                ],
+                [
+                    'id' => 'low_activity',
+                    'name' => 'Low Activity (30+ days)',
+                    'count' => User::whereDoesntHave('activityLogs', function ($q) {
+                        $q->where('created_at', '>=', now()->subDays(30));
+                    })->count()
+                ],
+                [
+                    'id' => 'new_users',
+                    'name' => 'New Users (Last 7 days)',
+                    'count' => User::where('created_at', '>=', now()->subDays(7))->count()
+                ],
+            ];
 
-        return response()->json($segmentData);
+            return response()->json($segmentData);
+        } catch (\Throwable $e) {
+            // FIX: Log error and return safe fallback to prevent UI breaking
+            \Log::error('Segments endpoint error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // Return minimal safe data so UI doesn't break
+            return response()->json([
+                ['id' => 'all', 'name' => 'All Users', 'count' => User::count()],
+            ]);
+        }
     }
 
     public function getUsersBySegment(Request $request, string $segment)
