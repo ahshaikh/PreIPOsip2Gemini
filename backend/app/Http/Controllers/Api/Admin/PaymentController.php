@@ -548,4 +548,59 @@ class PaymentController extends Controller
             ->header('Content-Type', 'text/csv')
             ->header('Content-Disposition', 'attachment; filename="payments_export_' . now()->format('Y-m-d') . '.csv"');
     }
+
+    /**
+     * V-FIX-PAYMENT-PROOF-403: Serve payment proof image from private storage
+     * Payment proofs are stored in private storage for security
+     * This endpoint streams the file with proper authentication
+     */
+    public function viewPaymentProof(Request $request, $paymentId)
+    {
+        $payment = Payment::findOrFail($paymentId);
+
+        // Check if payment proof exists
+        if (!$payment->proof_url) {
+            return response()->json(['message' => 'Payment proof not found.'], 404);
+        }
+
+        // Extract file path from proof_url
+        // proof_url format: http://localhost:8000/storage/payment_proofs/39/file.jpg
+        // We need: payment_proofs/39/file.jpg (relative to private disk)
+        $filePath = $payment->proof_url;
+
+        // Remove domain and /storage/ prefix if present
+        $filePath = preg_replace('#^https?://[^/]+/storage/#', '', $filePath);
+        $filePath = preg_replace('#^/storage/#', '', $filePath);
+
+        // Check if file exists on private disk (KYC files are in private disk)
+        $disk = 'private';
+        if (!\Storage::disk($disk)->exists($filePath)) {
+            // Try to find file in kyc folder (fallback for misnamed paths)
+            $userId = $payment->user_id;
+            $kycPath = "kyc/{$userId}";
+            $files = \Storage::disk($disk)->files($kycPath);
+
+            if (empty($files)) {
+                \Log::error("Payment proof file not found", [
+                    'payment_id' => $paymentId,
+                    'proof_url' => $payment->proof_url,
+                    'checked_path' => $filePath,
+                    'kyc_path' => $kycPath
+                ]);
+                return response()->json(['message' => 'Payment proof file not found on server.'], 404);
+            }
+
+            // Use the first file found in the KYC folder as fallback
+            $filePath = $files[0];
+        }
+
+        // Get file content and MIME type
+        $fileContent = \Storage::disk($disk)->get($filePath);
+        $mimeType = \Storage::disk($disk)->mimeType($filePath);
+
+        // Return file as inline response (browser will display it)
+        return response($fileContent, 200)
+            ->header('Content-Type', $mimeType)
+            ->header('Content-Disposition', 'inline; filename="payment_proof_' . $paymentId . '"');
+    }
 }
