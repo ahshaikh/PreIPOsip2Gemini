@@ -202,28 +202,53 @@ class ProfileController extends Controller
 
     /**
      * Update user's bank details in KYC
+     *
+     * V-FIX-BANK-DETAILS: Frontend sends account_number/ifsc_code/bank_name
+     * Backend KYC table uses bank_account/bank_ifsc/bank_name
+     * Need to map field names correctly
      */
     public function updateBankDetails(Request $request)
     {
+        // V-FIX-BANK-DETAILS: Accept frontend field names
         $validated = $request->validate([
-            'bank_account' => 'required|string|min:9|max:18',
-            'bank_ifsc' => 'required|string|size:11|regex:/^[A-Z]{4}0[A-Z0-9]{6}$/',
+            'account_number' => 'required|string|min:9|max:18',
+            'ifsc_code' => 'required|string|size:11|regex:/^[A-Z]{4}0[A-Z0-9]{6}$/',
+            'bank_name' => 'nullable|string|max:100',
+            'account_holder_name' => 'nullable|string|max:100',
         ]);
 
         $user = $request->user();
 
+        // V-FIX-BANK-DETAILS: Map frontend field names to backend column names
+        $kycData = [
+            'bank_account' => $validated['account_number'],
+            'bank_ifsc' => $validated['ifsc_code'],
+            'bank_name' => $validated['bank_name'] ?? null,
+        ];
+
         // Get or create KYC record
         $kyc = $user->kyc;
         if (!$kyc) {
-            $kyc = $user->kyc()->create($validated);
+            $kycData['user_id'] = $user->id;
+            $kycData['status'] = \App\Enums\KycStatus::PENDING->value;
+            $kyc = $user->kyc()->create($kycData);
         } else {
-            $kyc->update($validated);
+            $kyc->update($kycData);
         }
+
+        // Reload for fresh data
+        $kyc = $kyc->fresh();
 
         return response()->json([
             'message' => 'Bank details updated successfully',
-            'bank_account' => $kyc->bank_account,
-            'bank_ifsc' => $kyc->bank_ifsc,
+            'bank_details' => [
+                'account_number' => $kyc->bank_account,
+                'ifsc_code' => $kyc->bank_ifsc,
+                'bank_name' => $kyc->bank_name,
+                'account_holder_name' => $user->profile
+                    ? trim(($user->profile->first_name ?? '') . ' ' . ($user->profile->last_name ?? ''))
+                    : $user->username,
+            ],
         ]);
     }
 }

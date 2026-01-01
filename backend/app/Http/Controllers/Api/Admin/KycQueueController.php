@@ -113,7 +113,15 @@ class KycQueueController extends Controller
         }
 
         DB::transaction(function () use ($kyc, $admin, $request) {
-            // [P1.2 FIX]: Use service to transition status (triggers events)
+            // V-FIX-STATE-MACHINE: If status is SUBMITTED, must transition to PROCESSING first
+            // State flow: submitted → processing → verified (cannot skip processing)
+            if ($kyc->status === KycStatus::SUBMITTED->value) {
+                $this->kycStatusService->transitionTo($kyc, KycStatus::PROCESSING, [
+                    'verified_by' => $admin->id,
+                ]);
+            }
+
+            // Now transition to VERIFIED (from PROCESSING status)
             $this->kycStatusService->transitionTo($kyc, KycStatus::VERIFIED, [
                 'verified_by' => $admin->id,
                 'rejection_reason' => null,
@@ -158,7 +166,8 @@ class KycQueueController extends Controller
         $admin = $request->user();
 
         DB::transaction(function () use ($kyc, $admin, $request) {
-            // [P1.2 FIX]: Use service to transition status (triggers events)
+            // V-FIX-STATE-MACHINE: Can reject directly from SUBMITTED (allowed transition)
+            // State flow: submitted → rejected (valid per state machine)
             $this->kycStatusService->transitionTo($kyc, KycStatus::REJECTED, [
                 'rejection_reason' => $request->reason,
                 'verified_by' => $admin->id,
