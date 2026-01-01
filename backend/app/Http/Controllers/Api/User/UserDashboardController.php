@@ -76,9 +76,10 @@ class UserDashboardController extends Controller
             });
 
         // 8. Construct Response matched to Frontend
+        // V-FIX-DASHBOARD-NAME: first_name is in user_profiles table, not users table!
         return response()->json([
             'user' => [
-                'first_name' => $user->first_name ?? $user->name,
+                'first_name' => $user->profile->first_name ?? $user->username ?? 'User',
                 'email'      => $user->email,
             ],
             'stats' => [
