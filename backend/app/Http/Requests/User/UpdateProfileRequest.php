@@ -39,13 +39,27 @@ class UpdateProfileRequest extends FormRequest
         return [
             // Personal Information
             'first_name' => 'sometimes|string|max:100',
+            'middle_name' => 'sometimes|nullable|string|max:100', // V-FIX-PROFILE-ENHANCEMENT
             'last_name' => 'sometimes|string|max:100',
+            'mother_name' => 'sometimes|nullable|string|max:100', // V-FIX-PROFILE-ENHANCEMENT
+            'wife_name' => 'sometimes|nullable|string|max:100', // V-FIX-PROFILE-ENHANCEMENT
 
             // Date of Birth - Must be at least 18 years old for investment compliance
             'dob' => 'sometimes|date|before:-18 years',
 
             // Gender - Standard options
             'gender' => 'sometimes|in:male,female,other,prefer_not_to_say',
+
+            // Professional/Personal Details - V-FIX-PROFILE-ENHANCEMENT
+            'occupation' => 'sometimes|nullable|string|max:100',
+            'education' => 'sometimes|nullable|string|max:100',
+
+            // Social Links - V-FIX-PROFILE-ENHANCEMENT
+            'social_links' => 'sometimes|nullable|array',
+            'social_links.facebook' => 'sometimes|nullable|url|max:255',
+            'social_links.linkedin' => 'sometimes|nullable|url|max:255',
+            'social_links.twitter' => 'sometimes|nullable|url|max:255',
+            'social_links.instagram' => 'sometimes|nullable|url|max:255',
 
             // Address Information
             'address' => 'sometimes|string|max:500',

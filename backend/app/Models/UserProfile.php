@@ -16,9 +16,15 @@ class UserProfile extends Model
     protected $fillable = [
         'user_id',
         'first_name',
+        'middle_name', // V-FIX-PROFILE-ENHANCEMENT
         'last_name',
+        'mother_name', // V-FIX-PROFILE-ENHANCEMENT
+        'wife_name', // V-FIX-PROFILE-ENHANCEMENT
         'dob',
         'gender',
+        'occupation', // V-FIX-PROFILE-ENHANCEMENT
+        'education', // V-FIX-PROFILE-ENHANCEMENT
+        'social_links', // V-FIX-PROFILE-ENHANCEMENT
         'address',
         'city',
         'state',
@@ -30,6 +36,7 @@ class UserProfile extends Model
     protected $casts = [
         'dob' => 'date', // Automatically casts to Carbon instance
         'preferences' => 'array', // Automatically casts JSON to Array
+        'social_links' => 'array', // V-FIX-PROFILE-ENHANCEMENT: JSON cast
     ];
 
     // --- RELATIONSHIPS ---
