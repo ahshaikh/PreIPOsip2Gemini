@@ -89,8 +89,10 @@ class KycController extends Controller
             return response()->json(['message' => 'KYC is already verified.'], 400);
         }
 
-        // Use the status service to handle the "Processing" transition
-        $this->statusService->transitionStatus($kyc, KycStatus::PROCESSING->value);
+        // V-FIX-STATE-MACHINE: Transition to SUBMITTED (not PROCESSING)
+        // State flow: pending → submitted → processing → verified/rejected
+        // Users submit docs (pending → submitted), then admin/system processes (submitted → processing)
+        $this->statusService->transitionStatus($kyc, KycStatus::SUBMITTED->value);
 
         $kyc->update([
             'pan_number' => $request->pan_number,
@@ -141,8 +143,23 @@ class KycController extends Controller
                 }
             }
         } catch (\Exception $e) {
-            // Rollback status to pending on failure
-            $this->statusService->transitionStatus($kyc, KycStatus::PENDING->value, "Upload failed: " . $e->getMessage());
+            // V-FIX-STATE-MACHINE: On upload failure, mark as needing resubmission
+            // Cannot rollback to PENDING (state machine doesn't allow submitted → pending)
+            // Valid flow: submitted → resubmission_required → submitted (retry)
+            try {
+                $this->statusService->transitionStatus(
+                    $kyc,
+                    KycStatus::RESUBMISSION_REQUIRED->value,
+                    "Upload failed: " . $e->getMessage()
+                );
+            } catch (\Exception $transitionError) {
+                // If transition also fails, just log it (KYC stays in current state)
+                Log::warning("Could not transition KYC to resubmission_required", [
+                    'user_id' => $user->id,
+                    'current_status' => $kyc->status,
+                    'error' => $transitionError->getMessage()
+                ]);
+            }
 
             Log::error("KYC document upload failed", [
                 'user_id' => $user->id,
@@ -163,11 +180,12 @@ class KycController extends Controller
         }
 
         // Dispatch background job for OCR/Verification
+        // V-FIX-STATE-MACHINE: Background job will transition submitted → processing
         ProcessKycJob::dispatch($kyc)->onQueue('high');
 
         return response()->json([
-            'message' => 'KYC documents submitted successfully. Status: Processing.',
-            'kyc' => $kyc->load('documents'),
+            'message' => 'KYC documents submitted successfully. Our team will review your documents shortly.',
+            'kyc' => $kyc->fresh()->load('documents'), // Reload to get latest status
         ], 201);
     }
 
