@@ -277,13 +277,15 @@ export default function PushNotificationsPage() {
       return;
     }
 
+    // FIX: Backend expects 'target_type' not 'target_audience'
+    // FIX: Backend expects 'user_ids' not 'target_users'
     const payload = {
       title: composeForm.title,
       body: composeForm.body,
       image_url: composeForm.image_url || null,
       action_url: composeForm.action_url || null,
-      target_audience: composeForm.target_audience,
-      target_users: composeForm.target_audience === "specific" ? composeForm.target_users : null
+      target_type: composeForm.target_audience, // FIX: Changed from target_audience to target_type
+      user_ids: composeForm.target_audience === "specific" ? composeForm.target_users : null // FIX: Changed from target_users to user_ids
     };
 
     if (composeForm.schedule_type === "scheduled") {
@@ -301,7 +303,8 @@ export default function PushNotificationsPage() {
   };
 
   const handleTemplateSelect = (templateId: number) => {
-    const template = (templates || mockTemplates).find((t: NotificationTemplate) => t.id === templateId);
+    // FIX: Removed mockTemplates reference - use only real templates from backend
+    const template = displayTemplates.find((t: NotificationTemplate) => t.id === templateId);
     if (template) {
       setComposeForm(prev => ({
         ...prev,
@@ -340,81 +343,21 @@ export default function PushNotificationsPage() {
     );
   };
 
-  // Mock data for demonstration
-  const mockStats = {
-    total_sent: 1250,
-    total_delivered: 1180,
-    total_opened: 890,
-    total_clicked: 456,
-    delivery_rate: 94.4,
-    open_rate: 75.4,
-    click_rate: 38.6,
-    subscribers: 2500,
-    active_devices: 2340
+  // FIX: Removed all mock data - now using real backend data only
+  const displayStats = stats || {
+    total_sent: 0,
+    total_delivered: 0,
+    total_opened: 0,
+    total_clicked: 0,
+    delivery_rate: 0,
+    open_rate: 0,
+    click_rate: 0,
+    subscribers: 0,
+    active_devices: 0
   };
-
-  const mockNotifications: PushNotification[] = [
-    {
-      id: 1,
-      title: "New Investment Opportunity!",
-      body: "SpaceX Series F round now available. Invest from ₹5,000.",
-      target_audience: "all",
-      sent_at: "2024-03-15 10:30:00",
-      status: "sent",
-      total_recipients: 2500,
-      delivered: 2380,
-      opened: 1850,
-      clicked: 920,
-      created_at: "2024-03-15"
-    },
-    {
-      id: 2,
-      title: "KYC Reminder",
-      body: "Complete your KYC to start investing. Only takes 2 minutes!",
-      target_audience: "incomplete_kyc",
-      sent_at: "2024-03-14 09:00:00",
-      status: "sent",
-      total_recipients: 450,
-      delivered: 420,
-      opened: 280,
-      clicked: 145,
-      created_at: "2024-03-14"
-    },
-    {
-      id: 3,
-      title: "Weekend Bonus Offer",
-      body: "Get 2x referral bonus this weekend only! Share now.",
-      target_audience: "all",
-      scheduled_at: "2024-03-20 08:00:00",
-      status: "scheduled",
-      total_recipients: 2500,
-      delivered: 0,
-      opened: 0,
-      clicked: 0,
-      created_at: "2024-03-13"
-    }
-  ];
-
-  const mockTemplates: NotificationTemplate[] = [
-    { id: 1, name: "New IPO Alert", title: "New Investment Opportunity!", body: "{{company_name}} is now available for investment. Starting at ₹{{min_amount}}.", category: "investment" },
-    { id: 2, name: "KYC Reminder", title: "Complete Your KYC", body: "Hi {{user_name}}, complete your KYC verification to start investing.", category: "kyc" },
-    { id: 3, name: "Payment Success", title: "Payment Successful!", body: "Your payment of ₹{{amount}} has been received. Happy investing!", category: "payment" },
-    { id: 4, name: "Referral Bonus", title: "You've Earned a Bonus!", body: "Congratulations! You've earned ₹{{amount}} as referral bonus.", category: "bonus" }
-  ];
-
-  const mockSegments = [
-    { id: "all", name: "All Users", count: 2500 },
-    { id: "active", name: "Active Investors", count: 1800 },
-    { id: "inactive", name: "Inactive Users (30+ days)", count: 400 },
-    { id: "incomplete_kyc", name: "Incomplete KYC", count: 450 },
-    { id: "high_value", name: "High Value Investors (₹1L+)", count: 320 },
-    { id: "new_users", name: "New Users (Last 7 days)", count: 85 }
-  ];
-
-  const displayStats = stats || mockStats;
-  const displayNotifications = notifications || mockNotifications;
-  const displayTemplates = templates || mockTemplates;
-  const displaySegments = segments || mockSegments;
+  const displayNotifications = notifications || [];
+  const displayTemplates = templates || [];
+  const displaySegments = segments || [];
 
   return (
     <div className="space-y-6">
