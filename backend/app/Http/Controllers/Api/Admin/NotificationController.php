@@ -196,7 +196,7 @@ class NotificationController extends Controller
     public function sendPush(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'target_type' => 'required|in:all,user,users,segment',
+            'target_type' => 'required|in:all,active,inactive,incomplete_kyc,kyc_verified,high_value,low_activity,new_users,user,users',
             'user_id' => 'required_if:target_type,user|exists:users,id',
             'user_ids' => 'required_if:target_type,users|array',
             'title' => 'required|string|max:255',
@@ -243,15 +243,61 @@ class NotificationController extends Controller
             // }
         }
 
-        // Logic similar to PushNotificationConfigController@getRecipients
+        // FIX: Implement proper segment filtering logic
+        // Build query based on target_type (segments mapped to actual user filters)
         $query = User::where('status', 'active');
 
-        if ($validated['target_type'] === 'user') {
-            $query->where('id', $validated['user_id']);
-        } elseif ($validated['target_type'] === 'users') {
-            $query->whereIn('id', $validated['user_ids']);
+        switch ($validated['target_type']) {
+            case 'user':
+                $query->where('id', $validated['user_id']);
+                break;
+
+            case 'users':
+                $query->whereIn('id', $validated['user_ids']);
+                break;
+
+            case 'all':
+                // No additional filtering - send to all active users
+                break;
+
+            case 'active':
+                $query->whereHas('subscription', function ($q) {
+                    $q->where('status', 'active');
+                });
+                break;
+
+            case 'inactive':
+                $query->whereDoesntHave('subscription');
+                break;
+
+            case 'incomplete_kyc':
+                $query->whereHas('kyc', function ($q) {
+                    $q->where('status', 'pending');
+                });
+                break;
+
+            case 'kyc_verified':
+                $query->whereHas('kyc', function ($q) {
+                    $q->where('status', 'verified');
+                });
+                break;
+
+            case 'high_value':
+                $query->whereHas('wallet', function ($q) {
+                    $q->where('balance', '>', 10000);
+                });
+                break;
+
+            case 'low_activity':
+                $query->whereDoesntHave('activityLogs', function ($q) {
+                    $q->where('created_at', '>=', now()->subDays(30));
+                });
+                break;
+
+            case 'new_users':
+                $query->where('created_at', '>=', now()->subDays(7));
+                break;
         }
-        // 'all' and 'segment' imply filtering on base query or additional logic
 
         // FIX: Chunking for Performance
         // Dispatch batch jobs instead of looping synchronously

@@ -780,41 +780,30 @@ class AdminUserController extends Controller
 
     public function segments()
     {
-        $segments = [
-            'active_subscribers' => User::whereHas('subscription', function ($q) {
+        // FIX: Frontend expects array of objects with {id, name, count}, not object with keys
+        // Changed to return proper format for push notification targeting UI
+        $segmentData = [
+            ['id' => 'all', 'name' => 'All Users', 'count' => User::role('user')->count()],
+            ['id' => 'active', 'name' => 'Active Subscribers', 'count' => User::whereHas('subscription', function ($q) {
                 $q->where('status', 'active');
-            })->count(),
-
-            'inactive_users' => User::whereDoesntHave('subscription')->count(),
-
-            'kyc_pending' => User::whereHas('kyc', function ($q) {
+            })->count()],
+            ['id' => 'inactive', 'name' => 'Inactive Users', 'count' => User::whereDoesntHave('subscription')->count()],
+            ['id' => 'incomplete_kyc', 'name' => 'KYC Pending', 'count' => User::whereHas('kyc', function ($q) {
                 $q->where('status', 'pending');
-            })->count(),
-
-            'kyc_verified' => User::whereHas('kyc', function ($q) {
+            })->count()],
+            ['id' => 'kyc_verified', 'name' => 'KYC Verified', 'count' => User::whereHas('kyc', function ($q) {
                 $q->where('status', 'verified');
-            })->count(),
-
-            'high_value' => User::whereHas('wallet', function ($q) {
+            })->count()],
+            ['id' => 'high_value', 'name' => 'High Value (₹10K+)', 'count' => User::whereHas('wallet', function ($q) {
                 $q->where('balance', '>', 10000);
-            })->count(),
-
-            'low_activity' => User::whereDoesntHave('activityLogs', function ($q) {
+            })->count()],
+            ['id' => 'low_activity', 'name' => 'Low Activity (30+ days)', 'count' => User::whereDoesntHave('activityLogs', function ($q) {
                 $q->where('created_at', '>=', now()->subDays(30));
-            })->count(),
-
-            'suspended' => User::where('status', 'suspended')->count(),
-
-            'blocked' => User::where('status', 'blocked')->count(),
-
-            'blacklisted' => User::where('is_blacklisted', true)->count(),
-
-            'with_referrals' => User::has('referrals')->count(),
-
-            'total_users' => User::role('user')->count(),
+            })->count()],
+            ['id' => 'new_users', 'name' => 'New Users (Last 7 days)', 'count' => User::where('created_at', '>=', now()->subDays(7))->count()],
         ];
 
-        return response()->json(['segments' => $segments]);
+        return response()->json($segmentData);
     }
 
     public function getUsersBySegment(Request $request, string $segment)
