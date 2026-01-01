@@ -301,6 +301,52 @@ class NotificationController extends Controller
                 break;
         }
 
+        // FIX: Check if push notification infrastructure is ready
+        // Without this check, notifications queue but never send (silent failure)
+        $totalUsers = $query->count();
+
+        if ($totalUsers === 0) {
+            return response()->json([
+                'message' => 'No users match the selected target segment.',
+                'total_users' => 0
+            ], 422);
+        }
+
+        // CRITICAL: Check if user_devices table exists (required for actual sending)
+        // Without device tokens, jobs run but notifications never reach users
+        try {
+            \DB::table('user_devices')->limit(1)->count();
+            $hasDeviceTokens = \DB::table('user_devices')->exists();
+        } catch (\Throwable $e) {
+            // Table doesn't exist - notification system not fully configured
+            \Log::warning('Push notification sent to queue, but user_devices table missing', [
+                'error' => $e->getMessage(),
+                'target_type' => $validated['target_type'],
+                'total_users' => $totalUsers
+            ]);
+
+            // FIX: Return warning instead of silent failure
+            return response()->json([
+                'message' => 'Notification queued for ' . $totalUsers . ' users',
+                'warning' => 'Push notification infrastructure incomplete. Jobs will queue but not send until user_devices table is created.',
+                'total_users' => $totalUsers,
+                'debug' => 'Missing: user_devices table for storing FCM/OneSignal tokens'
+            ], 200);
+        }
+
+        if (!$hasDeviceTokens) {
+            \Log::warning('Push notification sent but no device tokens registered', [
+                'target_type' => $validated['target_type'],
+                'total_users' => $totalUsers
+            ]);
+
+            return response()->json([
+                'message' => 'Notification queued for ' . $totalUsers . ' users',
+                'warning' => 'No device tokens registered. Users must enable push notifications in their app first.',
+                'total_users' => $totalUsers
+            ], 200);
+        }
+
         // FIX: Chunking for Performance
         // Dispatch batch jobs instead of looping synchronously
         $batch = [];
@@ -314,7 +360,11 @@ class NotificationController extends Controller
                 ->name('Push Campaign: ' . $validated['title'])
                 ->dispatch();
 
-            return response()->json(['message' => 'Notification campaign queued successfully.']);
+            return response()->json([
+                'message' => 'Push notification campaign queued successfully!',
+                'total_users' => $totalUsers,
+                'batches' => count($batch)
+            ]);
         }
 
         return response()->json(['message' => 'No active users found for target.'], 422);

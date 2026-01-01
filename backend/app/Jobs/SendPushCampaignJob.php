@@ -54,23 +54,57 @@ class SendPushCampaignJob implements ShouldQueue
     {
         $provider = function_exists('setting') ? setting('push_provider', 'fcm') : 'fcm';
 
-        // V-AUDIT-MODULE16-HIGH: Collect all device tokens first
-        // Placeholder: In production, this should query user_devices table
-        // For now, using placeholder tokens to demonstrate batching logic
+        // FIX: Query REAL device tokens from user_devices table
+        // Previous: Used placeholder tokens, notifications never reached users
+        // Now: Query actual FCM/OneSignal tokens registered by user devices
         $userTokenMap = [];
-        foreach ($this->users as $user) {
-            $deviceToken = 'placeholder_device_token_' . $user->id;
-            if ($deviceToken) {
-                $userTokenMap[$deviceToken] = $user;
+
+        // Check if user_devices table exists
+        try {
+            // Extract user IDs from collection
+            $userIds = $this->users->pluck('id')->toArray();
+
+            // Query active device tokens for these users
+            $devices = \DB::table('user_devices')
+                ->whereIn('user_id', $userIds)
+                ->where('is_active', true)
+                ->where('provider', $provider)
+                ->select('user_id', 'device_token')
+                ->get();
+
+            // Build token-to-user mapping
+            foreach ($devices as $device) {
+                $user = $this->users->firstWhere('id', $device->user_id);
+                if ($user) {
+                    $userTokenMap[$device->device_token] = $user;
+                }
             }
+        } catch (\Throwable $e) {
+            // FIX: Table doesn't exist - log error with clear instructions
+            \Log::error('SendPushCampaignJob FAILED: user_devices table missing', [
+                'error' => $e->getMessage(),
+                'users_count' => count($this->users),
+                'fix' => 'Run migration: php artisan migrate',
+                'migration' => 'database/migrations/*_create_user_devices_table.php'
+            ]);
+            return;
         }
 
         if (empty($userTokenMap)) {
-            \Log::info('SendPushCampaignJob: No device tokens found for users');
+            \Log::info('SendPushCampaignJob: No active device tokens found for users', [
+                'users_count' => count($this->users),
+                'provider' => $provider,
+                'reason' => 'Users have not registered their devices for push notifications'
+            ]);
             return;
         }
 
         $tokens = array_keys($userTokenMap);
+
+        \Log::info('SendPushCampaignJob: Sending to ' . count($tokens) . ' devices', [
+            'provider' => $provider,
+            'title' => $this->payload['title']
+        ]);
 
         // V-AUDIT-MODULE16-HIGH: Use provider-specific batch sending
         if ($provider === 'fcm') {
