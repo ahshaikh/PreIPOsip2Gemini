@@ -131,9 +131,9 @@ class SubscriptionController extends Controller
         $newPlan = Plan::findOrFail($validated['new_plan_id']);
 
         // Find specific subscription or default to first modifiable subscription
-        // Valid statuses from migration: active, paused, cancelled, completed
-        // Only active and paused subscriptions can be modified
-        $query = Subscription::where('user_id', $user->id)->whereIn('status', ['active', 'paused']);
+        // Valid statuses: active, paused, pending, cancelled, completed
+        // Only active and paused subscriptions can be modified (pending requires payment first)
+        $query = Subscription::where('user_id', $user->id)->whereIn('status', ['active', 'paused', 'pending']);
         if (isset($validated['subscription_id'])) {
             $query->where('id', $validated['subscription_id']);
         }
@@ -141,6 +141,15 @@ class SubscriptionController extends Controller
 
         if (!$sub) {
             return response()->json(['message' => 'No active or paused subscription found to modify.'], 404);
+        }
+
+        // V-FIX-PENDING-SUBSCRIPTION: Block plan changes for pending subscriptions
+        if ($sub->status === 'pending') {
+            return response()->json([
+                'message' => 'Please complete your first payment before changing plans.',
+                'subscription_status' => 'pending',
+                'action_required' => 'complete_payment'
+            ], 400);
         }
 
         // Check if same plan
@@ -180,9 +189,9 @@ class SubscriptionController extends Controller
     {
         $user = $request->user();
 
-        // Find user's active subscription (subscription_id is optional)
+        // Find user's active or pending subscription (subscription_id is optional)
         $query = Subscription::where('user_id', $user->id)
-            ->where('status', 'active')
+            ->whereIn('status', ['active', 'pending'])
             ->with('plan'); // Eager load plan for max_pause_duration_months
 
         if ($request->has('subscription_id')) {
@@ -193,6 +202,15 @@ class SubscriptionController extends Controller
 
         if (!$sub) {
             return response()->json(['message' => 'No active subscription found to pause.'], 404);
+        }
+
+        // V-FIX-PENDING-SUBSCRIPTION: Block pause for pending subscriptions
+        if ($sub->status === 'pending') {
+            return response()->json([
+                'message' => 'Cannot pause subscription. Please complete your first payment.',
+                'subscription_status' => 'pending',
+                'action_required' => 'complete_payment'
+            ], 400);
         }
 
         // V-AUDIT-MODULE7-005: Use Plan's max_pause_duration_months instead of hardcoded max:3
@@ -250,9 +268,10 @@ class SubscriptionController extends Controller
 
         $user = $request->user();
 
-        // Find user's active or paused subscription
+        // V-FIX-PENDING-SUBSCRIPTION: Allow cancellation of pending subscriptions (user can back out before payment)
+        // Find user's active, paused, or pending subscription
         $query = Subscription::where('user_id', $user->id)
-            ->whereIn('status', ['active', 'paused']);
+            ->whereIn('status', ['active', 'paused', 'pending']);
 
         if (isset($validated['subscription_id'])) {
             $query->where('id', $validated['subscription_id']);
@@ -261,7 +280,7 @@ class SubscriptionController extends Controller
         $sub = $query->latest()->first();
 
         if (!$sub) {
-            return response()->json(['message' => 'No active or paused subscription found to cancel.'], 404);
+            return response()->json(['message' => 'No subscription found to cancel.'], 404);
         }
 
         try {
