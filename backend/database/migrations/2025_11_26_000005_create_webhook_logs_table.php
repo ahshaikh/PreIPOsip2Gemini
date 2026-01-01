@@ -8,29 +8,35 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
+     *
+     * FIX: Made idempotent - only creates table if it doesn't exist
+     * Prevents "Table already exists" errors on repeated migrations
      */
     public function up(): void
     {
-        Schema::create('webhook_logs', function (Blueprint $table) {
-            $table->id();
-            $table->string('event_type');
-            $table->string('webhook_id')->nullable()->index();
-            $table->text('payload');
-            $table->text('headers')->nullable();
-            $table->enum('status', ['pending', 'processing', 'success', 'failed', 'max_retries_reached'])->default('pending')->index();
-            $table->integer('retry_count')->default(0);
-            $table->integer('max_retries')->default(5);
-            $table->text('response')->nullable();
-            $table->integer('response_code')->nullable();
-            $table->text('error_message')->nullable();
-            $table->timestamp('next_retry_at')->nullable()->index();
-            $table->timestamp('processed_at')->nullable();
-            $table->timestamps();
+        // FIX: Check if table exists before creating
+        if (!Schema::hasTable('webhook_logs')) {
+            Schema::create('webhook_logs', function (Blueprint $table) {
+                $table->id();
+                $table->string('event_type');
+                $table->string('webhook_id')->nullable()->index();
+                $table->text('payload');
+                $table->text('headers')->nullable();
+                $table->enum('status', ['pending', 'processing', 'success', 'failed', 'max_retries_reached'])->default('pending')->index();
+                $table->integer('retry_count')->default(0);
+                $table->integer('max_retries')->default(5);
+                $table->text('response')->nullable();
+                $table->integer('response_code')->nullable();
+                $table->text('error_message')->nullable();
+                $table->timestamp('next_retry_at')->nullable()->index();
+                $table->timestamp('processed_at')->nullable();
+                $table->timestamps();
 
-            // Indexes for performance
-            $table->index(['status', 'next_retry_at']);
-            $table->index(['created_at', 'status']);
-        });
+                // Indexes for performance
+                $table->index(['status', 'next_retry_at']);
+                $table->index(['created_at', 'status']);
+            });
+        }
     }
 
     /**
