@@ -23,15 +23,24 @@ class ProfileController extends Controller
      * Display the authenticated user's complete profile.
      * Test: testGetProfileReturnsUserData
      * Test: testProfileIncludesKycStatus
+     *
+     * V-FIX-AVATAR-DISPLAY: Ensure profile exists before returning
      */
     public function show(Request $request)
     {
         $user = $request->user();
 
-        // --- FIX (Gap 2) ---
+        // V-FIX-AVATAR-DISPLAY: Create profile if it doesn't exist
+        if (!$user->profile) {
+            $user->profile()->create([
+                'first_name' => $user->username ?? 'User',
+                'last_name' => '',
+            ]);
+            Log::info("Created missing profile for user {$user->id}");
+        }
+
         // Eager load the profile, kyc, subscription status, and roles for proper admin detection
         $user->load('profile', 'kyc', 'subscription', 'roles');
-        // -----------------
 
         return response()->json($user);
     }
@@ -40,14 +49,23 @@ class ProfileController extends Controller
      * Update the authenticated user's profile.
      * Test: testUpdateProfileWithValidData
      * Test: testProfileUpdateValidation
+     *
+     * V-FIX-AVATAR-DISPLAY: Ensure profile exists before updating
      */
     public function update(UpdateProfileRequest $request)
     {
         $user = $request->user();
-        
+
         try {
-            $user->profile->update($request->validated());
-            return response()->json($user->profile);
+            // V-FIX-AVATAR-DISPLAY: Create profile if it doesn't exist
+            if (!$user->profile) {
+                $user->profile()->create($request->validated());
+                Log::info("Created profile during update for user {$user->id}");
+            } else {
+                $user->profile->update($request->validated());
+            }
+
+            return response()->json($user->fresh()->profile);
         } catch (\Exception $e) {
             Log::error("Profile update failed for user {$user->id}: " . $e->getMessage());
             return response()->json(['message' => 'Profile update failed.'], 500);
@@ -57,6 +75,13 @@ class ProfileController extends Controller
     /**
      * NEW: Update the authenticated user's avatar.
      * Test: testUploadAvatarSucceeds
+     *
+     * V-FIX-AVATAR-DISPLAY: Complete rewrite to fix avatar display issues
+     * - Ensure profile exists
+     * - Use relative URLs instead of absolute
+     * - Delete old avatar files
+     * - Add comprehensive logging
+     * - Return fresh user data
      */
     public function updateAvatar(Request $request)
     {
@@ -67,6 +92,25 @@ class ProfileController extends Controller
         $user = $request->user();
 
         try {
+            // V-FIX-AVATAR-DISPLAY: Create profile if it doesn't exist
+            if (!$user->profile) {
+                $user->profile()->create([
+                    'first_name' => $user->username ?? 'User',
+                    'last_name' => '',
+                ]);
+                Log::info("Created missing profile during avatar upload for user {$user->id}");
+            }
+
+            // Delete old avatar if exists
+            if ($user->profile->avatar_url) {
+                // Extract path from URL (e.g., /storage/avatars/1/file.jpg -> avatars/1/file.jpg)
+                $oldPath = str_replace('/storage/', '', $user->profile->avatar_url);
+                if (Storage::disk('public')->exists($oldPath)) {
+                    Storage::disk('public')->delete($oldPath);
+                    Log::info("Deleted old avatar for user {$user->id}: {$oldPath}");
+                }
+            }
+
             // Use the secure FileUploadService
             $path = $this->fileUploader->upload($request->file('avatar'), [
                 'disk' => 'public',
@@ -74,28 +118,43 @@ class ProfileController extends Controller
                 'encrypt' => false,
                 'virus_scan' => true
             ]);
-            
-            // Get the public URL
-            $url = Storage::disk('public')->url($path);
 
-            // Delete old avatar if it exists
-            if ($user->profile->avatar_url) {
-                // This logic is simple, assumes storage path is stored
-                // A more robust system would store the *path* not the *URL*
+            // V-FIX-AVATAR-DISPLAY: Use RELATIVE URL, not absolute
+            // FileUploadService returns path like: avatars/1/filename.jpg
+            // We want URL like: /storage/avatars/1/filename.jpg
+            $avatarUrl = '/storage/' . $path;
+
+            // Verify file actually exists
+            if (!Storage::disk('public')->exists($path)) {
+                Log::error("Avatar file not found after upload for user {$user->id}: {$path}");
+                throw new \Exception("File upload verification failed");
             }
 
-            // Save the new URL (only to user_profiles table)
-            $user->profile->update(['avatar_url' => $url]);
+            // Save the new URL
+            $user->profile->update(['avatar_url' => $avatarUrl]);
 
-            return response()->json(['message' => 'Avatar updated', 'avatar_url' => $url]);
+            Log::info("Avatar updated successfully for user {$user->id}: {$avatarUrl}");
+
+            // V-FIX-AVATAR-DISPLAY: Return fresh user data so frontend React Query updates
+            $user->refresh();
+            $user->load('profile', 'kyc', 'subscription', 'roles');
+
+            return response()->json([
+                'message' => 'Avatar updated successfully',
+                'avatar_url' => $avatarUrl,
+                'user' => $user, // Return complete user object for React Query cache update
+            ]);
 
         } catch (\Exception $e) {
+            Log::error("Avatar upload failed for user {$user->id}: " . $e->getMessage());
             return response()->json(['message' => $e->getMessage()], 400);
         }
     }
 
     /**
      * Get user's bank details from KYC
+     *
+     * V-FIX-AVATAR-DISPLAY: Check profile exists before accessing
      */
     public function getBankDetails(Request $request)
     {
@@ -110,10 +169,16 @@ class ProfileController extends Controller
             ]);
         }
 
+        // V-FIX-AVATAR-DISPLAY: Safe profile access
+        $accountHolderName = $user->username ?? 'User';
+        if ($user->profile) {
+            $accountHolderName = trim(($user->profile->first_name ?? '') . ' ' . ($user->profile->last_name ?? '')) ?: $user->username;
+        }
+
         return response()->json([
             'bank_account' => $kyc->bank_account,
             'bank_ifsc' => $kyc->bank_ifsc,
-            'account_holder_name' => $user->profile->first_name . ' ' . $user->profile->last_name,
+            'account_holder_name' => $accountHolderName,
         ]);
     }
 
