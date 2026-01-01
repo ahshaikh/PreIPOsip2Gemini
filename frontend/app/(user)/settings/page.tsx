@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -73,34 +73,77 @@ export default function SettingsPage() {
     },
   });
 
+  // V-FIX-SETTINGS-PERSISTENCE: Initialize state with defaults
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
-    email_notifications: settings?.notifications?.email_notifications ?? true,
-    sms_notifications: settings?.notifications?.sms_notifications ?? true,
-    push_notifications: settings?.notifications?.push_notifications ?? true,
-    payment_alerts: settings?.notifications?.payment_alerts ?? true,
-    investment_updates: settings?.notifications?.investment_updates ?? true,
-    promotional_emails: settings?.notifications?.promotional_emails ?? false,
-    weekly_summary: settings?.notifications?.weekly_summary ?? true,
-    kyc_updates: settings?.notifications?.kyc_updates ?? true,
-    withdrawal_alerts: settings?.notifications?.withdrawal_alerts ?? true,
-    bonus_alerts: settings?.notifications?.bonus_alerts ?? true,
+    email_notifications: true,
+    sms_notifications: true,
+    push_notifications: true,
+    payment_alerts: true,
+    investment_updates: true,
+    promotional_emails: false,
+    weekly_summary: true,
+    kyc_updates: true,
+    withdrawal_alerts: true,
+    bonus_alerts: true,
   });
 
   const [securitySettings, setSecuritySettings] = useState<SecuritySettings>({
-    two_factor_enabled: settings?.security?.two_factor_enabled ?? false,
-    email_verification: settings?.security?.email_verification ?? true,
-    login_alerts: settings?.security?.login_alerts ?? true,
-    session_timeout: settings?.security?.session_timeout ?? 30,
+    two_factor_enabled: false,
+    email_verification: true,
+    login_alerts: true,
+    session_timeout: 30,
   });
 
   const [preferences, setPreferences] = useState<PreferenceSettings>({
-    language: settings?.preferences?.language || 'en',
-    currency: settings?.preferences?.currency || 'INR',
-    timezone: settings?.preferences?.timezone || 'Asia/Kolkata',
-    theme: settings?.preferences?.theme || 'light',
-    date_format: settings?.preferences?.date_format || 'DD/MM/YYYY',
-    number_format: settings?.preferences?.number_format || 'en-IN',
+    language: 'en',
+    currency: 'INR',
+    timezone: 'Asia/Kolkata',
+    theme: 'light',
+    date_format: 'DD/MM/YYYY',
+    number_format: 'en-IN',
   });
+
+  // V-FIX-SETTINGS-PERSISTENCE: Update state when settings data arrives from API
+  useEffect(() => {
+    if (settings && settings.notifications) {
+      setNotificationSettings({
+        email_notifications: settings.notifications.email_notifications ?? true,
+        sms_notifications: settings.notifications.sms_notifications ?? true,
+        push_notifications: settings.notifications.push_notifications ?? true,
+        payment_alerts: settings.notifications.payment_alerts ?? true,
+        investment_updates: settings.notifications.investment_updates ?? true,
+        promotional_emails: settings.notifications.promotional_emails ?? false,
+        weekly_summary: settings.notifications.weekly_summary ?? true,
+        kyc_updates: settings.notifications.kyc_updates ?? true,
+        withdrawal_alerts: settings.notifications.withdrawal_alerts ?? true,
+        bonus_alerts: settings.notifications.bonus_alerts ?? true,
+      });
+    }
+  }, [settings?.notifications]);
+
+  useEffect(() => {
+    if (settings && settings.security) {
+      setSecuritySettings({
+        two_factor_enabled: settings.security.two_factor_enabled ?? false,
+        email_verification: settings.security.email_verification ?? true,
+        login_alerts: settings.security.login_alerts ?? true,
+        session_timeout: settings.security.session_timeout ?? 30,
+      });
+    }
+  }, [settings?.security]);
+
+  useEffect(() => {
+    if (settings && settings.preferences) {
+      setPreferences({
+        language: settings.preferences.language || 'en',
+        currency: settings.preferences.currency || 'INR',
+        timezone: settings.preferences.timezone || 'Asia/Kolkata',
+        theme: settings.preferences.theme || 'light',
+        date_format: settings.preferences.date_format || 'DD/MM/YYYY',
+        number_format: settings.preferences.number_format || 'en-IN',
+      });
+    }
+  }, [settings?.preferences]);
 
   // Update settings mutation
   const updateSettingsMutation = useMutation({
