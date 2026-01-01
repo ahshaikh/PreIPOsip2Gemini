@@ -1,15 +1,17 @@
 // V-PHASE5-1730-115 (Created) | V-FINAL-1730-237 (NotificationBell Integrated) | V-ENHANCED-USER-NAV
 // V-FIX-LOGIN-REDIRECT (Fixed storage consistency - using plain localStorage)
+// V-FIX-AVATAR-DISPLAY: Converted to React Query to share userProfile state across components
 'use client';
 
 import { DashboardNav } from '@/components/shared/DashboardNav';
 import { UserTopNav } from '@/components/shared/UserTopNav';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import api from '@/lib/api';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { User } from '@/types';
-import { LogOut } from 'lucide-react';
+import { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { User as UserIcon, LogOut } from 'lucide-react';
 
 // NEW: use shared role helper
 import { extractRoleNames } from '@/lib/auth';
@@ -20,8 +22,18 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+
+  // FIX: Use React Query with the SAME query key as Profile page
+  // This ensures avatar updates are reflected everywhere
+  const { data: user, isLoading, isError } = useQuery({
+    queryKey: ['userProfile'], // Same key as Profile page
+    queryFn: async () => {
+      const response = await api.get('/user/profile');
+      return response.data;
+    },
+    retry: false,
+    staleTime: 0, // Always refetch to get latest avatar
+  });
 
   useEffect(() => {
     // CRITICAL: Only run on client side after hydration
@@ -30,48 +42,35 @@ export default function DashboardLayout({
       return;
     }
 
-    const checkAuth = async () => {
-      console.log('[DASHBOARD LAYOUT] Checking authentication...');
-      const token = localStorage.getItem('auth_token');
-      console.log('[DASHBOARD LAYOUT] Token found:', token ? `${token.substring(0, 20)}...` : 'NONE');
+    const token = localStorage.getItem('auth_token');
 
-      if (!token) {
-        console.log('[DASHBOARD LAYOUT] No token, redirecting to login');
-        router.push('/login');
+    if (!token) {
+      console.log('[DASHBOARD LAYOUT] No token, redirecting to login');
+      router.push('/login');
+      return;
+    }
+
+    // Check for authentication errors
+    if (isError) {
+      console.error('[DASHBOARD LAYOUT] Auth check failed');
+      localStorage.removeItem('auth_token');
+      router.push('/login');
+      return;
+    }
+
+    // V-FIX-SUPERADMIN-REDIRECT: Check if user is admin/superadmin
+    if (user) {
+      const roleNames = extractRoleNames(user);
+      const isAdmin = roleNames.includes('admin') || roleNames.includes('superadmin');
+
+      if (isAdmin) {
+        console.log('[DASHBOARD LAYOUT] Admin user detected, redirecting to admin dashboard');
+        console.log('[DASHBOARD LAYOUT] User role(s):', roleNames, '| is_admin:', user.is_admin);
+        router.push('/admin/dashboard');
         return;
       }
-
-      try {
-        console.log('[DASHBOARD LAYOUT] Fetching user profile...');
-        const response = await api.get('/user/profile');
-        console.log('[DASHBOARD LAYOUT] Profile response:', response.data);
-        const userData = response.data.user || response.data;
-        console.log('[DASHBOARD LAYOUT] Setting user:', userData);
-
-        // V-FIX-SUPERADMIN-REDIRECT: Check if user is admin/superadmin
-        // If so, redirect them to admin dashboard instead
-        const roleNames = extractRoleNames(userData);
-        const isAdmin = roleNames.includes('admin') || roleNames.includes('superadmin');
-
-        if (isAdmin) {
-          console.log('[DASHBOARD LAYOUT] Admin user detected, redirecting to admin dashboard');
-          console.log('[DASHBOARD LAYOUT] User role(s):', roleNames, '| is_admin:', userData.is_admin);
-          router.push('/admin/dashboard');
-          return;
-        }
-
-        setUser(userData);
-      } catch (error) {
-        console.error('[DASHBOARD LAYOUT] Auth check failed:', error);
-        localStorage.removeItem('auth_token');
-        router.push('/login');
-      } finally {
-        console.log('[DASHBOARD LAYOUT] Auth check complete');
-        setIsLoading(false);
-      }
-    };
-    checkAuth();
-  }, [router]);
+    }
+  }, [user, isError, router]);
 
   const handleLogout = async () => {
     try {
@@ -99,9 +98,18 @@ export default function DashboardLayout({
       <div className="container mx-auto py-8 pt-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <aside className="md:col-span-1">
-            <div className="mb-4 p-4 rounded-lg bg-muted">
-              <h3 className="font-semibold truncate">{user.profile?.first_name || user.username}</h3>
-              <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+            <div className="mb-4 p-4 rounded-lg bg-muted flex items-center gap-3">
+              {/* FIX: Added avatar to sidebar menu header */}
+              <Avatar className="h-12 w-12">
+                <AvatarImage src={user.profile?.avatar_url} alt={user.username} />
+                <AvatarFallback>
+                  <UserIcon className="h-6 w-6 text-muted-foreground" />
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold truncate">{user.profile?.first_name || user.username}</h3>
+                <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+              </div>
             </div>
 
             <DashboardNav />
