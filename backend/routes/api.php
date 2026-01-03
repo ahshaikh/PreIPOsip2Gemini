@@ -326,6 +326,7 @@ Route::prefix('v1')->group(function () {
 
             // Wallet & Withdrawal - Financial operations rate limited
             Route::get('/wallet', [WalletController::class, 'show']);
+            Route::get('/wallet/transactions', [WalletController::class, 'transactions']); // V-FIX-WALLET-TRANSACTIONS: Add missing route
             Route::get('/wallet/statement', [WalletController::class, 'downloadStatement']);
             Route::get('/wallet/withdrawals', [WalletController::class, 'withdrawals']);
 
