@@ -28,6 +28,7 @@ class UserKyc extends Model
         'bank_account',
         'bank_ifsc',
         'bank_name',
+        'bank_branch', // V-FIX-BANK-BRANCH: Add bank_branch to fillable
         'status',
         'rejection_reason',
         'resubmission_instructions', // ADDED: For resubmission flow

@@ -53,7 +53,7 @@ class ProfileController extends Controller
                 'account_number' => $user->kyc->bank_account,
                 'ifsc_code' => $user->kyc->bank_ifsc,
                 'bank_name' => $user->kyc->bank_name,
-                'branch_name' => null, // KYC doesn't store branch name
+                'branch_name' => $user->kyc->bank_branch, // V-FIX-BANK-BRANCH: Return bank_branch from KYC
                 'account_holder_name' => $user->profile
                     ? trim(($user->profile->first_name ?? '') . ' ' . ($user->profile->last_name ?? ''))
                     : $user->username,
@@ -75,18 +75,39 @@ class ProfileController extends Controller
         $user = $request->user();
 
         try {
-            // V-FIX-AVATAR-DISPLAY: Create profile if it doesn't exist
-            if (!$user->profile) {
-                $user->profile()->create($request->validated());
-                Log::info("Created profile during update for user {$user->id}");
-            } else {
-                $user->profile->update($request->validated());
+            $validated = $request->validated();
+
+            // V-FIX-PROFILE-ENHANCEMENT: Handle mobile separately (stored in users table)
+            if ($request->has('mobile')) {
+                // Validate mobile
+                $request->validate([
+                    'mobile' => 'sometimes|string|regex:/^[0-9]{10}$/',
+                ]);
+
+                // Update mobile on user model
+                $user->mobile = $request->mobile;
+                $user->save();
+
+                // Remove mobile from validated data (not in user_profiles table)
+                unset($validated['mobile']);
             }
 
-            return response()->json($user->fresh()->profile);
+            // V-FIX-AVATAR-DISPLAY: Create profile if it doesn't exist
+            if (!$user->profile) {
+                $user->profile()->create($validated);
+                Log::info("Created profile during update for user {$user->id}");
+            } else {
+                $user->profile->update($validated);
+            }
+
+            // Return complete user data with profile
+            $user->refresh();
+            $user->load('profile', 'kyc', 'subscription', 'roles');
+
+            return response()->json($user);
         } catch (\Exception $e) {
             Log::error("Profile update failed for user {$user->id}: " . $e->getMessage());
-            return response()->json(['message' => 'Profile update failed.'], 500);
+            return response()->json(['message' => 'Profile update failed: ' . $e->getMessage()], 500);
         }
     }
 
@@ -151,8 +172,26 @@ class ProfileController extends Controller
                 'url' => $avatarUrl
             ]);
 
-            // Save the new URL
-            $user->profile->update(['avatar_url' => $avatarUrl]);
+            // V-FIX-AVATAR-URL-NULL: Save the new URL and verify it saved
+            $profile = $user->profile;
+            $profile->avatar_url = $avatarUrl;
+            $profile->save();
+
+            // Verify the save worked
+            $profile->refresh();
+            if ($profile->avatar_url !== $avatarUrl) {
+                Log::error("Avatar URL failed to save to database", [
+                    'user_id' => $user->id,
+                    'expected' => $avatarUrl,
+                    'actual' => $profile->avatar_url
+                ]);
+                throw new \Exception("Failed to save avatar URL to database");
+            }
+
+            Log::info("Avatar URL saved to database successfully", [
+                'user_id' => $user->id,
+                'avatar_url' => $profile->avatar_url
+            ]);
 
             // V-FIX-AVATAR-DISPLAY: Return fresh user data so frontend React Query updates
             $user->refresh();
@@ -160,7 +199,7 @@ class ProfileController extends Controller
 
             return response()->json([
                 'message' => 'Avatar updated successfully',
-                'avatar_url' => $avatarUrl,
+                'avatar_url' => $profile->avatar_url,
                 'user' => $user,
             ]);
 
@@ -211,20 +250,24 @@ class ProfileController extends Controller
     public function updateBankDetails(Request $request)
     {
         // V-FIX-BANK-DETAILS: Accept frontend field names
+        // V-FIX-BANK-BRANCH: Add branch_name validation
         $validated = $request->validate([
             'account_number' => 'required|string|min:9|max:18',
             'ifsc_code' => 'required|string|size:11|regex:/^[A-Z]{4}0[A-Z0-9]{6}$/',
             'bank_name' => 'nullable|string|max:100',
+            'branch_name' => 'nullable|string|max:100', // V-FIX-BANK-BRANCH
             'account_holder_name' => 'nullable|string|max:100',
         ]);
 
         $user = $request->user();
 
         // V-FIX-BANK-DETAILS: Map frontend field names to backend column names
+        // V-FIX-BANK-BRANCH: Include bank_branch in mapping
         $kycData = [
             'bank_account' => $validated['account_number'],
             'bank_ifsc' => $validated['ifsc_code'],
             'bank_name' => $validated['bank_name'] ?? null,
+            'bank_branch' => $validated['branch_name'] ?? null, // V-FIX-BANK-BRANCH
         ];
 
         // Get or create KYC record
@@ -246,6 +289,7 @@ class ProfileController extends Controller
                 'account_number' => $kyc->bank_account,
                 'ifsc_code' => $kyc->bank_ifsc,
                 'bank_name' => $kyc->bank_name,
+                'branch_name' => $kyc->bank_branch, // V-FIX-BANK-BRANCH: Return branch_name in response
                 'account_holder_name' => $user->profile
                     ? trim(($user->profile->first_name ?? '') . ' ' . ($user->profile->last_name ?? ''))
                     : $user->username,

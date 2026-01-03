@@ -22,9 +22,22 @@ export default function ProfilePage() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string>("");
 
-  // Profile Form State
+  // Profile Form State - V-FIX-PROFILE-ENHANCEMENT: Add all new fields
   const [profileData, setProfileData] = useState({
-    first_name: '', last_name: '', address: '', city: '', state: '', pincode: ''
+    first_name: '',
+    middle_name: '',
+    last_name: '',
+    mother_name: '',
+    wife_name: '',
+    dob: '',
+    gender: '',
+    mobile: '',
+    occupation: '',
+    education: '',
+    address: '',
+    city: '',
+    state: '',
+    pincode: ''
   });
 
   // Bank Details State
@@ -46,11 +59,20 @@ export default function ProfilePage() {
     queryFn: async () => (await api.get('/user/profile')).data,
   });
 
+  // V-FIX-PROFILE-AUTO-POPULATE: Populate all fields including new enhancement fields
   useEffect(() => {
     if (user) {
       setProfileData({
         first_name: user.profile?.first_name || '',
+        middle_name: user.profile?.middle_name || '',
         last_name: user.profile?.last_name || '',
+        mother_name: user.profile?.mother_name || '',
+        wife_name: user.profile?.wife_name || '',
+        dob: user.profile?.dob || '',
+        gender: user.profile?.gender || '',
+        mobile: user.mobile || '',
+        occupation: user.profile?.occupation || '',
+        education: user.profile?.education || '',
         address: user.profile?.address || '',
         city: user.profile?.city || '',
         state: user.profile?.state || '',
@@ -264,44 +286,123 @@ export default function ProfilePage() {
               </CardContent>
             </Card>
 
-            {/* Personal Info Section */}
+            {/* Personal Info Section - V-FIX-PROFILE-ENHANCEMENT: Added all new fields */}
             <Card>
               <CardHeader>
                 <CardTitle>Personal Information</CardTitle>
-                <CardDescription>Update your personal details. This information is locked once KYC is verified.</CardDescription>
+                <CardDescription>
+                  {user?.kyc?.status === 'verified'
+                    ? 'Only First Name and Last Name are locked after KYC verification. You can update other fields.'
+                    : 'Update your personal details.'
+                  }
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleProfileSubmit} className="space-y-4">
+                  {/* Name Fields - First and Last locked when KYC verified */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label>First Name {user?.kyc?.status === 'verified' && <span className="text-xs text-muted-foreground">(Locked)</span>}</Label>
+                      <Input
+                        value={profileData.first_name}
+                        onChange={e => setProfileData({...profileData, first_name: e.target.value})}
+                        disabled={user?.kyc?.status === 'verified'}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Middle Name</Label>
+                      <Input value={profileData.middle_name} onChange={e => setProfileData({...profileData, middle_name: e.target.value})} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Last Name {user?.kyc?.status === 'verified' && <span className="text-xs text-muted-foreground">(Locked)</span>}</Label>
+                      <Input
+                        value={profileData.last_name}
+                        onChange={e => setProfileData({...profileData, last_name: e.target.value})}
+                        disabled={user?.kyc?.status === 'verified'}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Additional Name Fields */}
                   <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>First Name</Label>
-                    <Input value={profileData.first_name} onChange={e => setProfileData({...profileData, first_name: e.target.value})} />
+                    <div className="space-y-2">
+                      <Label>Mother&apos;s Name</Label>
+                      <Input value={profileData.mother_name} onChange={e => setProfileData({...profileData, mother_name: e.target.value})} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Spouse Name</Label>
+                      <Input value={profileData.wife_name} onChange={e => setProfileData({...profileData, wife_name: e.target.value})} placeholder="Optional" />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Last Name</Label>
-                    <Input value={profileData.last_name} onChange={e => setProfileData({...profileData, last_name: e.target.value})} />
+
+                  {/* Personal Details */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label>Date of Birth</Label>
+                      <Input
+                        type="date"
+                        value={profileData.dob}
+                        onChange={e => setProfileData({...profileData, dob: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Gender</Label>
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        value={profileData.gender}
+                        onChange={e => setProfileData({...profileData, gender: e.target.value})}
+                      >
+                        <option value="">Select</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Mobile</Label>
+                      <Input
+                        type="tel"
+                        value={profileData.mobile}
+                        onChange={e => setProfileData({...profileData, mobile: e.target.value})}
+                        placeholder="10-digit mobile"
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Address</Label>
-                  <Input value={profileData.address} onChange={e => setProfileData({...profileData, address: e.target.value})} />
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label>City</Label>
-                    <Input value={profileData.city} onChange={e => setProfileData({...profileData, city: e.target.value})} />
+
+                  {/* Professional Details */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Occupation</Label>
+                      <Input value={profileData.occupation} onChange={e => setProfileData({...profileData, occupation: e.target.value})} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Education</Label>
+                      <Input value={profileData.education} onChange={e => setProfileData({...profileData, education: e.target.value})} />
+                    </div>
                   </div>
+
+                  {/* Address Fields */}
                   <div className="space-y-2">
-                    <Label>State</Label>
-                    <Input value={profileData.state} onChange={e => setProfileData({...profileData, state: e.target.value})} />
+                    <Label>Address</Label>
+                    <Input value={profileData.address} onChange={e => setProfileData({...profileData, address: e.target.value})} />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Pincode</Label>
-                    <Input value={profileData.pincode} onChange={e => setProfileData({...profileData, pincode: e.target.value})} />
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label>City</Label>
+                      <Input value={profileData.city} onChange={e => setProfileData({...profileData, city: e.target.value})} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>State</Label>
+                      <Input value={profileData.state} onChange={e => setProfileData({...profileData, state: e.target.value})} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Pincode</Label>
+                      <Input value={profileData.pincode} onChange={e => setProfileData({...profileData, pincode: e.target.value})} />
+                    </div>
                   </div>
-                </div>
-                  <Button type="submit" disabled={profileMutation.isPending || user?.kyc?.status === 'verified'}>
-                    {user?.kyc?.status === 'verified' ? 'Profile Locked (KYC Verified)' : profileMutation.isPending ? "Saving..." : "Save Changes"}
+
+                  <Button type="submit" disabled={profileMutation.isPending}>
+                    {profileMutation.isPending ? "Saving..." : "Save Changes"}
                   </Button>
                 </form>
               </CardContent>
