@@ -129,6 +129,12 @@ class ProfileController extends Controller
         $user = $request->user();
 
         try {
+            Log::info("=== AVATAR UPLOAD START ===", [
+                'user_id' => $user->id,
+                'has_profile' => $user->profile !== null,
+                'request_file_name' => $request->file('avatar')->getClientOriginalName(),
+            ]);
+
             // V-FIX-AVATAR-STORAGE: Create profile if it doesn't exist
             if (!$user->profile) {
                 $user->profile()->create([
@@ -136,6 +142,7 @@ class ProfileController extends Controller
                     'last_name' => '',
                 ]);
                 Log::info("Created missing profile during avatar upload for user {$user->id}");
+                $user->refresh(); // Reload to get the created profile
             }
 
             // Delete old avatar if exists
@@ -174,23 +181,48 @@ class ProfileController extends Controller
 
             // V-FIX-AVATAR-URL-NULL: Save the new URL and verify it saved
             $profile = $user->profile;
-            $profile->avatar_url = $avatarUrl;
-            $profile->save();
 
-            // Verify the save worked
+            Log::info("Before save", [
+                'profile_id' => $profile->id,
+                'user_id' => $user->id,
+                'old_avatar_url' => $profile->avatar_url,
+                'new_avatar_url' => $avatarUrl,
+                'profile_fillable' => $profile->getFillable(),
+            ]);
+
+            $profile->avatar_url = $avatarUrl;
+            $saveResult = $profile->save();
+
+            Log::info("After save() call", [
+                'save_result' => $saveResult,
+                'profile_avatar_url' => $profile->avatar_url,
+            ]);
+
+            // Verify the save worked by querying fresh from DB
             $profile->refresh();
+            $dbCheck = \DB::table('user_profiles')
+                ->where('id', $profile->id)
+                ->first();
+
+            Log::info("Database verification", [
+                'eloquent_avatar_url' => $profile->avatar_url,
+                'raw_query_avatar_url' => $dbCheck->avatar_url ?? 'NULL',
+            ]);
+
             if ($profile->avatar_url !== $avatarUrl) {
                 Log::error("Avatar URL failed to save to database", [
                     'user_id' => $user->id,
                     'expected' => $avatarUrl,
-                    'actual' => $profile->avatar_url
+                    'actual_eloquent' => $profile->avatar_url,
+                    'actual_raw_query' => $dbCheck->avatar_url ?? 'NULL',
                 ]);
                 throw new \Exception("Failed to save avatar URL to database");
             }
 
-            Log::info("Avatar URL saved to database successfully", [
+            Log::info("=== AVATAR UPLOAD SUCCESS ===", [
                 'user_id' => $user->id,
-                'avatar_url' => $profile->avatar_url
+                'avatar_url' => $profile->avatar_url,
+                'file_path' => $path,
             ]);
 
             // V-FIX-AVATAR-DISPLAY: Return fresh user data so frontend React Query updates

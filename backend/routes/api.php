@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\Public\LegalDocumentController;
 
 // User Controllers
 use App\Http\Controllers\Api\User\ProfileController;
+use App\Http\Controllers\Api\User\DiagnosticsController;
 use App\Http\Controllers\Api\User\KycController;
 use App\Http\Controllers\Api\User\SubscriptionController;
 use App\Http\Controllers\Api\User\InvestmentController;
@@ -240,6 +241,9 @@ Route::prefix('v1')->group(function () {
             Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar']);
             Route::get('/bank-details', [ProfileController::class, 'getBankDetails']);
             Route::put('/bank-details', [ProfileController::class, 'updateBankDetails']);
+
+            // DIAGNOSTIC: Avatar debugging endpoint
+            Route::get('/diagnostics/avatar', [DiagnosticsController::class, 'avatarDiagnostics']);
 
             // User Settings
             Route::get('/settings', [App\Http\Controllers\Api\User\UserSettingsController::class, 'index']);
