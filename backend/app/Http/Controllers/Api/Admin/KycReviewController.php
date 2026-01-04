@@ -19,11 +19,12 @@ class KycReviewController extends Controller
 
     /**
      * Approve or Reject a KYC submission.
+     * V-FIX-WALLET-NOT-REFLECTING: Changed validation from 'approved' to 'verified' to match KycStatus enum
      */
     public function update(Request $request, UserKyc $kyc): JsonResponse
     {
         $request->validate([
-            'status' => 'required|in:approved,rejected',
+            'status' => 'required|in:verified,rejected',  // V-FIX: Use enum values, not 'approved'
             'remarks' => 'nullable|string|max:500'
         ]);
 
