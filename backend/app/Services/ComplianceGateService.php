@@ -194,15 +194,18 @@ class ComplianceGateService
 
     /**
      * Check if KYC is complete and approved
+     * V-FIX-WALLET-NOT-REFLECTING: Fixed to check for 'verified' (actual KycStatus enum value)
      *
      * @param User $user
      * @return bool
      */
     private function isKycComplete(User $user): bool
     {
-        // KYC status must be 'approved'
-        // Any other status (pending, rejected, not_submitted) blocks operations
-        return $user->kyc_status === 'approved';
+        // V-FIX-WALLET-NOT-REFLECTING: KYC status must be 'verified' (not 'approved')
+        // The KycStatus enum uses 'verified' as the successful state
+        // Mismatch between 'approved' and 'verified' was blocking wallet deposits
+        // Any other status (pending, submitted, processing, rejected, resubmission_required) blocks operations
+        return $user->kyc_status === 'verified';
     }
 
     /**
