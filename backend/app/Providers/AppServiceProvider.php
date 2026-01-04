@@ -16,6 +16,10 @@ use App\Listeners\ProcessPendingReferralsOnKycVerify;
 use App\Contracts\PaymentGatewayInterface;
 use App\Services\Payments\Gateways\RazorpayGateway;
 
+// [DOMAIN LAYER]: User Aggregate Service Binding
+use App\Contracts\UserAggregateServiceInterface;
+use App\Services\UserAggregateServiceImpl;
+
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -26,13 +30,13 @@ class AppServiceProvider extends ServiceProvider
         // [FIX] DYNAMIC GATEWAY BINDING
         // Binds App\Contracts\PaymentGatewayInterface to RazorpayGateway
         $this->app->bind(PaymentGatewayInterface::class, function ($app) {
-            
+
             // Check settings (wrapped in try-catch to prevent crash during migrations)
             try {
                 if (function_exists('setting') && setting('payment_gateway_razorpay_enabled')) {
                     return new RazorpayGateway();
                 }
-                
+
             } catch (\Exception $e) {
                 // Squelch errors if database is not yet ready
             }
@@ -40,6 +44,14 @@ class AppServiceProvider extends ServiceProvider
             // Default Fallback: Razorpay
             return new RazorpayGateway();
         });
+
+        // [DOMAIN LAYER]: User Aggregate Service Binding
+        // Binds UserAggregateServiceInterface to concrete implementation
+        // This is the domain-level service for all user-related operations
+        $this->app->bind(
+            UserAggregateServiceInterface::class,
+            UserAggregateServiceImpl::class
+        );
     }
 
     /**
