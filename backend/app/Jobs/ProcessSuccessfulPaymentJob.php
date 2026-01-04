@@ -74,17 +74,12 @@ class ProcessSuccessfulPaymentJob implements ShouldQueue
                 $user = $this->payment->user;
 
                 // 1. Credit Payment Amount to Wallet
-                // V-FIX-WALLET-NOT-REFLECTING: Bypass KYC compliance gate for admin-approved payments
-                // Admin payment approval (manual or offline) is itself a compliance verification
-                // KYC compliance gate would block deposits for users without completed KYC,
-                // preventing wallet crediting even after admin approval
                 $walletService->deposit(
                     $user,
                     $this->payment->amount,
                     'payment_received',
                     "Payment received for SIP installment #{$this->payment->id}",
-                    $this->payment,
-                    bypassComplianceCheck: true  // V-FIX-WALLET-NOT-REFLECTING: Critical fix
+                    $this->payment
                 );
                 Log::info("Payment #{$this->payment->id}: Credited ₹{$this->payment->amount} to user wallet. User can now select shares to purchase.");
 
