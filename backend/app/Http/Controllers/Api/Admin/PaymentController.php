@@ -11,6 +11,7 @@ use App\Jobs\ProcessSuccessfulPaymentJob;
 use App\Services\WalletService; // <-- IMPORT
 use App\Services\AllocationService; // <-- IMPORT
 use App\Services\RazorpayService; // <-- IMPORT
+use App\Exceptions\Financial\ComplianceBlockedException; // V-FIX: Import exception for catch block
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -158,7 +159,7 @@ class PaymentController extends Controller
 
             return response()->json(['message' => 'Payment approved and processed.']);
 
-        } catch (\App\Exceptions\ComplianceBlockedException $e) {
+        } catch (ComplianceBlockedException $e) {
             // V-FIX-COMPLIANCE: Catch compliance blocks and report to admin
             \Log::error("COMPLIANCE BLOCK: Payment approval failed wallet crediting", [
                 'payment_id' => $payment->id,
