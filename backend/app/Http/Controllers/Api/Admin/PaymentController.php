@@ -89,8 +89,11 @@ class PaymentController extends Controller
                     'is_on_time' => true,
                     'payment_type' => 'sip_installment',
                 ]);
-    
-                ProcessSuccessfulPaymentJob::dispatch($payment);
+
+                // V-FIX-WALLET-NOT-REFLECTING: Changed from dispatch() to dispatchSync()
+                // Admin manual payments must credit wallet immediately for instant feedback
+                // Using dispatchSync() ensures wallet crediting happens synchronously without requiring queue worker
+                ProcessSuccessfulPaymentJob::dispatchSync($payment);
             });
         } catch (\Exception $e) {
             return response()->json(['message' => 'Error recording payment: ' . $e->getMessage()], 500);
@@ -101,6 +104,7 @@ class PaymentController extends Controller
 
     /**
      * Approve a User-Submitted Manual Payment or Flagged Payment.
+     * V-FIX-WALLET-NOT-REFLECTING: Ensures wallet is credited immediately upon approval
      */
     public function approveManual(Request $request, Payment $payment)
     {
@@ -115,7 +119,12 @@ class PaymentController extends Controller
                 'is_flagged' => false,
                 'flag_reason' => null
             ]);
-            ProcessSuccessfulPaymentJob::dispatch($payment);
+
+            // V-FIX-WALLET-NOT-REFLECTING: Changed from dispatch() to dispatchSync()
+            // Admin approval must credit user wallet immediately for instant visibility
+            // Using dispatchSync() executes the job synchronously without requiring queue worker
+            // This ensures user sees updated balance in TopNav and Wallet page immediately
+            ProcessSuccessfulPaymentJob::dispatchSync($payment);
         });
 
         return response()->json(['message' => 'Payment approved and processed.']);
