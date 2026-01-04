@@ -32,7 +32,8 @@ class PaymentController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Payment::with(['user:id,username,email', 'subscription.plan:id,name']);
+        // V-FIX-COMPLIANCE: Include kyc_status in user data for admin to see before approval
+        $query = Payment::with(['user:id,username,email,kyc_status', 'subscription.plan:id,name']);
 
         if ($request->has('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
@@ -105,6 +106,7 @@ class PaymentController extends Controller
     /**
      * Approve a User-Submitted Manual Payment or Flagged Payment.
      * V-FIX-WALLET-NOT-REFLECTING: Ensures wallet is credited immediately upon approval
+     * V-FIX-COMPLIANCE: Validates KYC status before approval
      */
     public function approveManual(Request $request, Payment $payment)
     {
@@ -112,22 +114,86 @@ class PaymentController extends Controller
             return response()->json(['message' => 'Payment is not pending approval.'], 400);
         }
 
-        DB::transaction(function () use ($payment) {
-            $payment->update([
-                'status' => 'paid',
-                'is_on_time' => true,
-                'is_flagged' => false,
-                'flag_reason' => null
+        // V-FIX-COMPLIANCE: Check user KYC status before allowing payment approval
+        // This prevents admin from approving payments for non-KYC verified users
+        // which would later fail at wallet crediting stage (compliance gate)
+        $user = $payment->user;
+        if ($user->kyc_status !== 'verified') {
+            \Log::warning("ADMIN PAYMENT APPROVAL BLOCKED: User KYC not verified", [
+                'payment_id' => $payment->id,
+                'user_id' => $user->id,
+                'user_email' => $user->email,
+                'kyc_status' => $user->kyc_status,
+                'admin_id' => $request->user()->id,
             ]);
 
-            // V-FIX-WALLET-NOT-REFLECTING: Changed from dispatch() to dispatchSync()
-            // Admin approval must credit user wallet immediately for instant visibility
-            // Using dispatchSync() executes the job synchronously without requiring queue worker
-            // This ensures user sees updated balance in TopNav and Wallet page immediately
-            ProcessSuccessfulPaymentJob::dispatchSync($payment);
-        });
+            return response()->json([
+                'message' => 'Cannot approve payment: User KYC verification required',
+                'error' => 'kyc_not_verified',
+                'kyc_status' => $user->kyc_status,
+                'user_details' => [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'name' => $user->name,
+                ],
+                'action_required' => 'Verify user KYC before approving payment'
+            ], 403);
+        }
 
-        return response()->json(['message' => 'Payment approved and processed.']);
+        try {
+            DB::transaction(function () use ($payment) {
+                $payment->update([
+                    'status' => 'paid',
+                    'is_on_time' => true,
+                    'is_flagged' => false,
+                    'flag_reason' => null
+                ]);
+
+                // V-FIX-WALLET-NOT-REFLECTING: Changed from dispatch() to dispatchSync()
+                // Admin approval must credit user wallet immediately for instant visibility
+                // Using dispatchSync() executes the job synchronously without requiring queue worker
+                // This ensures user sees updated balance in TopNav and Wallet page immediately
+                ProcessSuccessfulPaymentJob::dispatchSync($payment);
+            });
+
+            return response()->json(['message' => 'Payment approved and processed.']);
+
+        } catch (\App\Exceptions\ComplianceBlockedException $e) {
+            // V-FIX-COMPLIANCE: Catch compliance blocks and report to admin
+            \Log::error("COMPLIANCE BLOCK: Payment approval failed wallet crediting", [
+                'payment_id' => $payment->id,
+                'user_id' => $payment->user_id,
+                'reason' => $e->getMessage(),
+                'admin_id' => $request->user()->id,
+            ]);
+
+            // Revert payment status
+            $payment->update(['status' => 'pending_approval']);
+
+            return response()->json([
+                'message' => 'Payment approval failed: ' . $e->getMessage(),
+                'error' => 'compliance_block',
+                'details' => $e->getRequirements() ?? []
+            ], 403);
+
+        } catch (\Exception $e) {
+            // V-FIX-COMPLIANCE: Catch any other errors and report
+            \Log::error("PAYMENT APPROVAL ERROR: Unexpected failure", [
+                'payment_id' => $payment->id,
+                'user_id' => $payment->user_id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'admin_id' => $request->user()->id,
+            ]);
+
+            // Revert payment status
+            $payment->update(['status' => 'pending_approval']);
+
+            return response()->json([
+                'message' => 'Payment approval failed: ' . $e->getMessage(),
+                'error' => 'approval_failed'
+            ], 500);
+        }
     }
 
     /**

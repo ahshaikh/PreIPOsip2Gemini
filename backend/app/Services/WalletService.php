@@ -40,14 +40,25 @@ class WalletService
      */
     public function deposit(
         User $user,
-        int|float $amount,
+        int|float|string $amount,
         TransactionType|string $type,
         string $description = '',
         ?Model $reference = null,
         bool $bypassComplianceCheck = false
     ): Transaction {
-        // [BACKWARD COMPATIBLE]: Convert float (Rupees) to int (Paise) if needed
-        $amountPaise = is_float($amount) ? (int)round($amount * 100) : $amount;
+        // V-FIX-WALLET-NOT-REFLECTING: Handle string amounts from decimal database columns
+        // Payment amounts are stored as decimal(10,2) and retrieved as strings like "1000.00"
+        // Must convert string Rupees to int Paise correctly
+        if (is_string($amount)) {
+            // String from database decimal column - treat as Rupees, convert to Paise
+            $amountPaise = (int)round((float)$amount * 100);
+        } elseif (is_float($amount)) {
+            // Float Rupees - convert to Paise
+            $amountPaise = (int)round($amount * 100);
+        } else {
+            // Already in Paise (integer)
+            $amountPaise = $amount;
+        }
 
         // [BACKWARD COMPATIBLE]: Convert string to TransactionType enum if needed
         if (is_string($type)) {
@@ -197,7 +208,7 @@ class WalletService
      */
     public function withdraw(
         User $user,
-        int|float $amount,
+        int|float|string $amount,
         TransactionType|string $type,
         string $description,
         ?Model $reference = null,
@@ -205,8 +216,15 @@ class WalletService
         bool $allowOverdraft = false // [PROTOCOL 7]: New Argument for Admin Overrides
     ): Transaction
     {
-        // [BACKWARD COMPATIBLE]: Convert float (Rupees) to int (Paise) if needed
-        $amountPaise = is_float($amount) ? (int)round($amount * 100) : $amount;
+        // V-FIX-WALLET-NOT-REFLECTING: Handle string amounts from decimal database columns
+        // Same fix as deposit() - handle string, float, and int amounts correctly
+        if (is_string($amount)) {
+            $amountPaise = (int)round((float)$amount * 100);
+        } elseif (is_float($amount)) {
+            $amountPaise = (int)round($amount * 100);
+        } else {
+            $amountPaise = $amount;
+        }
 
         // [BACKWARD COMPATIBLE]: Convert string to TransactionType enum if needed
         if (is_string($type)) {
