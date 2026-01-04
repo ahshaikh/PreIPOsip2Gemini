@@ -82,6 +82,13 @@ class BackfillMissingWalletCredits extends Command
                 continue;
             }
 
+            // Clear any failed idempotency records to allow retry
+            $idempotencyKey = "payment_processing:{$payment->id}";
+            DB::table('job_executions')
+                ->where('idempotency_key', $idempotencyKey)
+                ->where('status', 'failed')
+                ->delete();
+
             // Actually process the payment
             try {
                 ProcessSuccessfulPaymentJob::dispatchSync($payment);
