@@ -558,39 +558,43 @@ class PaymentController extends Controller
     {
         $payment = Payment::findOrFail($paymentId);
 
+        // V-FIX-PAYMENT-PROOF-403: Changed from proof_url to payment_proof_path (correct DB column)
         // Check if payment proof exists
-        if (!$payment->proof_url) {
+        if (!$payment->payment_proof_path) {
             return response()->json(['message' => 'Payment proof not found.'], 404);
         }
 
-        // Extract file path from proof_url
-        // proof_url format: http://localhost:8000/storage/payment_proofs/39/file.jpg
-        // We need: payment_proofs/39/file.jpg (relative to private disk)
-        $filePath = $payment->proof_url;
+        // V-FIX-PAYMENT-PROOF-403: Use payment_proof_path which stores relative path like "payment_proofs/123/file.jpg"
+        // Extract file path from payment_proof_path
+        // payment_proof_path format: payment_proofs/39/1234567890_abc123.jpg (relative to public disk)
+        $filePath = $payment->payment_proof_path;
 
-        // Remove domain and /storage/ prefix if present
+        // Remove domain and /storage/ prefix if present (for legacy data compatibility)
         $filePath = preg_replace('#^https?://[^/]+/storage/#', '', $filePath);
         $filePath = preg_replace('#^/storage/#', '', $filePath);
 
-        // Check if file exists on private disk (KYC files are in private disk)
-        $disk = 'private';
+        // V-FIX-PAYMENT-PROOF-403: Changed from 'private' to 'public' disk (payment proofs are stored in public disk)
+        // Check if file exists on public disk (payment proofs are uploaded to public disk via submitManual())
+        $disk = 'public';
         if (!\Storage::disk($disk)->exists($filePath)) {
-            // Try to find file in kyc folder (fallback for misnamed paths)
+            // V-FIX-PAYMENT-PROOF-403: Fixed fallback - search in payment_proofs folder, not kyc folder
+            // Try to find file in payment_proofs folder (fallback for misnamed paths)
             $userId = $payment->user_id;
-            $kycPath = "kyc/{$userId}";
-            $files = \Storage::disk($disk)->files($kycPath);
+            $paymentProofPath = "payment_proofs/{$userId}";
+            $files = \Storage::disk($disk)->files($paymentProofPath);
 
             if (empty($files)) {
                 \Log::error("Payment proof file not found", [
                     'payment_id' => $paymentId,
-                    'proof_url' => $payment->proof_url,
+                    'payment_proof_path' => $payment->payment_proof_path, // V-FIX-PAYMENT-PROOF-403: Fixed log reference
                     'checked_path' => $filePath,
-                    'kyc_path' => $kycPath
+                    'fallback_path' => $paymentProofPath,
+                    'disk' => $disk
                 ]);
                 return response()->json(['message' => 'Payment proof file not found on server.'], 404);
             }
 
-            // Use the first file found in the KYC folder as fallback
+            // Use the first file found in the payment_proofs folder as fallback
             $filePath = $files[0];
         }
 

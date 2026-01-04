@@ -17,7 +17,7 @@ import { Plus, RefreshCcw, Download, CheckCircle, XCircle, Eye, AlertTriangle } 
 import { SearchInput } from "@/components/shared/SearchInput";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { useSearchParams } from "next/navigation";
-import { getStorageUrl } from "@/lib/utils";
+// V-FIX-PAYMENT-PROOF-403: Removed unused getStorageUrl import (now using authenticated API endpoint)
 
 export default function PaymentManagerPage() {
   const queryClient = useQueryClient();
@@ -31,6 +31,29 @@ export default function PaymentManagerPage() {
   const page = searchParams.get('page') || '1';
   const search = searchParams.get('search') || '';
   const statusFilter = searchParams.get('status') || 'all';
+
+  // V-FIX-PAYMENT-PROOF-403: Function to view payment proof via authenticated API endpoint
+  // Fetches the file as blob with auth headers, creates object URL, and opens in new tab
+  const viewPaymentProof = async (paymentId: number) => {
+    try {
+      const response = await api.get(`/admin/payments/${paymentId}/proof`, {
+        responseType: 'blob', // Critical: tells axios to handle binary data
+      });
+
+      // Create a blob URL from the response
+      const blob = new Blob([response.data], { type: response.headers['content-type'] });
+      const blobUrl = URL.createObjectURL(blob);
+
+      // Open in new tab
+      window.open(blobUrl, '_blank');
+
+      // Clean up the blob URL after a delay (browser has loaded it by then)
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+    } catch (error: any) {
+      console.error('Failed to load payment proof:', error);
+      toast.error(error.response?.data?.message || 'Failed to load payment proof');
+    }
+  };
 
   // Form State (Offline)
   const [userId, setUserId] = useState('');
@@ -191,7 +214,8 @@ export default function PaymentManagerPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => window.open(getStorageUrl(pay.payment_proof_path), '_blank')}
+                            onClick={() => viewPaymentProof(pay.id)}
+                            title="View payment proof"
                           >
                             <Eye className="h-4 w-4 text-blue-600" />
                           </Button>
