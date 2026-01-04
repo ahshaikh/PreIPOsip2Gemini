@@ -92,13 +92,33 @@ export default function PaymentManagerPage() {
   });
 
   // Approve Mutation (Handles Manual Proofs AND Fraud Flags)
+  // V-FIX-COMPLIANCE: Enhanced error handling for compliance blocks
   const approveMutation = useMutation({
     mutationFn: (id: number) => api.post(`/admin/payments/${id}/approve`),
     onSuccess: () => {
-      toast.success("Payment Approved");
+      toast.success("Payment Approved", { description: "Wallet credited successfully" });
       queryClient.invalidateQueries({ queryKey: ['adminPayments'] });
     },
-    onError: (e: any) => toast.error("Approval Failed", { description: e.response?.data?.message })
+    onError: (e: any) => {
+      const error = e.response?.data?.error;
+      const message = e.response?.data?.message || "Unknown error";
+      const details = e.response?.data;
+
+      // V-FIX-COMPLIANCE: Show specific error for KYC issues
+      if (error === 'kyc_not_verified') {
+        toast.error("KYC Verification Required", {
+          description: `User KYC status: ${details.kyc_status}. ${details.action_required}`,
+          duration: 5000
+        });
+      } else if (error === 'compliance_block') {
+        toast.error("Compliance Block", {
+          description: message,
+          duration: 5000
+        });
+      } else {
+        toast.error("Approval Failed", { description: message });
+      }
+    }
   });
 
   // Reject Mutation
@@ -192,6 +212,7 @@ export default function PaymentManagerPage() {
                     <TableHead>Ref / UTR</TableHead>
                     <TableHead>Proof</TableHead>
                     <TableHead>Date</TableHead>
+                    <TableHead>KYC</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -224,6 +245,17 @@ export default function PaymentManagerPage() {
                         )}
                       </TableCell>
                       <TableCell>{pay.paid_at ? new Date(pay.paid_at).toLocaleDateString() : '-'}</TableCell>
+                      <TableCell>
+                        {/* V-FIX-COMPLIANCE: Display KYC status */}
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                          pay.user.kyc_status === 'verified' ? 'bg-green-100 text-green-700' :
+                          pay.user.kyc_status === 'pending' ? 'bg-gray-100 text-gray-700' :
+                          pay.user.kyc_status === 'submitted' || pay.user.kyc_status === 'processing' ? 'bg-blue-100 text-blue-700' :
+                          'bg-red-100 text-red-700'
+                        }`}>
+                          {pay.user.kyc_status?.toUpperCase() || 'N/A'}
+                        </span>
+                      </TableCell>
                       <TableCell>
                         {/* --- FRAUD ALERT UI --- */}
                         {pay.is_flagged && (
