@@ -1,6 +1,5 @@
 <?php
 // V-PHASE3-1730-089 (Created) | V-FINAL-1730-451 | V-FINAL-1730-479 (Custom Amount) | V-FINAL-1730-579 (Refund Logic) | V-FIX-MULTI-SUB (Gemini)
-// DOMAIN-LAYER-REFACTOR: Refactored to use UserAggregateService for compliance enforcement
 
 namespace App\Http\Controllers\Api\User;
 
@@ -14,30 +13,15 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 
-// [DOMAIN LAYER]: Import domain-level services and exceptions
-use App\Contracts\UserAggregateServiceInterface;
-use App\Exceptions\Domain\IneligibleActionException;
-use App\Exceptions\Domain\SubscriptionNotFoundException;
-
 class SubscriptionController extends Controller
 {
     protected $service;
     protected $eligibilityService;
-    protected $userAggregateService; // [DOMAIN LAYER]: Domain-level service
 
-    /**
-     * Constructor with dependency injection
-     *
-     * [DOMAIN LAYER]: Added UserAggregateServiceInterface for domain-level operations
-     */
-    public function __construct(
-        SubscriptionService $service,
-        PlanEligibilityService $eligibilityService,
-        UserAggregateServiceInterface $userAggregateService
-    ) {
+    public function __construct(SubscriptionService $service, PlanEligibilityService $eligibilityService)
+    {
         $this->service = $service;
         $this->eligibilityService = $eligibilityService;
-        $this->userAggregateService = $userAggregateService;
     }
 
     /**
@@ -135,128 +119,113 @@ class SubscriptionController extends Controller
         }
     }
 
-    /**
-     * Change Subscription Plan (Upgrade/Downgrade)
-     *
-     * [DOMAIN LAYER REFACTOR]: Now uses UserAggregateService
-     * - No direct status checks (no whereIn(['active','paused']))
-     * - Compliance enforced via assertCan()
-     * - Controller doesn't know what "pending" means
-     */
     public function changePlan(Request $request)
     {
+        // [MODIFIED] Added subscription_id to validation to handle multiple subscriptions
         $validated = $request->validate([
             'new_plan_id' => 'required|exists:plans,id',
+            'subscription_id' => 'sometimes|exists:subscriptions,id'
         ]);
 
         $user = $request->user();
-        $newPlanId = $validated['new_plan_id'];
+        $newPlan = Plan::findOrFail($validated['new_plan_id']);
+
+        // Find specific subscription or default to first modifiable subscription
+        // Valid statuses: active, paused, pending, cancelled, completed
+        // Only active and paused subscriptions can be modified (pending requires payment first)
+        $query = Subscription::where('user_id', $user->id)->whereIn('status', ['active', 'paused', 'pending']);
+        if (isset($validated['subscription_id'])) {
+            $query->where('id', $validated['subscription_id']);
+        }
+        $sub = $query->latest()->first();
+
+        if (!$sub) {
+            return response()->json(['message' => 'No active or paused subscription found to modify.'], 404);
+        }
+
+        // V-FIX-PENDING-SUBSCRIPTION: Block plan changes for pending subscriptions
+        if ($sub->status === 'pending') {
+            return response()->json([
+                'message' => 'Please complete your first payment before changing plans.',
+                'subscription_status' => 'pending',
+                'action_required' => 'complete_payment'
+            ], 400);
+        }
+
+        // Check if same plan
+        if ($newPlan->id === $sub->plan_id) {
+            return response()->json(['message' => 'You are already on this plan.'], 400);
+        }
 
         try {
-            // [DOMAIN LAYER]: Use aggregate service for domain operation
-            // This handles ALL eligibility checks, status validation, and business rules
-            $updatedAggregate = $this->userAggregateService->changeSubscriptionPlan(
-                $user->id,
-                $newPlanId
-            );
-
-            // Determine if it was upgrade or downgrade from result
-            $subscription = $updatedAggregate->subscription;
-            $newPlan = Plan::find($newPlanId);
-
-            // Return success response
-            return response()->json([
-                'message' => 'Plan changed successfully.',
-                'subscription' => $subscription,
-            ]);
-
-        } catch (IneligibleActionException $e) {
-            // [DOMAIN LAYER]: Convert domain exception to HTTP response
-            return response()->json([
-                'message' => $e->getMessage(),
-                'error_code' => $e->getErrorCode(),
-                'context' => $e->getContext(),
-            ], 403);
-
-        } catch (SubscriptionNotFoundException $e) {
-            // [DOMAIN LAYER]: Handle missing subscription
-            return response()->json([
-                'message' => $e->getMessage(),
-                'error_code' => $e->getErrorCode(),
-            ], 404);
-
+            if ($newPlan->monthly_amount > $sub->amount) {
+                // UPGRADE
+                $prorated = $this->service->upgradePlan($sub, $newPlan);
+                $message = "Plan upgraded successfully. A pro-rata charge of ₹{$prorated} has been created.";
+                if ($prorated == 0) $message = "Plan upgraded successfully. Changes effective next cycle.";
+                return response()->json(['message' => $message]);
+            } elseif ($newPlan->monthly_amount < $sub->amount) {
+                // DOWNGRADE
+                $this->service->downgradePlan($sub, $newPlan);
+                return response()->json(['message' => 'Plan downgraded successfully. Changes effective next cycle.']);
+            } else {
+                // Same amount but different plan
+                return response()->json(['message' => 'Cannot change to a plan with the same amount.'], 400);
+            }
         } catch (\Exception $e) {
-            // Catch any other unexpected errors
-            Log::error('Subscription plan change failed', [
-                'user_id' => $user->id,
-                'new_plan_id' => $newPlanId,
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'message' => 'Failed to change plan. Please try again.',
-            ], 400);
+            return response()->json(['message' => $e->getMessage()], 400);
         }
     }
 
     /**
-     * Pause Subscription
+     * V-AUDIT-MODULE7-005 (MEDIUM): Pause subscription with Plan-based validation.
      *
-     * [DOMAIN LAYER REFACTOR]: Now uses UserAggregateService
-     * - No direct status checks
-     * - Compliance enforced via assertCan()
-     * - Controller doesn't validate subscription status
-     *
-     * Note: Plan-specific pause duration limits are validated in SubscriptionService
+     * Configuration Fix:
+     * - Previous: Hardcoded pause limit of max:3 months for all plans
+     * - Problem: Different plans may have different pause policies
+     * - Solution: Use Plan's max_pause_duration_months configuration
      */
     public function pause(Request $request)
     {
-        // Basic validation (pause duration validation happens in service layer)
+        $user = $request->user();
+
+        // Find user's active or pending subscription (subscription_id is optional)
+        $query = Subscription::where('user_id', $user->id)
+            ->whereIn('status', ['active', 'pending'])
+            ->with('plan'); // Eager load plan for max_pause_duration_months
+
+        if ($request->has('subscription_id')) {
+            $query->where('id', $request->input('subscription_id'));
+        }
+
+        $sub = $query->latest()->first();
+
+        if (!$sub) {
+            return response()->json(['message' => 'No active subscription found to pause.'], 404);
+        }
+
+        // V-FIX-PENDING-SUBSCRIPTION: Block pause for pending subscriptions
+        if ($sub->status === 'pending') {
+            return response()->json([
+                'message' => 'Cannot pause subscription. Please complete your first payment.',
+                'subscription_status' => 'pending',
+                'action_required' => 'complete_payment'
+            ], 400);
+        }
+
+        // V-AUDIT-MODULE7-005: Use Plan's max_pause_duration_months instead of hardcoded max:3
+        $maxPauseDuration = $sub->plan->max_pause_duration_months ?? 3; // Default to 3 if not set
+
         $validated = $request->validate([
-            'months' => 'required|integer|min:1|max:12', // Broad range, actual limit from plan
+            'months' => "required|integer|min:1|max:{$maxPauseDuration}",
+            'subscription_id' => 'sometimes|exists:subscriptions,id' // Optional
         ]);
 
-        $user = $request->user();
-        $pauseMonths = $validated['months'];
-
         try {
-            // [DOMAIN LAYER]: Use aggregate service for domain operation
-            $updatedAggregate = $this->userAggregateService->pauseSubscription(
-                $user->id,
-                $pauseMonths
-            );
-
-            return response()->json([
-                'message' => "Subscription paused for {$pauseMonths} months.",
-                'subscription' => $updatedAggregate->subscription,
-            ]);
-
-        } catch (IneligibleActionException $e) {
-            // [DOMAIN LAYER]: Convert domain exception to HTTP response
-            return response()->json([
-                'message' => $e->getMessage(),
-                'error_code' => $e->getErrorCode(),
-                'context' => $e->getContext(),
-            ], 403);
-
-        } catch (SubscriptionNotFoundException $e) {
-            // [DOMAIN LAYER]: Handle missing subscription
-            return response()->json([
-                'message' => $e->getMessage(),
-                'error_code' => $e->getErrorCode(),
-            ], 404);
-
+            $this->service->pauseSubscription($sub, $validated['months']);
+            return response()->json(['message' => "Subscription paused for {$validated['months']} months."]);
         } catch (\Exception $e) {
-            // Catch validation or other errors from service layer
-            Log::error('Subscription pause failed', [
-                'user_id' => $user->id,
-                'pause_months' => $pauseMonths,
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'message' => $e->getMessage(),
-            ], 400);
+            return response()->json(['message' => $e->getMessage()], 400);
         }
     }
 
@@ -290,61 +259,41 @@ class SubscriptionController extends Controller
         }
     }
 
-    /**
-     * Cancel Subscription
-     *
-     * [DOMAIN LAYER REFACTOR]: Now uses UserAggregateService
-     * - No direct status checks (no whereIn(['active','paused','pending']))
-     * - Compliance enforced via assertCan()
-     * - Controller doesn't know about subscription states
-     */
     public function cancel(Request $request)
     {
         $validated = $request->validate([
             'reason' => 'required|string|max:255',
+            'subscription_id' => 'sometimes|exists:subscriptions,id' // Optional
         ]);
 
         $user = $request->user();
-        $reason = $validated['reason'];
+
+        // V-FIX-PENDING-SUBSCRIPTION: Allow cancellation of pending subscriptions (user can back out before payment)
+        // Find user's active, paused, or pending subscription
+        $query = Subscription::where('user_id', $user->id)
+            ->whereIn('status', ['active', 'paused', 'pending']);
+
+        if (isset($validated['subscription_id'])) {
+            $query->where('id', $validated['subscription_id']);
+        }
+
+        $sub = $query->latest()->first();
+
+        if (!$sub) {
+            return response()->json(['message' => 'No subscription found to cancel.'], 404);
+        }
 
         try {
-            // [DOMAIN LAYER]: Use aggregate service for domain operation
-            $updatedAggregate = $this->userAggregateService->cancelSubscription(
-                $user->id,
-                $reason
-            );
-
-            return response()->json([
-                'message' => 'Subscription cancelled successfully.',
-                'subscription' => $updatedAggregate->subscription,
-            ]);
-
-        } catch (IneligibleActionException $e) {
-            // [DOMAIN LAYER]: Convert domain exception to HTTP response
-            return response()->json([
-                'message' => $e->getMessage(),
-                'error_code' => $e->getErrorCode(),
-                'context' => $e->getContext(),
-            ], 403);
-
-        } catch (SubscriptionNotFoundException $e) {
-            // [DOMAIN LAYER]: Handle missing subscription
-            return response()->json([
-                'message' => $e->getMessage(),
-                'error_code' => $e->getErrorCode(),
-            ], 404);
-
+            $refundAmount = $this->service->cancelSubscription($sub, $validated['reason']);
+            
+            $message = 'Subscription cancelled.';
+            if ($refundAmount > 0) {
+                $message .= " A pro-rata refund of ₹{$refundAmount} has been credited to your wallet.";
+            }
+            
+            return response()->json(['message' => $message]);
         } catch (\Exception $e) {
-            // Catch any other unexpected errors
-            Log::error('Subscription cancellation failed', [
-                'user_id' => $user->id,
-                'reason' => $reason,
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'message' => 'Failed to cancel subscription. Please try again.',
-            ], 400);
+            return response()->json(['message' => $e->getMessage()], 400);
         }
     }
 
