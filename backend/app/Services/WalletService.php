@@ -109,10 +109,12 @@ class WalletService
      */
     private function enforceComplianceGate(User $user, TransactionType $type): void
     {
+        // V-FIX-WALLET-NOT-REFLECTING: Fix non-existent enum values
+        // PAYMENT_RECEIVED and WALLET_DEPOSIT don't exist in TransactionType enum
+        // Correct value is DEPOSIT for external cash ingress
         // Only enforce for external cash ingress (not internal operations like bonuses, refunds)
         $externalCashTypes = [
-            TransactionType::PAYMENT_RECEIVED->value,
-            TransactionType::WALLET_DEPOSIT->value,
+            TransactionType::DEPOSIT->value,  // V-FIX: Use DEPOSIT (actual enum value)
         ];
 
         if (!in_array($type->value, $externalCashTypes)) {

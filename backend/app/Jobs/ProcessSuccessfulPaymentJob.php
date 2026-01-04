@@ -8,6 +8,7 @@ use App\Services\BonusCalculatorService;
 use App\Services\AllocationService;
 use App\Services\ReferralService;
 use App\Services\WalletService; // <-- IMPORT
+use App\Enums\TransactionType; // V-FIX: Import TransactionType enum
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -74,10 +75,12 @@ class ProcessSuccessfulPaymentJob implements ShouldQueue
                 $user = $this->payment->user;
 
                 // 1. Credit Payment Amount to Wallet
+                // V-FIX-WALLET-NOT-REFLECTING: Use TransactionType::DEPOSIT enum (not 'payment_received' string)
+                // 'payment_received' doesn't exist in TransactionType enum - correct value is DEPOSIT
                 $walletService->deposit(
                     $user,
                     $this->payment->amount,
-                    'payment_received',
+                    TransactionType::DEPOSIT,  // V-FIX: Use enum, not string
                     "Payment received for SIP installment #{$this->payment->id}",
                     $this->payment
                 );

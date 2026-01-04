@@ -5,6 +5,7 @@ namespace App\Services\Orchestration\Operations;
 use App\Services\Orchestration\Saga\SagaContext;
 use App\Services\WalletService;
 use App\Services\Accounting\AdminLedger;
+use App\Enums\TransactionType; // V-FIX: Import TransactionType enum
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -31,14 +32,16 @@ class CreditUserWalletOperation implements OperationInterface
     public function execute(SagaContext $context): OperationResult
     {
         try {
+            // V-FIX-WALLET-NOT-REFLECTING: Fix deposit() call signature
+            // WalletService::deposit() expects: (User, amount, TransactionType, description, ?Model reference, bool bypassCheck)
+            // Previous call was passing wrong parameter types
             // Credit wallet (atomic operation)
             $transaction = $this->walletService->deposit(
                 $this->user,
                 $this->amount,
-                'payment_received',
+                TransactionType::DEPOSIT,  // V-FIX: Use enum instead of 'payment_received' string
                 "Payment #{$this->payment->id} received",
-                'payment',
-                $this->payment->id
+                $this->payment  // V-FIX: Pass Payment model (not string 'payment' and id separately)
             );
 
             // Store transaction ID for potential compensation
