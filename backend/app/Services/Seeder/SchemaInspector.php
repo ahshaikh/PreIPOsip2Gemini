@@ -34,7 +34,98 @@ final class SchemaInspector
      */
     private const AUTO_GENERATED_PATTERNS = [
         '/^uuid$/i',
-        '/_id$/',  // Foreign keys might have defaults or be auto-set
+        // '/_id$/',  // Foreign keys might have defaults or be auto-set
+    ];
+
+    /**
+     * Tables that must NEVER be validated against seeders.
+     *
+     * These tables are:
+     * - Runtime-generated
+     * - Event-driven
+     * - Audit / log / queue based
+     * - System-internal
+     *
+     * They are NOT part of initial data contracts.
+     */
+    protected array $ignoredTables = [
+
+        // ─────────────────────────────────────────
+        // Audit & Logging (runtime only)
+        // ─────────────────────────────────────────
+        'activity_logs',
+        'audit_logs',
+        'admin_action_audit',
+        'benefit_audit_log',
+        'legal_agreement_audit_trail',
+        'ticket_agent_activity',
+
+        // ─────────────────────────────────────────
+        // Messaging & Communication Logs
+        // ─────────────────────────────────────────
+        'email_logs',
+        'sms_logs',
+        'push_logs',
+        'webhook_logs',
+        'outbound_message_queue',
+        'unified_inbox_messages',
+
+        // ─────────────────────────────────────────
+        // Background Jobs / Queues / Sagas
+        // ─────────────────────────────────────────
+        'jobs',
+        'job_batches',
+        'job_executions',
+        'job_state_tracking',
+        'saga_executions',
+        'saga_steps',
+
+        // ─────────────────────────────────────────
+        // System Monitoring & Alerts
+        // ─────────────────────────────────────────
+        'error_logs',
+        'reconciliation_alerts',
+        'stuck_state_alerts',
+        'system_health_checks',
+        'system_health_metrics',
+
+        // ─────────────────────────────────────────
+        // Cache / Ephemeral System Tables
+        // ─────────────────────────────────────────
+        'cache',
+        'cache_locks',
+
+        // ─────────────────────────────────────────
+        // Runtime User Interaction Traces
+        // ─────────────────────────────────────────
+        'live_chat_messages',
+        'live_chat_sessions',
+        'chat_typing_indicators',
+        'user_help_interactions',
+
+        // ─────────────────────────────────────────
+        // OTP / Security / Device Runtime Data
+        // ─────────────────────────────────────────
+        'otps',
+        'user_devices',
+        'ip_whitelist',
+
+        // ─────────────────────────────────────────
+        // Reporting Runtime Outputs
+        // ─────────────────────────────────────────
+        'report_runs',
+        'generated_reports',
+        'scheduled_reports',
+        'scheduled_tasks',
+        'performance_metrics',
+        'data_export_jobs',
+
+        // ─────────────────────────────────────────
+        // Laravel / Framework Internals
+        // ─────────────────────────────────────────
+        'failed_jobs',
+        'password_reset_tokens',
+        'personal_access_tokens',
     ];
 
     /**
@@ -100,7 +191,7 @@ final class SchemaInspector
     }
 
     /**
-     * Group columns by table and filter auto-managed columns
+     * Group columns by table and filter auto-managed/ignored tables
      *
      * @param array<object> $columns Raw column data from INFORMATION_SCHEMA
      * @return array<string, array<string>>
@@ -120,6 +211,11 @@ final class SchemaInspector
 
             // Skip migration metadata tables
             if ($this->isMigrationTable($table)) {
+                continue;
+            }
+
+            // Skip ignored tables
+            if ($this->isIgnoredTable($table)) {
                 continue;
             }
 
@@ -180,7 +276,18 @@ final class SchemaInspector
     }
 
     /**
-     * Get list of all tables in the database (excluding migrations)
+     * Check if table is in the ignored list
+     *
+     * @param string $table Table name
+     * @return bool
+     */
+    private function isIgnoredTable(string $table): bool
+    {
+        return in_array($table, $this->ignoredTables, true);
+    }
+
+    /**
+     * Get list of all tables in the database (excluding migrations and ignored)
      *
      * @return array<string>
      */
@@ -195,7 +302,7 @@ final class SchemaInspector
                 ?? $table->tablename
                 ?? null;
 
-            if ($tableName && !$this->isMigrationTable($tableName)) {
+            if ($tableName && !$this->isMigrationTable($tableName) && !$this->isIgnoredTable($tableName)) {
                 $tableNames[] = $tableName;
             }
         }

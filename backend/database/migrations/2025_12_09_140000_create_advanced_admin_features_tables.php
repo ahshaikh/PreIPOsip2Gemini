@@ -84,26 +84,6 @@ return new class extends Migration
             $table->index(['is_active', 'next_run_at']);
         });
 
-        // Audit Logs (Admin Actions)
-        Schema::create('audit_logs', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('admin_id')->constrained('users')->onDelete('cascade');
-            $table->string('action'); // create, update, delete, approve, reject, etc.
-            $table->string('module'); // users, payments, kyc, settings, etc.
-            $table->string('target_type')->nullable(); // Model class
-            $table->unsignedBigInteger('target_id')->nullable(); // Model ID
-            $table->json('old_values')->nullable(); // Before state
-            $table->json('new_values')->nullable(); // After state
-            $table->text('description')->nullable();
-            $table->string('ip_address')->nullable();
-            $table->text('user_agent')->nullable();
-            $table->timestamps();
-
-            $table->index(['admin_id', 'created_at']);
-            $table->index(['module', 'action']);
-            $table->index(['target_type', 'target_id']);
-        });
-
         // Bulk Import Jobs
         Schema::create('bulk_import_jobs', function (Blueprint $table) {
             $table->id();
@@ -218,7 +198,6 @@ return new class extends Migration
         Schema::dropIfExists('performance_metrics');
         Schema::dropIfExists('data_export_jobs');
         Schema::dropIfExists('bulk_import_jobs');
-        Schema::dropIfExists('audit_logs');
         Schema::dropIfExists('scheduled_tasks');
         Schema::dropIfExists('error_logs');
         Schema::dropIfExists('admin_preferences');

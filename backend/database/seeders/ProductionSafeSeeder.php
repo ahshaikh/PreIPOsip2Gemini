@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
+use App\Models\CompanyUser;
 
 /**
  * PRODUCTION-SAFE SYSTEM-WIDE SEEDER
@@ -61,12 +63,16 @@ class ProductionSafeSeeder extends Seeder
 
     private array $adminUsers = [];
     private array $regularUsers = [];
-    private array $companyUsers = [];
     private array $products = [];
     private array $companies = [];
     private array $plans = [];
     private array $bulkPurchases = [];
     private array $sectors = [];
+
+    /**
+    * @var \Illuminate\Support\Collection<int, \App\Models\CompanyUser>
+    */
+    private Collection $companyUsers;
 
     /**
      * Run the database seeds.
@@ -555,8 +561,11 @@ class ProductionSafeSeeder extends Seeder
     {
         $this->call(CompanyUserSeeder::class);
 
-        // Store for later reference
-        $this->companyUsers = \App\Models\CompanyUser::with('user')->get()->pluck('user')->toArray();
+        // Store CompanyUser models directly (they are authenticatables)
+        // NOTE: CompanyUser is an independent Authenticatable.
+        // It does NOT have a user() relationship.
+   
+        $this->companyUsers = \App\Models\CompanyUser::all();
     }
 
     /**
@@ -567,52 +576,93 @@ class ProductionSafeSeeder extends Seeder
      *
      * INVARIANT: admin_wallet.balance >= SUM(user_wallets.balance + locked)
      */
+        // IMPORTANT:
+        // Wallet model exposes virtual balance fields (₹) for reads,
+        // but ALL seeders must write paise fields explicitly.
+        // Never mass-assign 'balance' or 'locked_balance'.
+
+
     private function seedWallets(): void
     {
-        // Create admin wallet with GENESIS BALANCE
-        $admin = $this->adminUsers[0] ?? \App\Models\User::where('email', 'superadmin@preiposip.com')->first();
+        // Genesis balance: ₹1 Crore = 10,000,000,000 paise
+        $genesisAmountPaise = 10_000_000_000;
 
-        if ($admin) {
-            $adminWallet = \App\Models\Wallet::updateOrCreate(
-                ['user_id' => $admin->id],
-                [
-                    'balance' => 100000000, // ₹1 Crore genesis balance (source of all user credits)
-                    'locked_balance' => 0,
-                ]
-            );
+        $admin = $this->adminUsers[0]
+            ?? \App\Models\User::where('email', 'superadmin@preiposip.com')->first();
 
-            // Create genesis transaction (audit trail)
-            \App\Models\Transaction::firstOrCreate(
-                [
+        if (! $admin) {
+            throw new \RuntimeException('Super admin user not found. Cannot initialize wallets.');
+        }
+
+        DB::transaction(function () use ($admin, $genesisAmountPaise) {
+
+            // ------------------------------------------------------------------
+            // 1️⃣ Create / Lock Admin Wallet (Concurrency Safe)
+            // ------------------------------------------------------------------
+            $adminWallet = \App\Models\Wallet::where('user_id', $admin->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $adminWallet) {
+                $adminWallet = \App\Models\Wallet::create([
+                    'user_id' => $admin->id,
+                    'balance_paise' => $genesisAmountPaise,
+                    'locked_balance_paise' => 0,
+                ]);
+            }
+
+            // ------------------------------------------------------------------
+            // 2️⃣ Create Genesis Transaction (Explicit, Non-Duplicating)
+            // ------------------------------------------------------------------
+            $genesisExists = \App\Models\Transaction::where('wallet_id', $adminWallet->id)
+                ->where('reference_type', 'SystemGenesis')
+                ->exists();
+
+            if (! $genesisExists) {
+                \App\Models\Transaction::create([
+                    'transaction_id' => (string) \Illuminate\Support\Str::uuid(),
                     'user_id' => $admin->id,
                     'wallet_id' => $adminWallet->id,
                     'type' => 'credit',
-                    'reference_type' => 'SystemGenesis',
-                ],
-                [
-                    'transaction_id' => (string) Str::uuid(),
                     'status' => 'completed',
-                    'amount' => 100000000,
-                    'balance_before' => 0,
-                    'balance_after' => 100000000,
-                    'description' => 'Genesis balance - Source of all user credits',
-                    'created_at' => Carbon::now(),
-                ]
-            );
-        }
+                    'reference_type' => 'SystemGenesis',
+                    'amount_paise' => $genesisAmountPaise,
+                    'balance_before_paise' => 0,
+                    'balance_after_paise' => $genesisAmountPaise,
+                    'description' => 'Genesis balance – source of all user credits',
+                    'created_at' => now(),
+                ]);
+            }
+        });
 
-        // Create wallets for all users (starting at 0)
+        // ------------------------------------------------------------------
+        // 3️⃣ Create Wallets for All Other Users (Zero-Balance)
+        // ------------------------------------------------------------------
         foreach (array_merge($this->adminUsers, $this->regularUsers) as $user) {
             if ($user->id === $admin->id) {
-                continue; // Skip admin (already created)
+                continue; // Admin already handled
             }
 
             \App\Models\Wallet::updateOrCreate(
                 ['user_id' => $user->id],
                 [
-                    'balance' => 0, // Users start at 0 (will be credited via payments)
-                    'locked_balance' => 0,
+                    'balance_paise' => 0,
+                    'locked_balance_paise' => 0,
                 ]
+            );
+        }
+
+        // ------------------------------------------------------------------
+        // 4️⃣ Financial Invariant Check (Fail Fast)
+        // ------------------------------------------------------------------
+        $totalUserBalances = \App\Models\Wallet::where('user_id', '!=', $admin->id)
+            ->sum(\Illuminate\Support\Facades\DB::raw(
+                'balance_paise + locked_balance_paise'
+            ));
+
+        if ($totalUserBalances > $genesisAmountPaise) {
+            throw new \RuntimeException(
+                'FINANCIAL INVARIANT VIOLATION: User balances exceed admin genesis balance.'
             );
         }
     }
@@ -722,6 +772,7 @@ class ProductionSafeSeeder extends Seeder
      * INVARIANT: bulk_purchase.value_remaining =
      *            bulk_purchase.total_value_received - SUM(allocations)
      */
+
     private function seedBulkPurchases(): void
     {
         if (empty($this->products) || empty($this->adminUsers)) {
@@ -731,31 +782,50 @@ class ProductionSafeSeeder extends Seeder
         $admin = $this->adminUsers[0];
 
         foreach ($this->products as $product) {
-            // Create 1-2 bulk purchases per product
+
+            // ------------------------------------------------------------------
+            // CRITICAL FIX:
+            // Resolve company ownership from the database, NOT from product array
+            // ------------------------------------------------------------------
+            $productId = $product['id'];
+
+            $companyId = \DB::table('products')
+                ->where('id', $productId)
+                ->value('company_id');
+
+            if (!$companyId) {
+                throw new \RuntimeException(
+                    "Invariant violation: Product {$productId} has no company_id"
+                );
+            }
+
+            // Create 1–2 bulk purchases per product
             for ($i = 0; $i < mt_rand(1, 2); $i++) {
-                $faceValue = mt_rand(1000000, 5000000); // ₹10L to ₹50L
-                $discount = mt_rand(10, 20); // 10-20% discount
-                $extraAllocation = mt_rand(10, 25); // 10-25% extra shares
+
+                $faceValue = mt_rand(1_000_000, 5_000_000);   // ₹10L – ₹50L
+                $discount = mt_rand(10, 20);                 // 10–20%
+                $extraAllocation = mt_rand(10, 25);          // 10–25%
 
                 $actualCost = $faceValue * (1 - $discount / 100);
                 $totalValue = $faceValue * (1 + $extraAllocation / 100);
 
-                // IDEMPOTENT: Use unique natural key (admin_id + product_id + purchase_date)
-                $purchaseDate = Carbon::now()->subMonths(mt_rand(1, 12));
+                // IDEMPOTENT natural key
+                $purchaseDate = \Carbon\Carbon::now()->subMonths(mt_rand(1, 12));
 
                 $bulkPurchase = \App\Models\BulkPurchase::firstOrCreate(
                     [
-                        'product_id' => $product['id'],
-                        'admin_id' => $admin->id,
-                        'purchase_date' => $purchaseDate->format('Y-m-d'),
+                        'company_id'   => $companyId,
+                        'product_id'   => $productId,
+                        'admin_id'     => $admin->id,
+                        'purchase_date'=> $purchaseDate->format('Y-m-d'),
                     ],
                     [
-                        'face_value_purchased' => $faceValue,
-                        'actual_cost_paid' => $actualCost,
-                        'discount_percentage' => $discount,
-                        'extra_allocation_percentage' => $extraAllocation,
-                        'total_value_received' => $totalValue,
-                        'value_remaining' => $totalValue, // Will be reduced as allocations are made
+                        'face_value_purchased'       => $faceValue,
+                        'actual_cost_paid'           => $actualCost,
+                        'discount_percentage'        => $discount,
+                        'extra_allocation_percentage'=> $extraAllocation,
+                        'total_value_received'       => $totalValue,
+                        'value_remaining'            => $totalValue,
                     ]
                 );
 

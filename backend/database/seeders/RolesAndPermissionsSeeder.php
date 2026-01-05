@@ -1,5 +1,9 @@
 <?php
 // V-PHASE1-1730-023
+// NOTE:
+// All system roles MUST be declared here.
+// User seeders may NOT invent roles.
+// Missing roles must be added to this seeder first.
 
 namespace Database\Seeders;
 
@@ -15,8 +19,20 @@ class RolesAndPermissionsSeeder extends Seeder
         // Reset cached roles and permissions
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // Define roles
-        $roles = ['super-admin', 'admin', 'support', 'finance', 'user'];
+        // ======================================================
+        // 1. Declare canonical system roles
+        // ======================================================
+        $roles = [
+            'super-admin',       // Full system control
+            'admin',             // Operational admin
+            'kyc-officer',       // KYC & compliance review
+            'finance-manager',   // Finance approvals & reconciliation
+            'finance',           // Finance execution
+            'support',           // Customer support
+            'company',           // Issuer-side role
+            'user',              // End user / investor
+        ];
+
         $roleInstances = [];
 
         foreach ($roles as $roleName) {
@@ -26,7 +42,18 @@ class RolesAndPermissionsSeeder extends Seeder
             ]);
         }
 
-        // Define permissions
+        // ======================================================
+        // 2. Sanity check (post-creation)
+        // ======================================================
+        foreach ($roles as $role) {
+            if (!Role::where('name', $role)->where('guard_name', 'web')->exists()) {
+                throw new \RuntimeException("Required role missing after creation: {$role}");
+            }
+        }
+
+        // ======================================================
+        // 3. Declare permissions
+        // ======================================================
         $permissions = [
             'access admin panel',
             'manage users',
@@ -41,11 +68,28 @@ class RolesAndPermissionsSeeder extends Seeder
             ]);
         }
 
-        // Assign permissions to roles
+        // ======================================================
+        // 4. Assign permissions per role
+        // ======================================================
         $roleInstances['admin']->givePermissionTo([
             'access admin panel',
             'manage users',
             'manage kyc',
+            'manage plans',
+        ]);
+
+        $roleInstances['kyc-officer']->givePermissionTo([
+            'access admin panel',
+            'manage kyc',
+        ]);
+
+        $roleInstances['finance-manager']->givePermissionTo([
+            'access admin panel',
+            'manage plans',
+        ]);
+
+        $roleInstances['finance']->givePermissionTo([
+            'access admin panel',
             'manage plans',
         ]);
 
@@ -55,7 +99,14 @@ class RolesAndPermissionsSeeder extends Seeder
             'manage kyc',
         ]);
 
-        // Super-admin gets all permissions
+        $roleInstances['company']->givePermissionTo([
+            'access admin panel',
+            'manage plans',
+        ]);
+
+        // ======================================================
+        // 5. Super-admin gets everything
+        // ======================================================
         $roleInstances['super-admin']->syncPermissions(Permission::all());
     }
 }

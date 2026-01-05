@@ -19,6 +19,9 @@ use Illuminate\Support\Str;
  */
 final class SeederCodeScanner
 {
+    private const PROVIDES_ANNOTATION_REGEX =
+    '/@seeder-provides:\s*([a-zA-Z0-9_,\s]+)/';
+    
     /**
      * @var array<string, array> Scan results grouped by table
      */
@@ -39,6 +42,8 @@ final class SeederCodeScanner
      */
     private string $currentMethod = '';
 
+    private array $currentFileLines = [];
+    
     /**
      * Scan all seeder files in the database/seeders directory
      *
@@ -94,6 +99,8 @@ final class SeederCodeScanner
             return;
         }
 
+        $this->currentFileLines = file($filePath, FILE_IGNORE_NEW_LINES) ?: [];
+
         // Extract class name from file
         $this->currentClass = $this->extractClassName($content);
 
@@ -104,13 +111,10 @@ final class SeederCodeScanner
         // Parse tokens
         $tokens = @token_get_all($content);
 
-        if (!$tokens) {
-            return;
+        if ($tokens) {
+            $this->parseTokens($tokens);
         }
-
-        $this->parseTokens($tokens);
     }
-
     /**
      * Extract class name from file content
      *
@@ -119,9 +123,6 @@ final class SeederCodeScanner
      */
     private function extractClassName(string $content): ?string
     {
-        if (preg_match('/class\s+(\w+)\s+extends\s+Seeder/i', $content, $matches)) {
-            return $matches[1];
-        }
 
         if (preg_match('/class\s+(\w+)/i', $content, $matches)) {
             return $matches[1];
@@ -137,27 +138,17 @@ final class SeederCodeScanner
      */
     private function parseTokens(array $tokens): void
     {
-        $tokenCount = count($tokens);
-
-        for ($i = 0; $i < $tokenCount; $i++) {
-            $token = $tokens[$i];
-
-            // Track current method
-            if ($this->isToken($token, T_FUNCTION)) {
+        for ($i = 0; $i < count($tokens); $i++) {
+            if ($this->isToken($tokens[$i], T_FUNCTION)) {
                 $this->currentMethod = $this->extractMethodName($tokens, $i);
             }
 
-            // Detect Model::create([ patterns
-            if ($this->isStaticCreate($tokens, $i)) {
+            if ($this->isStaticFirstOrCreate($tokens, $i)) {
+                $this->handleModelFirstOrCreate($tokens, $i);
+            } elseif ($this->isStaticCreate($tokens, $i)) {
                 $this->handleModelCreate($tokens, $i);
             }
 
-            // Detect Model::firstOrCreate([ patterns
-            if ($this->isStaticFirstOrCreate($tokens, $i)) {
-                $this->handleModelFirstOrCreate($tokens, $i);
-            }
-
-            // Detect DB::table('name')->insert([ patterns
             if ($this->isDbTableInsert($tokens, $i)) {
                 $this->handleDbTableInsert($tokens, $i);
             }
@@ -255,19 +246,38 @@ final class SeederCodeScanner
      * @param array $tokens Token array
      * @param int $index Current index (at Model name)
      */
+
     private function handleModelCreate(array $tokens, int $index): void
     {
         $modelName = $this->getTokenValue($tokens[$index]);
         $tableName = $this->modelToTable($modelName);
 
-        $arrayStart = $this->findNextToken($tokens, $index, '[');
-        if ($arrayStart === null) {
-            return;
+        $arrayStart = $this->findNextToken($tokens, $index, '(');
+        $arrayStart = $arrayStart !== null
+            ? $this->findNextToken($tokens, $arrayStart, '[')
+            : null;
+
+        $lineNumber = $this->getLineNumber($tokens[$index]);
+        $columns = [];
+
+        // Case 1: Static array payload → existing behavior
+        if ($arrayStart !== null) {
+            $columns = $this->extractArrayKeys($tokens, $arrayStart);
         }
 
-        $columns = $this->extractArrayKeys($tokens, $arrayStart);
-        $codeSnippet = $this->extractCodeSnippet($tokens, $index, $arrayStart + 50);
-        $lineNumber = $this->getLineNumber($tokens[$index]);
+        // Case 2: Dynamic payload → try @seeder-provides annotation
+        if (empty($columns) && $lineNumber !== null) {
+            $annotated = $this->extractProvidedColumnsFromAnnotation($lineNumber);
+            if ($annotated !== null) {
+                $columns = $annotated;
+            }
+        }
+
+        $codeSnippet = $this->extractCodeSnippet(
+            $tokens,
+            $index,
+            $arrayStart !== null ? $arrayStart + 50 : $index + 40
+        );
 
         $this->recordScan($tableName, $columns, $codeSnippet, $lineNumber);
     }
@@ -417,6 +427,31 @@ final class SeederCodeScanner
         }
 
         return array_unique($keys);
+    }
+
+        /**
+         * Extract provided columns from @seeder-provides annotation
+         *
+         * Looks up to 5 lines above the create() call.
+         *
+         * @param int $lineNumber Line number of create() call
+         * @return array<string>|null
+         */
+
+    private function extractProvidedColumnsFromAnnotation(int $lineNumber): ?array
+    {
+        $start = max(0, $lineNumber - 6);
+        $lines = array_slice($this->currentFileLines, $start, 5);
+
+        foreach ($lines as $line) {
+            if (preg_match(self::PROVIDES_ANNOTATION_REGEX, $line, $matches)) {
+                return array_map(
+                    'trim',
+                    explode(',', $matches[1])
+                );
+            }
+        }
+        return null;
     }
 
     /**

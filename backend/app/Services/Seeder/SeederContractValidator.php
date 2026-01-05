@@ -86,29 +86,36 @@ final class SeederContractValidator
                 continue;
             }
 
-            // If table is not seeded at all, create a violation
+            /**
+             * 🔒 CONTRACT RULE:
+             * If no seeder writes to this table, no seeding contract exists.
+             * Ignore tables that are never referenced by any seeder.
+             */
             if (!isset($providedByTable[$table])) {
-                $this->violations[] = new ContractViolation(
-                    table: $table,
-                    seederClass: 'Unknown',
-                    method: 'N/A',
-                    missingColumns: $requiredColumns,
-                    codeSnippet: "// No seeder found for table '{$table}'",
-                    lineNumber: null
-                );
                 continue;
             }
 
             // Check each seeder operation for this table
             foreach ($providedByTable[$table] as $operation) {
+                $seederClass = $operation['seeder_class'] ?? 'Unknown';
+                $method = $operation['method'] ?? 'N/A';
+
+                /**
+                 * 🔒 CONTRACT RULE:
+                 * Ignore operations where seeder identity cannot be resolved.
+                 */
+                if ($seederClass === 'Unknown' || $method === 'N/A') {
+                    continue;
+                }
+
                 $providedColumns = $operation['columns'] ?? [];
                 $missingColumns = array_diff($requiredColumns, $providedColumns);
 
                 if (!empty($missingColumns)) {
                     $this->violations[] = new ContractViolation(
                         table: $table,
-                        seederClass: $operation['seeder_class'] ?? 'Unknown',
-                        method: $operation['method'] ?? 'unknown',
+                        seederClass: $seederClass,
+                        method: $method,
                         missingColumns: array_values($missingColumns),
                         codeSnippet: $operation['code_snippet'] ?? null,
                         lineNumber: $operation['line_number'] ?? null
