@@ -45,12 +45,42 @@ final class SchemaInspector
      */
     public function getRequiredColumnsByTable(): array
     {
-        $database = config('database.connections.mysql.database');
+        $driver = config('database.default');
+        $connection = config("database.connections.{$driver}");
+        $database = $connection['database'] ?? null;
 
         if (!$database) {
             throw new \RuntimeException('Database name not configured');
         }
 
+        try {
+            if ($driver === 'mysql') {
+                $columns = $this->getRequiredColumnsMySQL($database);
+            } elseif ($driver === 'pgsql') {
+                $columns = $this->getRequiredColumnsPostgreSQL($database);
+            } else {
+                // Fallback for other databases
+                $columns = $this->getRequiredColumnsGeneric($database);
+            }
+        } catch (\Exception $e) {
+            throw new \RuntimeException(
+                "Failed to query INFORMATION_SCHEMA: {$e->getMessage()}",
+                0,
+                $e
+            );
+        }
+
+        return $this->groupByTable($columns);
+    }
+
+    /**
+     * Get required columns for MySQL
+     *
+     * @param string $database Database name
+     * @return array Raw column data
+     */
+    private function getRequiredColumnsMySQL(string $database): array
+    {
         $query = <<<SQL
             SELECT
                 TABLE_NAME,
@@ -69,17 +99,84 @@ final class SchemaInspector
                 TABLE_NAME, ORDINAL_POSITION
         SQL;
 
-        try {
-            $columns = DB::select($query, [$database]);
-        } catch (\Exception $e) {
-            throw new \RuntimeException(
-                "Failed to query INFORMATION_SCHEMA: {$e->getMessage()}",
-                0,
-                $e
-            );
-        }
+        return DB::select($query, [$database]);
+    }
 
-        return $this->groupByTable($columns);
+    /**
+     * Get required columns for PostgreSQL
+     *
+     * @param string $database Database name
+     * @return array Raw column data
+     */
+    private function getRequiredColumnsPostgreSQL(string $database): array
+    {
+        $query = <<<SQL
+            SELECT
+                c.TABLE_NAME,
+                c.COLUMN_NAME,
+                c.IS_NULLABLE,
+                c.COLUMN_DEFAULT,
+                CASE
+                    WHEN tc.constraint_type = 'PRIMARY KEY' THEN 'PRI'
+                    ELSE ''
+                END as COLUMN_KEY,
+                CASE
+                    WHEN c.column_default LIKE 'nextval%' THEN 'auto_increment'
+                    ELSE ''
+                END as EXTRA
+            FROM
+                INFORMATION_SCHEMA.COLUMNS c
+            LEFT JOIN
+                information_schema.key_column_usage kcu
+                ON c.table_name = kcu.table_name
+                AND c.column_name = kcu.column_name
+                AND c.table_schema = kcu.table_schema
+            LEFT JOIN
+                information_schema.table_constraints tc
+                ON kcu.constraint_name = tc.constraint_name
+                AND kcu.table_schema = tc.table_schema
+            WHERE
+                c.TABLE_SCHEMA = 'public'
+                AND c.IS_NULLABLE = 'NO'
+                AND c.COLUMN_DEFAULT IS NULL
+            ORDER BY
+                c.TABLE_NAME, c.ORDINAL_POSITION
+        SQL;
+
+        return DB::select($query);
+    }
+
+    /**
+     * Get required columns for generic databases
+     *
+     * @param string $database Database name
+     * @return array Raw column data
+     */
+    private function getRequiredColumnsGeneric(string $database): array
+    {
+        $query = <<<SQL
+            SELECT
+                TABLE_NAME,
+                COLUMN_NAME,
+                IS_NULLABLE,
+                COLUMN_DEFAULT
+            FROM
+                INFORMATION_SCHEMA.COLUMNS
+            WHERE
+                IS_NULLABLE = 'NO'
+                AND COLUMN_DEFAULT IS NULL
+            ORDER BY
+                TABLE_NAME, ORDINAL_POSITION
+        SQL;
+
+        $columns = DB::select($query);
+
+        // Add empty COLUMN_KEY and EXTRA for consistency
+        return array_map(function ($col) {
+            $col->COLUMN_KEY = '';
+            $col->EXTRA = '';
+            return $col;
+        }, $columns);
     }
 
     /**
@@ -110,8 +207,13 @@ final class SchemaInspector
         $grouped = [];
 
         foreach ($columns as $column) {
-            $table = $column->TABLE_NAME;
-            $columnName = $column->COLUMN_NAME;
+            // Handle both uppercase (MySQL) and lowercase (PostgreSQL) property names
+            $table = $column->TABLE_NAME ?? $column->table_name ?? null;
+            $columnName = $column->COLUMN_NAME ?? $column->column_name ?? null;
+
+            if (!$table || !$columnName) {
+                continue;
+            }
 
             // Skip auto-managed columns
             if ($this->isAutoManaged($column)) {
@@ -134,14 +236,17 @@ final class SchemaInspector
     }
 
     /**
-     * Determine if a column is auto-managed by Laravel/MySQL
+     * Determine if a column is auto-managed by Laravel/MySQL/PostgreSQL
      *
      * @param object $column Column metadata from INFORMATION_SCHEMA
      * @return bool
      */
     private function isAutoManaged(object $column): bool
     {
-        $columnName = $column->COLUMN_NAME;
+        // Handle both uppercase (MySQL) and lowercase (PostgreSQL) property names
+        $columnName = $column->COLUMN_NAME ?? $column->column_name ?? '';
+        $columnKey = $column->COLUMN_KEY ?? $column->column_key ?? '';
+        $extra = $column->EXTRA ?? $column->extra ?? '';
 
         // Check explicit auto-managed list
         if (in_array($columnName, self::AUTO_MANAGED_COLUMNS, true)) {
@@ -156,7 +261,7 @@ final class SchemaInspector
         }
 
         // Check if it's an auto-increment primary key
-        if ($column->COLUMN_KEY === 'PRI' && str_contains($column->EXTRA, 'auto_increment')) {
+        if ($columnKey === 'PRI' && str_contains($extra, 'auto_increment')) {
             return true;
         }
 
