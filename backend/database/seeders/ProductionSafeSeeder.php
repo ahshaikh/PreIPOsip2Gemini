@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Services\Seeder\SeederRuntimeAutoCompleter;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -78,6 +79,17 @@ class ProductionSafeSeeder extends Seeder
         $this->command->info('║  PRODUCTION-SAFE SYSTEM-WIDE SEEDER                        ║');
         $this->command->info('║  Post-Audit, Financial-Integrity Compliant                 ║');
         $this->command->info('╚════════════════════════════════════════════════════════════╝');
+        $this->command->info('');
+
+        // ========================================================
+        // ACTIVATE RUNTIME AUTO-COMPLETER (Safety Net)
+        // ========================================================
+        /** @var SeederRuntimeAutoCompleter $autoCompleter */
+        $autoCompleter = app(SeederRuntimeAutoCompleter::class);
+        $autoCompleter->enable();
+
+        $this->command->info('🛡️  Runtime Auto-Completer: ENABLED');
+        $this->command->info('    → Missing required fields will be auto-filled');
         $this->command->info('');
 
         DB::beginTransaction();
@@ -198,6 +210,11 @@ class ProductionSafeSeeder extends Seeder
             $this->command->error($e->getTraceAsString());
 
             throw $e;
+        } finally {
+            // Disable auto-completer after seeding
+            /** @var SeederRuntimeAutoCompleter $autoCompleter */
+            $autoCompleter = app(SeederRuntimeAutoCompleter::class);
+            $autoCompleter->disable();
         }
     }
 

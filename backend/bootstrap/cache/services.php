@@ -40,6 +40,7 @@
     36 => 'Spatie\\Permission\\PermissionServiceProvider',
     37 => 'App\\Providers\\AppServiceProvider',
     38 => 'App\\Providers\\DatabaseQueryMonitoringServiceProvider',
+    39 => 'App\\Providers\\SeederAutoCompleterServiceProvider',
   ),
   'eager' => 
   array (
@@ -66,6 +67,7 @@
     20 => 'Spatie\\Permission\\PermissionServiceProvider',
     21 => 'App\\Providers\\AppServiceProvider',
     22 => 'App\\Providers\\DatabaseQueryMonitoringServiceProvider',
+    23 => 'App\\Providers\\SeederAutoCompleterServiceProvider',
   ),
   'deferred' => 
   array (
