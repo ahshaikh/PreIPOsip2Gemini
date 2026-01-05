@@ -1,220 +1,173 @@
-# Comprehensive Faker Database Seeder
+# Comprehensive Database Seeder - PreIPOsip Platform (Post-Audit)
 
-This comprehensive seeder creates realistic test data for the entire PreIPO SIP application, covering all three user classes: **Public**, **User**, and **Admin**.
+## Overview
 
-## Features
+This directory contains a **zero-error, production-safe, post-audit** comprehensive seeder system for the PreIPOsip platform. The seeder is designed to populate the database with all foundational data required for end-to-end testing and production deployment.
 
-### User Classes
+## Documentation
 
-1. **Admin Users (3 users)**
-   - Super admin with all permissions
-   - 2 additional admin users
-   - Complete profiles with verified KYC
-   - Email: `admin@preipo.com` / `admin1@preipo.com` / `admin2@preipo.com`
-   - Password: `password`
+📖 **Complete Specification:** See `/backend/database/SEEDER_SPECIFICATION.md` for detailed table-by-table documentation.
 
-2. **Regular Users (50 users)**
-   - Active, verified accounts
-   - Complete profiles with addresses
-   - Mixed KYC statuses (verified, submitted, pending, rejected)
-   - Email pattern: `user1@example.com` to `user50@example.com`
-   - Password: `password`
+## Seeder Architecture
 
-3. **Public/Pending Users (20 users)**
-   - Unverified accounts
-   - Incomplete registration
-   - Pending KYC status
-   - Email pattern: `guest1@example.com` to `guest20@example.com`
-   - Password: `password`
+### Main Orchestrator
+- **`ComprehensiveSystemSeeder.php`** - Main entry point, orchestrates all phase seeders
 
-### Data Coverage
+### Phase Seeders
+1. **`FoundationSeeder.php`** (Phase 1)
+   - Settings (60+ configurations)
+   - Permissions & Roles (Spatie)
+   - Sectors (15 industry sectors)
+   - Feature Flags (20+ toggles)
+   - KYC Rejection Templates
+   - Legal Agreements
 
-#### Products (15 products)
-- Complete product information
-- 3-5 highlights per product
-- 2-4 founders per product
-- 2-5 funding rounds per product
-- 4-8 key metrics per product
-- 3-6 risk disclosures per product
-- 10-30 price history entries per product
+2. **`IdentityAccessSeeder.php`** (Phase 2)
+   - Admin Users (3)
+   - Test Users (5)
+   - Company Representatives (2)
+   - User Profiles
+   - User KYC Records
+   - Wallets (with test balances)
+   - Admin Ledger Genesis (₹10,00,000)
+   - User Settings
 
-#### Plans & Subscriptions
-- 5 subscription plans with features and configs
-- 100 subscriptions across users
-- Multiple payments per subscription (1-12 payments)
-- Various payment statuses
+3. **`CompaniesProductsSeeder.php`** (Phase 3)
+   - Companies (5 with sector mapping)
+   - Products (Pre-IPO shares)
+   - Product Details (highlights, founders, metrics, risks)
+   - Bulk Purchases (initial inventory)
+   - Company Share Listings
 
-#### Financial System
-- Wallets for all users with balances
-- 5-15 transactions per wallet
-- 20 withdrawal requests
-- 150+ user investments
-- Bulk purchases linked to products
+4. **`InvestmentPlansSeeder.php`** (Phase 4)
+   - Investment Plans (Plan A, B, C)
+   - Plan Features
+   - Plan Configurations (bonus rates, etc.)
+   - Plan-Product Eligibility Mappings
+   - Navigation Menus
+   - Static Pages
 
-#### Support System
-- 40 support tickets
-- 1-8 messages per ticket
-- Assigned to admin users
-- Various ticket statuses
+5. **`CommunicationCampaignsSeeder.php`** (Phase 5 & 6)
+   - Email Templates (10+)
+   - SMS Templates (5+)
+   - Canned Responses (Support)
+   - KB Categories
+   - Referral Campaigns (2)
+   - Promotional Campaigns (3)
+   - Lucky Draws (1)
 
-#### Content Management
-- 15 CMS pages
-- 25 blog posts
-- 3 menus with 5-10 items each
-- 5 active banners
-- Knowledge base with 5 categories and 3-8 articles each
-
-#### Other Data
-- Bonus transactions
-- Referral campaigns and referrals
-- 10 URL redirects
-- 200+ activity logs
-- 100+ notifications
+6. **`UserInvestmentsSeeder.php`** (Phase 7 - OPTIONAL)
+   - Test Subscriptions
+   - Test Payments
+   - Test Investments
+   - Share Allocations
+   - Wallet Transactions
+   - Bonus Transactions
+   - Referrals
+   - **⚠️ Only runs in local/testing/development environments**
 
 ## Usage
 
-### Run the Comprehensive Seeder
-
+### Run Complete Seeder
 ```bash
-cd backend
-php artisan db:seed --class=ComprehensiveFakerSeeder
+# Run all phases (skips UserInvestmentsSeeder in production)
+php artisan db:seed --class=ComprehensiveSystemSeeder
 ```
 
-### Run with Fresh Migration
-
+### Run Individual Phase Seeders
 ```bash
-cd backend
-php artisan migrate:fresh --seed --seeder=ComprehensiveFakerSeeder
+# Phase 1: Foundation
+php artisan db:seed --class=FoundationSeeder
+
+# Phase 2: Identity & Access
+php artisan db:seed --class=IdentityAccessSeeder
+
+# Phase 3: Companies & Products
+php artisan db:seed --class=CompaniesProductsSeeder
+
+# Phase 4: Investment Plans
+php artisan db:seed --class=InvestmentPlansSeeder
+
+# Phase 5 & 6: Communication & Campaigns
+php artisan db:seed --class=CommunicationCampaignsSeeder
+
+# Phase 7: User Investments (TEST DATA ONLY)
+php artisan db:seed --class=UserInvestmentsSeeder
 ```
 
-### Run Specific Seeders
-
-Individual seeders are still available:
+### Fresh Database with Seeder
 ```bash
-php artisan db:seed --class=UserSeeder
-php artisan db:seed --class=ProductSeeder
-php artisan db:seed --class=PlanSeed
+# WARNING: This will drop all tables and reseed
+php artisan migrate:fresh --seed --seeder=ComprehensiveSystemSeeder
 ```
 
-## Test Credentials
+## Seeded Data Summary
 
-### Admin Access
-- **Email:** `admin@preipo.com`
-- **Password:** `password`
-- **Role:** Super Admin
+### Users Created
+- **Admin Users (3):**
+  - `admin@preiposip.com` - Super Admin
+  - `support@preiposip.com` - Support Manager
+  - `kyc@preiposip.com` - KYC Reviewer
 
-### Regular User Access
-- **Email:** `user1@example.com` (or user2, user3, etc.)
-- **Password:** `password`
-- **Role:** User
+- **Test Users (5):**
+  - `user1@test.com` - Wallet: ₹50,000
+  - `user2@test.com` - Wallet: ₹1,00,000
+  - `user3@test.com` - Wallet: ₹25,000
+  - `user4@test.com` - Wallet: ₹0 (referred by User 1)
+  - `user5@test.com` - Wallet: ₹0 (referred by User 2)
 
-### Public User Access
-- **Email:** `guest1@example.com` (or guest2, guest3, etc.)
-- **Password:** `password`
-- **Role:** None (Pending)
+- **Company Representatives (2):**
+  - `company1@example.com`
+  - `company2@example.com`
 
-## Database Requirements
+### Default Password
+🔐 **All users:** `password`
 
-Ensure all migrations are run before seeding:
+⚠️ **IMPORTANT:** Change these passwords in production!
+
+### Companies & Products
+- **5 Companies:**
+  - TechCorp India (Technology)
+  - HealthPlus Solutions (Healthcare)
+  - FinanceHub Technologies (Financial Services)
+  - EduTech Academy (Education)
+  - GreenEnergy Innovations (Energy)
+
+- **Bulk Inventory:**
+  - TechCorp: 10,000 shares @ ₹500
+  - HealthPlus: 5,000 shares @ ₹800
+  - FinanceHub: 8,000 shares @ ₹600
+  - EduTech: 3,000 shares @ ₹1,000
+  - GreenEnergy: 6,000 shares @ ₹750
+
+### Investment Plans
+- **Plan A - Starter:** ₹5,000/month, 0.5% progressive bonus
+- **Plan B - Growth:** ₹10,000/month, 0.75% progressive bonus
+- **Plan C - Premium:** ₹25,000/month, 1.0% progressive bonus
+
+## Safety Features
+
+✅ **Idempotent** - Can be run multiple times without errors
+✅ **Production-Safe** - Never truncates or overwrites existing data
+✅ **Transactional** - All seeders wrapped in DB transactions
+✅ **Foreign Key Safe** - Correct dependency order
+✅ **Constraint Validated** - Respects NOT NULL, UNIQUE, CHECK constraints
+✅ **Financial Integrity** - Wallet conservation, ledger accuracy
+✅ **Environment Aware** - Test data only in local/testing
+
+## Production Deployment
+
+### DO NOT SEED USER DATA IN PRODUCTION
 ```bash
-php artisan migrate
+# Only run foundation data in production
+php artisan db:seed --class=FoundationSeeder
+php artisan db:seed --class=IdentityAccessSeeder  # Create admin users only
+php artisan db:seed --class=CompaniesProductsSeeder
+php artisan db:seed --class=InvestmentPlansSeeder
+php artisan db:seed --class=CommunicationCampaignsSeeder
 ```
 
-## Factories Available
+---
 
-All models have corresponding factories for easy testing:
-
-- `UserFactory` - Creates users with profiles, KYC, and wallets
-- `ProductFactory` - Creates products with all related data
-- `ProductHighlightFactory`
-- `ProductFounderFactory`
-- `ProductFundingRoundFactory`
-- `ProductKeyMetricFactory`
-- `ProductRiskDisclosureFactory`
-- `ProductPriceHistoryFactory`
-- `PlanFactory` - Creates plans with features and configs
-- `PlanFeatureFactory`
-- `PlanConfigFactory`
-- `SubscriptionFactory`
-- `PaymentFactory`
-- `WalletFactory`
-- `TransactionFactory`
-- `WithdrawalFactory`
-- `UserInvestmentFactory`
-- `BulkPurchaseFactory`
-- `BonusTransactionFactory`
-- `ReferralCampaignFactory`
-- `ReferralFactory`
-- `SupportTicketFactory`
-- `SupportMessageFactory`
-- `PageFactory`
-- `BlogPostFactory`
-- `MenuFactory`
-- `MenuItemFactory`
-- `BannerFactory`
-- `KbCategoryFactory`
-- `KbArticleFactory`
-- `RedirectFactory`
-- `ActivityLogFactory`
-- `NotificationFactory`
-- `UserProfileFactory`
-- `UserKycFactory`
-- `KycDocumentFactory`
-
-## Usage in Tests
-
-You can use these factories in your tests:
-
-```php
-use App\Models\User;
-use App\Models\Product;
-
-// Create a verified user
-$user = User::factory()->create();
-
-// Create a featured product
-$product = Product::factory()->featured()->create();
-
-// Create a subscription with payments
-$subscription = Subscription::factory()
-    ->has(Payment::factory()->count(3))
-    ->create();
-```
-
-## Notes
-
-- All passwords are set to `password` for testing
-- KYC documents are simulated with fake file paths
-- Transaction amounts and balances are realistic but random
-- All timestamps are properly set for realistic data flow
-- Referral codes are unique and randomly generated
-- Foreign key relationships are properly maintained
-
-## Development
-
-To add more data, modify the counts in `ComprehensiveFakerSeeder.php`:
-
-```php
-// Example: Increase admin users from 2 to 5
-for ($i = 1; $i <= 5; $i++) {
-    // Create admin...
-}
-```
-
-## Troubleshooting
-
-### Foreign Key Constraints
-If you encounter foreign key errors, ensure:
-1. Migrations are run in correct order
-2. Dependencies are seeded before dependent data
-
-### Unique Constraints
-If you get unique constraint violations:
-1. Run `migrate:fresh` to reset the database
-2. Ensure Faker's `unique()` is properly used
-
-### Memory Issues
-For large datasets, increase PHP memory:
-```bash
-php -d memory_limit=512M artisan db:seed --class=ComprehensiveFakerSeeder
-```
+**Last Updated:** 2026-01-05
+**Version:** 1.0 (Post-Audit)
