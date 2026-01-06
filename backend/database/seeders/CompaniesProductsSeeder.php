@@ -166,7 +166,8 @@ class CompaniesProductsSeeder extends Seeder
             $this->createProductRiskDisclosures($product);
             $this->createProductPriceHistory($product);
             $this->createBulkPurchase($product, $company);
-            $this->createCompanyShareListing($company, $product);
+            // Note: createCompanyShareListing disabled - uses different schema (company-submitted workflow)
+            // $this->createCompanyShareListing($company, $product);
         }
 
         $this->command->info('  ✓ Products and related data seeded');
@@ -379,28 +380,28 @@ class CompaniesProductsSeeder extends Seeder
 
         $config = $inventoryConfig[$company->name];
         $totalQuantity = $config['quantity'];
-        $quantityAllocated = $config['allocated'];
-        $quantityReserved = $totalQuantity - $quantityAllocated;
 
-        $totalCost = $totalQuantity * $product->current_market_price;
-        $discountPercentage = 5.0; // 5% bulk discount
-        $finalCost = $totalCost * (1 - $discountPercentage / 100);
+        // Calculate face value purchased (quantity * face value per unit)
+        $faceValuePurchased = $totalQuantity * $product->face_value_per_unit;
+
+        // Calculate actual cost paid (with 5% bulk discount)
+        $actualCostPaid = $faceValuePurchased * 0.95; // 5% discount
+
+        // Extra allocation (bonus shares) - 10%
+        $extraAllocationPercentage = 10.0;
 
         BulkPurchase::updateOrCreate(
             ['product_id' => $product->id, 'company_id' => $company->id],
             [
                 'admin_id' => $this->adminUser->id,
-                'total_quantity' => $totalQuantity,
-                'quantity_allocated' => $quantityAllocated,
-                'quantity_reserved' => $quantityReserved,
-                'price_per_unit' => $product->current_market_price,
-                'total_cost' => $finalCost,
-                'discount_percentage' => $discountPercentage,
+                'company_id' => $company->id,
+                'face_value_purchased' => $faceValuePurchased,
+                'actual_cost_paid' => $actualCostPaid,
+                'discount_percentage' => 5.0,
+                'extra_allocation_percentage' => $extraAllocationPercentage,
+                'seller_name' => $company->name,
                 'purchase_date' => now()->subMonths(rand(1, 3)),
-                'source_type' => 'direct_company_purchase',
-                'status' => 'active',
-                'approved_by_admin_id' => $this->adminUser->id,
-                'approved_at' => now()->subMonths(rand(1, 3)),
+                'notes' => "Bulk purchase of {$totalQuantity} shares for {$company->name}",
             ]
         );
     }

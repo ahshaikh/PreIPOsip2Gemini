@@ -58,7 +58,6 @@ class IdentityAccessSeeder extends Seeder
     {
         $admins = [
             [
-                'name' => 'Super Admin',
                 'email' => 'admin@preiposip.com',
                 'username' => 'superadmin',
                 'mobile' => '+919876543210',
@@ -70,7 +69,6 @@ class IdentityAccessSeeder extends Seeder
                 'role' => 'Super Admin',
             ],
             [
-                'name' => 'Support Manager',
                 'email' => 'support@preiposip.com',
                 'username' => 'supportmanager',
                 'mobile' => '+919876543211',
@@ -82,7 +80,6 @@ class IdentityAccessSeeder extends Seeder
                 'role' => 'Support Agent',
             ],
             [
-                'name' => 'KYC Reviewer',
                 'email' => 'kyc@preiposip.com',
                 'username' => 'kycreviewer',
                 'mobile' => '+919876543212',
@@ -117,7 +114,6 @@ class IdentityAccessSeeder extends Seeder
     {
         $testUsers = [
             [
-                'name' => 'Test User One',
                 'email' => 'user1@test.com',
                 'username' => 'testuser1',
                 'mobile' => '+919876540001',
@@ -126,10 +122,9 @@ class IdentityAccessSeeder extends Seeder
                 'mobile_verified_at' => now(),
                 'status' => 'active',
                 'referral_code' => 'USER0001',
-                'kyc_status' => 'verified',
+                '_kyc_status' => 'verified', // Temporary marker for KYC seeding
             ],
             [
-                'name' => 'Test User Two',
                 'email' => 'user2@test.com',
                 'username' => 'testuser2',
                 'mobile' => '+919876540002',
@@ -138,10 +133,9 @@ class IdentityAccessSeeder extends Seeder
                 'mobile_verified_at' => now(),
                 'status' => 'active',
                 'referral_code' => 'USER0002',
-                'kyc_status' => 'verified',
+                '_kyc_status' => 'verified',
             ],
             [
-                'name' => 'Test User Three',
                 'email' => 'user3@test.com',
                 'username' => 'testuser3',
                 'mobile' => '+919876540003',
@@ -150,10 +144,9 @@ class IdentityAccessSeeder extends Seeder
                 'mobile_verified_at' => now(),
                 'status' => 'active',
                 'referral_code' => 'USER0003',
-                'kyc_status' => 'verified',
+                '_kyc_status' => 'verified',
             ],
             [
-                'name' => 'Test User Four',
                 'email' => 'user4@test.com',
                 'username' => 'testuser4',
                 'mobile' => '+919876540004',
@@ -163,10 +156,9 @@ class IdentityAccessSeeder extends Seeder
                 'status' => 'active',
                 'referral_code' => 'USER0004',
                 'referred_by' => 'USER0001', // Will be linked after creation
-                'kyc_status' => 'verified',
+                '_kyc_status' => 'verified',
             ],
             [
-                'name' => 'Test User Five',
                 'email' => 'user5@test.com',
                 'username' => 'testuser5',
                 'mobile' => '+919876540005',
@@ -176,10 +168,9 @@ class IdentityAccessSeeder extends Seeder
                 'status' => 'active',
                 'referral_code' => 'USER0005',
                 'referred_by' => 'USER0002', // Will be linked after creation
-                'kyc_status' => 'verified',
+                '_kyc_status' => 'verified',
             ],
             [
-                'name' => 'Company Representative Alpha',
                 'email' => 'company1@example.com',
                 'username' => 'companyrep1',
                 'mobile' => '+919876550001',
@@ -188,10 +179,9 @@ class IdentityAccessSeeder extends Seeder
                 'mobile_verified_at' => now(),
                 'status' => 'active',
                 'referral_code' => 'COMP0001',
-                'kyc_status' => 'pending',
+                '_kyc_status' => 'pending',
             ],
             [
-                'name' => 'Company Representative Beta',
                 'email' => 'company2@example.com',
                 'username' => 'companyrep2',
                 'mobile' => '+919876550002',
@@ -200,13 +190,14 @@ class IdentityAccessSeeder extends Seeder
                 'mobile_verified_at' => now(),
                 'status' => 'active',
                 'referral_code' => 'COMP0002',
-                'kyc_status' => 'pending',
+                '_kyc_status' => 'pending',
             ],
         ];
 
         foreach ($testUsers as $userData) {
             $referredByCode = $userData['referred_by'] ?? null;
-            unset($userData['referred_by']);
+            $kycStatus = $userData['_kyc_status'] ?? 'pending';
+            unset($userData['referred_by'], $userData['_kyc_status']);
 
             $user = User::firstOrCreate(
                 ['email' => $userData['email']],
@@ -214,6 +205,9 @@ class IdentityAccessSeeder extends Seeder
             );
 
             $user->assignRole('User');
+
+            // Store KYC status temporarily for use in seedUserKyc
+            $user->_temp_kyc_status = $kycStatus;
 
             // Link referral after all users are created
             if ($referredByCode) {
@@ -243,14 +237,21 @@ class IdentityAccessSeeder extends Seeder
             // Generate realistic profile data
             $dob = now()->subYears(rand(25, 55))->subDays(rand(1, 365));
 
+            // Extract name from username for profiles
+            $firstName = ucfirst(str_replace(['admin', 'manager', 'reviewer', 'testuser', 'companyrep'], '', $user->username));
+            if (empty($firstName) || is_numeric($firstName)) {
+                $firstName = 'User';
+            }
+            $lastName = 'Seeded';
+
             UserProfile::create([
                 'user_id' => $user->id,
-                'first_name' => explode(' ', $user->name)[0],
-                'last_name' => explode(' ', $user->name)[1] ?? '',
-                'date_of_birth' => $dob,
+                'first_name' => $firstName,
+                'last_name' => $lastName,
+                'dob' => $dob,
                 'gender' => rand(0, 1) ? 'male' : 'female',
-                'address_line1' => rand(1, 999) . ' Test Street',
-                'address_line2' => 'Near Test Landmark',
+                'address_line_1' => rand(1, 999) . ' Test Street',
+                'address_line_2' => 'Near Test Landmark',
                 'city' => collect(['Mumbai', 'Delhi', 'Bangalore', 'Pune', 'Hyderabad'])->random(),
                 'state' => collect(['Maharashtra', 'Delhi', 'Karnataka', 'Telangana'])->random(),
                 'pincode' => '400' . rand(100, 999),
@@ -279,25 +280,20 @@ class IdentityAccessSeeder extends Seeder
             }
 
             $profile = $user->profile;
-            $status = $user->kyc_status ?? 'pending';
+            $status = $user->_temp_kyc_status ?? 'pending';
+
+            // Get first and last name from profile
+            $fullName = ($profile->first_name ?? 'User') . ' ' . ($profile->last_name ?? 'Seeded');
 
             UserKyc::create([
                 'user_id' => $user->id,
                 'pan_number' => 'ABCDE' . rand(1000, 9999) . 'F',
                 'aadhaar_number' => str_repeat(rand(1, 9), 12),
-                'bank_name' => collect(['HDFC Bank', 'ICICI Bank', 'SBI', 'Axis Bank', 'Kotak'])->random(),
-                'bank_branch_name' => 'Test Branch',
-                'bank_account_number' => rand(10000000, 99999999),
-                'bank_ifsc_code' => strtoupper(Str::random(4)) . '0' . rand(100000, 999999),
-                'bank_account_holder_name' => $user->name,
+                'bank_account' => rand(10000000, 99999999),
+                'bank_ifsc' => strtoupper(Str::random(4)) . '0' . rand(100000, 999999),
                 'status' => $status,
                 'submitted_at' => $status !== 'pending' ? now()->subDays(rand(5, 30)) : null,
                 'verified_at' => $status === 'verified' ? now()->subDays(rand(1, 5)) : null,
-                'pan_verified' => $status === 'verified',
-                'aadhaar_verified' => $status === 'verified',
-                'bank_verified' => $status === 'verified',
-                'address_verified' => $status === 'verified',
-                'selfie_verified' => $status === 'verified',
             ]);
         }
 
@@ -312,7 +308,9 @@ class IdentityAccessSeeder extends Seeder
         // Only seed wallets for regular users (verified KYC)
         $users = User::whereHas('roles', function ($query) {
             $query->where('name', 'User');
-        })->where('kyc_status', 'verified')->get();
+        })->whereHas('kyc', function ($query) {
+            $query->where('status', 'verified');
+        })->get();
 
         // Test balances for users (in paise)
         $testBalances = [
