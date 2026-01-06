@@ -1,5 +1,5 @@
 <?php
-// V-DEPLOY-1730-007 (Created) | V-FINAL-1730-418 (Perms Added) | V-FINAL-1730-600 (Test Seeder) | V-SEEDER-ENHANCED
+// V-DEPLOY-1730-007 (Created) | V-FINAL-1730-418 (Perms Added) | V-FINAL-1730-600 (Test Seeder) | V-SEEDER-ENHANCED | V-PHASE2-CAMPAIGNS
 
 namespace Database\Seeders;
 
@@ -53,7 +53,12 @@ class DatabaseSeeder extends Seeder
         $this->call(CmsAndBonusSeeder::class);
         $this->call(ContentManagementSeeder::class);
 
-        // 11. --- "Chaos Seeder" ---
+        // 11. Campaigns & Engagement (NEW - Post-Audit Phase 2)
+        $this->call(ReferralCampaignSeeder::class);      // Referral campaigns
+        $this->call(PromotionalCampaignSeeder::class);   // Promotional campaigns
+        $this->call(LuckyDrawSeeder::class);             // Lucky draw configurations
+
+        // 12. --- "Chaos Seeder" ---
         // Only run this in 'local' or 'staging' environments
         if (App::environment(['local', 'staging'])) {
             $this->call(TestDataSetSeeder::class);
