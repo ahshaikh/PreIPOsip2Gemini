@@ -185,7 +185,15 @@ class CompaniesProductsSeeder extends Seeder
             'GreenEnergy Innovations' => 'GreenEnergy Equity Shares',
         ];
 
-        $pricePerShare = [
+        $faceValuePerUnit = [
+            'TechCorp India' => 10,
+            'HealthPlus Solutions' => 10,
+            'FinanceHub Technologies' => 10,
+            'EduTech Academy' => 10,
+            'GreenEnergy Innovations' => 10,
+        ];
+
+        $currentMarketPrice = [
             'TechCorp India' => 500,
             'HealthPlus Solutions' => 800,
             'FinanceHub Technologies' => 600,
@@ -196,20 +204,21 @@ class CompaniesProductsSeeder extends Seeder
         return Product::updateOrCreate(
             ['slug' => $company->slug . '-shares'],
             [
-                'company_id' => $company->id,
                 'name' => $productNames[$company->name],
                 'slug' => $company->slug . '-shares',
-                'description' => json_encode([
+                'sector' => $company->sector,
+                'face_value_per_unit' => $faceValuePerUnit[$company->name],
+                'current_market_price' => $currentMarketPrice[$company->name],
+                'min_investment' => 5000,
+                'expected_ipo_date' => now()->addMonths(rand(12, 24)),
+                'status' => 'active',
+                'eligibility_mode' => 'all_plans',
+                'is_featured' => $company->is_featured,
+                'display_order' => 0,
+                'description' => [
                     'overview' => 'Pre-IPO equity shares of ' . $company->name,
                     'investment_thesis' => 'Strong growth potential in ' . $company->sector . ' sector',
-                ]),
-                'category' => 'equity',
-                'price_per_share' => $pricePerShare[$company->name],
-                'min_investment' => 5000,
-                'max_investment' => 1000000,
-                'is_active' => true,
-                'is_featured' => $company->is_featured,
-                'listing_date' => now()->addMonths(rand(6, 18)),
+                ],
             ]
         );
     }

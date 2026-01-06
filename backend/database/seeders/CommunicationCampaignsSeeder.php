@@ -206,16 +206,16 @@ class CommunicationCampaignsSeeder extends Seeder
     private function seedCannedResponses(): void
     {
         $responses = [
-            ['title' => 'Welcome Message', 'content' => 'Hello! Welcome to PreIPOsip support. How can I help you today?'],
-            ['title' => 'KYC Under Review', 'content' => 'Your KYC documents are currently under review. You will receive an update within 24-48 hours.'],
-            ['title' => 'Payment Processing', 'content' => 'Your payment is being processed. You will receive a confirmation email once it is completed.'],
-            ['title' => 'Withdrawal Timeline', 'content' => 'Withdrawal requests are typically processed within 24-48 business hours.'],
-            ['title' => 'Investment Allocation', 'content' => 'Share allocations are done on a priority basis according to your plan tier. You will be notified once shares are allocated.'],
-            ['title' => 'Bonus Eligibility', 'content' => 'Bonuses are calculated based on your investment plan and tenure. Please refer to your plan details for more information.'],
-            ['title' => 'Referral Program', 'content' => 'You can earn referral bonuses by sharing your unique referral code. Your referee must complete KYC and invest at least ₹5,000.'],
-            ['title' => 'Account Security', 'content' => 'For account security, we recommend enabling two-factor authentication and using a strong password.'],
-            ['title' => 'Technical Issue', 'content' => 'I apologize for the technical issue you are facing. Our team is looking into this and will resolve it shortly.'],
-            ['title' => 'Escalation', 'content' => 'I am escalating your query to our senior support team. You will receive a response within 4 hours.'],
+            ['title' => 'Welcome Message', 'content' => 'Hello! Welcome to PreIPOsip support. How can I help you today?', 'category' => 'general'],
+            ['title' => 'KYC Under Review', 'content' => 'Your KYC documents are currently under review. You will receive an update within 24-48 hours.', 'category' => 'kyc'],
+            ['title' => 'Payment Processing', 'content' => 'Your payment is being processed. You will receive a confirmation email once it is completed.', 'category' => 'payment'],
+            ['title' => 'Withdrawal Timeline', 'content' => 'Withdrawal requests are typically processed within 24-48 business hours.', 'category' => 'withdrawal'],
+            ['title' => 'Investment Allocation', 'content' => 'Share allocations are done on a priority basis according to your plan tier. You will be notified once shares are allocated.', 'category' => 'investment'],
+            ['title' => 'Bonus Eligibility', 'content' => 'Bonuses are calculated based on your investment plan and tenure. Please refer to your plan details for more information.', 'category' => 'bonus'],
+            ['title' => 'Referral Program', 'content' => 'You can earn referral bonuses by sharing your unique referral code. Your referee must complete KYC and invest at least ₹5,000.', 'category' => 'referral'],
+            ['title' => 'Account Security', 'content' => 'For account security, we recommend enabling two-factor authentication and using a strong password.', 'category' => 'security'],
+            ['title' => 'Technical Issue', 'content' => 'I apologize for the technical issue you are facing. Our team is looking into this and will resolve it shortly.', 'category' => 'technical'],
+            ['title' => 'Escalation', 'content' => 'I am escalating your query to our senior support team. You will receive a response within 4 hours.', 'category' => 'escalation'],
         ];
 
         foreach ($responses as $response) {

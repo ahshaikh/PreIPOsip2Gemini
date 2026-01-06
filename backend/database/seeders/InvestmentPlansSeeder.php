@@ -5,7 +5,7 @@ namespace Database\Seeders;
 use App\Models\Plan;
 use App\Models\PlanFeature;
 use App\Models\PlanConfig;
-use App\Models\PlanProduct;
+// use App\Models\PlanProduct; // Model doesn't exist - plan eligibility handled via products.eligibility_mode
 use App\Models\Product;
 use App\Models\Menu;
 use App\Models\MenuItem;
@@ -40,7 +40,8 @@ class InvestmentPlansSeeder extends Seeder
             $plans = $this->seedPlans();
             $this->seedPlanFeatures($plans);
             $this->seedPlanConfigs($plans);
-            $this->seedPlanProductMappings($plans);
+            // Note: PlanProduct model doesn't exist - plan eligibility handled via products.eligibility_mode field
+            // $this->seedPlanProductMappings($plans);
             $this->seedMenus();
             $this->seedPages();
         });
