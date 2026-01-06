@@ -402,6 +402,11 @@ class CompaniesProductsSeeder extends Seeder
                 'seller_name' => $company->name,
                 'purchase_date' => now()->subMonths(rand(1, 3)),
                 'notes' => "Bulk purchase of {$totalQuantity} shares for {$company->name}",
+                // Manual entry provenance (required by check_manual_entry_provenance constraint)
+                'source_type' => 'manual_entry',
+                'approved_by_admin_id' => $this->adminUser->id,
+                'manual_entry_reason' => "Initial seed data for {$company->name}. Direct inventory purchase of {$totalQuantity} shares at face value of ₹{$product->face_value_per_unit} per unit. Total face value purchased: ₹{$faceValuePurchased}. Approved for seeding purposes.",
+                'verified_at' => now(),
             ]
         );
     }

@@ -96,8 +96,8 @@ class IdentityAccessSeeder extends Seeder
             $role = $adminData['role'];
             unset($adminData['role']);
 
-            $admin = User::firstOrCreate(
-                ['email' => $adminData['email']],
+            $admin = User::updateOrCreate(
+                ['username' => $adminData['username']],
                 $adminData
             );
 
@@ -199,8 +199,8 @@ class IdentityAccessSeeder extends Seeder
             $kycStatus = $userData['_kyc_status'] ?? 'pending';
             unset($userData['referred_by'], $userData['_kyc_status']);
 
-            $user = User::firstOrCreate(
-                ['email' => $userData['email']],
+            $user = User::updateOrCreate(
+                ['username' => $userData['username']],
                 $userData
             );
 

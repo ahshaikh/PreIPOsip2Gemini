@@ -367,9 +367,9 @@ class CommunicationCampaignsSeeder extends Seeder
                 'name' => 'Monthly Lucky Draw - January 2026',
                 'draw_date' => now()->endOfMonth()->addDays(3)->toDateString(),
                 'prize_structure' => json_encode([
-                    ['rank' => 1, 'amount' => 25000, 'quantity' => 1],
-                    ['rank' => 2, 'amount' => 15000, 'quantity' => 1],
-                    ['rank' => 3, 'amount' => 10000, 'quantity' => 1],
+                    ['rank' => 1, 'amount' => 25000, 'count' => 1],
+                    ['rank' => 2, 'amount' => 15000, 'count' => 1],
+                    ['rank' => 3, 'amount' => 10000, 'count' => 1],
                 ]),
                 'status' => 'open',
                 'frequency' => 'monthly',
