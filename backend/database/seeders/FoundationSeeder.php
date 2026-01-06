@@ -282,31 +282,31 @@ class FoundationSeeder extends Seeder
     private function seedFeatureFlags(): void
     {
         $features = [
-            ['name' => 'enable_user_registration', 'description' => 'Allow new user registrations', 'is_active' => true],
-            ['name' => 'enable_user_login', 'description' => 'Allow user login', 'is_active' => true],
-            ['name' => 'enable_investment', 'description' => 'Allow new investments', 'is_active' => true],
-            ['name' => 'enable_withdrawal', 'description' => 'Allow withdrawal requests', 'is_active' => true],
-            ['name' => 'enable_kyc_submission', 'description' => 'Allow KYC document submission', 'is_active' => true],
-            ['name' => 'enable_referral_system', 'description' => 'Enable referral functionality', 'is_active' => true],
-            ['name' => 'enable_lucky_draws', 'description' => 'Enable lucky draw participation', 'is_active' => true],
-            ['name' => 'enable_profit_sharing', 'description' => 'Enable profit sharing distributions', 'is_active' => true],
-            ['name' => 'enable_bonuses', 'description' => 'Enable bonus calculations', 'is_active' => true],
-            ['name' => 'enable_support_tickets', 'description' => 'Allow support ticket creation', 'is_active' => true],
-            ['name' => 'enable_live_chat', 'description' => 'Enable live chat support', 'is_active' => true],
-            ['name' => 'enable_company_portal', 'description' => 'Allow company user access', 'is_active' => true],
-            ['name' => 'enable_blog', 'description' => 'Display blog posts', 'is_active' => true],
-            ['name' => 'enable_promotional_campaigns', 'description' => 'Enable promotional campaigns', 'is_active' => true],
-            ['name' => 'enable_mobile_app', 'description' => 'Enable mobile app API access', 'is_active' => true],
-            ['name' => 'enable_notifications', 'description' => 'Send notifications to users', 'is_active' => true],
-            ['name' => 'enable_email_verification', 'description' => 'Require email verification', 'is_active' => true],
-            ['name' => 'enable_mobile_verification', 'description' => 'Require mobile verification', 'is_active' => true],
-            ['name' => 'enable_2fa', 'description' => 'Enable two-factor authentication', 'is_active' => false],
-            ['name' => 'maintenance_mode', 'description' => 'Enable maintenance mode', 'is_active' => false],
+            ['key' => 'enable_user_registration', 'name' => 'Enable User Registration', 'description' => 'Allow new user registrations', 'is_active' => true, 'is_enabled' => true],
+            ['key' => 'enable_user_login', 'name' => 'Enable User Login', 'description' => 'Allow user login', 'is_active' => true, 'is_enabled' => true],
+            ['key' => 'enable_investment', 'name' => 'Enable Investment', 'description' => 'Allow new investments', 'is_active' => true, 'is_enabled' => true],
+            ['key' => 'enable_withdrawal', 'name' => 'Enable Withdrawal', 'description' => 'Allow withdrawal requests', 'is_active' => true, 'is_enabled' => true],
+            ['key' => 'enable_kyc_submission', 'name' => 'Enable KYC Submission', 'description' => 'Allow KYC document submission', 'is_active' => true, 'is_enabled' => true],
+            ['key' => 'enable_referral_system', 'name' => 'Enable Referral System', 'description' => 'Enable referral functionality', 'is_active' => true, 'is_enabled' => true],
+            ['key' => 'enable_lucky_draws', 'name' => 'Enable Lucky Draws', 'description' => 'Enable lucky draw participation', 'is_active' => true, 'is_enabled' => true],
+            ['key' => 'enable_profit_sharing', 'name' => 'Enable Profit Sharing', 'description' => 'Enable profit sharing distributions', 'is_active' => true, 'is_enabled' => true],
+            ['key' => 'enable_bonuses', 'name' => 'Enable Bonuses', 'description' => 'Enable bonus calculations', 'is_active' => true, 'is_enabled' => true],
+            ['key' => 'enable_support_tickets', 'name' => 'Enable Support Tickets', 'description' => 'Allow support ticket creation', 'is_active' => true, 'is_enabled' => true],
+            ['key' => 'enable_live_chat', 'name' => 'Enable Live Chat', 'description' => 'Enable live chat support', 'is_active' => true, 'is_enabled' => true],
+            ['key' => 'enable_company_portal', 'name' => 'Enable Company Portal', 'description' => 'Allow company user access', 'is_active' => true, 'is_enabled' => true],
+            ['key' => 'enable_blog', 'name' => 'Enable Blog', 'description' => 'Display blog posts', 'is_active' => true, 'is_enabled' => true],
+            ['key' => 'enable_promotional_campaigns', 'name' => 'Enable Promotional Campaigns', 'description' => 'Enable promotional campaigns', 'is_active' => true, 'is_enabled' => true],
+            ['key' => 'enable_mobile_app', 'name' => 'Enable Mobile App', 'description' => 'Enable mobile app API access', 'is_active' => true, 'is_enabled' => true],
+            ['key' => 'enable_notifications', 'name' => 'Enable Notifications', 'description' => 'Send notifications to users', 'is_active' => true, 'is_enabled' => true],
+            ['key' => 'enable_email_verification', 'name' => 'Enable Email Verification', 'description' => 'Require email verification', 'is_active' => true, 'is_enabled' => true],
+            ['key' => 'enable_mobile_verification', 'name' => 'Enable Mobile Verification', 'description' => 'Require mobile verification', 'is_active' => true, 'is_enabled' => true],
+            ['key' => 'enable_2fa', 'name' => 'Enable 2FA', 'description' => 'Enable two-factor authentication', 'is_active' => false, 'is_enabled' => false],
+            ['key' => 'maintenance_mode', 'name' => 'Maintenance Mode', 'description' => 'Enable maintenance mode', 'is_active' => false, 'is_enabled' => false],
         ];
 
         foreach ($features as $feature) {
             FeatureFlag::updateOrCreate(
-                ['name' => $feature['name']],
+                ['key' => $feature['key']],
                 $feature
             );
         }
