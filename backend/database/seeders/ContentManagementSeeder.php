@@ -14,31 +14,47 @@ class ContentManagementSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create Pre-IPO Listing Category
-        $preIPOCategory = DB::table('content_categories')->insertGetId([
-            'name' => 'Pre-IPO Listing',
-            'slug' => 'pre-ipo-listing',
-            'type' => 'menu',
-            'description' => 'Pre-IPO investment opportunities and listings',
-            'sort_order' => 1,
-            'is_active' => true,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        // Create or get Pre-IPO Listing Category (idempotent)
+        $preIPOCategory = DB::table('content_categories')
+            ->where('slug', 'pre-ipo-listing')
+            ->first();
 
-        // Create Insights Category
-        $insightsCategory = DB::table('content_categories')->insertGetId([
-            'name' => 'Insights',
-            'slug' => 'insights',
-            'type' => 'menu',
-            'description' => 'Market insights, analysis, and educational content',
-            'sort_order' => 2,
-            'is_active' => true,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        if (!$preIPOCategory) {
+            $preIPOCategoryId = DB::table('content_categories')->insertGetId([
+                'name' => 'Pre-IPO Listing',
+                'slug' => 'pre-ipo-listing',
+                'type' => 'menu',
+                'description' => 'Pre-IPO investment opportunities and listings',
+                'sort_order' => 1,
+                'is_active' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        } else {
+            $preIPOCategoryId = $preIPOCategory->id;
+        }
 
-        // Pre-IPO Listing Subcategories
+        // Create or get Insights Category (idempotent)
+        $insightsCategory = DB::table('content_categories')
+            ->where('slug', 'insights')
+            ->first();
+
+        if (!$insightsCategory) {
+            $insightsCategoryId = DB::table('content_categories')->insertGetId([
+                'name' => 'Insights',
+                'slug' => 'insights',
+                'type' => 'menu',
+                'description' => 'Market insights, analysis, and educational content',
+                'sort_order' => 2,
+                'is_active' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        } else {
+            $insightsCategoryId = $insightsCategory->id;
+        }
+
+        // Pre-IPO Listing Subcategories (idempotent)
         $preIPOSubcategories = [
             ['name' => 'Live Deals', 'slug' => 'live-deals', 'sort_order' => 1],
             ['name' => 'Upcoming Deals', 'slug' => 'upcoming-deals', 'sort_order' => 2],
@@ -48,19 +64,27 @@ class ContentManagementSeeder extends Seeder
         ];
 
         foreach ($preIPOSubcategories as $sub) {
-            DB::table('content_subcategories')->insert([
-                'category_id' => $preIPOCategory,
-                'name' => $sub['name'],
-                'slug' => $sub['slug'],
-                'description' => "Manage {$sub['name']} content",
-                'sort_order' => $sub['sort_order'],
-                'is_active' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            // Check if subcategory already exists
+            $exists = DB::table('content_subcategories')
+                ->where('slug', $sub['slug'])
+                ->where('category_id', $preIPOCategoryId)
+                ->exists();
+
+            if (!$exists) {
+                DB::table('content_subcategories')->insert([
+                    'category_id' => $preIPOCategoryId,
+                    'name' => $sub['name'],
+                    'slug' => $sub['slug'],
+                    'description' => "Manage {$sub['name']} content",
+                    'sort_order' => $sub['sort_order'],
+                    'is_active' => true,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
         }
 
-        // Insights Subcategories
+        // Insights Subcategories (idempotent)
         $insightsSubcategories = [
             ['name' => 'Market Analysis', 'slug' => 'market-analysis', 'sort_order' => 1],
             ['name' => 'Reports', 'slug' => 'reports', 'sort_order' => 2],
@@ -69,19 +93,27 @@ class ContentManagementSeeder extends Seeder
         ];
 
         foreach ($insightsSubcategories as $sub) {
-            DB::table('content_subcategories')->insert([
-                'category_id' => $insightsCategory,
-                'name' => $sub['name'],
-                'slug' => $sub['slug'],
-                'description' => "Manage {$sub['name']} content",
-                'sort_order' => $sub['sort_order'],
-                'is_active' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            // Check if subcategory already exists
+            $exists = DB::table('content_subcategories')
+                ->where('slug', $sub['slug'])
+                ->where('category_id', $insightsCategoryId)
+                ->exists();
+
+            if (!$exists) {
+                DB::table('content_subcategories')->insert([
+                    'category_id' => $insightsCategoryId,
+                    'name' => $sub['name'],
+                    'slug' => $sub['slug'],
+                    'description' => "Manage {$sub['name']} content",
+                    'sort_order' => $sub['sort_order'],
+                    'is_active' => true,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
         }
 
-        // Seed some example sectors
+        // Seed some example sectors (idempotent)
         $sectors = [
             ['name' => 'Technology', 'slug' => 'technology', 'icon' => 'laptop', 'color' => '#3B82F6'],
             ['name' => 'Healthcare', 'slug' => 'healthcare', 'icon' => 'heart', 'color' => '#EF4444'],

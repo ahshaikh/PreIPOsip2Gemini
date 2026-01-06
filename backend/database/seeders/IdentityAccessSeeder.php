@@ -403,8 +403,12 @@ class IdentityAccessSeeder extends Seeder
             'entry_pair_id' => $debitEntry->id,
         ]);
 
-        // Link the entries
-        $debitEntry->update(['entry_pair_id' => $creditEntry->id]);
+        // Link the debit entry back to credit entry
+        // MUST use DB::table() to bypass model's immutability protection
+        // AdminLedgerEntry::updating() throws exception, so we use raw DB query
+        DB::table('admin_ledger_entries')
+            ->where('id', $debitEntry->id)
+            ->update(['entry_pair_id' => $creditEntry->id]);
 
         $this->command->info('  ✓ Admin ledger genesis seeded: ₹' . number_format($genesisAmount, 2));
     }
