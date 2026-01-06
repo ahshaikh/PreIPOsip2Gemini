@@ -381,35 +381,25 @@ class IdentityAccessSeeder extends Seeder
 
         // Create double-entry for genesis
         $debitEntry = AdminLedgerEntry::create([
-            'entry_date' => now(),
-            'entry_type' => 'debit',
-            'category' => 'wallet_liability',
-            'subcategory' => 'genesis',
+            'account' => 'liabilities',
+            'type' => 'debit',
             'amount_paise' => $genesisAmount * 100,
+            'balance_before_paise' => 0,
             'balance_after_paise' => $genesisAmount * 100,
-            'description' => 'GENESIS: Initial Wallet Liability for Test Users',
-            'reference_type' => null,
-            'reference_id' => null,
-            'metadata' => json_encode([
-                'type' => 'genesis',
-                'total_test_wallets_paise' => $totalTestBalancesPaise,
-                'buffer_paise' => ($genesisAmount * 100) - $totalTestBalancesPaise,
-            ]),
+            'reference_type' => 'system_genesis',
+            'reference_id' => 1, // System reference for genesis entries
+            'description' => 'GENESIS: Initial Wallet Liability for Test Users (Total: ₹' . number_format($totalTestBalances, 2) . ', Buffer: ₹' . number_format(($genesisAmount - $totalTestBalances), 2) . ')',
         ]);
 
         $creditEntry = AdminLedgerEntry::create([
-            'entry_date' => now(),
-            'entry_type' => 'credit',
-            'category' => 'wallet_liability',
-            'subcategory' => 'genesis',
+            'account' => 'liabilities',
+            'type' => 'credit',
             'amount_paise' => $genesisAmount * 100,
+            'balance_before_paise' => $genesisAmount * 100,
             'balance_after_paise' => 0, // Back to zero after offsetting
+            'reference_type' => 'system_genesis',
+            'reference_id' => 1, // System reference for genesis entries
             'description' => 'GENESIS: Offsetting Entry for Initial Liability',
-            'reference_type' => null,
-            'reference_id' => null,
-            'metadata' => json_encode([
-                'type' => 'genesis_offset',
-            ]),
             'entry_pair_id' => $debitEntry->id,
         ]);
 

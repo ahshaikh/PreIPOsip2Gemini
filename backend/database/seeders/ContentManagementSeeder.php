@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Sector;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -93,17 +94,19 @@ class ContentManagementSeeder extends Seeder
         ];
 
         foreach ($sectors as $sector) {
-            DB::table('sectors')->insert([
-                'name' => $sector['name'],
-                'slug' => $sector['slug'],
-                'description' => "Companies in the {$sector['name']} sector",
-                'icon' => $sector['icon'],
-                'color' => $sector['color'],
-                'sort_order' => 0,
-                'is_active' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            // Use updateOrCreate to avoid duplicate key violations
+            // Sectors may already exist from FoundationSeeder or SectorSeeder
+            Sector::updateOrCreate(
+                ['slug' => $sector['slug']],
+                [
+                    'name' => $sector['name'],
+                    'description' => "Companies in the {$sector['name']} sector",
+                    'icon' => $sector['icon'],
+                    'color' => $sector['color'],
+                    'sort_order' => 0,
+                    'is_active' => true,
+                ]
+            );
         }
     }
 }
