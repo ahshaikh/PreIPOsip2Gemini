@@ -201,7 +201,7 @@ class CompaniesProductsSeeder extends Seeder
                 'slug' => $company->slug . '-shares',
                 'description' => json_encode([
                     'overview' => 'Pre-IPO equity shares of ' . $company->name,
-                    'investment_thesis' => 'Strong growth potential in ' . $company->sector->name . ' sector',
+                    'investment_thesis' => 'Strong growth potential in ' . $company->sector . ' sector',
                 ]),
                 'category' => 'equity',
                 'price_per_share' => $pricePerShare[$company->name],

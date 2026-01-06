@@ -320,21 +320,21 @@ class FoundationSeeder extends Seeder
     private function seedKycRejectionTemplates(): void
     {
         $templates = [
-            ['title' => 'Blurred Document', 'reason' => 'The submitted document is blurred or unclear. Please upload a clear, high-resolution image.'],
-            ['title' => 'Incomplete Document', 'reason' => 'The document appears to be incomplete or cut off. Please upload the complete document.'],
-            ['title' => 'Expired Document', 'reason' => 'The submitted document has expired. Please upload a valid, unexpired document.'],
-            ['title' => 'Name Mismatch', 'reason' => 'The name on the document does not match your registered name. Please ensure all documents have consistent information.'],
-            ['title' => 'Address Mismatch', 'reason' => 'The address on the document does not match your registered address. Please submit documents with matching address details.'],
-            ['title' => 'Invalid Document Type', 'reason' => 'The submitted document type is not accepted. Please upload a valid government-issued ID (Aadhaar, PAN, Passport, etc.).'],
-            ['title' => 'Document Not Readable', 'reason' => 'The text on the document is not readable. Please upload a clearer image with visible text.'],
-            ['title' => 'Minor Age', 'reason' => 'Your age is below the minimum requirement of 18 years. Unfortunately, we cannot process your KYC at this time.'],
-            ['title' => 'Bank Details Mismatch', 'reason' => 'The bank account details do not match your KYC information. Please verify and resubmit.'],
-            ['title' => 'Suspected Fraud', 'reason' => 'We detected potential discrepancies in your submission. Please contact support for further assistance.'],
+            ['name' => 'blurred_document', 'title' => 'Blurred Document', 'category' => 'document_quality', 'reason' => 'The submitted document is blurred or unclear. Please upload a clear, high-resolution image.', 'message' => 'Your document could not be verified due to poor image quality.'],
+            ['name' => 'incomplete_document', 'title' => 'Incomplete Document', 'category' => 'document_quality', 'reason' => 'The document appears to be incomplete or cut off. Please upload the complete document.', 'message' => 'Please provide the complete document without any parts cut off.'],
+            ['name' => 'expired_document', 'title' => 'Expired Document', 'category' => 'document_validity', 'reason' => 'The submitted document has expired. Please upload a valid, unexpired document.', 'message' => 'Please upload an unexpired document.'],
+            ['name' => 'name_mismatch', 'title' => 'Name Mismatch', 'category' => 'identity_mismatch', 'reason' => 'The name on the document does not match your registered name. Please ensure all documents have consistent information.', 'message' => 'Name mismatch detected across documents.'],
+            ['name' => 'address_mismatch', 'title' => 'Address Mismatch', 'category' => 'identity_mismatch', 'reason' => 'The address on the document does not match your registered address. Please submit documents with matching address details.', 'message' => 'Address mismatch detected across documents.'],
+            ['name' => 'invalid_document_type', 'title' => 'Invalid Document Type', 'category' => 'document_type', 'reason' => 'The submitted document type is not accepted. Please upload a valid government-issued ID (Aadhaar, PAN, Passport, etc.).', 'message' => 'This document type is not accepted for KYC verification.'],
+            ['name' => 'not_readable', 'title' => 'Document Not Readable', 'category' => 'document_quality', 'reason' => 'The text on the document is not readable. Please upload a clearer image with visible text.', 'message' => 'Document text is not readable.'],
+            ['name' => 'minor_age', 'title' => 'Minor Age', 'category' => 'eligibility', 'reason' => 'Your age is below the minimum requirement of 18 years. Unfortunately, we cannot process your KYC at this time.', 'message' => 'Minimum age requirement not met.'],
+            ['name' => 'bank_details_mismatch', 'title' => 'Bank Details Mismatch', 'category' => 'financial_mismatch', 'reason' => 'The bank account details do not match your KYC information. Please verify and resubmit.', 'message' => 'Bank account information does not match KYC details.'],
+            ['name' => 'suspected_fraud', 'title' => 'Suspected Fraud', 'category' => 'security', 'reason' => 'We detected potential discrepancies in your submission. Please contact support for further assistance.', 'message' => 'Verification could not be completed. Please contact support.'],
         ];
 
         foreach ($templates as $template) {
             KycRejectionTemplate::updateOrCreate(
-                ['title' => $template['title']],
+                ['name' => $template['name']],
                 $template
             );
         }

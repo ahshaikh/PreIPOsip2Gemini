@@ -55,50 +55,41 @@ class InvestmentPlansSeeder extends Seeder
     {
         $plansData = [
             [
-                'code' => 'PLAN_A',
                 'name' => 'Plan A - Starter',
                 'slug' => 'plan-a-starter',
                 'description' => 'Entry-level SIP plan ideal for first-time investors with monthly investments starting at ₹5,000.',
-                'amount' => 5000,
+                'monthly_amount' => 5000,
                 'duration_months' => 12,
-                'min_amount' => 5000,
-                'max_amount' => 10000,
                 'is_active' => true,
                 'is_featured' => false,
-                'sort_order' => 1,
+                'display_order' => 1,
             ],
             [
-                'code' => 'PLAN_B',
                 'name' => 'Plan B - Growth',
                 'slug' => 'plan-b-growth',
                 'description' => 'Mid-tier SIP plan with priority allocation and enhanced bonus rates for committed investors.',
-                'amount' => 10000,
+                'monthly_amount' => 10000,
                 'duration_months' => 12,
-                'min_amount' => 10000,
-                'max_amount' => 25000,
                 'is_active' => true,
                 'is_featured' => true,
-                'sort_order' => 2,
+                'display_order' => 2,
             ],
             [
-                'code' => 'PLAN_C',
                 'name' => 'Plan C - Premium',
                 'slug' => 'plan-c-premium',
                 'description' => 'Premium SIP plan with guaranteed allocation, highest bonus rates, and exclusive benefits.',
-                'amount' => 25000,
+                'monthly_amount' => 25000,
                 'duration_months' => 12,
-                'min_amount' => 25000,
-                'max_amount' => 100000,
                 'is_active' => true,
                 'is_featured' => true,
-                'sort_order' => 3,
+                'display_order' => 3,
             ],
         ];
 
         $plans = [];
         foreach ($plansData as $planData) {
             $plan = Plan::updateOrCreate(
-                ['code' => $planData['code']],
+                ['slug' => $planData['slug']],
                 $planData
             );
             $plans[] = $plan;
@@ -115,19 +106,19 @@ class InvestmentPlansSeeder extends Seeder
     private function seedPlanFeatures(array $plans): void
     {
         $features = [
-            'PLAN_A' => [
+            'plan-a-starter' => [
                 'Monthly SIP of ₹5,000',
                 '0.5% Progressive Bonus',
                 'Standard allocation priority',
                 '12-month commitment period',
             ],
-            'PLAN_B' => [
+            'plan-b-growth' => [
                 'Monthly SIP of ₹10,000',
                 '0.75% Progressive Bonus',
                 'Priority allocation on oversubscribed shares',
                 '12-month commitment with flexibility',
             ],
-            'PLAN_C' => [
+            'plan-c-premium' => [
                 'Monthly SIP of ₹25,000',
                 '1.0% Progressive Bonus',
                 'Guaranteed allocation on all deals',
@@ -136,7 +127,7 @@ class InvestmentPlansSeeder extends Seeder
         ];
 
         foreach ($plans as $plan) {
-            $planFeatures = $features[$plan->code] ?? [];
+            $planFeatures = $features[$plan->slug] ?? [];
             foreach ($planFeatures as $index => $featureText) {
                 PlanFeature::updateOrCreate(
                     ['plan_id' => $plan->id, 'feature_text' => $featureText],
@@ -152,42 +143,40 @@ class InvestmentPlansSeeder extends Seeder
      * Seed plan configurations
      *
      * CRITICAL: All business logic values stored in DB
+     * NOTE: plan_configs.value is JSON type, so we store as JSON
      */
     private function seedPlanConfigs(array $plans): void
     {
         $configs = [
-            'PLAN_A' => [
-                ['config_key' => 'progressive_bonus_rate', 'value' => '0.5', 'type' => 'float'],
-                ['config_key' => 'milestone_bonus_enabled', 'value' => 'true', 'type' => 'boolean'],
-                ['config_key' => 'milestone_bonus_6_months', 'value' => '500', 'type' => 'integer'],
-                ['config_key' => 'milestone_bonus_12_months', 'value' => '1000', 'type' => 'integer'],
-                ['config_key' => 'allocation_priority', 'value' => 'standard', 'type' => 'string'],
+            'plan-a-starter' => [
+                ['config_key' => 'progressive_bonus_rate', 'value' => json_encode(0.5)],
+                ['config_key' => 'milestone_bonus_enabled', 'value' => json_encode(true)],
+                ['config_key' => 'milestone_bonus_6_months', 'value' => json_encode(500)],
+                ['config_key' => 'milestone_bonus_12_months', 'value' => json_encode(1000)],
+                ['config_key' => 'allocation_priority', 'value' => json_encode('standard')],
             ],
-            'PLAN_B' => [
-                ['config_key' => 'progressive_bonus_rate', 'value' => '0.75', 'type' => 'float'],
-                ['config_key' => 'milestone_bonus_enabled', 'value' => 'true', 'type' => 'boolean'],
-                ['config_key' => 'milestone_bonus_6_months', 'value' => '1000', 'type' => 'integer'],
-                ['config_key' => 'milestone_bonus_12_months', 'value' => '2500', 'type' => 'integer'],
-                ['config_key' => 'allocation_priority', 'value' => 'priority', 'type' => 'string'],
+            'plan-b-growth' => [
+                ['config_key' => 'progressive_bonus_rate', 'value' => json_encode(0.75)],
+                ['config_key' => 'milestone_bonus_enabled', 'value' => json_encode(true)],
+                ['config_key' => 'milestone_bonus_6_months', 'value' => json_encode(1000)],
+                ['config_key' => 'milestone_bonus_12_months', 'value' => json_encode(2500)],
+                ['config_key' => 'allocation_priority', 'value' => json_encode('priority')],
             ],
-            'PLAN_C' => [
-                ['config_key' => 'progressive_bonus_rate', 'value' => '1.0', 'type' => 'float'],
-                ['config_key' => 'milestone_bonus_enabled', 'value' => 'true', 'type' => 'boolean'],
-                ['config_key' => 'milestone_bonus_6_months', 'value' => '2500', 'type' => 'integer'],
-                ['config_key' => 'milestone_bonus_12_months', 'value' => '6000', 'type' => 'integer'],
-                ['config_key' => 'allocation_priority', 'value' => 'guaranteed', 'type' => 'string'],
+            'plan-c-premium' => [
+                ['config_key' => 'progressive_bonus_rate', 'value' => json_encode(1.0)],
+                ['config_key' => 'milestone_bonus_enabled', 'value' => json_encode(true)],
+                ['config_key' => 'milestone_bonus_6_months', 'value' => json_encode(2500)],
+                ['config_key' => 'milestone_bonus_12_months', 'value' => json_encode(6000)],
+                ['config_key' => 'allocation_priority', 'value' => json_encode('guaranteed')],
             ],
         ];
 
         foreach ($plans as $plan) {
-            $planConfigs = $configs[$plan->code] ?? [];
+            $planConfigs = $configs[$plan->slug] ?? [];
             foreach ($planConfigs as $config) {
                 PlanConfig::updateOrCreate(
                     ['plan_id' => $plan->id, 'config_key' => $config['config_key']],
-                    [
-                        'value' => $config['value'],
-                        'type' => $config['type'],
-                    ]
+                    ['value' => $config['value']]
                 );
             }
         }
