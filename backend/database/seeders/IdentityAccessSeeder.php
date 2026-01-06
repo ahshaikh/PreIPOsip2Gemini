@@ -96,12 +96,17 @@ class IdentityAccessSeeder extends Seeder
             $role = $adminData['role'];
             unset($adminData['role']);
 
-            $admin = User::updateOrCreate(
+            // Use firstOrCreate to avoid updating unique fields (email, mobile, referral_code)
+            // If user exists by username, don't try to update (causes conflicts)
+            $admin = User::firstOrCreate(
                 ['username' => $adminData['username']],
-                $adminData
+                $adminData  // Only used when creating, not updating
             );
 
-            $admin->assignRole($role);
+            // Ensure role is assigned (safe to repeat)
+            if (!$admin->hasRole($role)) {
+                $admin->assignRole($role);
+            }
         }
 
         $this->command->info('  ✓ Admin users seeded: ' . count($admins) . ' records');
@@ -199,18 +204,22 @@ class IdentityAccessSeeder extends Seeder
             $kycStatus = $userData['_kyc_status'] ?? 'pending';
             unset($userData['referred_by'], $userData['_kyc_status']);
 
-            $user = User::updateOrCreate(
+            // Use firstOrCreate to avoid updating unique fields (email, mobile, referral_code)
+            $user = User::firstOrCreate(
                 ['username' => $userData['username']],
-                $userData
+                $userData  // Only used when creating, not updating
             );
 
-            $user->assignRole('User');
+            // Ensure role is assigned (safe to repeat)
+            if (!$user->hasRole('User')) {
+                $user->assignRole('User');
+            }
 
             // Store KYC status temporarily for use in seedUserKyc
             $user->_temp_kyc_status = $kycStatus;
 
-            // Link referral after all users are created
-            if ($referredByCode) {
+            // Link referral after all users are created (only if not already set)
+            if ($referredByCode && !$user->referred_by) {
                 $referrer = User::where('referral_code', $referredByCode)->first();
                 if ($referrer) {
                     $user->update(['referred_by' => $referrer->id]);
