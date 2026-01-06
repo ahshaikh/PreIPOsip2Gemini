@@ -9,7 +9,7 @@ use App\Models\PlanConfig;
 use App\Models\Product;
 use App\Models\Menu;
 use App\Models\MenuItem;
-use App\Models\Page;
+// use App\Models\Page; // Pages table doesn't exist
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -43,7 +43,8 @@ class InvestmentPlansSeeder extends Seeder
             // Note: PlanProduct model doesn't exist - plan eligibility handled via products.eligibility_mode field
             // $this->seedPlanProductMappings($plans);
             $this->seedMenus();
-            $this->seedPages();
+            // Note: Pages table doesn't exist - pages managed separately
+            // $this->seedPages();
         });
 
         $this->command->info('✅ Investment Plans data seeded successfully');
@@ -216,24 +217,24 @@ class InvestmentPlansSeeder extends Seeder
     private function seedMenus(): void
     {
         $menus = [
-            ['name' => 'Header Menu', 'location' => 'header', 'is_active' => true],
-            ['name' => 'Footer Menu', 'location' => 'footer', 'is_active' => true],
-            ['name' => 'User Dashboard Menu', 'location' => 'user_sidebar', 'is_active' => true],
-            ['name' => 'Admin Panel Menu', 'location' => 'admin_sidebar', 'is_active' => true],
+            ['name' => 'Header Menu', 'slug' => 'header'],
+            ['name' => 'Footer Menu', 'slug' => 'footer'],
+            ['name' => 'User Dashboard Menu', 'slug' => 'user-sidebar'],
+            ['name' => 'Admin Panel Menu', 'slug' => 'admin-sidebar'],
         ];
 
         foreach ($menus as $menuData) {
             $menu = Menu::updateOrCreate(
-                ['location' => $menuData['location']],
+                ['slug' => $menuData['slug']],
                 $menuData
             );
 
-            // Seed menu items based on location
-            match($menuData['location']) {
+            // Seed menu items based on slug
+            match($menuData['slug']) {
                 'header' => $this->seedHeaderMenuItems($menu),
                 'footer' => $this->seedFooterMenuItems($menu),
-                'user_sidebar' => $this->seedUserMenuItems($menu),
-                'admin_sidebar' => $this->seedAdminMenuItems($menu),
+                'user-sidebar' => $this->seedUserMenuItems($menu),
+                'admin-sidebar' => $this->seedAdminMenuItems($menu),
                 default => null,
             };
         }
@@ -244,16 +245,16 @@ class InvestmentPlansSeeder extends Seeder
     private function seedHeaderMenuItems(Menu $menu): void
     {
         $items = [
-            ['title' => 'Home', 'url' => '/', 'order' => 1],
-            ['title' => 'Companies', 'url' => '/companies', 'order' => 2],
-            ['title' => 'Plans', 'url' => '/plans', 'order' => 3],
-            ['title' => 'About Us', 'url' => '/about', 'order' => 4],
-            ['title' => 'Contact', 'url' => '/contact', 'order' => 5],
+            ['label' => 'Home', 'url' => '/', 'display_order' => 1],
+            ['label' => 'Companies', 'url' => '/companies', 'display_order' => 2],
+            ['label' => 'Plans', 'url' => '/plans', 'display_order' => 3],
+            ['label' => 'About Us', 'url' => '/about', 'display_order' => 4],
+            ['label' => 'Contact', 'url' => '/contact', 'display_order' => 5],
         ];
 
         foreach ($items as $item) {
             MenuItem::updateOrCreate(
-                ['menu_id' => $menu->id, 'title' => $item['title']],
+                ['menu_id' => $menu->id, 'label' => $item['label']],
                 $item
             );
         }
@@ -262,16 +263,16 @@ class InvestmentPlansSeeder extends Seeder
     private function seedFooterMenuItems(Menu $menu): void
     {
         $items = [
-            ['title' => 'Privacy Policy', 'url' => '/privacy-policy', 'order' => 1],
-            ['title' => 'Terms & Conditions', 'url' => '/terms', 'order' => 2],
-            ['title' => 'Risk Disclosure', 'url' => '/risk-disclosure', 'order' => 3],
-            ['title' => 'Refund Policy', 'url' => '/refund-policy', 'order' => 4],
-            ['title' => 'Help Center', 'url' => '/help-center', 'order' => 5],
+            ['label' => 'Privacy Policy', 'url' => '/privacy-policy', 'display_order' => 1],
+            ['label' => 'Terms & Conditions', 'url' => '/terms', 'display_order' => 2],
+            ['label' => 'Risk Disclosure', 'url' => '/risk-disclosure', 'display_order' => 3],
+            ['label' => 'Refund Policy', 'url' => '/refund-policy', 'display_order' => 4],
+            ['label' => 'Help Center', 'url' => '/help-center', 'display_order' => 5],
         ];
 
         foreach ($items as $item) {
             MenuItem::updateOrCreate(
-                ['menu_id' => $menu->id, 'title' => $item['title']],
+                ['menu_id' => $menu->id, 'label' => $item['label']],
                 $item
             );
         }
@@ -280,16 +281,16 @@ class InvestmentPlansSeeder extends Seeder
     private function seedUserMenuItems(Menu $menu): void
     {
         $items = [
-            ['title' => 'Dashboard', 'url' => '/dashboard', 'order' => 1],
-            ['title' => 'My Investments', 'url' => '/portfolio', 'order' => 2],
-            ['title' => 'Wallet', 'url' => '/wallet', 'order' => 3],
-            ['title' => 'KYC', 'url' => '/kyc', 'order' => 4],
-            ['title' => 'Referrals', 'url' => '/referrals', 'order' => 5],
+            ['label' => 'Dashboard', 'url' => '/dashboard', 'display_order' => 1],
+            ['label' => 'My Investments', 'url' => '/portfolio', 'display_order' => 2],
+            ['label' => 'Wallet', 'url' => '/wallet', 'display_order' => 3],
+            ['label' => 'KYC', 'url' => '/kyc', 'display_order' => 4],
+            ['label' => 'Referrals', 'url' => '/referrals', 'display_order' => 5],
         ];
 
         foreach ($items as $item) {
             MenuItem::updateOrCreate(
-                ['menu_id' => $menu->id, 'title' => $item['title']],
+                ['menu_id' => $menu->id, 'label' => $item['label']],
                 $item
             );
         }
@@ -298,16 +299,16 @@ class InvestmentPlansSeeder extends Seeder
     private function seedAdminMenuItems(Menu $menu): void
     {
         $items = [
-            ['title' => 'Dashboard', 'url' => '/admin/dashboard', 'order' => 1],
-            ['title' => 'Users', 'url' => '/admin/users', 'order' => 2],
-            ['title' => 'KYC Queue', 'url' => '/admin/kyc-queue', 'order' => 3],
-            ['title' => 'Investments', 'url' => '/admin/investments', 'order' => 4],
-            ['title' => 'Settings', 'url' => '/admin/settings', 'order' => 5],
+            ['label' => 'Dashboard', 'url' => '/admin/dashboard', 'display_order' => 1],
+            ['label' => 'Users', 'url' => '/admin/users', 'display_order' => 2],
+            ['label' => 'KYC Queue', 'url' => '/admin/kyc-queue', 'display_order' => 3],
+            ['label' => 'Investments', 'url' => '/admin/investments', 'display_order' => 4],
+            ['label' => 'Settings', 'url' => '/admin/settings', 'display_order' => 5],
         ];
 
         foreach ($items as $item) {
             MenuItem::updateOrCreate(
-                ['menu_id' => $menu->id, 'title' => $item['title']],
+                ['menu_id' => $menu->id, 'label' => $item['label']],
                 $item
             );
         }
@@ -315,37 +316,39 @@ class InvestmentPlansSeeder extends Seeder
 
     /**
      * Seed basic pages
+     *
+     * DISABLED: Pages table doesn't exist in current schema
      */
-    private function seedPages(): void
-    {
-        $pages = [
-            [
-                'title' => 'About Us',
-                'slug' => 'about',
-                'content' => '<h1>About PreIPOsip</h1><p>We are India\'s leading Pre-IPO investment platform...</p>',
-                'status' => 'published',
-            ],
-            [
-                'title' => 'How It Works',
-                'slug' => 'how-it-works',
-                'content' => '<h1>How It Works</h1><p>Invest in Pre-IPO companies through systematic investment plans...</p>',
-                'status' => 'published',
-            ],
-            [
-                'title' => 'Contact Us',
-                'slug' => 'contact',
-                'content' => '<h1>Contact Us</h1><p>Email: support@preiposip.com</p><p>Phone: +91-9876543210</p>',
-                'status' => 'published',
-            ],
-        ];
-
-        foreach ($pages as $pageData) {
-            Page::updateOrCreate(
-                ['slug' => $pageData['slug']],
-                $pageData
-            );
-        }
-
-        $this->command->info('  ✓ Pages seeded: ' . count($pages) . ' records');
-    }
+    // private function seedPages(): void
+    // {
+    //     $pages = [
+    //         [
+    //             'title' => 'About Us',
+    //             'slug' => 'about',
+    //             'content' => '<h1>About PreIPOsip</h1><p>We are India\'s leading Pre-IPO investment platform...</p>',
+    //             'status' => 'published',
+    //         ],
+    //         [
+    //             'title' => 'How It Works',
+    //             'slug' => 'how-it-works',
+    //             'content' => '<h1>How It Works</h1><p>Invest in Pre-IPO companies through systematic investment plans...</p>',
+    //             'status' => 'published',
+    //         ],
+    //         [
+    //             'title' => 'Contact Us',
+    //             'slug' => 'contact',
+    //             'content' => '<h1>Contact Us</h1><p>Email: support@preiposip.com</p><p>Phone: +91-9876543210</p>',
+    //             'status' => 'published',
+    //         ],
+    //     ];
+    //
+    //     foreach ($pages as $pageData) {
+    //         Page::updateOrCreate(
+    //             ['slug' => $pageData['slug']],
+    //             $pageData
+    //         );
+    //     }
+    //
+    //     $this->command->info('  ✓ Pages seeded: ' . count($pages) . ' records');
+    // }
 }

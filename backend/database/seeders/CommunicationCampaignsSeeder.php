@@ -234,11 +234,11 @@ class CommunicationCampaignsSeeder extends Seeder
     private function seedKbCategories(): void
     {
         $categories = [
-            ['name' => 'Getting Started', 'slug' => 'getting-started', 'description' => 'Basic guides for new users', 'order' => 1],
-            ['name' => 'KYC Verification', 'slug' => 'kyc-verification', 'description' => 'KYC submission and verification help', 'order' => 2],
-            ['name' => 'Investment & Plans', 'slug' => 'investment-plans', 'description' => 'Understanding investment plans and SIPs', 'order' => 3],
-            ['name' => 'Payments & Wallet', 'slug' => 'payments-wallet', 'description' => 'Payment methods and wallet management', 'order' => 4],
-            ['name' => 'Withdrawals', 'slug' => 'withdrawals', 'description' => 'Withdrawal process and timelines', 'order' => 5],
+            ['name' => 'Getting Started', 'slug' => 'getting-started', 'description' => 'Basic guides for new users', 'display_order' => 1, 'is_active' => true],
+            ['name' => 'KYC Verification', 'slug' => 'kyc-verification', 'description' => 'KYC submission and verification help', 'display_order' => 2, 'is_active' => true],
+            ['name' => 'Investment & Plans', 'slug' => 'investment-plans', 'description' => 'Understanding investment plans and SIPs', 'display_order' => 3, 'is_active' => true],
+            ['name' => 'Payments & Wallet', 'slug' => 'payments-wallet', 'description' => 'Payment methods and wallet management', 'display_order' => 4, 'is_active' => true],
+            ['name' => 'Withdrawals', 'slug' => 'withdrawals', 'description' => 'Withdrawal process and timelines', 'display_order' => 5, 'is_active' => true],
         ];
 
         foreach ($categories as $category) {

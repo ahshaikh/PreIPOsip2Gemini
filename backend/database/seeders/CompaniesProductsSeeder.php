@@ -260,7 +260,7 @@ class CompaniesProductsSeeder extends Seeder
 
         foreach ($highlights as $index => $text) {
             ProductHighlight::updateOrCreate(
-                ['product_id' => $product->id, 'highlight_text' => $text],
+                ['product_id' => $product->id, 'content' => $text],
                 ['display_order' => $index + 1]
             );
         }
@@ -272,8 +272,8 @@ class CompaniesProductsSeeder extends Seeder
     private function createProductFounders(Product $product, Company $company): void
     {
         $founderData = [
-            ['name' => 'Rajesh Kumar', 'role' => 'CEO & Co-Founder', 'bio' => 'Former VP at Tech Giant, IIT Delhi alumni', 'display_order' => 1],
-            ['name' => 'Priya Sharma', 'role' => 'CTO & Co-Founder', 'bio' => 'Ex-Engineering Lead, Stanford MS', 'display_order' => 2],
+            ['name' => 'Rajesh Kumar', 'title' => 'CEO & Co-Founder', 'photo_url' => null, 'linkedin_url' => 'https://linkedin.com/in/rajesh-kumar'],
+            ['name' => 'Priya Sharma', 'title' => 'CTO & Co-Founder', 'photo_url' => null, 'linkedin_url' => 'https://linkedin.com/in/priya-sharma'],
         ];
 
         foreach ($founderData as $founder) {
@@ -290,13 +290,13 @@ class CompaniesProductsSeeder extends Seeder
     private function createProductFundingRounds(Product $product, Company $company): void
     {
         $fundingRounds = [
-            ['round_type' => 'Seed', 'amount_raised' => 50000000, 'valuation' => 200000000, 'funded_at' => now()->subYears(2)],
-            ['round_type' => 'Series A', 'amount_raised' => 150000000, 'valuation' => 600000000, 'funded_at' => now()->subYear()],
+            ['round_name' => 'Seed', 'amount' => 50000000, 'valuation' => 200000000, 'date' => now()->subYears(2)->toDateString(), 'investors' => 'Angel Investors, Venture Partners'],
+            ['round_name' => 'Series A', 'amount' => 150000000, 'valuation' => 600000000, 'date' => now()->subYear()->toDateString(), 'investors' => 'Sequoia Capital, Accel Partners'],
         ];
 
         foreach ($fundingRounds as $round) {
             ProductFundingRound::updateOrCreate(
-                ['product_id' => $product->id, 'round_type' => $round['round_type']],
+                ['product_id' => $product->id, 'round_name' => $round['round_name']],
                 $round
             );
         }
@@ -308,9 +308,9 @@ class CompaniesProductsSeeder extends Seeder
     private function createProductKeyMetrics(Product $product): void
     {
         $metrics = [
-            ['metric_name' => 'Annual Revenue', 'metric_value' => '₹' . rand(10, 100) . ' Cr', 'display_order' => 1],
-            ['metric_name' => 'Monthly Active Users', 'metric_value' => rand(10000, 1000000), 'display_order' => 2],
-            ['metric_name' => 'YoY Growth', 'metric_value' => rand(20, 60) . '%', 'display_order' => 3],
+            ['metric_name' => 'Annual Revenue', 'value' => rand(10, 100), 'unit' => '₹ Cr'],
+            ['metric_name' => 'Monthly Active Users', 'value' => rand(10000, 1000000), 'unit' => 'users'],
+            ['metric_name' => 'YoY Growth', 'value' => rand(20, 60), 'unit' => '%'],
         ];
 
         foreach ($metrics as $metric) {
@@ -327,13 +327,13 @@ class CompaniesProductsSeeder extends Seeder
     private function createProductRiskDisclosures(Product $product): void
     {
         $risks = [
-            ['risk_type' => 'market', 'description' => 'Market volatility and regulatory changes may impact valuation.', 'severity' => 'medium'],
-            ['risk_type' => 'liquidity', 'description' => 'Limited liquidity until IPO or secondary sale opportunities arise.', 'severity' => 'high'],
+            ['risk_category' => 'market', 'risk_title' => 'Market Risk', 'risk_description' => 'Market volatility and regulatory changes may impact valuation.', 'severity' => 'medium', 'display_order' => 1],
+            ['risk_category' => 'liquidity', 'risk_title' => 'Liquidity Risk', 'risk_description' => 'Limited liquidity until IPO or secondary sale opportunities arise.', 'severity' => 'high', 'display_order' => 2],
         ];
 
         foreach ($risks as $risk) {
             ProductRiskDisclosure::updateOrCreate(
-                ['product_id' => $product->id, 'risk_type' => $risk['risk_type']],
+                ['product_id' => $product->id, 'risk_category' => $risk['risk_category']],
                 $risk
             );
         }
@@ -345,13 +345,13 @@ class CompaniesProductsSeeder extends Seeder
     private function createProductPriceHistory(Product $product): void
     {
         $prices = [
-            ['price_per_share' => $product->price_per_share * 0.8, 'effective_date' => now()->subMonths(6), 'reason' => 'Initial offering price'],
-            ['price_per_share' => $product->price_per_share, 'effective_date' => now()->subMonths(1), 'reason' => 'Post-funding valuation adjustment'],
+            ['price' => $product->current_market_price * 0.8, 'recorded_at' => now()->subMonths(6)->toDateString()],
+            ['price' => $product->current_market_price, 'recorded_at' => now()->subMonths(1)->toDateString()],
         ];
 
         foreach ($prices as $price) {
             ProductPriceHistory::updateOrCreate(
-                ['product_id' => $product->id, 'effective_date' => $price['effective_date']],
+                ['product_id' => $product->id, 'recorded_at' => $price['recorded_at']],
                 $price
             );
         }
@@ -382,7 +382,7 @@ class CompaniesProductsSeeder extends Seeder
         $quantityAllocated = $config['allocated'];
         $quantityReserved = $totalQuantity - $quantityAllocated;
 
-        $totalCost = $totalQuantity * $product->price_per_share;
+        $totalCost = $totalQuantity * $product->current_market_price;
         $discountPercentage = 5.0; // 5% bulk discount
         $finalCost = $totalCost * (1 - $discountPercentage / 100);
 
@@ -393,7 +393,7 @@ class CompaniesProductsSeeder extends Seeder
                 'total_quantity' => $totalQuantity,
                 'quantity_allocated' => $quantityAllocated,
                 'quantity_reserved' => $quantityReserved,
-                'price_per_unit' => $product->price_per_share,
+                'price_per_unit' => $product->current_market_price,
                 'total_cost' => $finalCost,
                 'discount_percentage' => $discountPercentage,
                 'purchase_date' => now()->subMonths(rand(1, 3)),
@@ -417,7 +417,7 @@ class CompaniesProductsSeeder extends Seeder
                 'total_shares_available' => BulkPurchase::where('product_id', $product->id)->sum('total_quantity'),
                 'shares_allocated' => BulkPurchase::where('product_id', $product->id)->sum('quantity_allocated'),
                 'shares_reserved' => BulkPurchase::where('product_id', $product->id)->sum('quantity_reserved'),
-                'price_per_share' => $product->price_per_share,
+                'price_per_share' => $product->current_market_price,
                 'listing_status' => 'approved',
                 'approved_at' => now()->subMonths(rand(1, 3)),
                 'approved_by_admin_id' => $this->adminUser->id,
