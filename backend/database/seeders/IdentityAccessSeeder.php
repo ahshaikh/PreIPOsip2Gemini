@@ -34,6 +34,12 @@ use Illuminate\Support\Str;
 class IdentityAccessSeeder extends Seeder
 {
     /**
+     * Temporary storage for KYC statuses during seeding
+     * Maps user_id => kyc_status
+     */
+    private array $userKycStatuses = [];
+
+    /**
      * Run the database seeds.
      */
     public function run(): void
@@ -215,8 +221,9 @@ class IdentityAccessSeeder extends Seeder
                 $user->assignRole('User');
             }
 
-            // Store KYC status temporarily for use in seedUserKyc
-            $user->_temp_kyc_status = $kycStatus;
+            // Store KYC status in class property for use in seedUserKyc
+            // (Can't use model attribute - would cause DB error on update())
+            $this->userKycStatuses[$user->id] = $kycStatus;
 
             // Link referral after all users are created (only if not already set)
             if ($referredByCode && !$user->referred_by) {
@@ -289,7 +296,7 @@ class IdentityAccessSeeder extends Seeder
             }
 
             $profile = $user->profile;
-            $status = $user->_temp_kyc_status ?? 'pending';
+            $status = $this->userKycStatuses[$user->id] ?? 'pending';
 
             // Get first and last name from profile
             $fullName = ($profile->first_name ?? 'User') . ' ' . ($profile->last_name ?? 'Seeded');
