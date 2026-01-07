@@ -102,12 +102,12 @@ class Wallet extends Model
 
     /**
      * Available balance (₹).
-     * Business logic intentionally minimal here.
+     * FIX 18: Now accounts for locked funds
      */
     protected function availableBalance(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->balance
+            get: fn () => max(0, $this->balance - $this->locked_balance)
         );
     }
 
@@ -123,6 +123,128 @@ class Wallet extends Model
     public function transactions(): HasMany
     {
         return $this->hasMany(Transaction::class);
+    }
+
+    /**
+     * FIX 18: Fund locks relationship
+     */
+    public function fundLocks(): HasMany
+    {
+        return $this->hasMany(FundLock::class, 'user_id', 'user_id');
+    }
+
+    /**
+     * FIX 18: Active fund locks
+     */
+    public function activeFundLocks(): HasMany
+    {
+        return $this->fundLocks()->where('status', 'active');
+    }
+
+    // ------------------------------------------------------------------
+    // FIX 18: Fund Locking Methods
+    // ------------------------------------------------------------------
+
+    /**
+     * Lock funds (reserve for pending transaction)
+     *
+     * @param float $amount Amount in rupees
+     * @param string $lockType Type of lock (withdrawal, investment_hold, etc.)
+     * @param Model $lockable The entity causing the lock (Withdrawal, Subscription, etc.)
+     * @param array $metadata Additional data
+     * @return FundLock
+     * @throws \RuntimeException
+     */
+    public function lockFunds(
+        float $amount,
+        string $lockType,
+        Model $lockable,
+        array $metadata = []
+    ): FundLock {
+        if ($amount <= 0) {
+            throw new \InvalidArgumentException('Lock amount must be positive');
+        }
+
+        if ($this->available_balance < $amount) {
+            throw new \RuntimeException(
+                "Insufficient funds. Available: ₹{$this->available_balance}, Required: ₹{$amount}"
+            );
+        }
+
+        // Create lock record
+        $lock = FundLock::create([
+            'user_id' => $this->user_id,
+            'lock_type' => $lockType,
+            'lockable_type' => get_class($lockable),
+            'lockable_id' => $lockable->id,
+            'amount' => $amount,
+            'amount_paise' => bcmul($amount, 100),
+            'status' => 'active',
+            'locked_at' => now(),
+            'locked_by' => auth()->id(),
+            'metadata' => $metadata,
+        ]);
+
+        // Increment locked balance
+        $this->incrementLockedBalance($amount);
+
+        \Log::info('Funds locked', [
+            'user_id' => $this->user_id,
+            'amount' => $amount,
+            'lock_type' => $lockType,
+            'lock_id' => $lock->id,
+        ]);
+
+        return $lock;
+    }
+
+    /**
+     * Unlock funds (release reservation)
+     *
+     * @param FundLock $lock
+     * @param string|null $reason
+     * @return bool
+     */
+    public function unlockFunds(FundLock $lock, ?string $reason = null): bool
+    {
+        return $lock->release(auth()->id(), $reason);
+    }
+
+    /**
+     * Increment locked balance atomically
+     *
+     * @param float $amount
+     * @return bool
+     */
+    public function incrementLockedBalance(float $amount): bool
+    {
+        $amountPaise = (int) bcmul($amount, 100);
+
+        return $this->increment('locked_balance_paise', $amountPaise);
+    }
+
+    /**
+     * Decrement locked balance atomically
+     *
+     * @param float $amount
+     * @return bool
+     */
+    public function decrementLockedBalance(float $amount): bool
+    {
+        $amountPaise = (int) bcmul($amount, 100);
+
+        return $this->decrement('locked_balance_paise', $amountPaise);
+    }
+
+    /**
+     * Check if sufficient funds available (considering locks)
+     *
+     * @param float $amount
+     * @return bool
+     */
+    public function hasSufficientFunds(float $amount): bool
+    {
+        return $this->available_balance >= $amount;
     }
 
     /*

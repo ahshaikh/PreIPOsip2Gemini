@@ -2,8 +2,8 @@
 
 namespace App\Providers;
 
-use App\Models\{BulkPurchase, Company};
-use App\Observers\{BulkPurchaseObserver, CompanyObserver};
+use App\Models\{BulkPurchase, Company, Withdrawal};
+use App\Observers\{BulkPurchaseObserver, CompanyObserver, WithdrawalObserver};
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
@@ -32,6 +32,9 @@ class EventServiceProvider extends ServiceProvider
 
         // FIX 5 (P1): Register Company observer for post-purchase data freeze
         Company::observe(CompanyObserver::class);
+
+        // FIX 18: Register Withdrawal observer for automatic fund locking
+        Withdrawal::observe(WithdrawalObserver::class);
     }
 
     /**

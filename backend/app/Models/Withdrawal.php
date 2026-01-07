@@ -31,6 +31,9 @@ class Withdrawal extends Model
         'rejection_reason',
         'admin_notes',
         'idempotency_key', // AUDIT FIX: For duplicate prevention
+        'funds_locked', // FIX 18: Fund locking status
+        'funds_locked_at', // FIX 18: When funds were locked
+        'funds_unlocked_at', // FIX 18: When funds were unlocked
     ];
 
     protected $casts = [
@@ -42,6 +45,9 @@ class Withdrawal extends Model
         'net_amount' => 'decimal:2',
         'approved_at' => 'datetime',
         'processed_at' => 'datetime',
+        'funds_locked' => 'boolean', // FIX 18
+        'funds_locked_at' => 'datetime', // FIX 18
+        'funds_unlocked_at' => 'datetime', // FIX 18
     ];
 
     /**
