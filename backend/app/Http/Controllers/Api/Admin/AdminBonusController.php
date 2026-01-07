@@ -13,16 +13,21 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use App\Services\WalletService; // [ADDED] Required to actually credit the user's wallet
+use App\Services\Accounting\AdminLedger; // FIX 24: Admin ledger for bonus reversal tracking
 
 class AdminBonusController extends Controller
 {
     // [ADDED] Property for the WalletService
     protected $walletService;
 
-    // [ADDED] Constructor to inject WalletService
-    public function __construct(WalletService $walletService)
+    // FIX 24: Property for AdminLedger
+    protected $adminLedger;
+
+    // [ADDED] Constructor to inject WalletService and AdminLedger
+    public function __construct(WalletService $walletService, AdminLedger $adminLedger)
     {
         $this->walletService = $walletService;
+        $this->adminLedger = $adminLedger; // FIX 24
     }
 
     /**
@@ -175,7 +180,7 @@ class AdminBonusController extends Controller
         // Previously, this function only created a log entry (Phantom Reversal).
         try {
             $reversal = DB::transaction(function () use ($bonus, $validated) {
-                
+
                 // 1. Create reversal transaction log (using Model logic if available, or manual create)
                 // Assuming $bonus->reverse() returns the new BonusTransaction model
                 $reversalTxn = $bonus->reverse($validated['reason']);
@@ -190,21 +195,35 @@ class AdminBonusController extends Controller
                     $reversalTxn // Link this withdrawal to the reversal transaction
                 );
 
+                // 3. FIX 24: Record in AdminLedger for complete audit trail
+                // When bonus is reversed, admin gets cash back and expense is reversed
+                $this->adminLedger->recordBonusReversal(
+                    $bonus->amount,
+                    $bonus->id,
+                    $reversalTxn->id,
+                    "Bonus reversal: {$validated['reason']}"
+                );
+
                 return $reversalTxn;
             });
 
-            Log::info("Admin reversed bonus #{$bonus->id}. Reason: {$validated['reason']}");
+            Log::info("Admin reversed bonus #{$bonus->id}. Reason: {$validated['reason']}", [
+                'bonus_id' => $bonus->id,
+                'reversal_id' => $reversal->id,
+                'amount' => $bonus->amount,
+                'admin_id' => auth()->id(),
+            ]);
 
             return response()->json([
                 'success' => true,
-                'message' => "Bonus of ₹{$bonus->amount} reversed successfully (Funds withdrawn)",
+                'message' => "Bonus of ₹{$bonus->amount} reversed successfully (Funds withdrawn, AdminLedger updated)",
                 'reversal' => $reversal,
             ]);
 
         } catch (\Exception $e) {
             Log::error("Failed to reverse bonus #{$id}: " . $e->getMessage());
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'Failed to reverse bonus: ' . $e->getMessage()
             ], 500);
         }

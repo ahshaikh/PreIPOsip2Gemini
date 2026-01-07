@@ -16,8 +16,15 @@ use Illuminate\Support\Facades\Request;
 class ReferralEngine
 {
     /**
+     * FIX 28: Maximum allowed referral chain depth
+     * Prevents database performance issues and potential circular references
+     */
+    const MAX_REFERRAL_DEPTH = 10;
+
+    /**
      * Link a new user to their referrer.
      * [AUDIT FIX]: Implements basic fraud check for same-IP referrals.
+     * FIX 28: Added referral depth validation to prevent excessive chains
      */
     public function linkUser(User $newUser, string $referralCode): void
     {
@@ -25,17 +32,78 @@ class ReferralEngine
 
         if (!$link) return;
 
+        // FIX 28: Check referral chain depth
+        $referrerDepth = $this->calculateReferralDepth($link->user);
+
+        if ($referrerDepth >= self::MAX_REFERRAL_DEPTH) {
+            \Log::warning('Referral depth limit exceeded', [
+                'new_user_id' => $newUser->id,
+                'referrer_id' => $link->user_id,
+                'referrer_depth' => $referrerDepth,
+                'max_depth' => self::MAX_REFERRAL_DEPTH,
+                'referral_code' => $referralCode,
+            ]);
+
+            // Don't link the user, but log the attempt
+            return;
+        }
+
         // [AUDIT FIX]: Simple Fraud Gating
         $isSameIp = $link->user->last_login_ip === Request::ip();
-        
+
         $newUser->update([
             'referrer_id' => $link->user_id,
             'referral_metadata' => [
                 'code_used' => $referralCode,
                 'is_suspicious' => $isSameIp,
                 'attributed_at' => now(),
+                'referrer_chain_depth' => $referrerDepth + 1, // FIX 28: Track depth
             ]
         ]);
+
+        \Log::info('User linked to referrer', [
+            'new_user_id' => $newUser->id,
+            'referrer_id' => $link->user_id,
+            'chain_depth' => $referrerDepth + 1,
+            'is_suspicious' => $isSameIp,
+        ]);
+    }
+
+    /**
+     * FIX 28: Calculate the depth of a user's referral chain
+     *
+     * Returns the number of ancestors in the referral chain
+     * (0 if user has no referrer, 1 if user has direct referrer, etc.)
+     *
+     * @param User $user
+     * @return int Depth of referral chain
+     */
+    private function calculateReferralDepth(User $user): int
+    {
+        $depth = 0;
+        $current = $user;
+        $visited = []; // FIX 28: Prevent infinite loops in case of circular references
+
+        while ($current->referrer_id && $depth < self::MAX_REFERRAL_DEPTH) {
+            // FIX 28: Detect circular references
+            if (in_array($current->referrer_id, $visited)) {
+                \Log::error('Circular referral reference detected', [
+                    'user_id' => $current->id,
+                    'referrer_id' => $current->referrer_id,
+                    'chain' => $visited,
+                ]);
+                break;
+            }
+
+            $visited[] = $current->id;
+            $current = $current->referrer;
+
+            if (!$current) break;
+
+            $depth++;
+        }
+
+        return $depth;
     }
 
     /**

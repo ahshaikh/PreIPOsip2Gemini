@@ -197,6 +197,39 @@ class AdminLedger
     }
 
     /**
+     * FIX 24: Record Bonus Reversal
+     *
+     * When admin reverses a bonus that was previously paid:
+     * - Money is taken back from user's wallet
+     * - Admin gets cash back
+     * - Previous expense is effectively reversed
+     *
+     * Double-Entry:
+     * - DEBIT: Cash (+₹500) [admin gets money back]
+     * - CREDIT: Expenses (-₹500) [reverses previous expense]
+     *
+     * @param float $amount Amount being reversed
+     * @param int $bonusTransactionId ID of original bonus transaction
+     * @param int $reversalTransactionId ID of reversal transaction
+     * @return array [debit_entry, credit_entry]
+     */
+    public function recordBonusReversal(
+        float $amount,
+        int $bonusTransactionId,
+        int $reversalTransactionId,
+        ?string $description = null
+    ): array {
+        return $this->createDoubleEntry(
+            debitAccount: self::ACCOUNT_CASH,
+            creditAccount: self::ACCOUNT_EXPENSES,
+            amount: $amount,
+            referenceType: 'bonus_reversal',
+            referenceId: $reversalTransactionId,
+            description: $description ?? "Bonus reversal (original bonus #{$bonusTransactionId})"
+        );
+    }
+
+    /**
      * Create Double-Entry Transaction (ATOMIC)
      *
      * PROTOCOL:

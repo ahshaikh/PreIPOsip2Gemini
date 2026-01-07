@@ -205,7 +205,25 @@ class CampaignService
                     ];
                 }
 
-                // Check for duplicate application to same entity
+                // FIX 25: Check for campaign stacking prevention
+                // Prevent ANY campaign (not just the same one) from being applied multiple times
+                $anyExistingUsage = CampaignUsage::where('applicable_type', get_class($applicable))
+                    ->where('applicable_id', $applicable->id)
+                    ->first();
+
+                if ($anyExistingUsage) {
+                    $existingCampaign = Campaign::find($anyExistingUsage->campaign_id);
+                    $existingCode = $existingCampaign ? $existingCampaign->code : $anyExistingUsage->campaign_code;
+
+                    return [
+                        'success' => false,
+                        'usage' => $anyExistingUsage,
+                        'discount' => $anyExistingUsage->discount_applied,
+                        'message' => "A campaign ({$existingCode}) has already been applied to this investment. Campaign stacking is not allowed."
+                    ];
+                }
+
+                // Legacy check (now redundant, but kept for backwards compatibility)
                 $existingUsage = CampaignUsage::where('campaign_id', $campaign->id)
                     ->where('applicable_type', get_class($applicable))
                     ->where('applicable_id', $applicable->id)
