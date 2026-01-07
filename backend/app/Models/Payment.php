@@ -76,6 +76,23 @@ class Payment extends Model
         return $this->hasMany(UserInvestment::class);
     }
 
+    /**
+     * FIX 44: Relationship for payment sagas
+     * Tracks multi-step payment operations
+     */
+    public function sagas()
+    {
+        return $this->hasMany(PaymentSaga::class);
+    }
+
+    /**
+     * FIX 44: Get current active saga for this payment
+     */
+    public function currentSaga()
+    {
+        return $this->hasOne(PaymentSaga::class)->latest();
+    }
+
     // --- SCOPES ---
 
     public function scopePaid(Builder $query): void
@@ -124,5 +141,58 @@ class Payment extends Model
         return Attribute::make(
             get: fn () => $this->created_at // Simplified: Payment is "due" when created
         );
+    }
+
+    // --- FIX 44, 45: SAGA MANAGEMENT METHODS ---
+
+    /**
+     * FIX 44: Create a new saga for this payment
+     */
+    public function createSaga(array $sagaData = []): PaymentSaga
+    {
+        return PaymentSaga::createForPayment($this, $sagaData);
+    }
+
+    /**
+     * FIX 44: Check if payment has an active saga
+     */
+    public function hasActiveSaga(): bool
+    {
+        return $this->sagas()->whereIn('status', ['pending', 'in_progress', 'rolling_back'])->exists();
+    }
+
+    /**
+     * FIX 44: Get active saga or create new one
+     */
+    public function getOrCreateSaga(array $sagaData = []): PaymentSaga
+    {
+        $activeSaga = $this->sagas()
+            ->whereIn('status', ['pending', 'in_progress'])
+            ->latest()
+            ->first();
+
+        if ($activeSaga) {
+            return $activeSaga;
+        }
+
+        return $this->createSaga($sagaData);
+    }
+
+    /**
+     * FIX 45: Trigger rollback for failed payment saga
+     */
+    public function rollbackFailedSaga(): ?PaymentSaga
+    {
+        $failedSaga = $this->sagas()
+            ->where('status', 'failed')
+            ->latest()
+            ->first();
+
+        if ($failedSaga && $failedSaga->canRollback()) {
+            $failedSaga->rollback();
+            return $failedSaga;
+        }
+
+        return null;
     }
 }
