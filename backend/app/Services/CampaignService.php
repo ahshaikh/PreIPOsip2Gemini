@@ -8,14 +8,17 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Services\Accounting\AdminLedger; // FIX 30: Track campaign costs in AdminLedger
 
 class CampaignService
 {
     protected FeatureFlagService $featureFlagService;
+    protected AdminLedger $adminLedger; // FIX 30
 
-    public function __construct(FeatureFlagService $featureFlagService)
+    public function __construct(FeatureFlagService $featureFlagService, AdminLedger $adminLedger)
     {
         $this->featureFlagService = $featureFlagService;
+        $this->adminLedger = $adminLedger; // FIX 30
     }
 
     /**
@@ -265,6 +268,27 @@ class CampaignService
 
                 // Increment campaign usage count
                 $campaign->increment('usage_count');
+
+                // FIX 30: Record campaign discount in AdminLedger for financial tracking
+                // Campaign discounts are admin expenses (lost revenue)
+                if ($discount > 0) {
+                    try {
+                        $investmentId = $applicable->id ?? 0;
+                        $this->adminLedger->recordCampaignDiscount(
+                            $discount,
+                            $usage->id,
+                            $investmentId,
+                            "Campaign {$campaign->code} applied to {$usage->applicable_type} #{$investmentId}"
+                        );
+                    } catch (\Exception $e) {
+                        Log::error('Failed to record campaign discount in AdminLedger', [
+                            'campaign_usage_id' => $usage->id,
+                            'discount' => $discount,
+                            'error' => $e->getMessage(),
+                        ]);
+                        // Don't fail the entire transaction, but log the error
+                    }
+                }
 
                 Log::info('Campaign applied successfully', [
                     'campaign_id' => $campaign->id,

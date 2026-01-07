@@ -362,6 +362,27 @@ class ProfitShareService
 
             $distributions = $lockedPeriod->distributions()->with('user.wallet', 'user.kyc', 'user.subscription')->get();
             if ($distributions->isEmpty()) throw new \Exception('No distributions to process.');
+
+            // FIX 29: Additional duplicate distribution check
+            // Verify that distributions haven't already been processed (bonus_transaction_id should be null)
+            $alreadyDistributed = $distributions->filter(fn($d) => !is_null($d->bonus_transaction_id));
+            if ($alreadyDistributed->isNotEmpty()) {
+                $count = $alreadyDistributed->count();
+                $sampleIds = $alreadyDistributed->take(5)->pluck('id')->implode(', ');
+
+                Log::error('Duplicate profit share distribution attempt detected', [
+                    'profit_share_id' => $lockedPeriod->id,
+                    'already_distributed_count' => $count,
+                    'sample_distribution_ids' => $sampleIds,
+                    'attempted_by_admin' => $admin->id,
+                ]);
+
+                throw new \Exception(
+                    "Distribution aborted: {$count} distributions have already been processed " .
+                    "(have bonus_transaction_id set). This indicates a duplicate distribution attempt. " .
+                    "Period ID: {$lockedPeriod->id}"
+                );
+            }
             
             // V-AUDIT-MODULE10-004 (MEDIUM): TDS Configuration
             $tdsRate = (float) setting('tds_rate', 0.10); // Standard 10% TDS
