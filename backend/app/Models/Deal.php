@@ -259,6 +259,22 @@ class Deal extends Model
                     ->get();
     }
 
+    /**
+     * FIX 49: Deal approvals relationship
+     */
+    public function approvals()
+    {
+        return $this->hasMany(DealApproval::class)->orderBy('created_at', 'desc');
+    }
+
+    /**
+     * FIX 49: Get current approval record
+     */
+    public function currentApproval()
+    {
+        return $this->hasOne(DealApproval::class)->latest();
+    }
+
     public function scopeLive($query)
     {
         return $query->where('deal_type', 'live')
