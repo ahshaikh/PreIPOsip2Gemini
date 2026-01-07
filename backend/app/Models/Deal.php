@@ -43,6 +43,7 @@ class Deal extends Model
      * [AUDIT FIX]: Automatic Cache Invalidation.
      * When any deal is modified, we must clear the cached lists
      * to prevent investors from seeing outdated availability or pricing.
+     * FIX 26: Added date overlap validation
      */
     protected static function booted()
     {
@@ -50,6 +51,39 @@ class Deal extends Model
             Cache::forget('deals_live_list');
             Cache::forget('deals_featured_list');
         };
+
+        // FIX 26: Validate no date overlap with existing deals for same product
+        static::saving(function ($deal) {
+            if ($deal->deal_opens_at && $deal->deal_closes_at && $deal->product_id) {
+                $query = self::where('product_id', $deal->product_id)
+                    ->where('status', 'active')
+                    ->where(function ($q) use ($deal) {
+                        // Check for any overlap
+                        $q->whereBetween('deal_opens_at', [$deal->deal_opens_at, $deal->deal_closes_at])
+                          ->orWhereBetween('deal_closes_at', [$deal->deal_opens_at, $deal->deal_closes_at])
+                          ->orWhere(function ($q2) use ($deal) {
+                              // Check if new deal is completely within existing deal
+                              $q2->where('deal_opens_at', '<=', $deal->deal_opens_at)
+                                 ->where('deal_closes_at', '>=', $deal->deal_closes_at);
+                          });
+                    });
+
+                // Exclude self when updating
+                if ($deal->exists) {
+                    $query->where('id', '!=', $deal->id);
+                }
+
+                $overlappingDeals = $query->get();
+
+                if ($overlappingDeals->isNotEmpty()) {
+                    $overlappingTitles = $overlappingDeals->pluck('title')->implode(', ');
+                    throw new \RuntimeException(
+                        "Deal dates overlap with existing active deals for this product: {$overlappingTitles}. " .
+                        "Please choose different dates or deactivate conflicting deals."
+                    );
+                }
+            }
+        });
 
         static::saved($clearCache);
         static::deleted($clearCache);

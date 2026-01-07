@@ -33,6 +33,47 @@ class UserInvestment extends Model
         'created_at' => 'datetime',
     ];
 
+    /**
+     * FIX 23: Boot logic to prevent double-reversal
+     */
+    protected static function booted()
+    {
+        static::updating(function ($investment) {
+            // FIX 23: Prevent reversal of already-reversed investments
+            if ($investment->isDirty('is_reversed') && $investment->is_reversed) {
+                $wasAlreadyReversed = $investment->getOriginal('is_reversed');
+
+                if ($wasAlreadyReversed) {
+                    throw new \RuntimeException(
+                        "Investment #{$investment->id} is already reversed. Cannot reverse twice."
+                    );
+                }
+
+                // Automatically set reversed_at timestamp
+                if (!$investment->reversed_at) {
+                    $investment->reversed_at = now();
+                }
+
+                \Log::warning('Investment being reversed', [
+                    'investment_id' => $investment->id,
+                    'user_id' => $investment->user_id,
+                    'value_allocated' => $investment->value_allocated,
+                    'reason' => $investment->reversal_reason,
+                ]);
+            }
+
+            // FIX 23: Validate source='bonus' has corresponding bonus transaction
+            if ($investment->isDirty('source') && $investment->source === 'bonus') {
+                // This validation can be added if we want to enforce it strictly
+                // For now, we'll just log it
+                \Log::info('Investment source set to bonus', [
+                    'investment_id' => $investment->id,
+                    'user_id' => $investment->user_id,
+                ]);
+            }
+        });
+    }
+
     // --- RELATIONSHIPS ---
 
     public function user(): BelongsTo
