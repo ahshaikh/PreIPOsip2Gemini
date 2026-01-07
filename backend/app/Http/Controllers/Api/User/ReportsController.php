@@ -6,6 +6,7 @@
 namespace App\Http\Controllers\Api\User;
 
 use App\Http\Controllers\Controller;
+use App\Services\StatementGeneratorService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -707,10 +708,24 @@ class ReportsController extends Controller
 
     /**
      * Helper: Generate report file in specified format
+     * [FIX 14 (P3)]: Integrated StatementGeneratorService for PDF statements
      */
     private function generateReportFile($user, $type, $format, $from, $to, $data)
     {
         $fileName = "{$user->id}_{$type}_" . time() . ".{$format}";
+
+        // [FIX 14 (P3)]: Use StatementGeneratorService for transaction statements
+        if ($type === 'statement' && $format === 'pdf') {
+            $statementService = app(StatementGeneratorService::class);
+            $startDate = Carbon::parse($from);
+            $endDate = Carbon::parse($to);
+
+            // Generate statement and get path
+            $path = $statementService->generateStatement($user, $startDate, $endDate, 'all');
+
+            // Return just the filename (path already includes user ID directory)
+            return basename($path);
+        }
 
         if ($format === 'pdf') {
             // Generate PDF (requires Laravel-DomPDF or similar)

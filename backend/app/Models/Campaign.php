@@ -213,6 +213,62 @@ class Campaign extends Model
     }
 
     /**
+     * FIX 12 (P3): Boot method for approval validation
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saving(function (Campaign $campaign) {
+            // Enforce approval requirement for active campaigns
+            if ($campaign->is_active && !$campaign->approved_at) {
+                throw new \InvalidArgumentException(
+                    'Campaign cannot be activated without approval. Set approved_at timestamp first.'
+                );
+            }
+        });
+    }
+
+    /**
+     * FIX 12 (P3): Scopes for approval status
+     */
+    public function scopeApproved($query)
+    {
+        return $query->whereNotNull('approved_at');
+    }
+
+    public function scopeUnapproved($query)
+    {
+        return $query->whereNull('approved_at');
+    }
+
+    /**
+     * FIX 12 (P3): Approve campaign
+     */
+    public function approve(int $adminId): void
+    {
+        if ($this->approved_at) {
+            throw new \RuntimeException('Campaign already approved');
+        }
+
+        $this->update([
+            'approved_by' => $adminId,
+            'approved_at' => now(),
+        ]);
+
+        // Log to audit
+        \App\Models\AuditLog::create([
+            'action' => 'campaign.approved',
+            'actor_id' => $adminId,
+            'description' => "Approved campaign: {$this->title}",
+            'metadata' => [
+                'campaign_id' => $this->id,
+                'campaign_code' => $this->code,
+            ],
+        ]);
+    }
+
+    /**
      * Helper Methods
      */
     public function canBeEdited(): bool
