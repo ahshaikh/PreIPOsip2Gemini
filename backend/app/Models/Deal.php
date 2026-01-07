@@ -52,6 +52,60 @@ class Deal extends Model
             Cache::forget('deals_featured_list');
         };
 
+        // FIX 41: Validate product-company relationship
+        static::saving(function ($deal) {
+            if ($deal->product_id && $deal->company_id) {
+                // Ensure product and company are properly linked
+                // Since products are platform-wide, validate business logic constraints
+
+                $product = \App\Models\Product::find($deal->product_id);
+                $company = \App\Models\Company::find($deal->company_id);
+
+                if (!$product || !$company) {
+                    throw new \RuntimeException(
+                        "Invalid product or company reference in deal."
+                    );
+                }
+
+                // FIX 41: Validate sector consistency (if both have sectors)
+                if ($product->sector && $company->sector_id) {
+                    $companySector = \App\Models\Sector::find($company->sector_id);
+                    if ($companySector && $product->sector !== $companySector->slug) {
+                        \Log::warning('Deal created with sector mismatch', [
+                            'deal_id' => $deal->id ?? 'new',
+                            'product_id' => $product->id,
+                            'product_sector' => $product->sector,
+                            'company_id' => $company->id,
+                            'company_sector' => $companySector->name,
+                        ]);
+
+                        // Optional: Enforce strict matching
+                        // Uncomment to make this a hard requirement:
+                        // throw new \DomainException(
+                        //     "Product sector ({$product->sector}) does not match company sector ({$companySector->name}). " .
+                        //     "Deals must be created for products in the same sector as the company."
+                        // );
+                    }
+                }
+
+                // FIX 41: Check for duplicate active deals by same company for same product
+                $duplicateCheck = self::where('product_id', $deal->product_id)
+                    ->where('company_id', $deal->company_id)
+                    ->where('status', 'active');
+
+                if ($deal->exists) {
+                    $duplicateCheck->where('id', '!=', $deal->id);
+                }
+
+                if ($duplicateCheck->exists()) {
+                    throw new \DomainException(
+                        "Company '{$company->name}' already has an active deal for product '{$product->name}'. " .
+                        "Please close or complete the existing deal before creating a new one."
+                    );
+                }
+            }
+        });
+
         // FIX 26: Validate no date overlap with existing deals for same product
         static::saving(function ($deal) {
             if ($deal->deal_opens_at && $deal->deal_closes_at && $deal->product_id) {
