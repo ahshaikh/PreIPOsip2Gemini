@@ -3,7 +3,8 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Deal;
+use App\Http\Requests\Admin\StoreDealRequest;
+use App\Models\{Deal, BulkPurchase, AuditLog};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -56,34 +57,11 @@ class DealController extends Controller
 
     /**
      * Store a newly created deal
+     * FIX 7 (P1): Uses StoreDealRequest for cross-entity validation
      */
-    public function store(Request $request)
+    public function store(StoreDealRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'title' => 'required|string|max:255',
-            'company_id' => 'required|exists:companies,id',
-            'product_id' => 'required|exists:products,id',
-            'sector' => 'required|string|max:255',
-            'deal_type' => 'required|in:live,upcoming,closed',
-            'description' => 'nullable|string',
-            'min_investment' => 'nullable|numeric|min:0',
-            'max_investment' => 'nullable|numeric|min:0',
-            'valuation' => 'nullable|numeric|min:0',
-            'share_price' => 'required|numeric|min:0',
-            'deal_opens_at' => 'nullable|date',
-            'deal_closes_at' => 'nullable|date|after:deal_opens_at',
-            'highlights' => 'nullable|array',
-            'documents' => 'nullable|array',
-            'video_url' => 'nullable|url',
-            'status' => 'required|in:draft,active,paused,closed',
-            'is_featured' => 'boolean',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        $data = $validator->validated();
+        $data = $request->validated();
         $data['slug'] = Str::slug($data['title']) . '-' . Str::random(6);
 
         // Calculate days remaining if deal closes
@@ -208,5 +186,123 @@ class DealController extends Controller
         ];
 
         return response()->json($stats);
+    }
+
+    /**
+     * FIX 6 (P1): Approve a draft deal
+     * POST /api/v1/admin/deals/{id}/approve
+     */
+    public function approve(Request $request, $id)
+    {
+        $deal = Deal::with(['product', 'company'])->findOrFail($id);
+
+        if ($deal->status !== 'draft') {
+            return response()->json([
+                'error' => 'Only draft deals can be approved'
+            ], 422);
+        }
+
+        // Validate product has inventory
+        $availableValue = BulkPurchase::where('product_id', $deal->product_id)
+            ->where('value_remaining', '>', 0)
+            ->sum('value_remaining');
+
+        if ($availableValue <= 0) {
+            return response()->json([
+                'error' => 'Product has no available inventory. Cannot activate deal.'
+            ], 422);
+        }
+
+        // Validate max_investment doesn't exceed available inventory
+        if ($deal->max_investment && $deal->max_investment > $availableValue) {
+            return response()->json([
+                'error' => "Deal max investment (₹{$deal->max_investment}) exceeds available inventory (₹{$availableValue})"
+            ], 422);
+        }
+
+        // Approve deal
+        $deal->update([
+            'status' => 'active',
+            'approved_by_admin_id' => auth()->id(),
+            'approved_at' => now(),
+        ]);
+
+        // Log audit
+        AuditLog::create([
+            'action' => 'deal.approved',
+            'actor_id' => auth()->id(),
+            'description' => "Approved deal: {$deal->title}",
+            'metadata' => [
+                'deal_id' => $deal->id,
+                'company_id' => $deal->company_id,
+                'product_id' => $deal->product_id,
+                'available_inventory' => $availableValue,
+            ],
+        ]);
+
+        // TODO: Notify company user about approval
+        // $deal->company->companyUsers()
+        //     ->where('status', 'active')
+        //     ->each(fn($user) => $user->notify(new DealApprovedNotification($deal)));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Deal approved successfully',
+            'data' => $deal->fresh(['product', 'company']),
+        ]);
+    }
+
+    /**
+     * FIX 6 (P1): Reject a draft deal
+     * POST /api/v1/admin/deals/{id}/reject
+     */
+    public function reject(Request $request, $id)
+    {
+        $deal = Deal::with(['product', 'company'])->findOrFail($id);
+
+        if ($deal->status !== 'draft') {
+            return response()->json([
+                'error' => 'Only draft deals can be rejected'
+            ], 422);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'rejection_reason' => 'required|string|min:50|max:1000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        // Reject deal
+        $deal->update([
+            'status' => 'rejected',
+            'rejected_by_admin_id' => auth()->id(),
+            'rejected_at' => now(),
+            'rejection_reason' => $request->rejection_reason,
+        ]);
+
+        // Log audit
+        AuditLog::create([
+            'action' => 'deal.rejected',
+            'actor_id' => auth()->id(),
+            'description' => "Rejected deal: {$deal->title}",
+            'metadata' => [
+                'deal_id' => $deal->id,
+                'company_id' => $deal->company_id,
+                'rejection_reason' => $request->rejection_reason,
+            ],
+        ]);
+
+        // TODO: Notify company user about rejection
+        // $deal->company->companyUsers()
+        //     ->where('status', 'active')
+        //     ->each(fn($user) => $user->notify(new DealRejectedNotification($deal, $request->rejection_reason)));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Deal rejected successfully',
+            'data' => $deal->fresh(['product', 'company']),
+        ]);
     }
 }

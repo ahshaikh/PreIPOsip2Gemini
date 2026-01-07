@@ -223,6 +223,23 @@ class AdminShareListingController extends Controller
                 ]);
 
                 $bulkPurchaseId = $bulkPurchase->id;
+
+                // FIX 5 (P1): Create company snapshot and freeze data
+                \App\Models\CompanySnapshot::create([
+                    'company_id' => $listing->company_id,
+                    'company_share_listing_id' => $listing->id,
+                    'bulk_purchase_id' => $bulkPurchase->id,
+                    'snapshot_data' => $listing->company->toArray(),
+                    'snapshot_reason' => 'listing_approval',
+                    'snapshot_at' => now(),
+                    'snapshot_by_admin_id' => auth()->id(),
+                ]);
+
+                // Freeze company data (prevent retroactive disclosure changes)
+                $listing->company->update([
+                    'frozen_at' => now(),
+                    'frozen_by_admin_id' => auth()->id(),
+                ]);
             }
 
             // Update listing

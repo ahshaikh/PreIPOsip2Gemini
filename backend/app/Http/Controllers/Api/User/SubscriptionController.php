@@ -87,6 +87,23 @@ class SubscriptionController extends Controller
         $plan = Plan::findOrFail($validated['plan_id']);
         $customAmount = $validated['custom_amount'] ?? null;
 
+        // FIX 8 (P1): Check subscription limit enforcement
+        if ($plan->max_subscriptions_per_user) {
+            $existingCount = Subscription::where('user_id', $user->id)
+                ->where('plan_id', $plan->id)
+                ->whereIn('status', ['active', 'paused'])
+                ->count();
+
+            if ($existingCount >= $plan->max_subscriptions_per_user) {
+                return response()->json([
+                    'message' => "Maximum {$plan->max_subscriptions_per_user} active subscriptions allowed for this plan.",
+                    'errors' => [
+                        'plan_id' => ["You have reached the maximum limit of {$plan->max_subscriptions_per_user} active subscriptions for plan '{$plan->name}'."]
+                    ]
+                ], 422);
+            }
+        }
+
         // Check eligibility requirements
         $eligibilityCheck = $this->eligibilityService->checkEligibility($user, $plan);
         if (!$eligibilityCheck['eligible']) {

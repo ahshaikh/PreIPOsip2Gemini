@@ -2,8 +2,8 @@
 
 namespace App\Providers;
 
-use App\Models\BulkPurchase;
-use App\Observers\BulkPurchaseObserver;
+use App\Models\{BulkPurchase, Company};
+use App\Observers\{BulkPurchaseObserver, CompanyObserver};
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
@@ -29,6 +29,9 @@ class EventServiceProvider extends ServiceProvider
     {
         // FIX 2 (P0): Register BulkPurchase observer for immutability enforcement
         BulkPurchase::observe(BulkPurchaseObserver::class);
+
+        // FIX 5 (P1): Register Company observer for post-purchase data freeze
+        Company::observe(CompanyObserver::class);
     }
 
     /**
