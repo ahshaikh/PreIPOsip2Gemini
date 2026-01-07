@@ -25,6 +25,7 @@ class ReferralEngine
      * Link a new user to their referrer.
      * [AUDIT FIX]: Implements basic fraud check for same-IP referrals.
      * FIX 28: Added referral depth validation to prevent excessive chains
+     * FIX 43: Added referrer active status check
      */
     public function linkUser(User $newUser, string $referralCode): void
     {
@@ -32,13 +33,29 @@ class ReferralEngine
 
         if (!$link) return;
 
+        $referrer = $link->user;
+
+        // FIX 43: Check if referrer account is active
+        if (!$this->isReferrerEligible($referrer)) {
+            \Log::warning('Referral rejected: Referrer account not eligible', [
+                'new_user_id' => $newUser->id,
+                'referrer_id' => $referrer->id,
+                'referrer_status' => $referrer->status ?? 'unknown',
+                'referral_code' => $referralCode,
+                'reason' => 'Referrer account is not active or verified',
+            ]);
+
+            // Don't link the user if referrer is not eligible
+            return;
+        }
+
         // FIX 28: Check referral chain depth
-        $referrerDepth = $this->calculateReferralDepth($link->user);
+        $referrerDepth = $this->calculateReferralDepth($referrer);
 
         if ($referrerDepth >= self::MAX_REFERRAL_DEPTH) {
             \Log::warning('Referral depth limit exceeded', [
                 'new_user_id' => $newUser->id,
-                'referrer_id' => $link->user_id,
+                'referrer_id' => $referrer->id,
                 'referrer_depth' => $referrerDepth,
                 'max_depth' => self::MAX_REFERRAL_DEPTH,
                 'referral_code' => $referralCode,
@@ -49,10 +66,10 @@ class ReferralEngine
         }
 
         // [AUDIT FIX]: Simple Fraud Gating
-        $isSameIp = $link->user->last_login_ip === Request::ip();
+        $isSameIp = $referrer->last_login_ip === Request::ip();
 
         $newUser->update([
-            'referrer_id' => $link->user_id,
+            'referrer_id' => $referrer->id,
             'referral_metadata' => [
                 'code_used' => $referralCode,
                 'is_suspicious' => $isSameIp,
@@ -63,10 +80,42 @@ class ReferralEngine
 
         \Log::info('User linked to referrer', [
             'new_user_id' => $newUser->id,
-            'referrer_id' => $link->user_id,
+            'referrer_id' => $referrer->id,
             'chain_depth' => $referrerDepth + 1,
             'is_suspicious' => $isSameIp,
         ]);
+    }
+
+    /**
+     * FIX 43: Check if referrer is eligible to receive referral credits
+     *
+     * Referrer must:
+     * - Have active or verified status
+     * - Not be suspended or banned
+     * - Have verified KYC (if required by settings)
+     *
+     * @param User $referrer
+     * @return bool True if eligible, false otherwise
+     */
+    private function isReferrerEligible(User $referrer): bool
+    {
+        // Check account status - must be active
+        if (!in_array($referrer->status, ['active', 'verified'])) {
+            return false;
+        }
+
+        // Check if account is suspended or banned
+        if (in_array($referrer->status, ['suspended', 'banned', 'inactive'])) {
+            return false;
+        }
+
+        // Check KYC requirement (if enabled in settings)
+        $requireKyc = setting('referral_require_kyc', true);
+        if ($requireKyc && (!$referrer->kyc || $referrer->kyc->status !== 'verified')) {
+            return false;
+        }
+
+        return true;
     }
 
     /**

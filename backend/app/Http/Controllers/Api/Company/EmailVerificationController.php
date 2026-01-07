@@ -43,10 +43,33 @@ class EmailVerificationController extends Controller
 
     /**
      * Verify email
+     * FIX 36: Added expiration check for security
      */
     public function verify(Request $request, $id, $hash)
     {
         $user = CompanyUser::findOrFail($id);
+
+        // FIX 36: Check if verification link has expired
+        // Laravel email verification URLs include an 'expires' query parameter
+        if ($request->has('expires')) {
+            $expiresAt = (int) $request->get('expires');
+            $now = now()->timestamp;
+
+            if ($now > $expiresAt) {
+                \Log::warning('Email verification link expired', [
+                    'company_user_id' => $user->id,
+                    'email' => $user->email,
+                    'expires_at' => $expiresAt,
+                    'attempted_at' => $now,
+                    'expired_by_seconds' => $now - $expiresAt,
+                ]);
+
+                return response()->json([
+                    'message' => 'This verification link has expired. Please request a new verification email.',
+                    'expired' => true,
+                ], 410); // 410 Gone - resource no longer available
+            }
+        }
 
         if (!hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
             return response()->json([
