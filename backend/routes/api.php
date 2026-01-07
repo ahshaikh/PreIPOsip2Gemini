@@ -896,6 +896,9 @@ Route::prefix('v1')->group(function () {
                 Route::post('/', [DealController::class, 'store'])->middleware('permission:products.create');
                 Route::get('/statistics', [DealController::class, 'statistics'])->middleware('permission:products.view');
                 Route::get('/{id}', [DealController::class, 'show'])->middleware('permission:products.view');
+                // FIX 6 (P1): Deal approval workflow
+                Route::post('/{id}/approve', [DealController::class, 'approve'])->middleware('permission:products.edit');
+                Route::post('/{id}/reject', [DealController::class, 'reject'])->middleware('permission:products.edit');
                 Route::put('/{id}', [DealController::class, 'update'])->middleware('permission:products.edit');
                 Route::delete('/{id}', [DealController::class, 'destroy'])->middleware('permission:products.delete');
             });

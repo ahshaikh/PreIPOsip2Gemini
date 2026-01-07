@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\{Product, Company, BulkPurchase};
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -75,5 +76,57 @@ class StoreDealRequest extends FormRequest
             'is_featured' => $this->is_featured ?? false,
             'sort_order' => $this->sort_order ?? 0,
         ]);
+    }
+
+    /**
+     * FIX 7 (P1): Cross-Entity Validation
+     *
+     * Validates that:
+     * 1. Product belongs to the specified company (via BulkPurchase provenance)
+     * 2. max_investment doesn't exceed available inventory
+     */
+    public function withValidator($validator)
+    {
+        $validator->after(function ($validator) {
+            // Only validate if both fields are present
+            if (!$this->product_id || !$this->company_id) {
+                return;
+            }
+
+            $product = Product::find($this->product_id);
+            $company = Company::find($this->company_id);
+
+            if (!$product || !$company) {
+                return; // Will fail on exists: rule
+            }
+
+            // FIX 7a: Validate product belongs to company via BulkPurchase
+            $hasInventoryFromCompany = BulkPurchase::where('product_id', $product->id)
+                ->where('company_id', $company->id)
+                ->exists();
+
+            if (!$hasInventoryFromCompany) {
+                $validator->errors()->add(
+                    'product_id',
+                    "Selected product does not have inventory from this company. " .
+                    "Company '{$company->name}' has not sold shares of product '{$product->name}' to the platform."
+                );
+            }
+
+            // FIX 7b: Validate max_investment doesn't exceed available inventory
+            if ($this->max_investment) {
+                $availableValue = BulkPurchase::where('product_id', $product->id)
+                    ->where('value_remaining', '>', 0)
+                    ->sum('value_remaining');
+
+                if ($this->max_investment > $availableValue) {
+                    $validator->errors()->add(
+                        'max_investment',
+                        "Maximum investment (₹{$this->max_investment}) exceeds available inventory (₹{$availableValue}). " .
+                        "Reduce max_investment or add more inventory via BulkPurchase."
+                    );
+                }
+            }
+        });
     }
 }
