@@ -219,7 +219,9 @@ Route::prefix('v1')->group(function () {
 
     // --- Authenticated User Routes ---
     Route::middleware(['auth:sanctum', 'mfa.verified'])->group(function () {
-        Route::post('/user/withdrawals', [WithdrawalController::class, 'store']);
+        // FIX 21: Rate limit withdrawal requests to prevent spam (max 3 requests per hour)
+        Route::post('/user/withdrawals', [WithdrawalController::class, 'store'])
+            ->middleware('throttle:3,60');
         Route::post('/user/security/change-password', [SecurityController::class, 'update']);
         Route::get('/user/dashboard/overview', [UserDashboardController::class, 'overview']);
         
