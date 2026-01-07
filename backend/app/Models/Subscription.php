@@ -191,7 +191,45 @@ class Subscription extends Model
     // --- DOMAIN ACTIONS ---
 
     /**
+     * FIX 37: Check if user has sufficient wallet balance for subscription payment
+     *
+     * @param float|null $amount Optional amount to check (defaults to subscription amount)
+     * @return bool True if sufficient balance, false otherwise
+     */
+    public function hasSufficientWalletBalance(?float $amount = null): bool
+    {
+        $requiredAmount = $amount ?? $this->amount ?? $this->plan->monthly_amount;
+        $wallet = $this->user->wallet;
+
+        if (!$wallet) {
+            return false;
+        }
+
+        return $wallet->available_balance >= $requiredAmount;
+    }
+
+    /**
+     * FIX 37: Validate wallet balance before payment
+     *
+     * @param float|null $amount Optional amount to validate
+     * @throws \RuntimeException If insufficient balance
+     */
+    public function validateWalletBalance(?float $amount = null): void
+    {
+        if (!$this->hasSufficientWalletBalance($amount)) {
+            $requiredAmount = $amount ?? $this->amount ?? $this->plan->monthly_amount;
+            $availableBalance = $this->user->wallet ? $this->user->wallet->available_balance : 0;
+
+            throw new \RuntimeException(
+                "Insufficient wallet balance for subscription payment. " .
+                "Required: ₹{$requiredAmount}, Available: ₹{$availableBalance}"
+            );
+        }
+    }
+
+    /**
      * Pause the subscription.
+     * FIX 38: Added pause count validation
      */
     public function pause(int $months): void
     {
@@ -203,6 +241,15 @@ class Subscription extends Model
             throw new \DomainException("Only active subscriptions can be paused.");
         }
 
+        // FIX 38: Check pause count limit (max 2 pauses per subscription)
+        $maxPauses = (int) setting('subscription_max_pause_count', 2);
+        if ($this->pause_count >= $maxPauses) {
+            throw new \DomainException(
+                "Subscription has reached maximum pause limit ({$maxPauses} times). " .
+                "You cannot pause this subscription again."
+            );
+        }
+
         // Shift dates
         $newNextPayment = $this->next_payment_date->copy()->addMonths($months);
         $newEndDate = $this->end_date->copy()->addMonths($months);
@@ -212,7 +259,15 @@ class Subscription extends Model
             'pause_start_date' => now(),
             'pause_end_date' => now()->addMonths($months),
             'next_payment_date' => $newNextPayment,
-            'end_date' => $newEndDate
+            'end_date' => $newEndDate,
+            'pause_count' => $this->pause_count + 1, // FIX 38: Increment pause count
+        ]);
+
+        \Log::info('Subscription paused', [
+            'subscription_id' => $this->id,
+            'user_id' => $this->user_id,
+            'pause_count' => $this->pause_count + 1,
+            'pause_months' => $months,
         ]);
     }
 

@@ -64,12 +64,33 @@ class Product extends Model
 
     /**
      * Boot logic to enforce validation.
+     * FIX 20: Added inventory validation before activation
      */
     protected static function booted()
     {
         static::saving(function ($product) {
             if ($product->face_value_per_unit <= 0) {
                 throw new \InvalidArgumentException("Face value must be positive.");
+            }
+
+            // FIX 20: Prevent activation without inventory
+            if ($product->isDirty('status') && $product->status === 'active') {
+                $hasInventory = $product->bulkPurchases()
+                    ->where('value_remaining', '>', 0)
+                    ->exists();
+
+                if (!$hasInventory) {
+                    throw new \RuntimeException(
+                        "Cannot activate product '{$product->name}': No available inventory. " .
+                        "Please add bulk purchase inventory before activating this product."
+                    );
+                }
+
+                \Log::info('Product activated with inventory check', [
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'total_inventory' => $product->bulkPurchases()->sum('value_remaining'),
+                ]);
             }
         });
     }

@@ -214,6 +214,7 @@ class Campaign extends Model
 
     /**
      * FIX 12 (P3): Boot method for approval validation
+     * FIX 40: Auto-deactivate expired campaigns
      */
     protected static function boot()
     {
@@ -225,6 +226,28 @@ class Campaign extends Model
                 throw new \InvalidArgumentException(
                     'Campaign cannot be activated without approval. Set approved_at timestamp first.'
                 );
+            }
+
+            // FIX 40: Auto-deactivate campaigns that have passed their end_at date
+            if ($campaign->end_at && $campaign->end_at->isPast() && $campaign->is_active) {
+                $campaign->is_active = false;
+
+                \Log::info('Campaign auto-deactivated due to expiration', [
+                    'campaign_id' => $campaign->id,
+                    'campaign_code' => $campaign->code,
+                    'end_at' => $campaign->end_at->toDateTimeString(),
+                    'deactivated_at' => now()->toDateTimeString(),
+                ]);
+            }
+
+            // FIX 40: Prevent activation of already-expired campaigns
+            if ($campaign->isDirty('is_active') && $campaign->is_active) {
+                if ($campaign->end_at && $campaign->end_at->isPast()) {
+                    throw new \DomainException(
+                        "Cannot activate campaign '{$campaign->code}': Campaign expired on {$campaign->end_at->format('Y-m-d H:i:s')}. " .
+                        "Please update the end date before activating."
+                    );
+                }
             }
         });
     }

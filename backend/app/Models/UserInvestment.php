@@ -33,6 +33,117 @@ class UserInvestment extends Model
         'created_at' => 'datetime',
     ];
 
+    /**
+     * FIX 23: Boot logic to prevent double-reversal
+     */
+    protected static function booted()
+    {
+        static::updating(function ($investment) {
+            // FIX 23: Prevent reversal of already-reversed investments
+            if ($investment->isDirty('is_reversed') && $investment->is_reversed) {
+                $wasAlreadyReversed = $investment->getOriginal('is_reversed');
+
+                if ($wasAlreadyReversed) {
+                    throw new \RuntimeException(
+                        "Investment #{$investment->id} is already reversed. Cannot reverse twice."
+                    );
+                }
+
+                // Automatically set reversed_at timestamp
+                if (!$investment->reversed_at) {
+                    $investment->reversed_at = now();
+                }
+
+                \Log::warning('Investment being reversed', [
+                    'investment_id' => $investment->id,
+                    'user_id' => $investment->user_id,
+                    'value_allocated' => $investment->value_allocated,
+                    'reason' => $investment->reversal_reason,
+                ]);
+            }
+
+            // FIX 42: Validate source='bonus' has corresponding bonus transaction
+            if ($investment->isDirty('source') && $investment->source === 'bonus') {
+                // Ensure there's a corresponding BonusTransaction
+                $hasMatchingBonus = \App\Models\BonusTransaction::where('user_id', $investment->user_id)
+                    ->when($investment->payment_id, function($query) use ($investment) {
+                        // If payment_id exists, match on it for stronger validation
+                        return $query->where('payment_id', $investment->payment_id);
+                    })
+                    ->when(!$investment->payment_id && $investment->subscription_id, function($query) use ($investment) {
+                        // If no payment_id but subscription_id exists, match on that
+                        return $query->where('subscription_id', $investment->subscription_id);
+                    })
+                    ->exists();
+
+                if (!$hasMatchingBonus) {
+                    $identifier = $investment->payment_id
+                        ? "payment #{$investment->payment_id}"
+                        : ($investment->subscription_id
+                            ? "subscription #{$investment->subscription_id}"
+                            : "user #{$investment->user_id}");
+
+                    throw new \RuntimeException(
+                        "Investment source set to 'bonus' but no corresponding BonusTransaction found for {$identifier}. " .
+                        "Bonus investments must have a valid bonus transaction record."
+                    );
+                }
+
+                \Log::info('Investment source validated with bonus transaction', [
+                    'investment_id' => $investment->id,
+                    'user_id' => $investment->user_id,
+                    'payment_id' => $investment->payment_id,
+                    'subscription_id' => $investment->subscription_id,
+                ]);
+            }
+        });
+
+        // FIX 46: Create compensating wallet transaction when investment is reversed
+        static::updated(function ($investment) {
+            // Check if is_reversed just changed from false to true
+            if ($investment->wasChanged('is_reversed') && $investment->is_reversed) {
+                try {
+                    // Get WalletService and create refund transaction
+                    $walletService = app(\App\Services\WalletService::class);
+
+                    // Bypass compliance check since this is a reversal (internal operation)
+                    $transaction = $walletService->deposit(
+                        user: $investment->user,
+                        amount: $investment->value_allocated,
+                        type: \App\Enums\TransactionType::REFUND,
+                        description: "Investment reversal refund - Investment #{$investment->id}" .
+                                   ($investment->reversal_reason ? " - Reason: {$investment->reversal_reason}" : ""),
+                        reference: $investment,
+                        bypassComplianceCheck: true
+                    );
+
+                    \Log::info('Investment reversal compensation created', [
+                        'investment_id' => $investment->id,
+                        'user_id' => $investment->user_id,
+                        'refund_amount' => $investment->value_allocated,
+                        'transaction_id' => $transaction->id,
+                        'reason' => $investment->reversal_reason,
+                    ]);
+                } catch (\Exception $e) {
+                    \Log::error('Failed to create investment reversal compensation', [
+                        'investment_id' => $investment->id,
+                        'user_id' => $investment->user_id,
+                        'amount' => $investment->value_allocated,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
+                    ]);
+
+                    // Re-throw the exception to prevent silent failures
+                    throw new \RuntimeException(
+                        "Failed to create reversal refund for investment #{$investment->id}: {$e->getMessage()}",
+                        0,
+                        $e
+                    );
+                }
+            }
+        });
+    }
+
     // --- RELATIONSHIPS ---
 
     public function user(): BelongsTo
