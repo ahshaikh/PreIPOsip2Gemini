@@ -131,17 +131,15 @@ use App\Http\Controllers\Api\WebhookController;
 Route::prefix('v1')->group(function () {
 
     // --- Public Authentication Routes ---
-    Route::middleware('throttle:login')->group(function () {
+    // [FIX 16 (P3)]: Custom rate limiting with endpoint-specific limits
+    Route::middleware('throttle.public')->group(function () {
         Route::post('/register', [AuthController::class, 'register']);
         Route::post('/login', [AuthController::class, 'login']);
         Route::post('/login/2fa', [AuthController::class, 'verifyTwoFactor']);
         Route::post('/password/forgot', [PasswordResetController::class, 'sendResetLink']);
         Route::post('/password/reset', [PasswordResetController::class, 'reset']);
+        Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
     });
-
-    // OTP verification with stricter rate limiting (5 attempts per 10 minutes)
-    Route::post('/verify-otp', [AuthController::class, 'verifyOtp'])
-        ->middleware('throttle:5,10');
     Route::get('/auth/{provider}/redirect', [SocialLoginController::class, 'redirectToProvider']);
     Route::get('/auth/{provider}/callback', [SocialLoginController::class, 'handleProviderCallback']);
 
@@ -1053,8 +1051,9 @@ Route::prefix('v1')->group(function () {
         // COMPANY USER ROUTES
         // ========================================================================
         // Public Company Registration & Login
+        // [FIX 16 (P3)]: Apply same rate limiting to company auth endpoints
         Route::prefix('company')->group(function () {
-            Route::middleware('throttle:login')->group(function () {
+            Route::middleware('throttle.public')->group(function () {
                 Route::post('/register', [CompanyAuthController::class, 'register']);
                 Route::post('/login', [CompanyAuthController::class, 'login']);
             });
