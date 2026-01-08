@@ -65,6 +65,12 @@ return [
             'model' => env('AUTH_MODEL', App\Models\User::class),
         ],
 
+        // Company Users Provider (FIX: Enable multi-user-type authentication)
+        'company_users' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\CompanyUser::class,
+        ],
+
         // 'users' => [
         //     'driver' => 'database',
         //     'table' => 'users',
@@ -94,6 +100,14 @@ return [
         'users' => [
             'provider' => 'users',
             'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
+            'expire' => 60,
+            'throttle' => 60,
+        ],
+
+        // Company Users Password Reset (FIX: Enable password reset for company users)
+        'company_users' => [
+            'provider' => 'company_users',
+            'table' => 'password_reset_tokens',
             'expire' => 60,
             'throttle' => 60,
         ],
