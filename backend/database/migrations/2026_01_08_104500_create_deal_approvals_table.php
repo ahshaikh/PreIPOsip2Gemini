@@ -63,6 +63,14 @@ return new class extends Migration
                     ->onDelete('set null')
                     ->comment('Admin who started reviewing');
 
+                // PROTOCOL 1 FIX: Add review_started_at timestamp
+                // EXECUTION PATH: /admin/deal-approvals/analytics queries this column
+                // SQL: WHERE reviewed_by IS NOT NULL AND review_started_at BETWEEN...
+                $table->timestamp('review_started_at')
+                    ->nullable()
+                    ->index() // Analytics queries filter by this column
+                    ->comment('Timestamp when review was started by admin');
+
                 $table->foreignId('approved_by')
                     ->nullable()
                     ->constrained('users')
