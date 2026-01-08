@@ -251,4 +251,198 @@ class WalletService
             ]);
         });
     }
+
+    /**
+     * FIX 1 (P0): Lock funds for pending operation (e.g., withdrawal request)
+     * Prevents user from spending reserved funds.
+     *
+     * @throws InsufficientBalanceException if available balance insufficient
+     */
+    public function lockFunds(
+        User $user,
+        int|float|string $amount,
+        string $reason,
+        ?Model $reference = null
+    ): void {
+        $amountPaise = $this->normalizeAmount($amount);
+
+        if ($amountPaise <= 0) {
+            throw new \InvalidArgumentException("Lock amount must be positive.");
+        }
+
+        DB::transaction(function () use ($user, $amountPaise, $reason, $reference) {
+            $wallet = $user->wallet()
+                ->lockForUpdate()
+                ->firstOrCreate(['user_id' => $user->id]);
+
+            // Check available balance (balance - locked)
+            $availableBalance = $wallet->balance_paise - $wallet->locked_balance_paise;
+
+            if ($availableBalance < $amountPaise) {
+                throw new InsufficientBalanceException($availableBalance, $amountPaise);
+            }
+
+            // Move to locked balance
+            $wallet->increment('locked_balance_paise', $amountPaise);
+            $wallet->refresh();
+
+            // Log to audit
+            \App\Models\AuditLog::create([
+                'action' => 'wallet.lock_funds',
+                'actor_id' => auth()->id() ?? $user->id,
+                'actor_type' => auth()->user() ? get_class(auth()->user()) : User::class,
+                'description' => $reason,
+                'metadata' => [
+                    'wallet_id' => $wallet->id,
+                    'user_id' => $user->id,
+                    'amount_paise' => $amountPaise,
+                    'amount_rupees' => $amountPaise / 100,
+                    'reference_type' => $reference ? get_class($reference) : null,
+                    'reference_id' => $reference?->id,
+                    'new_locked_balance_paise' => $wallet->locked_balance_paise,
+                ],
+            ]);
+
+            Log::info('Wallet funds locked', [
+                'user_id' => $user->id,
+                'amount_paise' => $amountPaise,
+                'reason' => $reason,
+            ]);
+        });
+    }
+
+    /**
+     * FIX 1 (P0): Unlock funds after cancellation/rejection
+     *
+     * @throws \RuntimeException if locked balance insufficient
+     */
+    public function unlockFunds(
+        User $user,
+        int|float|string $amount,
+        string $reason,
+        ?Model $reference = null
+    ): void {
+        $amountPaise = $this->normalizeAmount($amount);
+
+        if ($amountPaise <= 0) {
+            throw new \InvalidArgumentException("Unlock amount must be positive.");
+        }
+
+        DB::transaction(function () use ($user, $amountPaise, $reason, $reference) {
+            $wallet = $user->wallet()
+                ->lockForUpdate()
+                ->firstOrCreate(['user_id' => $user->id]);
+
+            if ($wallet->locked_balance_paise < $amountPaise) {
+                throw new \RuntimeException(
+                    "Cannot unlock ₹" . ($amountPaise / 100) .
+                    ". Locked balance is only ₹" . ($wallet->locked_balance_paise / 100)
+                );
+            }
+
+            // Release from locked balance
+            $wallet->decrement('locked_balance_paise', $amountPaise);
+            $wallet->refresh();
+
+            // Log to audit
+            \App\Models\AuditLog::create([
+                'action' => 'wallet.unlock_funds',
+                'actor_id' => auth()->id() ?? $user->id,
+                'actor_type' => auth()->user() ? get_class(auth()->user()) : User::class,
+                'description' => $reason,
+                'metadata' => [
+                    'wallet_id' => $wallet->id,
+                    'user_id' => $user->id,
+                    'amount_paise' => $amountPaise,
+                    'amount_rupees' => $amountPaise / 100,
+                    'reference_type' => $reference ? get_class($reference) : null,
+                    'reference_id' => $reference?->id,
+                    'new_locked_balance_paise' => $wallet->locked_balance_paise,
+                ],
+            ]);
+
+            Log::info('Wallet funds unlocked', [
+                'user_id' => $user->id,
+                'amount_paise' => $amountPaise,
+                'reason' => $reason,
+            ]);
+        });
+    }
+
+    /**
+     * FIX 1 (P0): Debit locked funds (final processing of withdrawal/payment)
+     * Moves funds from both balance and locked_balance simultaneously.
+     *
+     * @throws \RuntimeException if locked balance insufficient
+     */
+    public function debitLockedFunds(
+        User $user,
+        int|float|string $amount,
+        TransactionType|string $type,
+        string $description,
+        ?Model $reference = null
+    ): Transaction {
+        $amountPaise = $this->normalizeAmount($amount);
+
+        if ($amountPaise <= 0) {
+            throw new \InvalidArgumentException("Debit amount must be positive.");
+        }
+
+        if (is_string($type)) {
+            $type = TransactionType::from($type);
+        }
+
+        return DB::transaction(function () use (
+            $user,
+            $amountPaise,
+            $type,
+            $description,
+            $reference
+        ) {
+            $wallet = $user->wallet()
+                ->lockForUpdate()
+                ->firstOrCreate(['user_id' => $user->id]);
+
+            if ($wallet->locked_balance_paise < $amountPaise) {
+                throw new \RuntimeException(
+                    "Cannot debit locked funds. Locked balance: ₹" .
+                    ($wallet->locked_balance_paise / 100) .
+                    ", Requested: ₹" . ($amountPaise / 100)
+                );
+            }
+
+            if ($wallet->balance_paise < $amountPaise) {
+                throw new InsufficientBalanceException($wallet->balance_paise, $amountPaise);
+            }
+
+            $balanceBefore = $wallet->balance_paise;
+
+            // Debit from both balances atomically
+            $wallet->decrement('balance_paise', $amountPaise);
+            $wallet->decrement('locked_balance_paise', $amountPaise);
+            $wallet->refresh();
+
+            // Runtime invariants
+            if ($wallet->balance_paise < 0) {
+                throw new \RuntimeException('Invariant violation: negative balance after debit');
+            }
+
+            if ($wallet->locked_balance_paise < 0) {
+                throw new \RuntimeException('Invariant violation: negative locked balance after debit');
+            }
+
+            // Create immutable transaction
+            return $wallet->transactions()->create([
+                'user_id' => $user->id,
+                'type' => $type->value,
+                'status' => 'completed',
+                'amount_paise' => $amountPaise,
+                'balance_before_paise' => $balanceBefore,
+                'balance_after_paise' => $wallet->balance_paise,
+                'description' => $description,
+                'reference_type' => $reference ? get_class($reference) : null,
+                'reference_id' => $reference?->id,
+            ]);
+        });
+    }
 }

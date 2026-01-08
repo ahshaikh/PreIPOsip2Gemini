@@ -80,6 +80,7 @@ class CompanyUserController extends Controller
 
     /**
      * Approve a company user
+     * FIX 19: Now requires email verification before approval
      */
     public function approve(Request $request, $id)
     {
@@ -92,31 +93,48 @@ class CompanyUserController extends Controller
             ], 400);
         }
 
-        $companyUser->update([
-            'status' => 'active',
-            'is_verified' => true,
-            'email_verified_at' => now(),
-        ]);
+        try {
+            // FIX 19: This will throw exception if email not verified
+            $companyUser->approve();
 
-        // Also activate the company
-        if ($companyUser->company) {
-            $companyUser->company->update([
-                'status' => 'active',
-                'is_verified' => true,
-            ]);
+            // Also activate the company
+            if ($companyUser->company) {
+                $companyUser->company->update([
+                    'status' => 'active',
+                    'is_verified' => true,
+                ]);
+            }
+
+            // Send approval email notification
+            \App\Jobs\SendEmailNotification::dispatch(
+                $companyUser->email,
+                $companyUser->contact_person_name,
+                'company-user-approved',
+                'Company Account Approved',
+                [
+                    'name' => $companyUser->contact_person_name,
+                    'company_name' => $companyUser->company->name ?? 'Your Company',
+                ],
+                null
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Company user approved successfully',
+                'data' => $companyUser->fresh(),
+            ], 200);
+
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
         }
-
-        // TODO: Send approval email notification
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Company user approved successfully',
-            'data' => $companyUser->fresh(),
-        ], 200);
     }
 
     /**
      * Reject a company user
+     * FIX 19: Updated to use CompanyUser::reject() method with notification
      */
     public function reject(Request $request, $id)
     {
@@ -133,12 +151,21 @@ class CompanyUserController extends Controller
             ], 400);
         }
 
-        $companyUser->update([
-            'status' => 'rejected',
-            'rejection_reason' => $request->rejection_reason,
-        ]);
+        // FIX 19: Use new reject method
+        $companyUser->reject($request->rejection_reason);
 
-        // TODO: Send rejection email notification
+        // Send rejection email notification
+        \App\Jobs\SendEmailNotification::dispatch(
+            $companyUser->email,
+            $companyUser->contact_person_name,
+            'company-user-rejected',
+            'Company Account Registration Update',
+            [
+                'name' => $companyUser->contact_person_name,
+                'reason' => $request->rejection_reason,
+            ],
+            null
+        );
 
         return response()->json([
             'success' => true,

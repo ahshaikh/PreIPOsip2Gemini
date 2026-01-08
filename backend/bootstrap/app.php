@@ -20,6 +20,7 @@ use App\Http\Middleware\ForceHttps;
 use App\Http\Middleware\TrustProxies;
 use App\Http\Middleware\EnsureMfaVerified; // [AUDIT FIX] Import MFA Middleware
 use App\Http\Middleware\CheckPlanEligibility; // [ENHANCEMENT] Plan eligibility check
+use App\Http\Middleware\ThrottlePublicApi; // [FIX 16 (P3)] Rate limiting for public endpoints
 
 // ----------------------------------------------------------
 // 1. Build the application instance
@@ -65,6 +66,9 @@ $app = Application::configure(basePath: dirname(__DIR__))
 
             // [ENHANCEMENT]: Plan eligibility middleware for product access control
             'plan.eligible' => CheckPlanEligibility::class,
+
+            // [FIX 16 (P3)]: Rate limiting for public API endpoints
+            'throttle.public' => ThrottlePublicApi::class,
 
             // Spatie Roles & Permissions
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,

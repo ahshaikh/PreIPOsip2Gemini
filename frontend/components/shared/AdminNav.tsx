@@ -35,7 +35,10 @@ import {
   GraduationCap,
   FileBarChart,
   Layers,
-  Clock
+  Clock,
+  GitCommit,
+  FileSearch,
+  CheckSquare
 } from 'lucide-react';
 
 const navItems = [
@@ -45,12 +48,20 @@ const navItems = [
   { href: '/admin/payments', label: 'Payments', icon: CreditCard },
   { href: '/admin/kyc-queue', label: 'KYC Queue', icon: FileCheck2 },
   { href: '/admin/withdrawal-queue', label: 'Withdrawal Queue', icon: DollarSign },
+  { href: '/admin/sagas', label: 'Saga Management', icon: Activity },
   { href: '/admin/reports', label: 'Reports', icon: LineChart },
   { href: '/admin/campaigns', label: 'Campaigns', icon: Gift },
   { href: '/admin/lucky-draws', label: 'Lucky Draw', icon: Ticket },
   { href: '/admin/profit-sharing', label: 'Profit Sharing', icon: PieChart },
   { href: '/admin/support', label: 'Support Tickets', icon: LifeBuoy },
   { href: '/admin/help-center', label: 'Help Center', icon: BookOpen },
+];
+
+const auditDashboardNav = [
+    { href: '/admin/product-audits', label: 'Product Audit Trail', icon: FileSearch },
+    { href: '/admin/deal-approvals', label: 'Deal Approvals', icon: CheckSquare },
+    { href: '/admin/company-versions', label: 'Company Versions', icon: GitCommit },
+    { href: '/admin/sagas', label: 'Payment Sagas', icon: Activity },
 ];
 
 const contentManagementNav = [
@@ -110,6 +121,9 @@ export function AdminNav() {
     <nav className="flex flex-col space-y-1">
       <h4 className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Main</h4>
       {navItems.map(renderLink)}
+
+      <h4 className="px-3 pt-4 pb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Audit Dashboard</h4>
+      {auditDashboardNav.map(renderLink)}
 
       <h4 className="px-3 pt-4 pb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Content Management</h4>
       {contentManagementNav.map(renderLink)}

@@ -2,15 +2,23 @@
 
 namespace App\Models;
 
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use App\Models\Traits\LogsStateChanges;
 
-class CompanyUser extends Authenticatable
+/**
+ * FIX 19: Company User with Email Verification
+ *
+ * Implements MustVerifyEmail to require email verification before approval
+ * Uses LogsStateChanges for audit trail
+ */
+class CompanyUser extends Authenticatable implements MustVerifyEmail
 {
-    use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
+    use HasApiTokens, HasFactory, Notifiable, SoftDeletes, LogsStateChanges;
 
     protected $fillable = [
         'company_id',
@@ -36,6 +44,11 @@ class CompanyUser extends Authenticatable
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    /**
+     * FIX 19: State fields to track for audit logging
+     */
+    protected static $stateFields = ['status', 'is_verified'];
 
     /**
      * Relationship: Company User belongs to a Company
@@ -70,6 +83,14 @@ class CompanyUser extends Authenticatable
     }
 
     /**
+     * FIX 19: Check if email has been verified
+     */
+    public function hasVerifiedEmail(): bool
+    {
+        return !is_null($this->email_verified_at);
+    }
+
+    /**
      * Check if company user is active
      */
     public function isActive(): bool
@@ -83,6 +104,54 @@ class CompanyUser extends Authenticatable
     public function isPending(): bool
     {
         return $this->status === 'pending';
+    }
+
+    /**
+     * FIX 19: Approve company user (with email verification check)
+     *
+     * @throws \RuntimeException if email not verified
+     */
+    public function approve(): void
+    {
+        if (!$this->hasVerifiedEmail()) {
+            throw new \RuntimeException(
+                'Cannot approve company user: Email not verified. User must verify their email first.'
+            );
+        }
+
+        if ($this->status === 'active' && $this->is_verified) {
+            throw new \RuntimeException('Company user is already approved');
+        }
+
+        $this->update([
+            'status' => 'active',
+            'is_verified' => true,
+            'rejection_reason' => null,
+        ]);
+
+        \Log::info('Company user approved', [
+            'company_user_id' => $this->id,
+            'email' => $this->email,
+            'company_id' => $this->company_id,
+        ]);
+    }
+
+    /**
+     * FIX 19: Reject company user
+     */
+    public function reject(string $reason): void
+    {
+        $this->update([
+            'status' => 'rejected',
+            'is_verified' => false,
+            'rejection_reason' => $reason,
+        ]);
+
+        \Log::info('Company user rejected', [
+            'company_user_id' => $this->id,
+            'email' => $this->email,
+            'reason' => $reason,
+        ]);
     }
 
     /**

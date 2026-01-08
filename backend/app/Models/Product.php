@@ -64,12 +64,121 @@ class Product extends Model
 
     /**
      * Boot logic to enforce validation.
+     * FIX 20: Added inventory validation before activation
+     * FIX 48: Added comprehensive audit trail
      */
     protected static function booted()
     {
         static::saving(function ($product) {
             if ($product->face_value_per_unit <= 0) {
                 throw new \InvalidArgumentException("Face value must be positive.");
+            }
+
+            // FIX 20: Prevent activation without inventory
+            if ($product->isDirty('status') && $product->status === 'active') {
+                $hasInventory = $product->bulkPurchases()
+                    ->where('value_remaining', '>', 0)
+                    ->exists();
+
+                if (!$hasInventory) {
+                    throw new \RuntimeException(
+                        "Cannot activate product '{$product->name}': No available inventory. " .
+                        "Please add bulk purchase inventory before activating this product."
+                    );
+                }
+
+                \Log::info('Product activated with inventory check', [
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'total_inventory' => $product->bulkPurchases()->sum('value_remaining'),
+                ]);
+            }
+        });
+
+        // FIX 48: Audit trail for product creation
+        static::created(function ($product) {
+            try {
+                ProductAudit::log(
+                    $product,
+                    'created',
+                    array_keys($product->getAttributes()),
+                    [],
+                    $product->getAttributes(),
+                    'Product created'
+                );
+            } catch (\Exception $e) {
+                \Log::error('Failed to create product audit log', [
+                    'product_id' => $product->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        });
+
+        // FIX 48: Audit trail for product updates
+        static::updated(function ($product) {
+            // Only audit if significant fields changed
+            $auditableFields = [
+                'name', 'status', 'face_value_per_unit', 'current_market_price',
+                'min_investment', 'expected_ipo_date', 'sebi_approval_number',
+                'sebi_approval_date', 'compliance_notes', 'regulatory_warnings',
+                'is_featured', 'eligibility_mode'
+            ];
+
+            $changedFields = $product->wasChanged()
+                ? array_intersect($auditableFields, array_keys($product->getChanges()))
+                : [];
+
+            if (!empty($changedFields)) {
+                try {
+                    $action = 'updated';
+
+                    // Determine specific action type
+                    if (in_array('status', $changedFields)) {
+                        if ($product->status === 'active') {
+                            $action = 'activated';
+                        } elseif ($product->status === 'inactive') {
+                            $action = 'deactivated';
+                        }
+                    } elseif (in_array('current_market_price', $changedFields)) {
+                        $action = 'price_updated';
+                    }
+
+                    ProductAudit::log($product, $action);
+
+                    \Log::info('Product audit log created', [
+                        'product_id' => $product->id,
+                        'action' => $action,
+                        'changed_fields' => $changedFields,
+                    ]);
+                } catch (\Exception $e) {
+                    \Log::error('Failed to create product audit log', [
+                        'product_id' => $product->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        });
+
+        // FIX 48: Audit trail for product deletion
+        static::deleted(function ($product) {
+            try {
+                ProductAudit::create([
+                    'product_id' => $product->id,
+                    'action' => 'deleted',
+                    'changed_fields' => [],
+                    'old_values' => $product->getAttributes(),
+                    'new_values' => [],
+                    'performed_by' => auth()->id(),
+                    'performed_by_type' => auth()->check() ? get_class(auth()->user()) : 'System',
+                    'ip_address' => request()->ip(),
+                    'user_agent' => request()->userAgent(),
+                    'reason' => 'Product deleted',
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('Failed to create product deletion audit log', [
+                    'product_id' => $product->id,
+                    'error' => $e->getMessage(),
+                ]);
             }
         });
     }
@@ -83,6 +192,14 @@ class Product extends Model
     public function fundingRounds(): HasMany { return $this->hasMany(ProductFundingRound::class)->orderBy('date'); }
     public function keyMetrics(): HasMany { return $this->hasMany(ProductKeyMetric::class); }
     public function riskDisclosures(): HasMany { return $this->hasMany(ProductRiskDisclosure::class)->orderBy('display_order'); }
+
+    /**
+     * FIX 48: Product audit trail
+     */
+    public function audits(): HasMany
+    {
+        return $this->hasMany(ProductAudit::class)->orderBy('created_at', 'desc');
+    }
 
     /**
      * Plans that can access this product (many-to-many).

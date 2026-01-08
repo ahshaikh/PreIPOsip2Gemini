@@ -71,6 +71,7 @@ class Company extends Model
 
     /**
      * Boot logic to handle automatic slug generation and unique constraints.
+     * FIX 33, 34, 35: Company versioning and immutability
      */
     protected static function booted()
     {
@@ -81,8 +82,78 @@ class Company extends Model
         });
 
         static::updating(function ($company) {
+            // FIX 34: Enforce immutability after listing approval
+            if ($company->hasApprovedListing()) {
+                $protectedFields = [
+                    'name',
+                    'sector',
+                    'founded_year',
+                    'ceo_name',
+                    'latest_valuation',
+                    'total_funding',
+                ];
+
+                $changedProtectedFields = array_intersect(
+                    $protectedFields,
+                    array_keys($company->getDirty())
+                );
+
+                if (!empty($changedProtectedFields)) {
+                    \Log::warning('Attempt to modify protected company fields after listing approval', [
+                        'company_id' => $company->id,
+                        'company_name' => $company->name,
+                        'changed_fields' => $changedProtectedFields,
+                        'user_id' => auth()->id(),
+                    ]);
+
+                    throw new \RuntimeException(
+                        "Cannot modify protected fields after listing approval: " .
+                        implode(', ', $changedProtectedFields) . ". " .
+                        "Protected fields include: name, sector, valuation, funding. " .
+                        "Contact admin to request changes."
+                    );
+                }
+            }
+
+            // Auto-update slug if name changed
             if ($company->isDirty('name') && !$company->isDirty('slug')) {
                 $company->slug = static::generateUniqueSlug($company->name, $company->id);
+            }
+        });
+
+        // FIX 33: Create version snapshot after company data is saved
+        static::saved(function ($company) {
+            // Only version if meaningful fields changed (not just timestamps)
+            $versionableFields = [
+                'name', 'description', 'logo', 'website', 'sector',
+                'founded_year', 'headquarters', 'ceo_name', 'latest_valuation',
+                'funding_stage', 'total_funding', 'key_metrics', 'investors',
+                'is_verified', 'status',
+            ];
+
+            $changedFields = $company->wasChanged()
+                ? array_intersect($versionableFields, array_keys($company->getChanges()))
+                : [];
+
+            if (!empty($changedFields)) {
+                try {
+                    CompanyVersion::createFromCompany(
+                        $company,
+                        $changedFields,
+                        'Company data updated'
+                    );
+
+                    \Log::info('Company version created', [
+                        'company_id' => $company->id,
+                        'changed_fields' => $changedFields,
+                    ]);
+                } catch (\Exception $e) {
+                    \Log::error('Failed to create company version', [
+                        'company_id' => $company->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                    // Don't fail the save operation, just log the error
+                }
             }
         });
     }
@@ -160,6 +231,24 @@ class Company extends Model
     public function webinars()
     {
         return $this->hasMany(CompanyWebinar::class);
+    }
+
+    /**
+     * FIX 33: Company versions relationship
+     */
+    public function versions(): HasMany
+    {
+        return $this->hasMany(CompanyVersion::class)->orderBy('version_number', 'desc');
+    }
+
+    /**
+     * FIX 35: Get approval snapshots
+     */
+    public function approvalSnapshots(): HasMany
+    {
+        return $this->hasMany(CompanyVersion::class)
+            ->where('is_approval_snapshot', true)
+            ->orderBy('created_at', 'desc');
     }
 
     // --- SCOPES ---
@@ -279,5 +368,64 @@ class Company extends Model
         }
 
         return $issues;
+    }
+
+    // --- FIX 34, 35: VERSIONING & IMMUTABILITY HELPERS ---
+
+    /**
+     * FIX 34: Check if company has an approved listing
+     * Used to enforce immutability rules
+     */
+    public function hasApprovedListing(): bool
+    {
+        // Check if there's any approved share listing or active deal
+        $hasApprovedShareListing = \App\Models\CompanyShareListing::where('company_id', $this->id)
+            ->where('status', 'approved')
+            ->exists();
+
+        $hasActiveDeal = $this->deals()
+            ->where('status', 'active')
+            ->exists();
+
+        return $hasApprovedShareListing || $hasActiveDeal;
+    }
+
+    /**
+     * FIX 35: Create approval snapshot
+     * Called when company listing is approved
+     */
+    public function createApprovalSnapshot(int $approvalId, string $approvalType = 'listing'): CompanyVersion
+    {
+        return CompanyVersion::createFromCompany(
+            company: $this,
+            changedFields: [], // No specific fields changed, this is a snapshot
+            reason: "Snapshot created at {$approvalType} approval",
+            isApprovalSnapshot: true,
+            approvalId: $approvalId
+        );
+    }
+
+    /**
+     * FIX 33: Get latest version
+     */
+    public function getLatestVersion(): ?CompanyVersion
+    {
+        return $this->versions()->first();
+    }
+
+    /**
+     * FIX 33: Get version history count
+     */
+    public function getVersionCount(): int
+    {
+        return $this->versions()->count();
+    }
+
+    /**
+     * FIX 35: Get the snapshot from when company was first approved
+     */
+    public function getOriginalApprovalSnapshot(): ?CompanyVersion
+    {
+        return $this->approvalSnapshots()->orderBy('created_at', 'asc')->first();
     }
 }

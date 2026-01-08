@@ -30,11 +30,28 @@ class Sector extends Model
             }
         });
 
-        // Prevent deletion if in use
+        // FIX 27: Prevent deletion if in use by companies, deals, or products
         static::deleting(function ($sector) {
-            if ($sector->companies()->exists() || $sector->deals()->exists()) {
-                throw new \Exception('Cannot delete sector that is in use by companies or deals.');
+            $companiesCount = $sector->companies()->count();
+            $dealsCount = $sector->deals()->count();
+            $productsCount = $sector->products()->count();
+
+            if ($companiesCount > 0 || $dealsCount > 0 || $productsCount > 0) {
+                $details = [];
+                if ($companiesCount > 0) $details[] = "{$companiesCount} companies";
+                if ($dealsCount > 0) $details[] = "{$dealsCount} deals";
+                if ($productsCount > 0) $details[] = "{$productsCount} products";
+
+                throw new \RuntimeException(
+                    "Cannot delete sector '{$sector->name}': Currently in use by " . implode(', ', $details) . "."
+                );
             }
+
+            \Log::info('Sector deleted', [
+                'sector_id' => $sector->id,
+                'sector_name' => $sector->name,
+                'deleted_by' => auth()->id(),
+            ]);
         });
     }
 

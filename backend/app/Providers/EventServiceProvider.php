@@ -1,0 +1,47 @@
+<?php
+
+namespace App\Providers;
+
+use App\Models\{BulkPurchase, Company, Withdrawal};
+use App\Observers\{BulkPurchaseObserver, CompanyObserver, WithdrawalObserver};
+use Illuminate\Auth\Events\Registered;
+use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
+use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
+use Illuminate\Support\Facades\Event;
+
+class EventServiceProvider extends ServiceProvider
+{
+    /**
+     * The event to listener mappings for the application.
+     *
+     * @var array<class-string, array<int, class-string>>
+     */
+    protected $listen = [
+        Registered::class => [
+            SendEmailVerificationNotification::class,
+        ],
+    ];
+
+    /**
+     * Register any events for your application.
+     */
+    public function boot(): void
+    {
+        // FIX 2 (P0): Register BulkPurchase observer for immutability enforcement
+        BulkPurchase::observe(BulkPurchaseObserver::class);
+
+        // FIX 5 (P1): Register Company observer for post-purchase data freeze
+        Company::observe(CompanyObserver::class);
+
+        // FIX 18: Register Withdrawal observer for automatic fund locking
+        Withdrawal::observe(WithdrawalObserver::class);
+    }
+
+    /**
+     * Determine if events and listeners should be automatically discovered.
+     */
+    public function shouldDiscoverEvents(): bool
+    {
+        return false;
+    }
+}

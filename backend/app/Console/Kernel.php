@@ -13,7 +13,9 @@ use App\Console\Commands\ProcessMonthlyLuckyDraw;
 use App\Console\Commands\UpdateProductPrices;
 use App\Console\Commands\ProcessPendingWebhooks;
 // [AUDIT FIX] Import Profit Share Command if it exists, or assume generic class structure
-use App\Console\Commands\ProcessProfitShareDistribution; 
+use App\Console\Commands\ProcessProfitShareDistribution;
+use App\Console\Commands\ReleaseExpiredFundLocks; // FIX 18
+use App\Console\Commands\ReconcileBalances; // FIX 32
 
 class Kernel extends ConsoleKernel
 {
@@ -61,6 +63,20 @@ class Kernel extends ConsoleKernel
         $schedule->command('model:prune', ['--model' => 'App\\Models\\WebhookLog'])
                  ->daily()
                  ->withoutOverlapping();
+
+        // FIX 18: Release expired fund locks hourly
+        // Ensures funds locked for withdrawals are released if approval window expires
+        $schedule->command(ReleaseExpiredFundLocks::class)
+                 ->hourly()
+                 ->withoutOverlapping();
+
+        // FIX 32: Balance reconciliation checks daily at 2 AM (low traffic)
+        // Verifies wallet balances, fund locks, and admin ledger integrity
+        // Alerts admins if critical discrepancies found
+        $schedule->command(ReconcileBalances::class, ['--alert'])
+                 ->dailyAt('02:00')
+                 ->withoutOverlapping()
+                 ->onOneServer();
     }
 
     /**

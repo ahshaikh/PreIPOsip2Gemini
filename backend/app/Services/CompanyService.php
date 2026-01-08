@@ -7,12 +7,14 @@ use App\Models\CompanyUser;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Auth\Events\Registered;
 
 class CompanyService
 {
     /**
      * Handle the complete registration flow for a new company and user.
      * FIX: Module 13 - Refactor Registration to Service
+     * FIX 19: Added email verification
      * * @param array $data
      * @return array ['company' => Company, 'user' => CompanyUser]
      */
@@ -41,6 +43,15 @@ class CompanyService
                 'phone' => $data['phone'] ?? null,
                 'status' => 'pending', // Pending admin approval
                 'is_verified' => false,
+            ]);
+
+            // FIX 19: Send email verification notification
+            event(new Registered($companyUser));
+
+            \Log::info('Company registered - verification email sent', [
+                'company_id' => $company->id,
+                'company_user_id' => $companyUser->id,
+                'email' => $companyUser->email,
             ]);
 
             return ['company' => $company, 'user' => $companyUser];

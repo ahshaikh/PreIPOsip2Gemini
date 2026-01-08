@@ -36,6 +36,94 @@ class ProfitShare extends Model
         'published_at' => 'datetime',
     ];
 
+    /**
+     * FIX 47: Boot logic to validate calculation_metadata schema
+     */
+    protected static function booted()
+    {
+        static::saving(function ($profitShare) {
+            // FIX 47: Validate calculation_metadata schema when present
+            if (!empty($profitShare->calculation_metadata)) {
+                $metadata = $profitShare->calculation_metadata;
+
+                // Required top-level fields
+                $requiredFields = [
+                    'formula_type',
+                    'eligibility_criteria',
+                    'eligible_users',
+                    'total_eligible_investment',
+                    'calculated_at',
+                ];
+
+                $missingFields = [];
+                foreach ($requiredFields as $field) {
+                    if (!isset($metadata[$field])) {
+                        $missingFields[] = $field;
+                    }
+                }
+
+                if (!empty($missingFields)) {
+                    throw new \InvalidArgumentException(
+                        "Profit share calculation_metadata is missing required fields: " .
+                        implode(', ', $missingFields) . ". " .
+                        "Expected schema: {formula_type, eligibility_criteria, eligible_users, " .
+                        "total_eligible_investment, calculated_at}"
+                    );
+                }
+
+                // Validate eligibility_criteria sub-object
+                if (isset($metadata['eligibility_criteria'])) {
+                    $criteria = $metadata['eligibility_criteria'];
+                    $requiredCriteria = ['min_months', 'min_investment', 'require_active'];
+
+                    $missingCriteria = [];
+                    foreach ($requiredCriteria as $criterion) {
+                        if (!isset($criteria[$criterion])) {
+                            $missingCriteria[] = $criterion;
+                        }
+                    }
+
+                    if (!empty($missingCriteria)) {
+                        throw new \InvalidArgumentException(
+                            "Profit share calculation_metadata.eligibility_criteria is missing required fields: " .
+                            implode(', ', $missingCriteria) . ". " .
+                            "Expected schema: {min_months, min_investment, require_active}"
+                        );
+                    }
+                }
+
+                // Validate data types
+                if (!is_string($metadata['formula_type'])) {
+                    throw new \InvalidArgumentException(
+                        "calculation_metadata.formula_type must be a string, got: " .
+                        gettype($metadata['formula_type'])
+                    );
+                }
+
+                if (!is_numeric($metadata['eligible_users']) || $metadata['eligible_users'] < 0) {
+                    throw new \InvalidArgumentException(
+                        "calculation_metadata.eligible_users must be a non-negative number, got: " .
+                        ($metadata['eligible_users'] ?? 'null')
+                    );
+                }
+
+                if (!is_numeric($metadata['total_eligible_investment']) || $metadata['total_eligible_investment'] < 0) {
+                    throw new \InvalidArgumentException(
+                        "calculation_metadata.total_eligible_investment must be a non-negative number, got: " .
+                        ($metadata['total_eligible_investment'] ?? 'null')
+                    );
+                }
+
+                \Log::info('Profit share metadata validated', [
+                    'profit_share_id' => $profitShare->id ?? 'new',
+                    'period_name' => $profitShare->period_name,
+                    'formula_type' => $metadata['formula_type'],
+                    'eligible_users' => $metadata['eligible_users'],
+                ]);
+            }
+        });
+    }
+
     // --- RELATIONSHIPS ---
 
     /**
