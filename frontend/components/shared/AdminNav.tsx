@@ -48,7 +48,8 @@ const navItems = [
   { href: '/admin/payments', label: 'Payments', icon: CreditCard },
   { href: '/admin/kyc-queue', label: 'KYC Queue', icon: FileCheck2 },
   { href: '/admin/withdrawal-queue', label: 'Withdrawal Queue', icon: DollarSign },
-  { href: '/admin/sagas', label: 'Saga Management', icon: Activity },
+  // PROTOCOL 1 FIX: Removed duplicate "Saga Management" link
+  // Same URL exists in auditDashboardNav as "Payment Sagas" - keeping that one for better categorization
   { href: '/admin/reports', label: 'Reports', icon: LineChart },
   { href: '/admin/campaigns', label: 'Campaigns', icon: Gift },
   { href: '/admin/lucky-draws', label: 'Lucky Draw', icon: Ticket },
