@@ -31,7 +31,15 @@ companyApi.interceptors.response.use(
       if (typeof window !== 'undefined') {
         localStorage.removeItem('company_token');
         localStorage.removeItem('company_user');
-        window.location.href = '/company/login';
+
+        // PROTOCOL 1 FIX: Only redirect if not already on login/register pages
+        // Prevents console errors and infinite redirect loops
+        const pathname = window.location.pathname;
+        const isAuthPage = pathname === '/company/login' || pathname === '/company/register';
+
+        if (!isAuthPage) {
+          window.location.href = '/company/login';
+        }
       }
     }
     return Promise.reject(error);
