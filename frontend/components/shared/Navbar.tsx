@@ -134,6 +134,12 @@ export default function Navbar() {
           href: "/plans",
           description: "Find the right plan for you",
         },
+        {
+          icon: Building2,
+          label: "For Companies",
+          href: "/for-companies",
+          description: "List your Pre-IPO shares free",
+        },
       ],
     },
     {
