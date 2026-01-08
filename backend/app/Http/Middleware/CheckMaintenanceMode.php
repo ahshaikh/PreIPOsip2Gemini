@@ -65,10 +65,12 @@ class CheckMaintenanceMode
 
         // 4. Minimal required API exemptions (SAFE)
         if (
-            $request->is('api/v1/login')      ||
-            $request->is('api/v1/register')   ||
-            $request->is('api/v1/verify-otp') ||
-            $request->is('api/v1/admin*')     ||
+            $request->is('api/v1/login')              ||
+            $request->is('api/v1/register')           ||
+            $request->is('api/v1/verify-otp')         ||
+            $request->is('api/v1/company/login')      ||  // FIX: Company login
+            $request->is('api/v1/company/register')   ||  // FIX: Company registration
+            $request->is('api/v1/admin*')             ||
             $request->is('sanctum/*')
         ) {
             return $next($request);
