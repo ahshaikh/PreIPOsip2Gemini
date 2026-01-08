@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { PaginationControls } from '@/components/shared/PaginationControls';
 import { format } from 'date-fns';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 
 /**
  * Deal Approval Queue Page (FIX 49)
@@ -41,7 +41,6 @@ export default function DealApprovalsPage() {
   const [view, setView] = useState<'all' | 'queue'>('queue');
 
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   // Fetch Deal Approvals
   const { data, isLoading, refetch } = useQuery({
