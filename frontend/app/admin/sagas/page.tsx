@@ -39,7 +39,7 @@ import {
   TrendingDown,
   Activity,
 } from 'lucide-react';
-import { api } from '@/lib/api';
+import api from '@/lib/api';
 
 interface SagaStats {
   by_status: {
