@@ -1034,6 +1034,78 @@ Route::prefix('v1')->group(function () {
                 Route::get('/export', [App\Http\Controllers\Api\Admin\AuditLogController::class, 'export']);
             });
 
+            // -------------------------------------------------------------
+            // AUDIT DASHBOARD - P3 Fixes (Product Audit, Deal Approval, Company Versioning, Payment Saga)
+            // -------------------------------------------------------------
+
+            // Product Audit Trail (FIX 48)
+            Route::prefix('product-audits')->middleware('permission:products.view')->group(function () {
+                Route::get('/', [App\Http\Controllers\Api\Admin\ProductAuditController::class, 'index']);
+                Route::get('/export', [App\Http\Controllers\Api\Admin\ProductAuditController::class, 'export']);
+                Route::get('/compare', [App\Http\Controllers\Api\Admin\ProductAuditController::class, 'compare']);
+                Route::get('/{audit}', [App\Http\Controllers\Api\Admin\ProductAuditController::class, 'show']);
+            });
+
+            Route::prefix('products/{product}')->middleware('permission:products.view')->group(function () {
+                Route::get('/audits', [App\Http\Controllers\Api\Admin\ProductAuditController::class, 'productAudits']);
+                Route::get('/audit-timeline', [App\Http\Controllers\Api\Admin\ProductAuditController::class, 'timeline']);
+                Route::get('/price-history', [App\Http\Controllers\Api\Admin\ProductAuditController::class, 'priceHistory']);
+            });
+
+            // Deal Approval Workflow (FIX 49)
+            Route::prefix('deal-approvals')->middleware('permission:products.view')->group(function () {
+                Route::get('/', [App\Http\Controllers\Api\Admin\DealApprovalController::class, 'index']);
+                Route::get('/queue', [App\Http\Controllers\Api\Admin\DealApprovalController::class, 'queue']);
+                Route::get('/analytics', [App\Http\Controllers\Api\Admin\DealApprovalController::class, 'analytics']);
+                Route::get('/{approval}', [App\Http\Controllers\Api\Admin\DealApprovalController::class, 'show']);
+
+                Route::middleware('throttle:admin-actions')->group(function () {
+                    Route::post('/{approval}/start-review', [App\Http\Controllers\Api\Admin\DealApprovalController::class, 'startReview'])->middleware('permission:products.edit');
+                    Route::post('/{approval}/approve', [App\Http\Controllers\Api\Admin\DealApprovalController::class, 'approve'])->middleware('permission:products.edit');
+                    Route::post('/{approval}/reject', [App\Http\Controllers\Api\Admin\DealApprovalController::class, 'reject'])->middleware('permission:products.edit');
+                    Route::post('/{approval}/publish', [App\Http\Controllers\Api\Admin\DealApprovalController::class, 'publish'])->middleware('permission:products.edit');
+                });
+            });
+
+            Route::prefix('deals/{deal}')->middleware('permission:products.view')->group(function () {
+                Route::post('/submit-for-approval', [App\Http\Controllers\Api\Admin\DealApprovalController::class, 'submit'])->middleware(['permission:products.edit', 'throttle:admin-actions']);
+            });
+
+            // Company Version History (FIX 33, 34, 35)
+            Route::prefix('company-versions')->middleware('permission:products.view')->group(function () {
+                Route::get('/', [App\Http\Controllers\Api\Admin\CompanyVersionController::class, 'index']);
+                Route::get('/stats', [App\Http\Controllers\Api\Admin\CompanyVersionController::class, 'stats']);
+                Route::get('/compare', [App\Http\Controllers\Api\Admin\CompanyVersionController::class, 'compare']);
+                Route::get('/{version}', [App\Http\Controllers\Api\Admin\CompanyVersionController::class, 'show']);
+            });
+
+            Route::prefix('companies/{company}')->middleware('permission:products.view')->group(function () {
+                Route::get('/versions', [App\Http\Controllers\Api\Admin\CompanyVersionController::class, 'companyVersions']);
+                Route::get('/versions/export', [App\Http\Controllers\Api\Admin\CompanyVersionController::class, 'export']);
+                Route::get('/approval-snapshots', [App\Http\Controllers\Api\Admin\CompanyVersionController::class, 'approvalSnapshots']);
+                Route::get('/version-timeline', [App\Http\Controllers\Api\Admin\CompanyVersionController::class, 'timeline']);
+                Route::get('/field-history/{field}', [App\Http\Controllers\Api\Admin\CompanyVersionController::class, 'fieldHistory']);
+                Route::get('/protection-status', [App\Http\Controllers\Api\Admin\CompanyVersionController::class, 'protectionStatus']);
+            });
+
+            // Payment Saga Monitoring (FIX 44, 45)
+            Route::prefix('payment-sagas')->middleware('permission:payments.view')->group(function () {
+                Route::get('/', [App\Http\Controllers\Api\Admin\PaymentSagaController::class, 'index']);
+                Route::get('/active', [App\Http\Controllers\Api\Admin\PaymentSagaController::class, 'active']);
+                Route::get('/failed', [App\Http\Controllers\Api\Admin\PaymentSagaController::class, 'failed']);
+                Route::get('/analytics', [App\Http\Controllers\Api\Admin\PaymentSagaController::class, 'analytics']);
+                Route::get('/{saga}', [App\Http\Controllers\Api\Admin\PaymentSagaController::class, 'show']);
+                Route::get('/{saga}/timeline', [App\Http\Controllers\Api\Admin\PaymentSagaController::class, 'timeline']);
+
+                Route::middleware('throttle:admin-actions')->group(function () {
+                    Route::post('/{saga}/rollback', [App\Http\Controllers\Api\Admin\PaymentSagaController::class, 'rollback'])->middleware('permission:payments.refund');
+                });
+            });
+
+            Route::prefix('payments/{payment}')->middleware('permission:payments.view')->group(function () {
+                Route::get('/sagas', [App\Http\Controllers\Api\Admin\PaymentSagaController::class, 'paymentSagas']);
+            });
+
             // Feature Flags
             Route::prefix('feature-flags')->middleware('permission:system.manage_features')->group(function () {
                 Route::get('/', [App\Http\Controllers\Api\Admin\FeatureFlagController::class, 'index']);
