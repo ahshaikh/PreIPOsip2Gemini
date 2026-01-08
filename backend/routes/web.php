@@ -8,6 +8,17 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+// PROTOCOL 1 FIX (2026-01-08): Add named 'login' route to prevent exception handler errors
+// - Error: Route [login] not defined
+// - Root Cause: Laravel's default exception handler tries to redirect to 'login' route on 401
+// - This is an API-only application, so we return JSON instead of redirecting
+Route::get('/login', function () {
+    return response()->json([
+        'message' => 'This is an API-only application. Please use /api/v1/login endpoint.',
+        'error' => 'Unauthenticated'
+    ], 401);
+})->name('login');
+
 // Performance Monitoring Dashboard (protected route - add auth middleware in production)
 Route::get('/admin/performance', function () {
     return view('performance-dashboard');

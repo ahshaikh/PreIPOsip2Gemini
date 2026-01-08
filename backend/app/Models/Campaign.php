@@ -253,17 +253,11 @@ class Campaign extends Model
     }
 
     /**
-     * FIX 12 (P3): Scopes for approval status
+     * PROTOCOL 1 FIX (2026-01-08): Removed duplicate scopeApproved() and scopeUnapproved()
+     * - scopeApproved() already defined at line 112
+     * - scopePending() at line 117 serves same purpose as scopeUnapproved()
+     * - Fatal Error: Cannot redeclare App\Models\Campaign::scopeApproved()
      */
-    public function scopeApproved($query)
-    {
-        return $query->whereNotNull('approved_at');
-    }
-
-    public function scopeUnapproved($query)
-    {
-        return $query->whereNull('approved_at');
-    }
 
     /**
      * FIX 12 (P3): Approve campaign
