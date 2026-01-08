@@ -1110,6 +1110,21 @@ Route::prefix('v1')->group(function () {
                 Route::get('/sagas', [App\Http\Controllers\Api\Admin\PaymentSagaController::class, 'paymentSagas']);
             });
 
+            // Saga Management (Monitoring & Recovery)
+            Route::prefix('sagas')->middleware('permission:payments.view')->group(function () {
+                Route::get('/', [App\Http\Controllers\Api\Admin\SagaManagementController::class, 'index']);
+                Route::get('/stats', [App\Http\Controllers\Api\Admin\SagaManagementController::class, 'stats']);
+                Route::get('/{saga}', [App\Http\Controllers\Api\Admin\SagaManagementController::class, 'show']);
+                Route::get('/{saga}/payment-details', [App\Http\Controllers\Api\Admin\SagaManagementController::class, 'getPaymentDetails']);
+
+                Route::middleware(['throttle:admin-actions', 'permission:payments.refund'])->group(function () {
+                    Route::post('/{saga}/retry', [App\Http\Controllers\Api\Admin\SagaManagementController::class, 'retry']);
+                    Route::post('/{saga}/resolve', [App\Http\Controllers\Api\Admin\SagaManagementController::class, 'resolve']);
+                    Route::post('/{saga}/force-compensate', [App\Http\Controllers\Api\Admin\SagaManagementController::class, 'forceCompensate']);
+                    Route::post('/run-recovery', [App\Http\Controllers\Api\Admin\SagaManagementController::class, 'runRecovery']);
+                });
+            });
+
             // Feature Flags
             Route::prefix('feature-flags')->middleware('permission:system.manage_features')->group(function () {
                 Route::get('/', [App\Http\Controllers\Api\Admin\FeatureFlagController::class, 'index']);
