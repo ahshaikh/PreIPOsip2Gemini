@@ -93,6 +93,10 @@ use App\Http\Controllers\Api\Admin\AdminShareListingController;
 use App\Http\Controllers\Api\Admin\PlanProductController;
 use App\Http\Controllers\Api\Admin\OfferCampaignController;
 use App\Http\Controllers\Api\Admin\UnifiedDashboardController;
+use App\Http\Controllers\Api\Admin\ProductAuditController;
+use App\Http\Controllers\Api\Admin\DealApprovalController;
+use App\Http\Controllers\Api\Admin\CompanyVersionController;
+use App\Http\Controllers\Api\Admin\PaymentSagaController;
 
 // Company User Controllers
 use App\Http\Controllers\Api\Company\AuthController as CompanyAuthController;
