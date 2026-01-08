@@ -21,62 +21,99 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('wallets', function (Blueprint $table) {
-            // Add locked balance tracking
-            $table->bigInteger('locked_balance_paise')->default(0)->after('balance_paise');
-            $table->decimal('locked_balance', 15, 2)->default(0)->after('balance');
-
-            // Index for queries checking available balance
-            $table->index(['user_id', 'locked_balance_paise'], 'idx_wallet_locked');
+            // Add locked balance tracking only if columns don't exist
+            if (!Schema::hasColumn('wallets', 'locked_balance_paise')) {
+                $table->bigInteger('locked_balance_paise')->default(0)->after('balance_paise');
+            }
+            if (!Schema::hasColumn('wallets', 'locked_balance')) {
+                $table->decimal('locked_balance', 15, 2)->default(0)->after('balance');
+            }
         });
+
+        // Add index if it doesn't exist
+        if (!$this->indexExists('wallets', 'idx_wallet_locked')) {
+            Schema::table('wallets', function (Blueprint $table) {
+                $table->index(['user_id', 'locked_balance_paise'], 'idx_wallet_locked');
+            });
+        }
 
         // Add lock tracking fields to withdrawals
         Schema::table('withdrawals', function (Blueprint $table) {
-            $table->boolean('funds_locked')->default(false)->after('status');
-            $table->timestamp('funds_locked_at')->nullable()->after('funds_locked');
-            $table->timestamp('funds_unlocked_at')->nullable()->after('funds_locked_at');
-
-            $table->index(['user_id', 'funds_locked'], 'idx_withdrawal_locked');
+            if (!Schema::hasColumn('withdrawals', 'funds_locked')) {
+                $table->boolean('funds_locked')->default(false)->after('status');
+            }
+            if (!Schema::hasColumn('withdrawals', 'funds_locked_at')) {
+                $table->timestamp('funds_locked_at')->nullable()->after('funds_locked');
+            }
+            if (!Schema::hasColumn('withdrawals', 'funds_unlocked_at')) {
+                $table->timestamp('funds_unlocked_at')->nullable()->after('funds_locked_at');
+            }
         });
+
+        // Add index if it doesn't exist
+        if (!$this->indexExists('withdrawals', 'idx_withdrawal_locked')) {
+            Schema::table('withdrawals', function (Blueprint $table) {
+                $table->index(['user_id', 'funds_locked'], 'idx_withdrawal_locked');
+            });
+        }
 
         // Create fund_locks table for audit trail
-        Schema::create('fund_locks', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+        if (!Schema::hasTable('fund_locks')) {
+            Schema::create('fund_locks', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('user_id')->constrained()->onDelete('cascade');
 
-            // What type of lock (withdrawal, investment_hold, etc.)
-            $table->enum('lock_type', ['withdrawal', 'investment_hold', 'penalty_hold', 'manual']);
+                // What type of lock (withdrawal, investment_hold, etc.)
+                $table->enum('lock_type', ['withdrawal', 'investment_hold', 'penalty_hold', 'manual']);
 
-            // Reference to the entity that caused the lock
-            $table->string('lockable_type'); // Withdrawal, Subscription, etc.
-            $table->unsignedBigInteger('lockable_id');
+                // Reference to the entity that caused the lock
+                $table->string('lockable_type'); // Withdrawal, Subscription, etc.
+                $table->unsignedBigInteger('lockable_id');
 
-            // Amount locked (in paise for precision)
-            $table->bigInteger('amount_paise');
-            $table->decimal('amount', 15, 2);
+                // Amount locked (in paise for precision)
+                $table->bigInteger('amount_paise');
+                $table->decimal('amount', 15, 2);
 
-            // Lock status
-            $table->enum('status', ['active', 'released', 'expired'])->default('active');
+                // Lock status
+                $table->enum('status', ['active', 'released', 'expired'])->default('active');
 
-            // Timestamps
-            $table->timestamp('locked_at');
-            $table->timestamp('released_at')->nullable();
-            $table->timestamp('expires_at')->nullable();
+                // Timestamps
+                $table->timestamp('locked_at');
+                $table->timestamp('released_at')->nullable();
+                $table->timestamp('expires_at')->nullable();
 
-            // Who performed the action
-            $table->unsignedBigInteger('locked_by')->nullable();
-            $table->unsignedBigInteger('released_by')->nullable();
+                // Who performed the action
+                $table->unsignedBigInteger('locked_by')->nullable();
+                $table->unsignedBigInteger('released_by')->nullable();
 
-            // Metadata
-            $table->text('reason')->nullable();
-            $table->json('metadata')->nullable();
+                // Metadata
+                $table->text('reason')->nullable();
+                $table->json('metadata')->nullable();
 
-            $table->timestamps();
+                $table->timestamps();
 
-            // Indexes
-            $table->index(['user_id', 'status']);
-            $table->index(['lockable_type', 'lockable_id']);
-            $table->index(['status', 'expires_at']);
-        });
+                // Indexes
+                $table->index(['user_id', 'status']);
+                $table->index(['lockable_type', 'lockable_id']);
+                $table->index(['status', 'expires_at']);
+            });
+        }
+    }
+
+    /**
+     * Check if an index exists on a table
+     */
+    private function indexExists(string $table, string $index): bool
+    {
+        $connection = Schema::getConnection();
+        $databaseName = $connection->getDatabaseName();
+
+        $query = "SELECT COUNT(*) as count FROM information_schema.statistics
+                  WHERE table_schema = ? AND table_name = ? AND index_name = ?";
+
+        $result = $connection->selectOne($query, [$databaseName, $table, $index]);
+
+        return $result->count > 0;
     }
 
     public function down(): void

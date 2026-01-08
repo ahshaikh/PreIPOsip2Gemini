@@ -62,16 +62,57 @@ return new class extends Migration
 
             $table->timestamps();
 
-            // Indexes for performance and querying
-            $table->index('product_id');
-            $table->index('action');
-            $table->index('is_critical');
-            $table->index('performed_by');
-            $table->index('created_at');
-            $table->index(['product_id', 'created_at']);
-            $table->index(['product_id', 'action']);
-            $table->index(['is_critical', 'created_at']);
         });
+
+        // Add indexes separately to check for duplicates
+        $this->addIndexIfNotExists('product_audits', 'product_id', 'product_audits_product_id_index');
+        $this->addIndexIfNotExists('product_audits', 'action', 'product_audits_action_index');
+        $this->addIndexIfNotExists('product_audits', 'is_critical', 'product_audits_is_critical_index');
+        $this->addIndexIfNotExists('product_audits', 'performed_by', 'product_audits_performed_by_index');
+        $this->addIndexIfNotExists('product_audits', 'created_at', 'product_audits_created_at_index');
+        $this->addCompositeIndexIfNotExists('product_audits', ['product_id', 'created_at'], 'product_audits_product_id_created_at_index');
+        $this->addCompositeIndexIfNotExists('product_audits', ['product_id', 'action'], 'product_audits_product_id_action_index');
+        $this->addCompositeIndexIfNotExists('product_audits', ['is_critical', 'created_at'], 'product_audits_is_critical_created_at_index');
+    }
+
+    /**
+     * Add index if it doesn't exist
+     */
+    private function addIndexIfNotExists(string $table, string $column, string $indexName): void
+    {
+        if (!$this->indexExists($table, $indexName)) {
+            Schema::table($table, function (Blueprint $blueprint) use ($column, $indexName) {
+                $blueprint->index($column, $indexName);
+            });
+        }
+    }
+
+    /**
+     * Add composite index if it doesn't exist
+     */
+    private function addCompositeIndexIfNotExists(string $table, array $columns, string $indexName): void
+    {
+        if (!$this->indexExists($table, $indexName)) {
+            Schema::table($table, function (Blueprint $blueprint) use ($columns, $indexName) {
+                $blueprint->index($columns, $indexName);
+            });
+        }
+    }
+
+    /**
+     * Check if an index exists on a table
+     */
+    private function indexExists(string $table, string $index): bool
+    {
+        $connection = Schema::getConnection();
+        $databaseName = $connection->getDatabaseName();
+
+        $query = "SELECT COUNT(*) as count FROM information_schema.statistics
+                  WHERE table_schema = ? AND table_name = ? AND index_name = ?";
+
+        $result = $connection->selectOne($query, [$databaseName, $table, $index]);
+
+        return $result->count > 0;
     }
 
     /**
