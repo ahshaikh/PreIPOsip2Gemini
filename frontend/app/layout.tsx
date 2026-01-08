@@ -20,9 +20,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const pathname = usePathname();
 
   // Don't show public navbar/footer on dashboard or admin pages
-  const isPublicPage = !pathname?.startsWith('/dashboard') && 
+  const isPublicPage = !pathname?.startsWith('/dashboard') &&
                        !pathname?.startsWith('/admin') &&
                        !pathname?.match(/^\/(profile|Profile|wallet|subscriptions|subscription|investments|portfolio|referrals|support|lucky-draws|settings|transactions|bonuses|kyc|compliance|materials|notifications|promote|reports|profit-sharing|offers|deals|plan)/);
+
+  // PROTOCOL 1 FIX: Exclude company routes from ComplianceGuard
+  // Company routes have their own auth system (company_token, not auth_token)
+  // ComplianceGuard calls USER api which causes 401 on company pages
+  const isCompanyRoute = pathname?.startsWith('/company');
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -35,17 +40,27 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         <Providers>
           {/* V-FIX-BANNER-MOUNT: Added the component here so it actually renders */}
-          <PopupBanner /> 
+          <PopupBanner />
 
           {/* Wrapper for Global Compliance Checks */}
-          <ComplianceGuard>
+          {/* PROTOCOL 1 FIX: Only wrap USER routes, not company routes */}
+          {isCompanyRoute ? (
             <div className="flex flex-col min-h-screen">
               {isPublicPage && <Navbar />}
               <main className="flex-grow">{children}</main>
               {isPublicPage && <Footer />}
               <ScrollToTop />
             </div>
-          </ComplianceGuard>
+          ) : (
+            <ComplianceGuard>
+              <div className="flex flex-col min-h-screen">
+                {isPublicPage && <Navbar />}
+                <main className="flex-grow">{children}</main>
+                {isPublicPage && <Footer />}
+                <ScrollToTop />
+              </div>
+            </ComplianceGuard>
+          )}
 
           <CookieConsent />
           <Toaster richColors />
