@@ -161,6 +161,7 @@ api.interceptors.response.use(
     switch (status) {
       case 401: {
         // Unauthorized - token invalid or expired
+        // PROTOCOL 1 FIX: Add company public routes to prevent redirect on registration/login pages
         const publicPaths = [
           '/',
           '/login',
@@ -173,6 +174,8 @@ api.interceptors.response.use(
           '/blog',
           '/faq',
           '/help-center',
+          '/company/register',
+          '/company/login',
         ];
 
         const pathname = window.location.pathname;
