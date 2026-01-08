@@ -24,6 +24,12 @@ class AuthController extends Controller
      */
     public function register(Request $request)
     {
+        \Log::info('[COMPANY-AUTH] Registration attempt started', [
+            'email' => $request->input('email'),
+            'ip' => $request->ip(),
+            'url' => $request->fullUrl(),
+        ]);
+
         $validator = Validator::make($request->all(), [
             'company_name' => 'required|string|max:255',
             'sector' => 'required|string|max:255',
@@ -75,6 +81,12 @@ class AuthController extends Controller
      */
     public function login(Request $request)
     {
+        \Log::info('[COMPANY-AUTH] Login attempt started', [
+            'email' => $request->input('email'),
+            'ip' => $request->ip(),
+            'url' => $request->fullUrl(),
+        ]);
+
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
             'password' => 'required|string',
