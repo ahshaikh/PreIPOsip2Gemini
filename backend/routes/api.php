@@ -439,6 +439,11 @@ Route::prefix('v1')->group(function () {
             Route::post('/legal/documents/{type}/accept', [LegalDocumentController::class, 'accept']);
         });
 
+        // ============================================================
+        // CLOSE auth:sanctum middleware group (opened at line 225)
+        // ============================================================
+    });
+
         // === ADMIN ROUTES ===
         // V-SECURITY-FIX: IP whitelist MUST be checked BEFORE role check
         Route::prefix('admin')->middleware(['admin.ip', 'role:admin|super-admin'])->group(function () {
