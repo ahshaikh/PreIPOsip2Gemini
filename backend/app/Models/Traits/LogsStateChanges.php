@@ -61,8 +61,10 @@ trait LogsStateChanges
                         $actorType = auth()->check() ? get_class(auth()->user()) : 'System';
 
                         // Create audit log
+                        // FIX: Added module field to prevent SQL error
                         AuditLog::create([
                             'action' => class_basename($model) . '.state_change',
+                            'module' => strtolower(class_basename($model)), // e.g., 'companyuser', 'user', 'subscription'
                             'actor_id' => $actorId,
                             'actor_type' => $actorType,
                             'description' => static::getStateChangeDescription($model, $field, $oldValue, $newValue),
@@ -107,8 +109,10 @@ trait LogsStateChanges
                 }
 
                 if (!empty($initialState)) {
+                    // FIX: Added module field to prevent SQL error
                     AuditLog::create([
                         'action' => class_basename($model) . '.created',
+                        'module' => strtolower(class_basename($model)), // e.g., 'companyuser', 'user', 'subscription'
                         'actor_id' => auth()->id(),
                         'actor_type' => auth()->check() ? get_class(auth()->user()) : 'System',
                         'description' => static::getCreationDescription($model, $initialState),

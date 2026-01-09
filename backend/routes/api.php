@@ -147,6 +147,24 @@ Route::prefix('v1')->group(function () {
     Route::get('/auth/{provider}/redirect', [SocialLoginController::class, 'redirectToProvider']);
     Route::get('/auth/{provider}/callback', [SocialLoginController::class, 'handleProviderCallback']);
 
+    // Email Verification Routes (Company Users)
+    // FIX: Missing verification.verify route causing registration failure
+    Route::get('/email/verify/{id}/{hash}', function (Request $request) {
+        $user = \App\Models\CompanyUser::findOrFail($request->route('id'));
+
+        if (!hash_equals((string) $request->route('hash'), sha1($user->getEmailForVerification()))) {
+            return response()->json(['message' => 'Invalid verification link'], 403);
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            return response()->json(['message' => 'Email already verified'], 200);
+        }
+
+        $user->markEmailAsVerified();
+
+        return response()->json(['message' => 'Email verified successfully'], 200);
+    })->name('verification.verify');
+
     // Banner Public Access:
     Route::get('/public/banners', [CmsController::class, 'getPublicBanners']);
     
