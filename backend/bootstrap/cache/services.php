@@ -38,7 +38,8 @@
     34 => 'Sentry\\Laravel\\Tracing\\ServiceProvider',
     35 => 'Spatie\\Permission\\PermissionServiceProvider',
     36 => 'App\\Providers\\AppServiceProvider',
-    37 => 'App\\Providers\\DatabaseQueryMonitoringServiceProvider',
+    37 => 'App\\Providers\\AuthServiceProvider',
+    38 => 'App\\Providers\\DatabaseQueryMonitoringServiceProvider',
   ),
   'eager' => 
   array (
@@ -63,7 +64,8 @@
     18 => 'Sentry\\Laravel\\Tracing\\ServiceProvider',
     19 => 'Spatie\\Permission\\PermissionServiceProvider',
     20 => 'App\\Providers\\AppServiceProvider',
-    21 => 'App\\Providers\\DatabaseQueryMonitoringServiceProvider',
+    21 => 'App\\Providers\\AuthServiceProvider',
+    22 => 'App\\Providers\\DatabaseQueryMonitoringServiceProvider',
   ),
   'deferred' => 
   array (

@@ -28,6 +28,10 @@ php artisan config:clear
 php artisan cache:clear
 php artisan route:clear
 
+Write-Output "Rebuilding caches..."
+php artisan config:cache
+php artisan route:cache
+
 Write-Output "Starting Laravel server..."
 # php artisan serve --port=8000
 php artisan serve

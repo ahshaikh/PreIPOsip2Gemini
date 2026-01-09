@@ -459,9 +459,8 @@ Route::prefix('v1')->group(function () {
 
         // === ADMIN ROUTES ===
         // V-SECURITY-FIX: IP whitelist MUST be checked BEFORE role check
-        // FIX: Added auth:sanctum to admin middleware (was missing, caused 403)
-        Route::prefix('admin')->middleware(['auth:sanctum', 'admin.ip', 'role:admin|super-admin'])->group(function () {
-            
+        // Route::prefix('admin')->middleware(['admin.ip', 'role:admin|super-admin'])->group(function () {
+        Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin|super-admin', 'admin.ip'])->group(function () {
             Route::get('/dashboard', [AdminDashboardController::class, 'index']);
 
             // Unified Dashboard (NEW: Comprehensive module consolidation)
@@ -1299,7 +1298,6 @@ Route::prefix('v1')->group(function () {
                     Route::post('/skip', [OnboardingWizardController::class, 'skipOnboarding']);
                     Route::get('/recommendations', [OnboardingWizardController::class, 'getRecommendations']);
                 });
-            });
         });
     });
 });

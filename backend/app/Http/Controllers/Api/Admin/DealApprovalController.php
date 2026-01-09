@@ -77,10 +77,11 @@ class DealApprovalController extends Controller
             'overdue' => DealApproval::whereIn('status', ['pending_review', 'under_review'])
                 ->whereDate('submitted_at', '<=', now()->subDays(7))
                 ->count(),
+            // PROTOCOL 1 FIX: Use 'reviewed_at' instead of 'approved_at'
             'avg_approval_time' => DealApproval::where('status', 'approved')
                 ->whereNotNull('submitted_at')
-                ->whereNotNull('approved_at')
-                ->selectRaw('AVG(TIMESTAMPDIFF(DAY, submitted_at, approved_at)) as avg_days')
+                ->whereNotNull('reviewed_at')
+                ->selectRaw('AVG(TIMESTAMPDIFF(DAY, submitted_at, reviewed_at)) as avg_days')
                 ->value('avg_days'),
         ];
 
@@ -356,11 +357,13 @@ class DealApprovalController extends Controller
         $analytics = [
             // Overall metrics
             'total_submissions' => DealApproval::whereBetween('submitted_at', [$dateFrom, $dateTo])->count(),
+            // PROTOCOL 1 FIX: Use 'reviewed_at' instead of non-existent 'approved_at'
+            // Table schema: reviewed_at = timestamp when review completed (approved OR rejected)
             'total_approved' => DealApproval::where('status', 'approved')
-                ->whereBetween('approved_at', [$dateFrom, $dateTo])
+                ->whereBetween('reviewed_at', [$dateFrom, $dateTo])
                 ->count(),
             'total_rejected' => DealApproval::where('status', 'rejected')
-                ->whereBetween('rejected_at', [$dateFrom, $dateTo])
+                ->whereBetween('reviewed_at', [$dateFrom, $dateTo])
                 ->count(),
 
             // Approval rates
@@ -369,13 +372,13 @@ class DealApprovalController extends Controller
 
             // Time metrics
             'avg_approval_time_days' => DealApproval::where('status', 'approved')
-                ->whereBetween('approved_at', [$dateFrom, $dateTo])
-                ->selectRaw('AVG(TIMESTAMPDIFF(DAY, submitted_at, approved_at)) as avg_days')
+                ->whereBetween('reviewed_at', [$dateFrom, $dateTo])
+                ->selectRaw('AVG(TIMESTAMPDIFF(DAY, submitted_at, reviewed_at)) as avg_days')
                 ->value('avg_days'),
 
             'avg_review_time_days' => DealApproval::whereNotNull('review_started_at')
                 ->whereBetween('created_at', [$dateFrom, $dateTo])
-                ->selectRaw('AVG(TIMESTAMPDIFF(DAY, review_started_at, COALESCE(approved_at, rejected_at, NOW()))) as avg_days')
+                ->selectRaw('AVG(TIMESTAMPDIFF(DAY, review_started_at, COALESCE(reviewed_at, NOW()))) as avg_days')
                 ->value('avg_days'),
 
             // Status breakdown
@@ -385,10 +388,12 @@ class DealApprovalController extends Controller
                 ->pluck('count', 'status'),
 
             // Top reviewers
-            'top_reviewers' => DealApproval::whereNotNull('reviewed_by')
+            // PROTOCOL 1 FIX: Use correct column name 'reviewer_id' (not 'reviewed_by')
+            // Database has: reviewer_id (FK to users), review_started_at, reviewed_at
+            'top_reviewers' => DealApproval::whereNotNull('reviewer_id')
                 ->whereBetween('review_started_at', [$dateFrom, $dateTo])
-                ->select('reviewed_by', DB::raw('count(*) as count'))
-                ->groupBy('reviewed_by')
+                ->select('reviewer_id', DB::raw('count(*) as count'))
+                ->groupBy('reviewer_id')
                 ->with('reviewer:id,name')
                 ->orderBy('count', 'desc')
                 ->limit(10)
@@ -399,9 +404,10 @@ class DealApprovalController extends Controller
                 'total_completed' => DealApproval::whereIn('status', ['approved', 'rejected', 'published'])
                     ->whereBetween('created_at', [$dateFrom, $dateTo])
                     ->count(),
+                // PROTOCOL 1 FIX: Use 'reviewed_at' (covers both approved and rejected)
                 'within_sla' => DealApproval::whereIn('status', ['approved', 'rejected', 'published'])
                     ->whereBetween('created_at', [$dateFrom, $dateTo])
-                    ->whereRaw('TIMESTAMPDIFF(DAY, submitted_at, COALESCE(approved_at, rejected_at)) <= 7')
+                    ->whereRaw('TIMESTAMPDIFF(DAY, submitted_at, reviewed_at) <= 7')
                     ->count(),
             ],
         ];

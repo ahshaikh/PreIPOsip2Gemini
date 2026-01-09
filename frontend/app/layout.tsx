@@ -20,9 +20,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const pathname = usePathname();
 
   // Don't show public navbar/footer on dashboard or admin pages
-  const isPublicPage = !pathname?.startsWith('/dashboard') && 
+  const isPublicPage = !pathname?.startsWith('/dashboard') &&
                        !pathname?.startsWith('/admin') &&
                        !pathname?.match(/^\/(profile|Profile|wallet|subscriptions|subscription|investments|portfolio|referrals|support|lucky-draws|settings|transactions|bonuses|kyc|compliance|materials|notifications|promote|reports|profit-sharing|offers|deals|plan)/);
+
+  // PROTOCOL 1 FIX: Exclude routes that don't need compliance checks
+  // - Company routes: Have their own auth system (company_token, not auth_token)
+  // - Login/Signup: User not authenticated yet, causes unnecessary 401 errors
+  // ComplianceGuard calls /user/compliance/status which requires auth_token
+  const isCompanyRoute = pathname?.startsWith('/company');
+  const isAuthPage = pathname === '/login' || pathname === '/signup';
+  const skipComplianceGuard = isCompanyRoute || isAuthPage;
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -35,17 +43,27 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         <Providers>
           {/* V-FIX-BANNER-MOUNT: Added the component here so it actually renders */}
-          <PopupBanner /> 
+          <PopupBanner />
 
           {/* Wrapper for Global Compliance Checks */}
-          <ComplianceGuard>
+          {/* PROTOCOL 1 FIX: Skip ComplianceGuard for company/auth routes */}
+          {skipComplianceGuard ? (
             <div className="flex flex-col min-h-screen">
               {isPublicPage && <Navbar />}
               <main className="flex-grow">{children}</main>
               {isPublicPage && <Footer />}
               <ScrollToTop />
             </div>
-          </ComplianceGuard>
+          ) : (
+            <ComplianceGuard>
+              <div className="flex flex-col min-h-screen">
+                {isPublicPage && <Navbar />}
+                <main className="flex-grow">{children}</main>
+                {isPublicPage && <Footer />}
+                <ScrollToTop />
+              </div>
+            </ComplianceGuard>
+          )}
 
           <CookieConsent />
           <Toaster richColors />

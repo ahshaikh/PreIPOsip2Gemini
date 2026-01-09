@@ -161,6 +161,11 @@ api.interceptors.response.use(
     switch (status) {
       case 401: {
         // Unauthorized - token invalid or expired
+        // PROTOCOL 1 FIX: Add company public routes to prevent redirect on registration/login pages
+        // PROTOCOL 1 FIX (2026-01-08): Added /for-companies to prevent redirect
+        // - Issue: /for-companies page was redirecting to /login
+        // - Root Cause: ActiveCampaignsMenu calls /campaigns/active → 401 → redirect triggered
+        // - This page is public and should not trigger auth redirects
         const publicPaths = [
           '/',
           '/login',
@@ -173,6 +178,9 @@ api.interceptors.response.use(
           '/blog',
           '/faq',
           '/help-center',
+          '/company/register',
+          '/company/login',
+          '/for-companies', // PROTOCOL 1 FIX: Public landing page for companies
         ];
 
         const pathname = window.location.pathname;
