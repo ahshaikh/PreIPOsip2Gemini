@@ -19,9 +19,11 @@ const inter = Inter({ subsets: ['latin'], weight: ['300', '400', '500', '600', '
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  // Don't show public navbar/footer on dashboard or admin pages
+  // Don't show public navbar/footer on dashboard, admin, or company pages
+  // FIX: Added /company to exclusion list so company portal has its own nav (CompanyNav + CompanyTopNav)
   const isPublicPage = !pathname?.startsWith('/dashboard') &&
                        !pathname?.startsWith('/admin') &&
+                       !pathname?.startsWith('/company') &&
                        !pathname?.match(/^\/(profile|Profile|wallet|subscriptions|subscription|investments|portfolio|referrals|support|lucky-draws|settings|transactions|bonuses|kyc|compliance|materials|notifications|promote|reports|profit-sharing|offers|deals|plan)/);
 
   // PROTOCOL 1 FIX: Exclude routes that don't need compliance checks
