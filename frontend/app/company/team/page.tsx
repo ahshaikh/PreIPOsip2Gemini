@@ -16,7 +16,12 @@ import Image from 'next/image';
 
 // FIX: Get backend URL from environment or fallback to localhost
 // Remove /api/v1 suffix as we only need the base server URL for storage URLs
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:8000';
+// Using a more robust method to strip the suffix
+const getBackendURL = () => {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+  return apiUrl.endsWith('/api/v1') ? apiUrl.slice(0, -7) : apiUrl.replace('/api/v1', '');
+};
+const BACKEND_URL = getBackendURL();
 
 export default function TeamMembersPage() {
   const queryClient = useQueryClient();
@@ -178,7 +183,6 @@ export default function TeamMembersPage() {
                         width={80}
                         height={80}
                         className="object-cover"
-                        unoptimized={!photoPreview.startsWith('data:')} // Only optimize base64 previews
                       />
                     ) : (
                       <User className="h-8 w-8 text-muted-foreground" />
@@ -326,7 +330,6 @@ export default function TeamMembersPage() {
                               width={96}
                               height={96}
                               className="object-cover"
-                              unoptimized // FIX: Disable Next.js image optimization for external URLs
                               onError={(e) => {
                                 console.error('Failed to load team member photo:', member.photo_path);
                                 // FIX: Fallback to placeholder on error

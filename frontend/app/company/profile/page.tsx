@@ -14,7 +14,12 @@ import Image from 'next/image';
 
 // FIX: Get backend URL from environment or fallback to localhost
 // Remove /api/v1 suffix as we only need the base server URL for storage URLs
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:8000';
+// Using a more robust method to strip the suffix
+const getBackendURL = () => {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+  return apiUrl.endsWith('/api/v1') ? apiUrl.slice(0, -7) : apiUrl.replace('/api/v1', '');
+};
+const BACKEND_URL = getBackendURL();
 
 // FIX: Add TypeScript interface for type safety
 interface CompanyFormData {
@@ -315,7 +320,6 @@ export default function CompanyProfilePage() {
                     console.error('Failed to load logo:', `${BACKEND_URL}/storage/${company.logo}`);
                     setImageError(true);
                   }}
-                  unoptimized // FIX: Disable Next.js image optimization for external URLs
                 />
               ) : imageError ? (
                 // FIX: Show error state when image fails to load
