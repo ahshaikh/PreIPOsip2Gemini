@@ -16,6 +16,15 @@ class InvestorInterestController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+
         $query = InvestorInterest::where('company_id', $company->id)
             ->with('user');
 
@@ -51,6 +60,15 @@ class InvestorInterestController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+
         $stats = [
             'total' => InvestorInterest::where('company_id', $company->id)->count(),
             'pending' => InvestorInterest::where('company_id', $company->id)->pending()->count(),
@@ -73,6 +91,15 @@ class InvestorInterestController extends Controller
     {
         $companyUser = $request->user();
         $company = $companyUser->company;
+
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
 
         $interest = InvestorInterest::where('company_id', $company->id)
             ->where('id', $id)
@@ -102,6 +129,15 @@ class InvestorInterestController extends Controller
     {
         $companyUser = $request->user();
         $company = $companyUser->company;
+
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
 
         $interest = InvestorInterest::where('company_id', $company->id)
             ->where('id', $id)

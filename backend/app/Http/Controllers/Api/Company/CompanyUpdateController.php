@@ -17,6 +17,15 @@ class CompanyUpdateController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+
         $query = CompanyUpdate::where('company_id', $company->id)
             ->with('createdBy:id,contact_person_name');
 
@@ -66,6 +75,15 @@ class CompanyUpdateController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+
         try {
             $data = $request->only(['title', 'content', 'update_type', 'media', 'is_featured', 'status']);
             $data['company_id'] = $company->id;
@@ -101,6 +119,15 @@ class CompanyUpdateController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+
         $update = CompanyUpdate::where('company_id', $company->id)
             ->where('id', $id)
             ->with('createdBy:id,contact_person_name')
@@ -126,6 +153,15 @@ class CompanyUpdateController extends Controller
     {
         $companyUser = $request->user();
         $company = $companyUser->company;
+
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
 
         $update = CompanyUpdate::where('company_id', $company->id)
             ->where('id', $id)
@@ -186,6 +222,15 @@ class CompanyUpdateController extends Controller
     {
         $companyUser = $request->user();
         $company = $companyUser->company;
+
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
 
         $update = CompanyUpdate::where('company_id', $company->id)
             ->where('id', $id)

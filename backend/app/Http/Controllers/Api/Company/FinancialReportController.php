@@ -18,6 +18,14 @@ class FinancialReportController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
         $query = CompanyFinancialReport::where('company_id', $company->id)
             ->with('uploadedBy:id,contact_person_name')
             ->orderBy('year', 'desc')
@@ -70,6 +78,14 @@ class FinancialReportController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
         try {
             // Store the file
             $file = $request->file('file');
@@ -116,6 +132,14 @@ class FinancialReportController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
         $report = CompanyFinancialReport::where('company_id', $company->id)
             ->where('id', $id)
             ->with('uploadedBy:id,contact_person_name')
@@ -142,6 +166,14 @@ class FinancialReportController extends Controller
     {
         $companyUser = $request->user();
         $company = $companyUser->company;
+
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
 
         $report = CompanyFinancialReport::where('company_id', $company->id)
             ->where('id', $id)
@@ -194,6 +226,14 @@ class FinancialReportController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
         $report = CompanyFinancialReport::where('company_id', $company->id)
             ->where('id', $id)
             ->first();
@@ -234,6 +274,14 @@ class FinancialReportController extends Controller
     {
         $companyUser = $request->user();
         $company = $companyUser->company;
+
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
 
         $report = CompanyFinancialReport::where('company_id', $company->id)
             ->where('id', $id)

@@ -17,6 +17,15 @@ class FundingRoundController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+
         $fundingRounds = CompanyFundingRound::where('company_id', $company->id)
             ->latest()
             ->get();
@@ -51,6 +60,15 @@ class FundingRoundController extends Controller
 
         $companyUser = $request->user();
         $company = $companyUser->company;
+
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
 
         try {
             $data = $request->only(['round_name', 'amount_raised', 'currency', 'valuation', 'round_date', 'investors', 'description']);
@@ -90,6 +108,15 @@ class FundingRoundController extends Controller
     {
         $companyUser = $request->user();
         $company = $companyUser->company;
+
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
 
         $fundingRound = CompanyFundingRound::where('company_id', $company->id)
             ->where('id', $id)
@@ -159,6 +186,15 @@ class FundingRoundController extends Controller
     {
         $companyUser = $request->user();
         $company = $companyUser->company;
+
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
 
         $fundingRound = CompanyFundingRound::where('company_id', $company->id)
             ->where('id', $id)

@@ -23,6 +23,15 @@ class ShareListingController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+
         $listings = CompanyShareListing::where('company_id', $company->id)
             ->with(['submittedBy', 'reviewedBy'])
             ->orderBy('created_at', 'desc')
@@ -48,6 +57,15 @@ class ShareListingController extends Controller
     {
         $companyUser = $request->user();
         $company = $companyUser->company;
+
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
 
         // Check if company is verified
         if (!$company->is_verified) {
@@ -134,6 +152,15 @@ class ShareListingController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+
         $listing = CompanyShareListing::where('company_id', $company->id)
             ->where('id', $id)
             ->with(['submittedBy', 'reviewedBy', 'activities'])
@@ -153,6 +180,15 @@ class ShareListingController extends Controller
     {
         $companyUser = $request->user();
         $company = $companyUser->company;
+
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
 
         $listing = CompanyShareListing::where('company_id', $company->id)
             ->where('id', $id)
@@ -211,6 +247,15 @@ class ShareListingController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+
         $listing = CompanyShareListing::where('company_id', $company->id)
             ->where('id', $id)
             ->firstOrFail();
@@ -237,6 +282,15 @@ class ShareListingController extends Controller
     {
         $companyUser = $request->user();
         $company = $companyUser->company;
+
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
 
         $stats = [
             'total_listings' => CompanyShareListing::where('company_id', $company->id)->count(),

@@ -18,6 +18,15 @@ class DocumentController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+
         $query = CompanyDocument::where('company_id', $company->id)
             ->with('uploadedBy:id,contact_person_name');
 
@@ -66,6 +75,15 @@ class DocumentController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+
         try {
             // Store the file
             $file = $request->file('file');
@@ -112,6 +130,15 @@ class DocumentController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+
         $document = CompanyDocument::where('company_id', $company->id)
             ->where('id', $id)
             ->with('uploadedBy:id,contact_person_name')
@@ -138,6 +165,15 @@ class DocumentController extends Controller
     {
         $companyUser = $request->user();
         $company = $companyUser->company;
+
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
 
         $document = CompanyDocument::where('company_id', $company->id)
             ->where('id', $id)
@@ -181,6 +217,15 @@ class DocumentController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+
         $document = CompanyDocument::where('company_id', $company->id)
             ->where('id', $id)
             ->first();
@@ -221,6 +266,15 @@ class DocumentController extends Controller
     {
         $companyUser = $request->user();
         $company = $companyUser->company;
+
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
 
         $document = CompanyDocument::where('company_id', $company->id)
             ->where('id', $id)

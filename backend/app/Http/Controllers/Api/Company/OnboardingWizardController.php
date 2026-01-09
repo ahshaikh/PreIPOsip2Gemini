@@ -85,6 +85,15 @@ class OnboardingWizardController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+
         // V-AUDIT-MODULE18-MEDIUM: Handle orphaned company users
         if (!$company) {
             return response()->json([
@@ -212,6 +221,15 @@ class OnboardingWizardController extends Controller
     {
         $companyUser = $request->user();
         $company = $companyUser->company;
+
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
 
         // V-AUDIT-MODULE18-MEDIUM: Handle orphaned company users
         if (!$company) {
