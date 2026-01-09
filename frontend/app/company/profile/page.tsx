@@ -1,7 +1,7 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tantml:react-query';
+import { useState, useEffect } from 'react';
 import companyApi from '@/lib/companyApi';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -43,8 +43,9 @@ export default function CompanyProfilePage() {
     facebook_url: company?.facebook_url || '',
   });
 
-  // Update form when data loads
-  useState(() => {
+  // FIX: Changed from useState to useEffect - useState doesn't support dependency arrays!
+  // This was causing form data to never update when profile data loaded
+  useEffect(() => {
     if (company) {
       setFormData({
         name: company.name || '',

@@ -227,7 +227,16 @@ class Company extends Model
     {
         return $this->hasMany(CompanyFundingRound::class);
     }
-    
+
+    /**
+     * FIX: Added missing updates relationship
+     * Required by CompanyProfileController::dashboard() method
+     */
+    public function updates()
+    {
+        return $this->hasMany(CompanyUpdate::class);
+    }
+
     public function webinars()
     {
         return $this->hasMany(CompanyWebinar::class);
