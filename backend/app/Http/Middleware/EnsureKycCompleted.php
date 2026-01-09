@@ -22,8 +22,9 @@ class EnsureKycCompleted
         $user = Auth::user();
 
         // ✅ Bypass KYC for privileged roles
-        if ($user && in_array($user->role, ['admin', 'superadmin'])) {
-            // Commentary: Admins and superadmins are trusted roles.
+        // FIX: Changed 'superadmin' to 'super-admin' to match actual role name
+        if ($user && in_array($user->role, ['admin', 'super-admin', 'superadmin'])) {
+            // Commentary: Admins and super-admins are trusted roles.
             // They must not be blocked by KYC middleware.
             return $next($request);
         }

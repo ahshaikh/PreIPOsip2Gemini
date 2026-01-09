@@ -161,11 +161,14 @@ class User extends Authenticatable
     }
 
     /**
-     * Check if the user is an admin (has admin or superadmin role).
+     * Check if the user is an admin (has admin or super-admin role).
+     *
+     * FIX: Changed 'superadmin' to 'super-admin' to match actual role name in database.
+     * Routes use 'role:admin|super-admin', so this accessor must match.
      */
     public function getIsAdminAttribute(): bool
     {
-        return $this->hasAnyRole(['admin', 'superadmin']);
+        return $this->hasAnyRole(['admin', 'super-admin', 'superadmin']);
     }
 
     /**
