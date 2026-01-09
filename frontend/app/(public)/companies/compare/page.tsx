@@ -126,33 +126,41 @@ export default function CompanyComparePage() {
     }
   };
 
-  const ComparisonRow = ({ label, icon: Icon, values }: { label: string; icon: any; values: (string | number | null | undefined)[] }) => (
-    <div className="grid grid-cols-[200px_1fr] border-b">
-      <div className="p-4 bg-gray-50 border-r flex items-center gap-2 font-medium">
-        <Icon className="w-4 h-4 text-muted-foreground" />
-        {label}
-      </div>
-      <div className={`grid grid-cols-${Math.min(companies.length, 4)} divide-x`}>
-        {values.map((value, index) => (
-          <div key={index} className="p-4 flex items-center justify-center text-center">
-            {value !== null && value !== undefined ? (
-              typeof value === 'boolean' ? (
-                value ? (
-                  <CheckCircle2 className="w-5 h-5 text-green-500" />
+    const ComparisonRow = ({ 
+      label, 
+      icon: Icon, 
+      values 
+    }: { 
+      label: string; 
+      icon: any; 
+      values: (string | number | boolean | null | undefined)[] // Added boolean here
+    }) => (
+      <div className="grid grid-cols-[200px_1fr] border-b">
+        <div className="p-4 bg-gray-50 border-r flex items-center gap-2 font-medium">
+          <Icon className="w-4 h-4 text-muted-foreground" />
+          {label}
+        </div>
+        <div className={`grid grid-cols-${Math.min(companies.length, 4)} divide-x`}>
+          {values.map((value, index) => (
+            <div key={index} className="p-4 flex items-center justify-center text-center">
+              {value !== null && value !== undefined ? (
+                typeof value === 'boolean' ? (
+                  value ? (
+                    <CheckCircle2 className="w-5 h-5 text-green-500" />
+                  ) : (
+                    <XCircle className="w-5 h-5 text-red-500" />
+                  )
                 ) : (
-                  <XCircle className="w-5 h-5 text-red-500" />
+                  <span>{value}</span>
                 )
               ) : (
-                <span>{value}</span>
-              )
-            ) : (
-              <span className="text-muted-foreground">—</span>
-            )}
-          </div>
-        ))}
+                <span className="text-muted-foreground">—</span>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
-  );
+    );
 
   return (
     <div className="min-h-screen bg-gray-50">

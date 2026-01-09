@@ -293,17 +293,10 @@ export default function CompanyProfilePage() {
           <div className="flex items-center gap-6">
             <div className="w-24 h-24 border-2 border-dashed rounded-lg flex items-center justify-center bg-gray-50 dark:bg-gray-900 overflow-hidden">
               {logoPreview ? (
-<<<<<<< HEAD
                 <Image src={logoPreview} alt="Logo preview" width={80} height={80} className="object-contain" />
               ) : company?.logo ? (
                 <Image src={`${process.env.NEXT_PUBLIC_API_URL}/storage/${company.logo}`}
                   alt="Company logo"
-=======
-                // FIX: Display preview of newly selected logo (base64 data URL)
-                <Image
-                  src={logoPreview}
-                  alt="Logo preview"
->>>>>>> 3bf82dc962112b14a3d89118034db79e8d4e351e
                   width={80}
                   height={80}
                   className="object-contain"

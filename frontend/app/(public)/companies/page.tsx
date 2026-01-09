@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import api from "@/lib/api";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -61,7 +61,7 @@ export default function CompaniesPage() {
       const { data } = await api.get(`/companies?${params}`);
       return data;
     },
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const companies: Company[] = response?.data || [];

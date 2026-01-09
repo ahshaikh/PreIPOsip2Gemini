@@ -46,7 +46,7 @@ import {
   Shield,
   Activity,
 } from 'lucide-react';
-import { api } from '@/lib/api';
+import api from '@/lib/api';
 
 interface SagaDetail {
   id: number;

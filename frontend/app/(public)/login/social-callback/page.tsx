@@ -1,6 +1,6 @@
-<?php
-// V-FINAL-1730-476 (Created)
 'use client';
+// V-FINAL-1730-476 (Created)
+
 
 import { useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
