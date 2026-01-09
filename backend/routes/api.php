@@ -459,9 +459,9 @@ Route::prefix('v1')->group(function () {
     }); // Close auth:sanctum + mfa.verified group from line 243
 
     // === ADMIN ROUTES ===
-        // V-SECURITY-FIX: IP whitelist MUST be checked BEFORE role check
-        // Route::prefix('admin')->middleware(['admin.ip', 'role:admin|super-admin'])->group(function () {
-        Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin|super-admin', 'admin.ip'])->group(function () {
+    // V-SECURITY-FIX: IP whitelist MUST be checked BEFORE role check
+    // FIX: Correct middleware order: auth first, then IP check, then role check
+    Route::prefix('admin')->middleware(['auth:sanctum', 'admin.ip', 'role:admin|super-admin'])->group(function () {
             Route::get('/dashboard', [AdminDashboardController::class, 'index']);
 
             // Unified Dashboard (NEW: Comprehensive module consolidation)
