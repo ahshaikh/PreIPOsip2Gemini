@@ -20,6 +20,13 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 
+// FIX: Get backend URL for logo display
+const getBackendURL = () => {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+  return apiUrl.endsWith('/api/v1') ? apiUrl.slice(0, -7) : apiUrl.replace('/api/v1', '');
+};
+const BACKEND_URL = getBackendURL();
+
 interface Company {
   id: number;
   name: string;
@@ -204,17 +211,21 @@ export default function CompaniesPage() {
                     <CardHeader>
                       <div className="flex items-start gap-4 mb-4">
                         {company.logo ? (
-                          <div className="border rounded-lg p-2 bg-white">
+                          <div className="border rounded-lg p-2 bg-white dark:bg-gray-900">
                             <Image
-                              src={company.logo}
+                              src={`${BACKEND_URL}/storage/${company.logo}`}
                               alt={company.name}
                               width={60}
                               height={60}
                               className="object-contain"
+                              onError={(e) => {
+                                console.error('Failed to load company logo:', company.logo);
+                                e.currentTarget.style.display = 'none';
+                              }}
                             />
                           </div>
                         ) : (
-                          <div className="border rounded-lg p-4 bg-gray-100">
+                          <div className="border rounded-lg p-4 bg-gray-100 dark:bg-gray-800">
                             <Building2 className="w-8 h-8 text-gray-400" />
                           </div>
                         )}

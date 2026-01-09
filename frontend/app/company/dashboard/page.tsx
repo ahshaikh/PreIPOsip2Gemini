@@ -5,9 +5,17 @@ import companyApi from '@/lib/companyApi';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { FileText, FolderOpen, Users, TrendingUp, Newspaper, CheckCircle, AlertCircle } from 'lucide-react';
+import { FileText, FolderOpen, Users, TrendingUp, Newspaper, CheckCircle, AlertCircle, Building2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import Image from 'next/image';
+
+// FIX: Get backend URL for logo display
+const getBackendURL = () => {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+  return apiUrl.endsWith('/api/v1') ? apiUrl.slice(0, -7) : apiUrl.replace('/api/v1', '');
+};
+const BACKEND_URL = getBackendURL();
 
 export default function CompanyDashboardPage() {
   const { data: dashboardData, isLoading } = useQuery({
@@ -69,12 +77,40 @@ export default function CompanyDashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Welcome Section */}
-      <div>
-        <h1 className="text-3xl font-bold">Welcome to Your Company Dashboard</h1>
-        <p className="text-muted-foreground mt-2">
-          Manage your company profile and engage with potential investors
-        </p>
+      {/* Welcome Section with Company Logo */}
+      <div className="flex items-center gap-4">
+        {/* Company Logo */}
+        <div className="flex-shrink-0">
+          {company?.logo ? (
+            <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+              <Image
+                src={`${BACKEND_URL}/storage/${company.logo}`}
+                alt={company.name || 'Company logo'}
+                width={64}
+                height={64}
+                className="object-contain"
+                onError={(e) => {
+                  console.error('Failed to load company logo on dashboard');
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            </div>
+          ) : (
+            <div className="w-16 h-16 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+              <Building2 className="h-8 w-8 text-muted-foreground" />
+            </div>
+          )}
+        </div>
+
+        {/* Welcome Text */}
+        <div className="flex-1">
+          <h1 className="text-3xl font-bold">
+            {company?.name ? `Welcome, ${company.name}` : 'Welcome to Your Company Dashboard'}
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Manage your company profile and engage with potential investors
+          </p>
+        </div>
       </div>
 
       {/* Status Alerts */}

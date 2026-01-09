@@ -28,6 +28,13 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
+// FIX: Get backend URL for logo display
+const getBackendURL = () => {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+  return apiUrl.endsWith('/api/v1') ? apiUrl.slice(0, -7) : apiUrl.replace('/api/v1', '');
+};
+const BACKEND_URL = getBackendURL();
+
 interface Company {
   id: number;
   name: string;
@@ -171,13 +178,17 @@ export default function PublicCompanyProfile() {
         <div className="container py-12">
           <div className="flex items-start gap-6">
             {company.logo && (
-              <div className="bg-white p-4 rounded-lg shadow-lg">
+              <div className="bg-white p-4 rounded-lg shadow-lg dark:bg-gray-900">
                 <Image
-                  src={company.logo}
+                  src={`${BACKEND_URL}/storage/${company.logo}`}
                   alt={company.name}
                   width={120}
                   height={120}
                   className="object-contain"
+                  onError={(e) => {
+                    console.error('Failed to load company logo on detail page');
+                    e.currentTarget.style.display = 'none';
+                  }}
                 />
               </div>
             )}
