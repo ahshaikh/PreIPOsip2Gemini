@@ -10,9 +10,23 @@ const nextConfig = {
   // [AUDIT FIX]: Modern Image Optimization.
   // Serves AVIF/WebP formats automatically based on browser support.
   // Device sizes ensure mobile users don't download 4K desktop-sized images.
+  // FIX: Added remotePatterns to allow images from backend storage
   images: {
     formats: ['image/avif', 'image/webp'],
     deviceSizes: [640, 750, 828, 1080, 1200],
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '8000',
+        pathname: '/storage/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'preiposip.com',
+        pathname: '/storage/**',
+      },
+    ],
   },
 
   // [AUDIT FIX]: Security & Performance.
