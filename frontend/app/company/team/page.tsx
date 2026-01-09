@@ -14,6 +14,10 @@ import { toast } from 'sonner';
 import { Plus, Edit, Trash2, Upload, User, Star, Linkedin, Twitter } from 'lucide-react';
 import Image from 'next/image';
 
+// FIX: Get backend URL from environment or fallback to localhost
+// Remove /api/v1 suffix as we only need the base server URL for storage URLs
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:8000';
+
 export default function TeamMembersPage() {
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -114,8 +118,9 @@ export default function TeamMembersPage() {
       display_order: member.display_order || 0,
       is_key_member: member.is_key_member,
     });
+    // FIX: Construct proper URL for existing photo
     if (member.photo_path) {
-      setPhotoPreview(`${process.env.NEXT_PUBLIC_API_URL}/storage/${member.photo_path}`);
+      setPhotoPreview(`${BACKEND_URL}/storage/${member.photo_path}`);
     }
     setIsDialogOpen(true);
   };
@@ -166,16 +171,25 @@ export default function TeamMembersPage() {
                 <div className="flex items-center gap-4">
                   <div className="w-20 h-20 border-2 border-dashed rounded-full flex items-center justify-center bg-gray-50 dark:bg-gray-900 overflow-hidden">
                     {photoPreview ? (
-                      <Image src={photoPreview} alt="Preview" width={80} height={80} className="object-cover" />
+                      // FIX: Display photo preview with proper error handling
+                      <Image
+                        src={photoPreview}
+                        alt="Preview"
+                        width={80}
+                        height={80}
+                        className="object-cover"
+                        unoptimized={!photoPreview.startsWith('data:')} // Only optimize base64 previews
+                      />
                     ) : (
                       <User className="h-8 w-8 text-muted-foreground" />
                     )}
                   </div>
                   <Input
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/jpg"
                     onChange={handlePhotoChange}
                     className="flex-1"
+                    disabled={saveMutation.isPending}
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">Upload a professional photo (PNG, JPG - Max 2MB)</p>
@@ -303,12 +317,21 @@ export default function TeamMembersPage() {
                       <div className="relative mb-4">
                         <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
                           {member.photo_path ? (
+                            // FIX: Construct proper URL for team member photo
+                            // Backend stores path as "team-photos/company_id/filename.png"
+                            // Storage is accessible at "{BACKEND_URL}/storage/team-photos/..."
                             <Image
-                              src={`${process.env.NEXT_PUBLIC_API_URL}/storage/${member.photo_path}`}
+                              src={`${BACKEND_URL}/storage/${member.photo_path}`}
                               alt={member.name}
                               width={96}
                               height={96}
                               className="object-cover"
+                              unoptimized // FIX: Disable Next.js image optimization for external URLs
+                              onError={(e) => {
+                                console.error('Failed to load team member photo:', member.photo_path);
+                                // FIX: Fallback to placeholder on error
+                                e.currentTarget.style.display = 'none';
+                              }}
                             />
                           ) : (
                             <User className="h-12 w-12 text-muted-foreground" />
