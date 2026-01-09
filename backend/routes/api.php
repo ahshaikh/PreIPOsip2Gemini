@@ -456,8 +456,9 @@ Route::prefix('v1')->group(function () {
             Route::get('/legal/documents/{type}/acceptance-status', [LegalDocumentController::class, 'acceptanceStatus']);
             Route::post('/legal/documents/{type}/accept', [LegalDocumentController::class, 'accept']);
         });
+    }); // Close auth:sanctum + mfa.verified group from line 243
 
-        // === ADMIN ROUTES ===
+    // === ADMIN ROUTES ===
         // V-SECURITY-FIX: IP whitelist MUST be checked BEFORE role check
         // Route::prefix('admin')->middleware(['admin.ip', 'role:admin|super-admin'])->group(function () {
         Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin|super-admin', 'admin.ip'])->group(function () {
@@ -1298,6 +1299,6 @@ Route::prefix('v1')->group(function () {
                     Route::post('/skip', [OnboardingWizardController::class, 'skipOnboarding']);
                     Route::get('/recommendations', [OnboardingWizardController::class, 'getRecommendations']);
                 });
-        });
-    });
-});
+            }); // Close auth:sanctum group for company authenticated routes (line 1175)
+        }); // Close company prefix (line 1168)
+    }); // Close v1 prefix (line 135)
