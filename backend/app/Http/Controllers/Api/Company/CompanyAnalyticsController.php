@@ -17,6 +17,15 @@ class CompanyAnalyticsController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+
         // Get date range (default last 30 days)
         $startDate = $request->get('start_date', now()->subDays(30)->toDateString());
         $endDate = $request->get('end_date', now()->toDateString());

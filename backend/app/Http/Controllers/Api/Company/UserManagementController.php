@@ -31,6 +31,14 @@ class UserManagementController extends Controller
     {
         $company = auth()->user()->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
         if ($company->users()->count() >= $company->max_users_quota) {
             return response()->json(['message' => 'User quota exceeded for your organization.'], 403);
         }

@@ -18,6 +18,14 @@ class TeamMemberController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
         $teamMembers = CompanyTeamMember::where('company_id', $company->id)
             ->ordered()
             ->get();
@@ -54,6 +62,14 @@ class TeamMemberController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
         try {
             $data = $request->only(['name', 'designation', 'bio', 'linkedin_url', 'twitter_url', 'display_order', 'is_key_member']);
             $data['company_id'] = $company->id;
@@ -88,6 +104,14 @@ class TeamMemberController extends Controller
     {
         $companyUser = $request->user();
         $company = $companyUser->company;
+
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
 
         $teamMember = CompanyTeamMember::where('company_id', $company->id)
             ->where('id', $id)
@@ -156,6 +180,14 @@ class TeamMemberController extends Controller
     {
         $companyUser = $request->user();
         $company = $companyUser->company;
+
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
 
         $teamMember = CompanyTeamMember::where('company_id', $company->id)
             ->where('id', $id)

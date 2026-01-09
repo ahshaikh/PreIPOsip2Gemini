@@ -17,6 +17,15 @@ class CompanyWebinarController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+
         $query = CompanyWebinar::where('company_id', $company->id)
             ->with('registrations');
 
@@ -68,6 +77,15 @@ class CompanyWebinarController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+
         $webinar = CompanyWebinar::create([
             'company_id' => $company->id,
             'created_by' => $companyUser->id,
@@ -100,6 +118,15 @@ class CompanyWebinarController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+
         $webinar = CompanyWebinar::where('company_id', $company->id)
             ->where('id', $id)
             ->with('registrations')
@@ -118,6 +145,15 @@ class CompanyWebinarController extends Controller
     {
         $companyUser = $request->user();
         $company = $companyUser->company;
+
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
 
         $webinar = CompanyWebinar::where('company_id', $company->id)
             ->where('id', $id)
@@ -166,6 +202,15 @@ class CompanyWebinarController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+
         $webinar = CompanyWebinar::where('company_id', $company->id)
             ->where('id', $id)
             ->with('registrations.user')
@@ -197,6 +242,15 @@ class CompanyWebinarController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+
         $webinar = CompanyWebinar::where('company_id', $company->id)
             ->where('id', $id)
             ->firstOrFail();
@@ -221,6 +275,15 @@ class CompanyWebinarController extends Controller
     {
         $companyUser = $request->user();
         $company = $companyUser->company;
+
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
 
         $webinar = CompanyWebinar::where('company_id', $company->id)
             ->where('id', $id)
@@ -249,6 +312,15 @@ class CompanyWebinarController extends Controller
     {
         $companyUser = $request->user();
         $company = $companyUser->company;
+
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
 
         $stats = [
             'total' => CompanyWebinar::where('company_id', $company->id)->count(),

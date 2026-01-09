@@ -17,6 +17,15 @@ class CompanyQnaController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+
         $query = CompanyQna::where('company_id', $company->id);
 
         // Filter by status
@@ -58,6 +67,15 @@ class CompanyQnaController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+
         $qna = CompanyQna::where('company_id', $company->id)
             ->where('id', $id)
             ->firstOrFail();
@@ -84,6 +102,15 @@ class CompanyQnaController extends Controller
     {
         $companyUser = $request->user();
         $company = $companyUser->company;
+
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
 
         $qna = CompanyQna::where('company_id', $company->id)
             ->where('id', $id)
@@ -119,6 +146,15 @@ class CompanyQnaController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+
         $stats = [
             'total' => CompanyQna::where('company_id', $company->id)->count(),
             'pending' => CompanyQna::where('company_id', $company->id)->pending()->count(),
@@ -140,6 +176,15 @@ class CompanyQnaController extends Controller
     {
         $companyUser = $request->user();
         $company = $companyUser->company;
+
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
 
         $qna = CompanyQna::where('company_id', $company->id)
             ->where('id', $id)

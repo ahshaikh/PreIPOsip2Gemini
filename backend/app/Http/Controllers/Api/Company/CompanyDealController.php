@@ -18,6 +18,15 @@ class CompanyDealController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+
         $deals = Deal::where('company_id', $company->id)
             ->orderBy('created_at', 'desc')
             ->get();
@@ -56,6 +65,15 @@ class CompanyDealController extends Controller
 
         $companyUser = $request->user();
         $company = $companyUser->company;
+
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
 
         // Check if company is verified and active
         if ($company->status !== 'active' || !$company->is_verified) {
@@ -109,6 +127,15 @@ class CompanyDealController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+
         $deal = Deal::where('company_id', $company->id)
             ->where('id', $id)
             ->first();
@@ -133,6 +160,15 @@ class CompanyDealController extends Controller
     {
         $companyUser = $request->user();
         $company = $companyUser->company;
+
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
 
         $deal = Deal::where('company_id', $company->id)
             ->where('id', $id)
@@ -207,6 +243,15 @@ class CompanyDealController extends Controller
         $companyUser = $request->user();
         $company = $companyUser->company;
 
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+
         $deal = Deal::where('company_id', $company->id)
             ->where('id', $id)
             ->first();
@@ -241,6 +286,15 @@ class CompanyDealController extends Controller
     {
         $companyUser = $request->user();
         $company = $companyUser->company;
+
+        // FIX: Add null check to prevent crash if company relationship missing
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
 
         $stats = [
             'total_deals' => Deal::where('company_id', $company->id)->count(),
