@@ -98,14 +98,30 @@ export default function CompanyProfilePage() {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: CompanyFormData) => {
-      // FIX: Convert string values to proper types for backend
-      const payload = {
-        ...data,
-        // FIX: Convert numeric fields to numbers if they have values
-        latest_valuation: data.latest_valuation ? parseFloat(data.latest_valuation) : null,
-        total_funding: data.total_funding ? parseFloat(data.total_funding) : null,
-      };
-      return companyApi.put('/company-profile/update', payload);
+      // FIX: Clean up payload - remove empty strings and convert to proper types
+      const cleanPayload: any = {};
+
+      // Only include non-empty values
+      Object.keys(data).forEach((key) => {
+        const value = data[key as keyof CompanyFormData];
+
+        // Skip empty strings - let backend use existing values
+        if (value === '' || value === null || value === undefined) {
+          return;
+        }
+
+        // Convert numeric fields
+        if (key === 'latest_valuation' || key === 'total_funding') {
+          const numValue = parseFloat(value);
+          if (!isNaN(numValue)) {
+            cleanPayload[key] = numValue;
+          }
+        } else {
+          cleanPayload[key] = value;
+        }
+      });
+
+      return companyApi.put('/company-profile/update', cleanPayload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['company-profile'] });
