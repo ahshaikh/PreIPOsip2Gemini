@@ -1285,7 +1285,6 @@ Route::prefix('v1')->group(function () {
                     Route::post('/skip', [OnboardingWizardController::class, 'skipOnboarding']);
                     Route::get('/recommendations', [OnboardingWizardController::class, 'getRecommendations']);
                 });
-            });
         });
     });
 });

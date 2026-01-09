@@ -88,4 +88,10 @@ class ThrottlePublicApi extends ThrottleRequests
 
         return $maxAttempts;
     }
+
+        protected function resolveRequestSignature($request)
+    {
+        // CRITICAL: Never touch auth on public routes
+        return sha1($request->ip().'|'.$request->path());
+    }
 }

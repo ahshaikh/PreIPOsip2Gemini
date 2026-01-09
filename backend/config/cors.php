@@ -22,7 +22,10 @@ return [
     // --- THIS IS THE FIX ---
     // We are explicitly telling it to trust your frontend URL
     // instead of the default '*'
-    'allowed_origins' => [env('FRONTEND_URL', 'http://localhost:3000')],
+    // 'allowed_origins' => [env('FRONTEND_URL', 'http://localhost:3000')],
+    
+    // for development only:
+    'allowed_origins' => ['*'],
 
     'allowed_origins_patterns' => [],
 
