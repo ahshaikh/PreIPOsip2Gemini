@@ -22,11 +22,25 @@ const nextConfig = {
         pathname: '/storage/**',
       },
       {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '8000',
+        pathname: '/api/v1/storage/**',
+      },
+      {
         protocol: 'https',
         hostname: 'preiposip.com',
         pathname: '/storage/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'preiposip.com',
+        pathname: '/api/v1/storage/**',
+      },
     ],
+    // Allow localhost for development
+    dangerouslyAllowSVG: true,
+    unoptimized: process.env.NODE_ENV === 'development',
   },
 
   // [AUDIT FIX]: Security & Performance.
