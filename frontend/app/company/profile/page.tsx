@@ -151,8 +151,7 @@ export default function CompanyProfilePage() {
               {logoPreview ? (
                 <Image src={logoPreview} alt="Logo preview" width={80} height={80} className="object-contain" />
               ) : company?.logo ? (
-                <Image
-                  src={`${process.env.NEXT_PUBLIC_API_URL}/storage/${company.logo}`}
+                <Image src={`${process.env.NEXT_PUBLIC_API_URL}/storage/${company.logo}`}
                   alt="Company logo"
                   width={80}
                   height={80}
