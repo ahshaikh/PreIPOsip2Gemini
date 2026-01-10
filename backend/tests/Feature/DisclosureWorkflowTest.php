@@ -404,4 +404,51 @@ class DisclosureWorkflowTest extends TestCase
 
         $this->assertTrue($approval->fresh()->sla_due_date->isPast());
     }
+
+    /** @test */
+    public function cannot_approve_disclosure_with_open_clarifications()
+    {
+        // Create submitted disclosure
+        $disclosure = CompanyDisclosure::factory()->submitted()->create([
+            'company_id' => $this->company->id,
+            'disclosure_module_id' => $this->module->id,
+        ]);
+
+        // Create open clarification
+        DisclosureClarification::factory()->open()->create([
+            'company_disclosure_id' => $disclosure->id,
+            'company_id' => $this->company->id,
+        ]);
+
+        // Attempt to approve should fail
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Cannot approve disclosure with open clarifications');
+
+        $disclosure->approve($this->admin->id, 'Attempting to approve');
+    }
+
+    /** @test */
+    public function can_approve_disclosure_when_all_clarifications_answered_and_accepted()
+    {
+        // Create submitted disclosure
+        $disclosure = CompanyDisclosure::factory()->submitted()->create([
+            'company_id' => $this->company->id,
+            'disclosure_module_id' => $this->module->id,
+        ]);
+
+        // Create clarifications that are all answered/accepted (no open ones)
+        DisclosureClarification::factory()->answered()->create([
+            'company_disclosure_id' => $disclosure->id,
+            'company_id' => $this->company->id,
+        ]);
+        DisclosureClarification::factory()->accepted()->create([
+            'company_disclosure_id' => $disclosure->id,
+            'company_id' => $this->company->id,
+        ]);
+
+        // Should approve successfully (no open clarifications)
+        $disclosure->approve($this->admin->id, 'All clarifications resolved');
+
+        $this->assertEquals('approved', $disclosure->fresh()->status);
+    }
 }

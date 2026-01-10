@@ -314,12 +314,17 @@ class CompanyDisclosure extends Model
      *
      * @param int $adminId Admin user ID
      * @param string|null $notes Admin approval notes
-     * @throws \RuntimeException If disclosure not submitted
+     * @throws \RuntimeException If disclosure not submitted or has pending clarifications
      */
     public function approve(int $adminId, ?string $notes = null): void
     {
         if (!in_array($this->status, ['submitted', 'resubmitted', 'under_review'])) {
             throw new \RuntimeException('Can only approve submitted disclosures');
+        }
+
+        // C.4 Acceptance Criteria: Block approval if clarifications are open
+        if ($this->hasPendingClarifications()) {
+            throw new \RuntimeException('Cannot approve disclosure with open clarifications. All clarifications must be answered and accepted first.');
         }
 
         // Create immutable version snapshot
