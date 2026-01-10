@@ -19,7 +19,7 @@ const nextConfig = {
         protocol: 'http',
         hostname: 'localhost',
         port: '8000',
-        pathname: '/storage/**',
+        pathname: '/api/v1/storage/**',
       },
       {
         protocol: 'https',

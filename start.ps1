@@ -55,6 +55,7 @@ Start-NewWindow $queueCommand
 $frontendCommand = @"
 cd $frontendPath
 # npm install
+Remove-Item -Recurse -Force '.\.next', '.\.turbo' -ErrorAction SilentlyContinue
 npm run dev -- --turbopack
 "@
 

@@ -505,6 +505,10 @@ cd frontend
 **Backend Logs:**
 ```bash
 tail -f backend/storage/logs/laravel.log
+
+in PowerShell
+Get-Content backend\storage\logs\laravel.log -Tail 100 -Wait
+
 ```
 
 **Frontend Console:**
@@ -524,9 +528,21 @@ cat frontend/.env.local
 # Process check
 ps aux | grep -E "(php|node)"
 
+in PowerShell
+
+Get-Process | Where-Object {
+  $_.ProcessName -match 'php|node'
+}
+
+
 # Port check
 lsof -i :8000  # Backend
 lsof -i :3000  # Frontend
+
+in PowerShell
+Get-NetTCPConnection -LocalPort 8000
+Get-NetTCPConnection -LocalPort 3000
+
 ```
 
 ---
