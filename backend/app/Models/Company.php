@@ -260,6 +260,73 @@ class Company extends Model
             ->orderBy('created_at', 'desc');
     }
 
+    /**
+     * PHASE 1: Governance Protocol Relationships
+     * Added 2026-01-10 for versioned disclosure system
+     */
+
+    /**
+     * Company's modular disclosures
+     */
+    public function disclosures(): HasMany
+    {
+        return $this->hasMany(CompanyDisclosure::class);
+    }
+
+    /**
+     * Company's approved disclosure versions (immutable snapshots)
+     */
+    public function disclosureVersions(): HasMany
+    {
+        return $this->hasMany(DisclosureVersion::class)
+            ->orderBy('approved_at', 'desc');
+    }
+
+    /**
+     * Clarifications requested for company's disclosures
+     */
+    public function disclosureClarifications(): HasMany
+    {
+        return $this->hasMany(DisclosureClarification::class);
+    }
+
+    /**
+     * Approval workflow records for company's disclosures
+     */
+    public function disclosureApprovals(): HasMany
+    {
+        return $this->hasMany(DisclosureApproval::class)
+            ->orderBy('created_at', 'desc');
+    }
+
+    /**
+     * Helper: Get pending clarifications across all disclosures
+     */
+    public function pendingClarifications()
+    {
+        return $this->disclosureClarifications()
+            ->where('status', 'open')
+            ->orderBy('due_date');
+    }
+
+    /**
+     * Helper: Get disclosures awaiting approval
+     */
+    public function disclosuresAwaitingApproval()
+    {
+        return $this->disclosures()
+            ->whereIn('status', ['submitted', 'resubmitted']);
+    }
+
+    /**
+     * Helper: Get approved disclosures only
+     */
+    public function approvedDisclosures()
+    {
+        return $this->disclosures()
+            ->where('status', 'approved');
+    }
+
     // --- SCOPES ---
 
     public function scopeActive($query)
