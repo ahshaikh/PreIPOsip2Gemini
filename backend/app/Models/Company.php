@@ -45,7 +45,39 @@ class Company extends Model
         'profile_completed',
         'profile_completion_percentage',
         'max_users_quota', // [AUDIT FIX]: Track enterprise user limits
-        'settings'         // [AUDIT FIX]: Store enterprise-specific UI/behavior configs
+        'settings',        // [AUDIT FIX]: Store enterprise-specific UI/behavior configs
+
+        // [PHASE 1]: Governance Protocol - Legal Identity & Registration
+        'cin',
+        'pan',
+        'registration_number',
+        'legal_structure',
+        'incorporation_date',
+        'registered_office_address',
+
+        // [PHASE 1]: Governance Structure
+        'board_size',
+        'independent_directors',
+        'board_committees',
+        'company_secretary',
+
+        // [PHASE 1]: SEBI & Regulatory Compliance
+        'sebi_registered',
+        'sebi_registration_number',
+        'sebi_approval_date',
+        'sebi_approval_expiry',
+        'regulatory_approvals',
+
+        // [PHASE 1]: Disclosure Lifecycle Management
+        'disclosure_stage',
+        'disclosure_submitted_at',
+        'disclosure_approved_at',
+        'disclosure_approved_by',
+        'disclosure_rejection_reason',
+
+        // [PHASE 1]: Audit Trail Enhancement
+        'last_modified_by_ip',
+        'last_modified_user_agent',
     ];
 
     protected $casts = [
@@ -57,6 +89,19 @@ class Company extends Model
         'is_featured' => 'boolean',
         'is_verified' => 'boolean',
         'profile_completed' => 'boolean',
+
+        // [PHASE 1]: Governance Protocol Type Casts
+        'incorporation_date' => 'date',
+        'board_size' => 'integer',
+        'independent_directors' => 'integer',
+        'board_committees' => 'array',
+        'sebi_registered' => 'boolean',
+        'sebi_approval_date' => 'date',
+        'sebi_approval_expiry' => 'date',
+        'regulatory_approvals' => 'array',
+        'disclosure_submitted_at' => 'datetime',
+        'disclosure_approved_at' => 'datetime',
+        'disclosure_approved_by' => 'integer',
     ];
 
     /**
@@ -258,6 +303,73 @@ class Company extends Model
         return $this->hasMany(CompanyVersion::class)
             ->where('is_approval_snapshot', true)
             ->orderBy('created_at', 'desc');
+    }
+
+    /**
+     * PHASE 1: Governance Protocol Relationships
+     * Added 2026-01-10 for versioned disclosure system
+     */
+
+    /**
+     * Company's modular disclosures
+     */
+    public function disclosures(): HasMany
+    {
+        return $this->hasMany(CompanyDisclosure::class);
+    }
+
+    /**
+     * Company's approved disclosure versions (immutable snapshots)
+     */
+    public function disclosureVersions(): HasMany
+    {
+        return $this->hasMany(DisclosureVersion::class)
+            ->orderBy('approved_at', 'desc');
+    }
+
+    /**
+     * Clarifications requested for company's disclosures
+     */
+    public function disclosureClarifications(): HasMany
+    {
+        return $this->hasMany(DisclosureClarification::class);
+    }
+
+    /**
+     * Approval workflow records for company's disclosures
+     */
+    public function disclosureApprovals(): HasMany
+    {
+        return $this->hasMany(DisclosureApproval::class)
+            ->orderBy('created_at', 'desc');
+    }
+
+    /**
+     * Helper: Get pending clarifications across all disclosures
+     */
+    public function pendingClarifications()
+    {
+        return $this->disclosureClarifications()
+            ->where('status', 'open')
+            ->orderBy('due_date');
+    }
+
+    /**
+     * Helper: Get disclosures awaiting approval
+     */
+    public function disclosuresAwaitingApproval()
+    {
+        return $this->disclosures()
+            ->whereIn('status', ['submitted', 'resubmitted']);
+    }
+
+    /**
+     * Helper: Get approved disclosures only
+     */
+    public function approvedDisclosures()
+    {
+        return $this->disclosures()
+            ->where('status', 'approved');
     }
 
     // --- SCOPES ---
