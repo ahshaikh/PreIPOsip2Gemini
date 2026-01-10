@@ -45,7 +45,39 @@ class Company extends Model
         'profile_completed',
         'profile_completion_percentage',
         'max_users_quota', // [AUDIT FIX]: Track enterprise user limits
-        'settings'         // [AUDIT FIX]: Store enterprise-specific UI/behavior configs
+        'settings',        // [AUDIT FIX]: Store enterprise-specific UI/behavior configs
+
+        // [PHASE 1]: Governance Protocol - Legal Identity & Registration
+        'cin',
+        'pan',
+        'registration_number',
+        'legal_structure',
+        'incorporation_date',
+        'registered_office_address',
+
+        // [PHASE 1]: Governance Structure
+        'board_size',
+        'independent_directors',
+        'board_committees',
+        'company_secretary',
+
+        // [PHASE 1]: SEBI & Regulatory Compliance
+        'sebi_registered',
+        'sebi_registration_number',
+        'sebi_approval_date',
+        'sebi_approval_expiry',
+        'regulatory_approvals',
+
+        // [PHASE 1]: Disclosure Lifecycle Management
+        'disclosure_stage',
+        'disclosure_submitted_at',
+        'disclosure_approved_at',
+        'disclosure_approved_by',
+        'disclosure_rejection_reason',
+
+        // [PHASE 1]: Audit Trail Enhancement
+        'last_modified_by_ip',
+        'last_modified_user_agent',
     ];
 
     protected $casts = [
@@ -57,6 +89,19 @@ class Company extends Model
         'is_featured' => 'boolean',
         'is_verified' => 'boolean',
         'profile_completed' => 'boolean',
+
+        // [PHASE 1]: Governance Protocol Type Casts
+        'incorporation_date' => 'date',
+        'board_size' => 'integer',
+        'independent_directors' => 'integer',
+        'board_committees' => 'array',
+        'sebi_registered' => 'boolean',
+        'sebi_approval_date' => 'date',
+        'sebi_approval_expiry' => 'date',
+        'regulatory_approvals' => 'array',
+        'disclosure_submitted_at' => 'datetime',
+        'disclosure_approved_at' => 'datetime',
+        'disclosure_approved_by' => 'integer',
     ];
 
     /**

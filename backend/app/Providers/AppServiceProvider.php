@@ -67,6 +67,12 @@ class AppServiceProvider extends ServiceProvider
         // [F.21]: Enforce audit log immutability via observer
         \App\Models\AuditLog::observe(\App\Observers\AuditLogObserver::class);
 
+        // [FIX 5 - P1]: Enforce company data immutability after freeze
+        \App\Models\Company::observe(\App\Observers\CompanyObserver::class);
+
+        // [PHASE 1]: Enforce disclosure version immutability for regulatory compliance
+        \App\Models\DisclosureVersion::observe(\App\Observers\DisclosureVersionObserver::class);
+
         // =================================================================
         // EVENT LISTENER REGISTRATION
         // =================================================================
