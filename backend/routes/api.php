@@ -1157,6 +1157,57 @@ Route::prefix('v1')->group(function () {
                 Route::get('/{flag}/affected-users', [App\Http\Controllers\Api\Admin\FeatureFlagController::class, 'getAffectedUsers']);
                 Route::post('/seed', [App\Http\Controllers\Api\Admin\FeatureFlagController::class, 'seedDefaultFlags']);
             });
+
+            // -------------------------------------------------------------
+            // PHASE 2: DISCLOSURE REVIEW & COMPANY LIFECYCLE MANAGEMENT
+            // -------------------------------------------------------------
+
+            // Disclosure Review Workflow
+            Route::prefix('disclosures')->middleware('permission:products.edit')->group(function () {
+                // Queue Management
+                Route::get('/pending', [App\Http\Controllers\Api\Admin\DisclosureController::class, 'pending']);
+                Route::get('/under-review', [App\Http\Controllers\Api\Admin\DisclosureController::class, 'underReview']);
+                Route::get('/approved', [App\Http\Controllers\Api\Admin\DisclosureController::class, 'approved']);
+                Route::get('/rejected', [App\Http\Controllers\Api\Admin\DisclosureController::class, 'rejected']);
+
+                // Disclosure Details & Diff
+                Route::get('/{id}', [App\Http\Controllers\Api\Admin\DisclosureController::class, 'show']);
+                Route::get('/{id}/diff', [App\Http\Controllers\Api\Admin\DisclosureController::class, 'diff']);
+                Route::get('/{id}/history', [App\Http\Controllers\Api\Admin\DisclosureController::class, 'history']);
+
+                // Review Actions (Rate Limited)
+                Route::middleware('throttle:admin-actions')->group(function () {
+                    Route::post('/{id}/start-review', [App\Http\Controllers\Api\Admin\DisclosureController::class, 'startReview']);
+                    Route::post('/{id}/approve', [App\Http\Controllers\Api\Admin\DisclosureController::class, 'approve']);
+                    Route::post('/{id}/reject', [App\Http\Controllers\Api\Admin\DisclosureController::class, 'reject']);
+                    Route::post('/{id}/clarifications', [App\Http\Controllers\Api\Admin\DisclosureController::class, 'requestClarifications']);
+                });
+            });
+
+            // Clarification Management
+            Route::prefix('clarifications')->middleware('permission:products.edit')->group(function () {
+                Route::get('/', [App\Http\Controllers\Api\Admin\DisclosureController::class, 'clarifications']);
+                Route::get('/{id}', [App\Http\Controllers\Api\Admin\DisclosureController::class, 'showClarification']);
+
+                Route::middleware('throttle:admin-actions')->group(function () {
+                    Route::post('/{id}/accept', [App\Http\Controllers\Api\Admin\DisclosureController::class, 'acceptClarification']);
+                    Route::post('/{id}/dispute', [App\Http\Controllers\Api\Admin\DisclosureController::class, 'disputeClarification']);
+                });
+            });
+
+            // Company Lifecycle Management
+            Route::prefix('company-lifecycle')->middleware('permission:products.edit')->group(function () {
+                Route::get('/companies', [App\Http\Controllers\Api\Admin\CompanyLifecycleController::class, 'index']);
+                Route::get('/companies/{id}', [App\Http\Controllers\Api\Admin\CompanyLifecycleController::class, 'show']);
+                Route::get('/companies/{id}/logs', [App\Http\Controllers\Api\Admin\CompanyLifecycleController::class, 'logs']);
+
+                Route::middleware('throttle:admin-actions')->group(function () {
+                    Route::post('/companies/{id}/suspend', [App\Http\Controllers\Api\Admin\CompanyLifecycleController::class, 'suspend']);
+                    Route::post('/companies/{id}/reactivate', [App\Http\Controllers\Api\Admin\CompanyLifecycleController::class, 'reactivate']);
+                    Route::post('/companies/{id}/enable-buying', [App\Http\Controllers\Api\Admin\CompanyLifecycleController::class, 'enableBuying']);
+                    Route::post('/companies/{id}/disable-buying', [App\Http\Controllers\Api\Admin\CompanyLifecycleController::class, 'disableBuying']);
+                });
+            });
         });
 
         // ========================================================================
@@ -1299,6 +1350,27 @@ Route::prefix('v1')->group(function () {
                     Route::post('/skip', [OnboardingWizardController::class, 'skipOnboarding']);
                     Route::get('/recommendations', [OnboardingWizardController::class, 'getRecommendations']);
                 });
+
+                // -------------------------------------------------------------
+                // PHASE 3: ISSUER DISCLOSURE SUBMISSION WORKFLOWS
+                // -------------------------------------------------------------
+
+                // Dashboard & Disclosure Management
+                Route::get('/dashboard', [App\Http\Controllers\Api\Company\DisclosureController::class, 'dashboard']);
+                Route::get('/disclosures', [App\Http\Controllers\Api\Company\DisclosureController::class, 'index']);
+                Route::get('/disclosures/{id}', [App\Http\Controllers\Api\Company\DisclosureController::class, 'show']);
+
+                // Draft Editing & Submission
+                Route::post('/disclosures', [App\Http\Controllers\Api\Company\DisclosureController::class, 'store']);
+                Route::post('/disclosures/{id}/submit', [App\Http\Controllers\Api\Company\DisclosureController::class, 'submit']);
+                Route::post('/disclosures/{id}/attach', [App\Http\Controllers\Api\Company\DisclosureController::class, 'attachDocuments']);
+
+                // Error Reporting (CRITICAL: Creates new draft, preserves approved data)
+                Route::post('/disclosures/{id}/report-error', [App\Http\Controllers\Api\Company\DisclosureController::class, 'reportError']);
+
+                // Clarification Management
+                Route::get('/clarifications/{id}', [App\Http\Controllers\Api\Company\DisclosureController::class, 'showClarification']);
+                Route::post('/clarifications/{id}/answer', [App\Http\Controllers\Api\Company\DisclosureController::class, 'answerClarification']);
             }); // Close auth:sanctum group for company authenticated routes (line 1175)
         }); // Close company prefix (line 1168)
     }); // Close v1 prefix (line 135)

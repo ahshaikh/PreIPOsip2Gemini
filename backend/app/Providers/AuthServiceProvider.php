@@ -2,14 +2,18 @@
 
 namespace App\Providers;
 
-use App\Models\{Deal, BulkPurchase, CompanyShareListing};
-use App\Policies\{DealPolicy, BulkPurchasePolicy, ShareListingPolicy};
+use App\Models\{Deal, BulkPurchase, CompanyShareListing, Company, CompanyDisclosure, DisclosureClarification};
+use App\Policies\{DealPolicy, BulkPurchasePolicy, ShareListingPolicy, CompanyDisclosurePolicy, InvestmentPolicy};
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 
 /**
  * FIX 9 (P2): Authorization Service Provider
  *
  * Registers Laravel Policies for resource-level authorization
+ *
+ * PHASE 2 & 3: Governance Protocol Policies
+ * - InvestmentPolicy: Guards investment operations against company lifecycle states
+ * - CompanyDisclosurePolicy: Role-based access control for disclosure management
  */
 class AuthServiceProvider extends ServiceProvider
 {
@@ -19,9 +23,15 @@ class AuthServiceProvider extends ServiceProvider
      * @var array<class-string, class-string>
      */
     protected $policies = [
+        // Existing policies
         Deal::class => DealPolicy::class,
         BulkPurchase::class => BulkPurchasePolicy::class,
         CompanyShareListing::class => ShareListingPolicy::class,
+
+        // Phase 2 & 3: Governance Protocol Policies
+        Company::class => InvestmentPolicy::class, // Governs invest() action
+        CompanyDisclosure::class => CompanyDisclosurePolicy::class,
+        DisclosureClarification::class => CompanyDisclosurePolicy::class, // Uses answerClarification() method
     ];
 
     /**

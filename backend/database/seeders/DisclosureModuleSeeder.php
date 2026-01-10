@@ -7,13 +7,18 @@ use App\Models\User;
 use Illuminate\Database\Seeder;
 
 /**
- * PHASE 1 - Disclosure Module Seeder
+ * PHASE 1 & 2 - Disclosure Module Seeder
  *
  * Seeds default SEBI-mandated disclosure modules for Pre-IPO companies.
  * These modules define the structure and validation rules for company disclosures.
  *
  * SEBI Reference: SEBI (ICDR) Regulations, 2018
  * Sections: 26(1), 32, 33 - Disclosure requirements for unlisted companies
+ *
+ * PHASE 2 ADDITION: Tiered Approval System
+ * - Tier 1 (Visibility): Basic business information modules
+ * - Tier 2 (Investable): Financial data modules (ENABLES BUYING)
+ * - Tier 3 (Full Disclosure): Legal and compliance modules
  */
 class DisclosureModuleSeeder extends Seeder
 {
@@ -35,6 +40,7 @@ class DisclosureModuleSeeder extends Seeder
                 'is_required' => true,
                 'is_active' => true,
                 'display_order' => 1,
+                'tier' => 1, // PHASE 2: Tier 1 (Visibility) - Basic business information
                 'icon' => 'building',
                 'color' => 'blue',
                 'json_schema' => [
@@ -109,6 +115,7 @@ class DisclosureModuleSeeder extends Seeder
                 'is_required' => true,
                 'is_active' => true,
                 'display_order' => 2,
+                'tier' => 2, // PHASE 2: Tier 2 (Investable) - Financial data (ENABLES BUYING)
                 'icon' => 'chart-line',
                 'color' => 'green',
                 'json_schema' => [
@@ -188,6 +195,7 @@ class DisclosureModuleSeeder extends Seeder
                 'is_required' => true,
                 'is_active' => true,
                 'display_order' => 3,
+                'tier' => 3, // PHASE 2: Tier 3 (Full Disclosure) - Risk factors
                 'icon' => 'shield',
                 'color' => 'red',
                 'json_schema' => [
@@ -263,6 +271,7 @@ class DisclosureModuleSeeder extends Seeder
                 'is_required' => true,
                 'is_active' => true,
                 'display_order' => 4,
+                'tier' => 1, // PHASE 2: Tier 1 (Visibility) - Governance information
                 'icon' => 'users',
                 'color' => 'purple',
                 'json_schema' => [
@@ -333,6 +342,7 @@ class DisclosureModuleSeeder extends Seeder
                 'is_required' => false,
                 'is_active' => true,
                 'display_order' => 5,
+                'tier' => 3, // PHASE 2: Tier 3 (Full Disclosure) - Legal and compliance
                 'icon' => 'file-text',
                 'color' => 'gray',
                 'json_schema' => [
