@@ -2,8 +2,8 @@
 
 namespace App\Providers;
 
-use App\Models\{BulkPurchase, Company, Withdrawal};
-use App\Observers\{BulkPurchaseObserver, CompanyObserver, WithdrawalObserver};
+use App\Models\{BulkPurchase, Company, CompanyDisclosure, DisclosureVersion, Withdrawal};
+use App\Observers\{BulkPurchaseObserver, CompanyObserver, CompanyDisclosureObserver, DisclosureVersionObserver, WithdrawalObserver};
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
@@ -35,6 +35,13 @@ class EventServiceProvider extends ServiceProvider
 
         // FIX 18: Register Withdrawal observer for automatic fund locking
         Withdrawal::observe(WithdrawalObserver::class);
+
+        // PHASE 1: Register DisclosureVersion observer for immutability enforcement
+        DisclosureVersion::observe(DisclosureVersionObserver::class);
+
+        // PHASE 4: Register CompanyDisclosure observer for auto-calculation
+        // Triggers platform metrics and risk flag calculation when disclosure approved
+        CompanyDisclosure::observe(CompanyDisclosureObserver::class);
     }
 
     /**
