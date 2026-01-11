@@ -235,6 +235,18 @@ Route::prefix('v1')->group(function () {
     // --- KYC CALLBACK (Public) ---
     Route::get('/kyc/digilocker/callback', [KycController::class, 'handleDigiLockerCallback']);
 
+    // -------------------------------------------------------------
+    // PHASE 4: PLATFORM CONTEXT LAYER (PUBLIC ENDPOINTS)
+    // -------------------------------------------------------------
+    // REGULATORY NOTE: These endpoints provide informational analysis,
+    // NOT investment advice. All responses include disclaimers.
+    Route::prefix('companies/{id}')->group(function () {
+        Route::get('/platform-context', [App\Http\Controllers\Api\PlatformContextController::class, 'getCompanyContext']);
+        Route::get('/metrics', [App\Http\Controllers\Api\PlatformContextController::class, 'getMetrics']);
+        Route::get('/risk-flags', [App\Http\Controllers\Api\PlatformContextController::class, 'getRiskFlags']);
+        Route::get('/valuation-context', [App\Http\Controllers\Api\PlatformContextController::class, 'getValuationContext']);
+    });
+
     // --- Webhook Routes (V-SECURITY: Signature verification required) ---
     Route::post('/webhooks/razorpay', [WebhookController::class, 'handleRazorpay'])
         ->middleware(['webhook.verify:razorpay', 'throttle:60,1']); // 60 requests per minute
@@ -455,6 +467,12 @@ Route::prefix('v1')->group(function () {
             // Legal Document Acceptance (Authenticated)
             Route::get('/legal/documents/{type}/acceptance-status', [LegalDocumentController::class, 'acceptanceStatus']);
             Route::post('/legal/documents/{type}/accept', [LegalDocumentController::class, 'accept']);
+
+            // -------------------------------------------------------------
+            // PHASE 4: "WHAT'S NEW" FEATURE (AUTHENTICATED)
+            // -------------------------------------------------------------
+            // Shows investors what changed since their last visit
+            Route::get('/companies/{id}/whats-new', [App\Http\Controllers\Api\PlatformContextController::class, 'getWhatsNew']);
         });
     }); // Close auth:sanctum + mfa.verified group from line 243
 
