@@ -51,6 +51,16 @@ class CompanyLifecycleService
      */
     public function checkAndTransition(Company $company): bool
     {
+        // PHASE 2 HARDENING: Suspend-Aware Auto-Transition Guard
+        // CRITICAL: Prevent any auto-transition while company is suspended
+        if ($company->lifecycle_state === 'suspended' || $company->is_suspended) {
+            Log::warning('Auto-transition blocked: Company is suspended', [
+                'company_id' => $company->id,
+                'lifecycle_state' => $company->lifecycle_state,
+            ]);
+            return false;
+        }
+
         DB::beginTransaction();
 
         try {

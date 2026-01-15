@@ -23,6 +23,9 @@ class InvestmentSnapshotService
     /**
      * Capture snapshot at investment purchase
      *
+     * PHASE 4 STABILIZATION - Issue 2: Full Investor View Freeze
+     * Now also captures and binds platform context snapshot.
+     *
      * @param int $investmentId
      * @param User $investor
      * @param Company $company
@@ -33,6 +36,22 @@ class InvestmentSnapshotService
         DB::beginTransaction();
 
         try {
+            // PHASE 4 STABILIZATION - Issue 2: Ensure platform context snapshot exists
+            $platformContextService = new PlatformContextSnapshotService();
+            $platformContextSnapshotId = $platformContextService->ensureCurrentSnapshot($company);
+
+            // Link investment to platform context snapshot
+            DB::table('investments')
+                ->where('id', $investmentId)
+                ->update([
+                    'platform_context_snapshot_id' => $platformContextSnapshotId,
+                ]);
+
+            Log::info('PHASE 4: Investment linked to platform context snapshot', [
+                'investment_id' => $investmentId,
+                'platform_context_snapshot_id' => $platformContextSnapshotId,
+                'company_id' => $company->id,
+            ]);
             // 1. Gather all company disclosures
             $disclosures = DB::table('company_disclosures')
                 ->where('company_id', $company->id)
@@ -111,6 +130,18 @@ class InvestmentSnapshotService
                 'liquidity_outlook' => $valuation->liquidity_outlook,
             ] : null;
 
+            // PHASE 2 HARDENING: Capture governance state
+            $governanceSnapshot = [
+                'lifecycle_state' => $company->lifecycle_state,
+                'buying_enabled' => $company->buying_enabled ?? true,
+                'governance_state_version' => $company->governance_state_version ?? 1,
+                'is_suspended' => $company->is_suspended ?? false,
+                'suspension_reason' => $company->suspension_reason ?? null,
+                'tier_1_approved_at' => $company->tier_1_approved_at,
+                'tier_2_approved_at' => $company->tier_2_approved_at,
+                'tier_3_approved_at' => $company->tier_3_approved_at,
+            ];
+
             // 5. Create snapshot record
             $snapshotId = DB::table('investment_disclosure_snapshots')->insertGetId([
                 'investment_id' => $investmentId,
@@ -122,6 +153,7 @@ class InvestmentSnapshotService
                 'metrics_snapshot' => json_encode($metricsSnapshot),
                 'risk_flags_snapshot' => json_encode($flagsSnapshot),
                 'valuation_context_snapshot' => json_encode($valuationSnapshot),
+                'governance_snapshot' => json_encode($governanceSnapshot), // PHASE 2 HARDENING
                 'disclosure_versions_map' => json_encode($versionMap),
                 'was_under_review' => $wasUnderReview,
                 'company_lifecycle_state' => $company->lifecycle_state,
@@ -249,5 +281,82 @@ class InvestmentSnapshotService
         }
 
         return $differences;
+    }
+
+    /**
+     * PHASE 4 STABILIZATION - Issue 2: Get complete investor view
+     *
+     * Returns disclosure snapshot + platform context snapshot.
+     * This is the COMPLETE immutable view investor had at purchase.
+     *
+     * @param int $investmentId
+     * @return array Complete investor view
+     */
+    public function getCompleteInvestorView(int $investmentId): array
+    {
+        // Get investment
+        $investment = DB::table('investments')->find($investmentId);
+        if (!$investment) {
+            return ['error' => 'Investment not found'];
+        }
+
+        // Get disclosure snapshot
+        $disclosureSnapshot = $this->getSnapshotForInvestment($investmentId);
+
+        // Get platform context snapshot
+        $platformContextSnapshot = null;
+        if ($investment->platform_context_snapshot_id) {
+            $platformContextService = new PlatformContextSnapshotService();
+            $platformContextSnapshot = $platformContextService->getSnapshot(
+                $investment->platform_context_snapshot_id
+            );
+        }
+
+        return [
+            'investment_id' => $investmentId,
+            'investment_date' => $investment->created_at,
+            'company_id' => $investment->company_id,
+            'user_id' => $investment->user_id,
+
+            // Disclosure snapshot (what disclosures investor saw)
+            'disclosure_snapshot' => $disclosureSnapshot ? [
+                'snapshot_id' => $disclosureSnapshot->id,
+                'snapshot_timestamp' => $disclosureSnapshot->snapshot_timestamp,
+                'disclosures' => json_decode($disclosureSnapshot->disclosure_snapshot, true),
+                'governance' => json_decode($disclosureSnapshot->governance_snapshot, true),
+                'metrics' => json_decode($disclosureSnapshot->metrics_snapshot, true),
+                'risk_flags' => json_decode($disclosureSnapshot->risk_flags_snapshot, true),
+            ] : null,
+
+            // Platform context snapshot (platform state at investment time)
+            'platform_context_snapshot' => $platformContextSnapshot ? [
+                'snapshot_id' => $platformContextSnapshot->id,
+                'snapshot_at' => $platformContextSnapshot->snapshot_at,
+                'lifecycle_state' => $platformContextSnapshot->lifecycle_state,
+                'buying_enabled' => $platformContextSnapshot->buying_enabled,
+                'tier_approvals' => [
+                    'tier_1' => $platformContextSnapshot->tier_1_approved,
+                    'tier_2' => $platformContextSnapshot->tier_2_approved,
+                    'tier_3' => $platformContextSnapshot->tier_3_approved,
+                ],
+                'restrictions' => [
+                    'is_suspended' => $platformContextSnapshot->is_suspended,
+                    'is_frozen' => $platformContextSnapshot->is_frozen,
+                    'is_under_investigation' => $platformContextSnapshot->is_under_investigation,
+                ],
+                'risk_assessment' => [
+                    'platform_risk_score' => $platformContextSnapshot->platform_risk_score,
+                    'risk_level' => $platformContextSnapshot->risk_level,
+                    'risk_flags' => json_decode($platformContextSnapshot->risk_flags, true),
+                ],
+                'is_locked' => $platformContextSnapshot->is_locked,
+                'valid_from' => $platformContextSnapshot->valid_from,
+                'valid_until' => $platformContextSnapshot->valid_until,
+            ] : null,
+
+            'snapshot_frozen' => true,
+            'recalculation_forbidden' => true,
+            'immutability_guarantee' => 'These snapshots are permanently frozen and cannot be recalculated or mutated.',
+        ];
     }
 }
