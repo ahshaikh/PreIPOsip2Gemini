@@ -111,6 +111,18 @@ class InvestmentSnapshotService
                 'liquidity_outlook' => $valuation->liquidity_outlook,
             ] : null;
 
+            // PHASE 2 HARDENING: Capture governance state
+            $governanceSnapshot = [
+                'lifecycle_state' => $company->lifecycle_state,
+                'buying_enabled' => $company->buying_enabled ?? true,
+                'governance_state_version' => $company->governance_state_version ?? 1,
+                'is_suspended' => $company->is_suspended ?? false,
+                'suspension_reason' => $company->suspension_reason ?? null,
+                'tier_1_approved_at' => $company->tier_1_approved_at,
+                'tier_2_approved_at' => $company->tier_2_approved_at,
+                'tier_3_approved_at' => $company->tier_3_approved_at,
+            ];
+
             // 5. Create snapshot record
             $snapshotId = DB::table('investment_disclosure_snapshots')->insertGetId([
                 'investment_id' => $investmentId,
@@ -122,6 +134,7 @@ class InvestmentSnapshotService
                 'metrics_snapshot' => json_encode($metricsSnapshot),
                 'risk_flags_snapshot' => json_encode($flagsSnapshot),
                 'valuation_context_snapshot' => json_encode($valuationSnapshot),
+                'governance_snapshot' => json_encode($governanceSnapshot), // PHASE 2 HARDENING
                 'disclosure_versions_map' => json_encode($versionMap),
                 'was_under_review' => $wasUnderReview,
                 'company_lifecycle_state' => $company->lifecycle_state,
