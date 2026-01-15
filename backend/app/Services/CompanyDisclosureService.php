@@ -345,6 +345,7 @@ class CompanyDisclosureService
      * Answer admin clarification
      *
      * SAFEGUARD: Can only answer clarifications in 'open' or 'disputed' status
+     * PHASE 2 HARDENING: Must verify disclosure is in valid review state
      * TRANSPARENCY: Full answer history with attachments
      *
      * @param DisclosureClarification $clarification
@@ -366,6 +367,29 @@ class CompanyDisclosureService
             );
         }
 
+        // PHASE 2 HARDENING - Issue 4: Clarification State Guard
+        // CRITICAL: Block clarification answers unless disclosure is in valid review state
+        // Prevents orphaned compliance actions when disclosure has been approved/rejected
+        $disclosure = $clarification->companyDisclosure;
+        $validReviewStates = ['under_review', 'clarification_required'];
+
+        if (!in_array($disclosure->status, $validReviewStates)) {
+            Log::warning('CLARIFICATION STATE GUARD: Answer blocked - disclosure not in valid review state', [
+                'clarification_id' => $clarification->id,
+                'disclosure_id' => $disclosure->id,
+                'disclosure_status' => $disclosure->status,
+                'valid_states' => $validReviewStates,
+                'company_id' => $clarification->company_id,
+                'user_id' => $userId,
+            ]);
+
+            throw new \RuntimeException(
+                "Cannot answer clarification: Disclosure is in '{$disclosure->status}' status. " .
+                "Clarifications can only be answered when disclosure is under_review or clarification_required. " .
+                "This clarification is orphaned - please contact admin if you need to address this issue."
+            );
+        }
+
         // Use model method (Phase 1)
         $clarification->submitAnswer($userId, $answerBody, $supportingDocuments);
 
@@ -373,6 +397,7 @@ class CompanyDisclosureService
             'company_id' => $clarification->company_id,
             'clarification_id' => $clarification->id,
             'disclosure_id' => $clarification->company_disclosure_id,
+            'disclosure_status' => $disclosure->status,
             'user_id' => $userId,
             'has_documents' => !empty($supportingDocuments),
         ]);
