@@ -169,6 +169,11 @@ class CompanyDisclosureService
             ];
         }
 
+        // PHASE 3 HARDENING - Issue 1: Platform Context Injection
+        // CRITICAL: Make issuer dashboard explicitly platform-aware
+        // Issuer cannot infer authority from status alone - platform state is injected
+        $platformContext = $this->getPlatformContextForIssuer($company);
+
         return [
             'company' => [
                 'id' => $company->id,
@@ -193,6 +198,8 @@ class CompanyDisclosureService
                 'in_progress' => $disclosures->whereIn('status', ['draft', 'submitted', 'under_review'])->count(),
                 'blocked' => count($blockers),
             ],
+            // PHASE 3 HARDENING: Platform context injection
+            'platform_context' => $platformContext,
         ];
     }
 
@@ -412,6 +419,11 @@ class CompanyDisclosureService
      * - Notifies admin
      * - Logs self-reported correction
      *
+     * PHASE 3 HARDENING - Issue 2: Platform-Aware Error Reporting
+     * - Classifies error severity (minor, moderate, major, critical)
+     * - Determines platform reaction (log, review, pause buying, suspend)
+     * - Executes platform reaction automatically
+     *
      * This treats issuer honesty as a positive signal, not a penalty.
      *
      * @param CompanyDisclosure $disclosure
@@ -419,6 +431,7 @@ class CompanyDisclosureService
      * @param string $errorDescription
      * @param array $correctedData
      * @param string $correctionReason
+     * @param string|null $issuerProvidedSeverity Optional severity classification from issuer
      * @return CompanyDisclosure New draft disclosure
      */
     public function reportErrorInApprovedDisclosure(
@@ -426,7 +439,8 @@ class CompanyDisclosureService
         int $userId,
         string $errorDescription,
         array $correctedData,
-        string $correctionReason
+        string $correctionReason,
+        ?string $issuerProvidedSeverity = null
     ): CompanyDisclosure {
         // SAFEGUARD: Can only report errors in approved disclosures
         if ($disclosure->status !== 'approved') {
@@ -436,6 +450,16 @@ class CompanyDisclosureService
         DB::beginTransaction();
 
         try {
+            // PHASE 3 HARDENING - Issue 2: Classify error severity and determine platform reaction
+            $classificationService = new ErrorReportClassificationService();
+            $classification = $classificationService->classifyErrorReport(
+                $disclosure,
+                $errorDescription,
+                $disclosure->disclosure_data,
+                $correctedData,
+                $issuerProvidedSeverity
+            );
+
             // Create error report record for audit trail
             $errorReport = \App\Models\DisclosureErrorReport::create([
                 'company_disclosure_id' => $disclosure->id,
@@ -448,6 +472,11 @@ class CompanyDisclosureService
                 'corrected_data' => $correctedData,
                 'ip_address' => request()->ip(),
                 'user_agent' => request()->userAgent(),
+                // PHASE 3 HARDENING: Store severity and platform reaction
+                'severity' => $classification['severity'],
+                'auto_classification' => $classification['auto_classification'],
+                'issuer_provided_severity' => $issuerProvidedSeverity,
+                'platform_reaction' => $classification['platform_reaction'],
             ]);
 
             // Create NEW disclosure draft (do NOT modify approved one)
@@ -473,6 +502,13 @@ class CompanyDisclosureService
 
             // Notify admin about self-reported correction
             $this->notifyAdminOfErrorReport($disclosure, $errorReport, $newDraft);
+
+            // PHASE 3 HARDENING - Issue 2: Execute platform reaction
+            $classificationService->executePlatformReaction(
+                $disclosure->company,
+                $classification['platform_reaction'],
+                $errorReport->id
+            );
 
             DB::commit();
 
@@ -680,5 +716,131 @@ class CompanyDisclosureService
             'error_report_id' => $errorReport->id,
             'new_draft_id' => $newDraft->id,
         ]);
+    }
+
+    /**
+     * PHASE 3 HARDENING - Issue 1: Platform Context Injection
+     *
+     * Get platform context that affects issuer actions
+     *
+     * PURPOSE:
+     * - Make it explicit that issuer dashboards are platform-mediated
+     * - Issuer cannot infer authority from disclosure status alone
+     * - Platform state can override issuer editability and actions
+     *
+     * RETURNS:
+     * - Platform governance state (lifecycle, suspension, buying)
+     * - Platform overrides (freeze, investigation, manual restrictions)
+     * - Effective permissions (what issuer can actually do given platform state)
+     * - Platform messages (why actions are restricted)
+     *
+     * @param Company $company
+     * @return array Platform context data
+     */
+    protected function getPlatformContextForIssuer(Company $company): array
+    {
+        // Check for active platform restrictions
+        $isSuspended = $company->lifecycle_state === 'suspended' || ($company->is_suspended ?? false);
+        $isFrozen = $company->disclosure_freeze ?? false;
+        $isUnderInvestigation = $company->under_investigation ?? false;
+        $buyingPaused = !($company->buying_enabled ?? true);
+
+        // Determine if platform has restricted issuer actions
+        $hasActiveRestrictions = $isSuspended || $isFrozen || $isUnderInvestigation || $buyingPaused;
+
+        // Build platform override messages
+        $overrideMessages = [];
+        if ($isSuspended) {
+            $overrideMessages[] = [
+                'type' => 'suspension',
+                'severity' => 'critical',
+                'message' => 'Company is suspended. All disclosure editing is disabled.',
+                'reason' => $company->suspension_reason ?? 'Under platform review',
+                'blocks_editing' => true,
+                'blocks_submission' => true,
+            ];
+        }
+
+        if ($isFrozen && !$isSuspended) {
+            $overrideMessages[] = [
+                'type' => 'disclosure_freeze',
+                'severity' => 'high',
+                'message' => 'Disclosures are frozen by platform. No edits allowed until freeze is lifted.',
+                'reason' => $company->freeze_reason ?? 'Platform investigation in progress',
+                'blocks_editing' => true,
+                'blocks_submission' => false, // Can submit existing drafts, but not edit
+            ];
+        }
+
+        if ($isUnderInvestigation && !$isSuspended && !$isFrozen) {
+            $overrideMessages[] = [
+                'type' => 'under_investigation',
+                'severity' => 'medium',
+                'message' => 'Company is under platform investigation. New submissions require additional review.',
+                'reason' => 'Compliance review in progress',
+                'blocks_editing' => false,
+                'blocks_submission' => false,
+                'adds_review_delay' => true,
+            ];
+        }
+
+        if ($buyingPaused && !$isSuspended) {
+            $overrideMessages[] = [
+                'type' => 'buying_paused',
+                'severity' => 'high',
+                'message' => 'Investment buying is paused by platform.',
+                'reason' => $company->buying_pause_reason ?? 'Platform risk assessment',
+                'blocks_editing' => false,
+                'blocks_submission' => false,
+                'affects_go_live' => true,
+            ];
+        }
+
+        // Calculate effective permissions (role permissions + platform overrides)
+        $effectivePermissions = [
+            'can_edit_disclosures' => !$isSuspended && !$isFrozen,
+            'can_submit_disclosures' => !$isSuspended,
+            'can_answer_clarifications' => !$isSuspended && !$isFrozen,
+            'can_report_errors' => !$isSuspended, // Error reports always allowed (transparency)
+            'can_go_live' => !$isSuspended && !$buyingPaused,
+            'platform_review_required' => $isUnderInvestigation,
+        ];
+
+        return [
+            'governance_state' => [
+                'lifecycle_state' => $company->lifecycle_state,
+                'lifecycle_state_changed_at' => $company->lifecycle_state_changed_at,
+                'lifecycle_state_changed_by' => $company->lifecycle_state_changed_by,
+                'governance_state_version' => $company->governance_state_version ?? 1,
+            ],
+            'platform_restrictions' => [
+                'is_suspended' => $isSuspended,
+                'is_frozen' => $isFrozen,
+                'is_under_investigation' => $isUnderInvestigation,
+                'buying_paused' => $buyingPaused,
+                'has_active_restrictions' => $hasActiveRestrictions,
+            ],
+            'suspension_details' => $isSuspended ? [
+                'suspended_at' => $company->suspended_at,
+                'suspended_by' => $company->suspended_by,
+                'suspension_reason' => $company->suspension_reason,
+                'suspension_internal_notes' => null, // Internal only, not shown to issuer
+                'show_warning_banner' => $company->show_warning_banner ?? false,
+                'warning_banner_message' => $company->warning_banner_message,
+            ] : null,
+            'tier_approvals' => [
+                'tier_1_approved' => $company->tier_1_approved_at !== null,
+                'tier_1_approved_at' => $company->tier_1_approved_at,
+                'tier_2_approved' => $company->tier_2_approved_at !== null,
+                'tier_2_approved_at' => $company->tier_2_approved_at,
+                'tier_3_approved' => $company->tier_3_approved_at !== null,
+                'tier_3_approved_at' => $company->tier_3_approved_at,
+            ],
+            'platform_overrides' => $overrideMessages,
+            'effective_permissions' => $effectivePermissions,
+            'platform_message' => $hasActiveRestrictions
+                ? 'Platform has restricted some actions for this company. See platform_overrides for details.'
+                : 'No active platform restrictions. Normal issuer permissions apply.',
+        ];
     }
 }
