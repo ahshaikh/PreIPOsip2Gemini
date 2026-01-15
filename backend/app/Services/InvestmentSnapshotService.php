@@ -26,13 +26,21 @@ class InvestmentSnapshotService
      * PHASE 4 STABILIZATION - Issue 2: Full Investor View Freeze
      * Now also captures and binds platform context snapshot.
      *
+     * PHASE 5 - Issue 4: Investor Snapshotting
+     * Now also captures public page view, warnings, and acknowledgements.
+     *
      * @param int $investmentId
      * @param User $investor
      * @param Company $company
+     * @param array $acknowledgementsGranted Acknowledgements investor granted
      * @return int Snapshot ID
      */
-    public function captureAtPurchase(int $investmentId, User $investor, Company $company): int
-    {
+    public function captureAtPurchase(
+        int $investmentId,
+        User $investor,
+        Company $company,
+        array $acknowledgementsGranted = []
+    ): int {
         DB::beginTransaction();
 
         try {
@@ -52,6 +60,18 @@ class InvestmentSnapshotService
                 'platform_context_snapshot_id' => $platformContextSnapshotId,
                 'company_id' => $company->id,
             ]);
+
+            // PHASE 5 - Issue 4: Capture public page view investor saw
+            $publicPageService = new PublicCompanyPageService();
+            $publicPageView = $publicPageService->getPublicCompanyPage($company->id, $investor->id);
+
+            // PHASE 5 - Issue 4: Capture acknowledgements granted
+            $riskAckService = new RiskAcknowledgementService();
+            $acknowledgementsStatus = $riskAckService->hasAcknowledgedAllRisks(
+                $investor->id,
+                $company->id,
+                true // Include material changes
+            );
             // 1. Gather all company disclosures
             $disclosures = DB::table('company_disclosures')
                 ->where('company_id', $company->id)
@@ -158,6 +178,12 @@ class InvestmentSnapshotService
                 'was_under_review' => $wasUnderReview,
                 'company_lifecycle_state' => $company->lifecycle_state,
                 'buying_enabled_at_snapshot' => $company->buying_enabled ?? true,
+
+                // PHASE 5 - Issue 4: Investor Snapshotting
+                'public_page_view_snapshot' => json_encode($publicPageView),
+                'acknowledgements_snapshot' => json_encode($acknowledgementsStatus),
+                'acknowledgements_granted' => json_encode($acknowledgementsGranted),
+
                 'ip_address' => request()->ip(),
                 'user_agent' => request()->userAgent(),
                 'session_id' => request()->session()?->getId(),
@@ -289,6 +315,8 @@ class InvestmentSnapshotService
      * Returns disclosure snapshot + platform context snapshot.
      * This is the COMPLETE immutable view investor had at purchase.
      *
+     * PHASE 5 - Issue 4: Now also includes public page view and acknowledgements.
+     *
      * @param int $investmentId
      * @return array Complete investor view
      */
@@ -354,9 +382,24 @@ class InvestmentSnapshotService
                 'valid_until' => $platformContextSnapshot->valid_until,
             ] : null,
 
+            // PHASE 5 - Issue 4: Public page view snapshot
+            'public_page_view' => $disclosureSnapshot && $disclosureSnapshot->public_page_view_snapshot
+                ? json_decode($disclosureSnapshot->public_page_view_snapshot, true)
+                : null,
+
+            // PHASE 5 - Issue 4: Acknowledgements snapshot
+            'acknowledgements' => [
+                'status_at_purchase' => $disclosureSnapshot && $disclosureSnapshot->acknowledgements_snapshot
+                    ? json_decode($disclosureSnapshot->acknowledgements_snapshot, true)
+                    : null,
+                'granted_during_purchase' => $disclosureSnapshot && $disclosureSnapshot->acknowledgements_granted
+                    ? json_decode($disclosureSnapshot->acknowledgements_granted, true)
+                    : null,
+            ],
+
             'snapshot_frozen' => true,
             'recalculation_forbidden' => true,
-            'immutability_guarantee' => 'These snapshots are permanently frozen and cannot be recalculated or mutated.',
+            'immutability_guarantee' => 'These snapshots are permanently frozen and cannot be recalculated or mutated. This includes disclosure data, platform context, public page view, and risk acknowledgements.',
         ];
     }
 }
