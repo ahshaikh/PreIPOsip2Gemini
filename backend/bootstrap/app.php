@@ -22,6 +22,7 @@ use App\Http\Middleware\EnsureMfaVerified; // [AUDIT FIX] Import MFA Middleware
 use App\Http\Middleware\CheckPlanEligibility; // [ENHANCEMENT] Plan eligibility check
 use App\Http\Middleware\ThrottlePublicApi; // [FIX 16 (P3)] Rate limiting for public endpoints
 use App\Http\Middleware\EnsureCompanyInvestable; // [PHASE 2] Buying guard for company lifecycle states
+use App\Http\Middleware\Protocol1Middleware; // [PROTOCOL-1] Governance enforcement framework
 
 // ----------------------------------------------------------
 // 1. Build the application instance
@@ -74,6 +75,10 @@ $app = Application::configure(basePath: dirname(__DIR__))
             // [PHASE 2]: Company lifecycle state guard for investments
             // Blocks buying when company is not in live_investable or live_fully_disclosed states
             'company.investable' => EnsureCompanyInvestable::class,
+
+            // [PROTOCOL-1]: Governance enforcement framework
+            // Validates all actions against Protocol-1 rules before execution
+            'protocol1' => Protocol1Middleware::class,
 
             // Spatie Roles & Permissions
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
