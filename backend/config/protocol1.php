@@ -39,9 +39,12 @@ return [
     |
     | This is the master switch for enforcement behavior.
     |
+    | CURRENT STATUS: PARKED - System-level Protocol-1 is in observational mode only.
+    | All blocking, alerts, and enforcement are disabled. Only passive logging active.
+    |
     */
 
-    'enforcement_mode' => env('PROTOCOL1_ENFORCEMENT_MODE', 'strict'),
+    'enforcement_mode' => env('PROTOCOL1_ENFORCEMENT_MODE', 'monitor'),
 
     /*
     |--------------------------------------------------------------------------
@@ -120,14 +123,14 @@ return [
     */
 
     'alerting' => [
-        // Enable alerting system
-        'enabled' => env('PROTOCOL1_ALERTING_ENABLED', true),
+        // Enable alerting system (PARKED - disabled by default)
+        'enabled' => env('PROTOCOL1_ALERTING_ENABLED', false),
 
-        // Alert on any CRITICAL violation
-        'alert_on_critical' => env('PROTOCOL1_ALERT_CRITICAL', true),
+        // Alert on any CRITICAL violation (PARKED - disabled)
+        'alert_on_critical' => env('PROTOCOL1_ALERT_CRITICAL', false),
 
-        // Alert on high volume of violations (anomaly detection)
-        'alert_on_anomaly' => env('PROTOCOL1_ALERT_ANOMALY', true),
+        // Alert on high volume of violations (anomaly detection) (PARKED - disabled)
+        'alert_on_anomaly' => env('PROTOCOL1_ALERT_ANOMALY', false),
 
         // Anomaly threshold (violations per time window)
         'anomaly_threshold' => env('PROTOCOL1_ANOMALY_THRESHOLD', 10),
