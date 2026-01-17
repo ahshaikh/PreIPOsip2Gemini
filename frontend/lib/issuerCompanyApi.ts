@@ -5,13 +5,12 @@
  * - Fetch issuer's own company data with platform context
  * - Submit/edit disclosures with platform state awareness
  * - Respond to clarifications
- * - View investor snapshot awareness (aggregate only)
  *
  * DEFENSIVE PRINCIPLES:
  * - Platform state supremacy - cannot override platform restrictions
  * - Review-state-driven editability
- * - Investor impact awareness (read-only, aggregate)
  * - Cannot close/extend clarification timelines
+ * - PHASE SEPARATION: Issuer has ZERO visibility into investor metrics
  */
 
 import api from './api';
@@ -58,17 +57,6 @@ export interface IssuerCompanyData {
     corrective_guidance?: string;
     data: any;
   }>;
-
-  // Investor Snapshot Awareness (Aggregate only, NO personal data)
-  investor_snapshot_awareness?: {
-    total_investors: number;
-    version_distribution: Array<{
-      version_number: number;
-      investor_count: number;
-      percentage: number;
-    }>;
-    privacy_note: string;
-  };
 
   // Clarifications (with deadlines)
   clarifications?: Array<{
@@ -158,24 +146,15 @@ export async function answerClarification(
 }
 
 /**
- * Get investor snapshot awareness for disclosure
+ * AUDIT GAP 2 FIX: Removed getInvestorSnapshotAwareness()
  *
- * Backend endpoint: GET /issuer/disclosures/{id}/investor-awareness
- * Uses IssuerSnapshotAwarenessService (Phase 3)
- * Returns aggregate only, NO investor personal data
+ * REASON: Phase separation violation. Issuer must have ZERO visibility
+ * into investor metrics, even aggregate data like version distribution.
+ *
+ * This function allowed issuers to infer investor behavior patterns
+ * from snapshot version distribution, which could be used to game
+ * disclosure timing.
+ *
+ * If platform oversight is needed, this function should be moved to
+ * admin-only API, not issuer API.
  */
-export async function getInvestorSnapshotAwareness(
-  disclosureId: number
-): Promise<{
-  total_investors: number;
-  version_distribution: Array<{
-    version_number: number;
-    investor_count: number;
-    percentage: number;
-  }>;
-  current_version: number;
-  privacy_note: string;
-}> {
-  const response = await api.get(`/issuer/disclosures/${disclosureId}/investor-awareness`);
-  return response.data.data;
-}

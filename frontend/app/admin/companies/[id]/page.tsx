@@ -59,8 +59,10 @@ import {
   previewVisibilityChange,
   updateCompanyVisibility,
   updatePlatformContext,
+  previewPlatformContextChange,
   AdminCompanyDetail,
   VisibilityChangeImpact,
+  PlatformContextChangeImpact,
 } from "@/lib/adminCompanyApi";
 
 export default function AdminCompanyManagementPage() {
@@ -87,6 +89,12 @@ export default function AdminCompanyManagementPage() {
   const [isFrozen, setIsFrozen] = useState(false);
   const [buyingEnabled, setBuyingEnabled] = useState(true);
   const [platformContextChanged, setPlatformContextChanged] = useState(false);
+
+  // Platform context impact preview (ISSUE 2 FIX)
+  const [showPlatformContextPreview, setShowPlatformContextPreview] = useState(false);
+  const [platformContextImpact, setPlatformContextImpact] = useState<PlatformContextChangeImpact | null>(null);
+  const [platformContextReason, setPlatformContextReason] = useState("");
+  const [savingPlatformContext, setSavingPlatformContext] = useState(false);
 
   // Load company data
   useEffect(() => {
@@ -200,15 +208,39 @@ export default function AdminCompanyManagementPage() {
     }
   };
 
-  // Handle platform context save
-  const handleSavePlatformContext = async () => {
+  // Handle platform context preview (ISSUE 2 FIX)
+  const handlePreviewPlatformContextChange = async () => {
     if (!company) return;
 
-    const reason = prompt("Please provide a reason for this platform action:");
-    if (!reason || !reason.trim()) {
-      toast.error("Reason is required for platform actions");
+    try {
+      const changes: any = {};
+      if (isSuspended !== company.platform_context.is_suspended) {
+        changes.is_suspended = isSuspended;
+      }
+      if (isFrozen !== (company.platform_context.is_frozen || false)) {
+        changes.is_frozen = isFrozen;
+      }
+      if (buyingEnabled !== company.platform_context.buying_enabled) {
+        changes.buying_enabled = buyingEnabled;
+      }
+
+      const impact = await previewPlatformContextChange(company.id, changes);
+      setPlatformContextImpact(impact);
+      setShowPlatformContextPreview(true);
+    } catch (err: any) {
+      console.error("[ADMIN] Failed to preview platform context impact:", err);
+      toast.error("Failed to preview impact");
+    }
+  };
+
+  // Handle platform context save (ISSUE 2 FIX)
+  const handleSavePlatformContext = async () => {
+    if (!company || !platformContextReason.trim()) {
+      toast.error("Please provide a reason for this change");
       return;
     }
+
+    setSavingPlatformContext(true);
 
     try {
       const result = await updatePlatformContext(
@@ -218,11 +250,13 @@ export default function AdminCompanyManagementPage() {
           is_frozen: isFrozen,
           buying_enabled: buyingEnabled,
         },
-        reason
+        platformContextReason
       );
 
       if (result.success) {
         toast.success("Platform context updated successfully");
+        setShowPlatformContextPreview(false);
+        setPlatformContextReason("");
         setPlatformContextChanged(false);
 
         // Reload company data
@@ -232,6 +266,8 @@ export default function AdminCompanyManagementPage() {
     } catch (err: any) {
       console.error("[ADMIN] Failed to save platform context:", err);
       toast.error("Failed to update platform context");
+    } finally {
+      setSavingPlatformContext(false);
     }
   };
 
@@ -443,9 +479,9 @@ export default function AdminCompanyManagementPage() {
           </div>
 
           {platformContextChanged && (
-            <Button onClick={handleSavePlatformContext} size="lg" className="w-full">
+            <Button onClick={handlePreviewPlatformContextChange} size="lg" className="w-full bg-orange-600 hover:bg-orange-700">
               <Save className="w-4 h-4 mr-2" />
-              Save Platform Context Changes
+              Preview Impact & Save Platform Context Changes
             </Button>
           )}
         </CardContent>
@@ -624,6 +660,203 @@ export default function AdminCompanyManagementPage() {
             </Button>
             <Button onClick={handleSaveVisibility} disabled={!visibilityReason.trim() || savingVisibility}>
               {savingVisibility ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  Confirm & Save
+                  <CheckCircle2 className="w-4 h-4 ml-2" />
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Platform Context Preview Dialog (ISSUE 2 FIX) */}
+      <Dialog open={showPlatformContextPreview} onOpenChange={setShowPlatformContextPreview}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Platform Context Change Impact Preview</DialogTitle>
+            <DialogDescription>
+              Review the impact of your platform context changes before applying them.
+            </DialogDescription>
+          </DialogHeader>
+
+          {platformContextImpact && (
+            <div className="space-y-4">
+              {/* Changes Summary */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Changes Summary</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {platformContextImpact.proposed_change.is_suspended !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span>Suspension Status</span>
+                      <div className="flex items-center gap-3">
+                        <Badge variant={platformContextImpact.current_state.is_suspended ? "destructive" : "default"}>
+                          {platformContextImpact.current_state.is_suspended ? "Suspended" : "Active"}
+                        </Badge>
+                        <span>→</span>
+                        <Badge variant={platformContextImpact.proposed_change.is_suspended ? "destructive" : "default"}>
+                          {platformContextImpact.proposed_change.is_suspended ? "Suspended" : "Active"}
+                        </Badge>
+                      </div>
+                    </div>
+                  )}
+
+                  {platformContextImpact.proposed_change.is_frozen !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span>Disclosure Freeze</span>
+                      <div className="flex items-center gap-3">
+                        <Badge variant={platformContextImpact.current_state.is_frozen ? "destructive" : "default"}>
+                          {platformContextImpact.current_state.is_frozen ? "Frozen" : "Unfrozen"}
+                        </Badge>
+                        <span>→</span>
+                        <Badge variant={platformContextImpact.proposed_change.is_frozen ? "destructive" : "default"}>
+                          {platformContextImpact.proposed_change.is_frozen ? "Frozen" : "Unfrozen"}
+                        </Badge>
+                      </div>
+                    </div>
+                  )}
+
+                  {platformContextImpact.proposed_change.buying_enabled !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span>Buying Status</span>
+                      <div className="flex items-center gap-3">
+                        <Badge variant={platformContextImpact.current_state.buying_enabled ? "default" : "destructive"}>
+                          {platformContextImpact.current_state.buying_enabled ? "Enabled" : "Disabled"}
+                        </Badge>
+                        <span>→</span>
+                        <Badge variant={platformContextImpact.proposed_change.buying_enabled ? "default" : "destructive"}>
+                          {platformContextImpact.proposed_change.buying_enabled ? "Enabled" : "Disabled"}
+                        </Badge>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Impact Metrics */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Affected Metrics</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                      <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+                        {platformContextImpact.active_investors}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Active Investors</p>
+                      <p className="text-xs text-green-600 dark:text-green-400 mt-1">Unaffected</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-orange-900 dark:text-orange-100">
+                        {platformContextImpact.active_subscriptions}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Active Subscriptions</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-red-900 dark:text-red-100">
+                        {platformContextImpact.pending_investments}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Pending Investments</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Blocked Actions */}
+              {(platformContextImpact.blocked_issuer_actions.length > 0 ||
+                platformContextImpact.blocked_investor_actions.length > 0) && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Blocked Actions</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {platformContextImpact.blocked_issuer_actions.length > 0 && (
+                      <div>
+                        <p className="font-semibold mb-2">Issuer Actions (Blocked):</p>
+                        <ul className="list-disc list-inside space-y-1 text-sm text-red-700 dark:text-red-400">
+                          {platformContextImpact.blocked_issuer_actions.map((action, idx) => (
+                            <li key={idx}>{action.replace(/_/g, " ")}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {platformContextImpact.blocked_investor_actions.length > 0 && (
+                      <div>
+                        <p className="font-semibold mb-2">Investor Actions (Blocked):</p>
+                        <ul className="list-disc list-inside space-y-1 text-sm text-red-700 dark:text-red-400">
+                          {platformContextImpact.blocked_investor_actions.map((action, idx) => (
+                            <li key={idx}>{action.replace(/_/g, " ")}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Warnings */}
+              {platformContextImpact.warnings.length > 0 && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Important Warnings</AlertTitle>
+                  <AlertDescription>
+                    <ul className="list-disc list-inside space-y-1 mt-2">
+                      {platformContextImpact.warnings.map((warning, idx) => (
+                        <li key={idx}>{warning}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Impact Summary */}
+              <Alert className="border-blue-300 bg-blue-50 dark:bg-blue-950/30">
+                <AlertDescription className="text-sm text-blue-800 dark:text-blue-200">
+                  <strong>Summary:</strong> {platformContextImpact.impact_summary}
+                </AlertDescription>
+              </Alert>
+
+              {/* Reason Input */}
+              <div>
+                <Label htmlFor="platform-reason">
+                  Reason for Change <span className="text-red-600">*</span>
+                </Label>
+                <Textarea
+                  id="platform-reason"
+                  placeholder="Enter reason for this platform action (required, minimum 20 characters)"
+                  value={platformContextReason}
+                  onChange={(e) => setPlatformContextReason(e.target.value)}
+                  rows={3}
+                  className="mt-2"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {platformContextReason.length} / 20 characters minimum
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowPlatformContextPreview(false)}
+              disabled={savingPlatformContext}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSavePlatformContext}
+              disabled={platformContextReason.trim().length < 20 || savingPlatformContext}
+            >
+              {savingPlatformContext ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Saving...
