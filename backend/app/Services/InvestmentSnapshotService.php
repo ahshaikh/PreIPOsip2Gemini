@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Company;
 use App\Models\User;
+use App\Models\InvestmentDisclosureSnapshot;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -163,35 +164,36 @@ class InvestmentSnapshotService
             ];
 
             // 5. Create snapshot record
-            $snapshotId = DB::table('investment_disclosure_snapshots')->insertGetId([
+            // P0 REMEDIATION: Use Eloquent model for immutability enforcement
+            $snapshot = InvestmentDisclosureSnapshot::create([
                 'investment_id' => $investmentId,
                 'user_id' => $investor->id,
                 'company_id' => $company->id,
                 'snapshot_timestamp' => now(),
                 'snapshot_trigger' => 'investment_purchase',
-                'disclosure_snapshot' => json_encode($disclosureSnapshot),
-                'metrics_snapshot' => json_encode($metricsSnapshot),
-                'risk_flags_snapshot' => json_encode($flagsSnapshot),
-                'valuation_context_snapshot' => json_encode($valuationSnapshot),
-                'governance_snapshot' => json_encode($governanceSnapshot), // PHASE 2 HARDENING
-                'disclosure_versions_map' => json_encode($versionMap),
+                'disclosure_snapshot' => $disclosureSnapshot, // Auto-casted to JSON by model
+                'metrics_snapshot' => $metricsSnapshot,
+                'risk_flags_snapshot' => $flagsSnapshot,
+                'valuation_context_snapshot' => $valuationSnapshot,
+                'governance_snapshot' => $governanceSnapshot, // PHASE 2 HARDENING
+                'disclosure_versions_map' => $versionMap,
                 'was_under_review' => $wasUnderReview,
                 'company_lifecycle_state' => $company->lifecycle_state,
                 'buying_enabled_at_snapshot' => $company->buying_enabled ?? true,
 
                 // PHASE 5 - Issue 4: Investor Snapshotting
-                'public_page_view_snapshot' => json_encode($publicPageView),
-                'acknowledgements_snapshot' => json_encode($acknowledgementsStatus),
-                'acknowledgements_granted' => json_encode($acknowledgementsGranted),
+                'public_page_view_snapshot' => $publicPageView,
+                'acknowledgements_snapshot' => $acknowledgementsStatus,
+                'acknowledgements_granted' => $acknowledgementsGranted,
 
                 'ip_address' => request()->ip(),
                 'user_agent' => request()->userAgent(),
                 'session_id' => request()->session()?->getId(),
                 'is_immutable' => true,
                 'locked_at' => now(),
-                'created_at' => now(),
-                'updated_at' => now(),
             ]);
+
+            $snapshotId = $snapshot->id;
 
             DB::commit();
 
