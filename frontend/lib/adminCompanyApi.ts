@@ -95,6 +95,28 @@ export interface VisibilityChangeImpact {
   };
 }
 
+export interface PlatformContextChangeImpact {
+  current_state: {
+    lifecycle_state: string;
+    is_suspended: boolean;
+    is_frozen: boolean;
+    buying_enabled: boolean;
+  };
+  proposed_change: {
+    is_suspended?: boolean;
+    is_frozen?: boolean;
+    buying_enabled?: boolean;
+  };
+  active_investors: number;
+  active_investors_unaffected: boolean;
+  active_subscriptions: number;
+  pending_investments: number;
+  blocked_issuer_actions: string[];
+  blocked_investor_actions: string[];
+  warnings: string[];
+  impact_summary: string;
+}
+
 /**
  * Fetch company detail for admin management
  *
@@ -118,6 +140,23 @@ export async function previewVisibilityChange(
   }
 ): Promise<VisibilityChangeImpact> {
   const response = await api.post(`/admin/companies/${companyId}/preview-visibility-change`, changes);
+  return response.data.data;
+}
+
+/**
+ * Preview platform context change impact (ISSUE 2 FIX)
+ *
+ * Backend endpoint: POST /admin/company-lifecycle/companies/{id}/preview-platform-context-change
+ */
+export async function previewPlatformContextChange(
+  companyId: number,
+  changes: {
+    is_suspended?: boolean;
+    is_frozen?: boolean;
+    buying_enabled?: boolean;
+  }
+): Promise<PlatformContextChangeImpact> {
+  const response = await api.post(`/admin/company-lifecycle/companies/${companyId}/preview-platform-context-change`, changes);
   return response.data.data;
 }
 

@@ -435,4 +435,351 @@ class CompanyLifecycleController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Preview visibility change impact (GAP 5 FIX)
+     *
+     * POST /api/admin/companies/{id}/preview-visibility-change
+     *
+     * Shows impact of visibility change before applying.
+     * Used by admin UI to display confirmation modal.
+     */
+    public function previewVisibilityChange(int $id, Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'is_visible_public' => 'sometimes|boolean',
+            'is_visible_subscribers' => 'sometimes|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $company = Company::findOrFail($id);
+
+            $currentState = [
+                'is_visible_public' => $company->is_visible_public,
+                'is_visible_subscribers' => $company->is_visible_subscribers,
+            ];
+
+            $proposedChange = [];
+            if ($request->has('is_visible_public')) {
+                $proposedChange['is_visible_public'] = $request->boolean('is_visible_public');
+            }
+            if ($request->has('is_visible_subscribers')) {
+                $proposedChange['is_visible_subscribers'] = $request->boolean('is_visible_subscribers');
+            }
+
+            // Calculate impact
+            $activeInvestors = $company->investments()->where('status', 'active')->distinct('user_id')->count('user_id');
+            $pendingInvestments = $company->investments()->where('status', 'pending')->count();
+
+            $impact = [
+                'current_state' => $currentState,
+                'proposed_change' => $proposedChange,
+                'affected_investors' => $activeInvestors,
+                'existing_investors_unaffected' => true, // Always true - visibility doesn't affect existing investors
+                'pending_investments' => $pendingInvestments,
+                'warnings' => [],
+            ];
+
+            // Add warnings
+            if (isset($proposedChange['is_visible_public']) && !$proposedChange['is_visible_public']) {
+                $impact['warnings'][] = 'Company will be HIDDEN from public site. New users cannot discover it.';
+            }
+            if (isset($proposedChange['is_visible_subscribers']) && !$proposedChange['is_visible_subscribers']) {
+                $impact['warnings'][] = 'Company will be HIDDEN from authenticated subscribers. They cannot invest.';
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $impact,
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to preview visibility change', [
+                'company_id' => $id,
+                'admin_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to preview visibility change',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Update company visibility (GAP 5 FIX - CRITICAL)
+     *
+     * PUT /api/admin/companies/{id}/visibility
+     *
+     * AUDIT TRAIL: Records WHO, WHAT, WHEN, WHY to immutable audit_logs table
+     * DEFENSIVE: Requires explicit reason for all visibility changes
+     */
+    public function updateVisibility(int $id, Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'is_visible_public' => 'required|boolean',
+            'is_visible_subscribers' => 'required|boolean',
+            'reason' => 'required|string|min:10|max:500', // CRITICAL: Reason required for audit
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $company = Company::findOrFail($id);
+            $admin = $request->user();
+
+            // Capture old values for audit trail
+            $oldValues = [
+                'is_visible_public' => $company->is_visible_public,
+                'is_visible_subscribers' => $company->is_visible_subscribers,
+            ];
+
+            $newValues = [
+                'is_visible_public' => $request->boolean('is_visible_public'),
+                'is_visible_subscribers' => $request->boolean('is_visible_subscribers'),
+            ];
+
+            // Update company visibility
+            $company->update($newValues);
+
+            // GAP 5 FIX: IMMUTABLE AUDIT TRAIL
+            // Record to audit_logs table with full attribution
+            \App\Models\AuditLog::create([
+                'admin_id' => $admin->id,
+                'actor_type' => 'admin',
+                'actor_id' => $admin->id,
+                'actor_name' => $admin->name,
+                'actor_email' => $admin->email,
+                'action' => 'visibility_change',
+                'module' => 'companies',
+                'target_type' => 'Company',
+                'target_id' => $company->id,
+                'target_name' => $company->name,
+                'old_values' => $oldValues,
+                'new_values' => $newValues,
+                'description' => $request->input('reason'), // Explicit reason from admin
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'request_method' => $request->method(),
+                'request_url' => $request->fullUrl(),
+                'risk_level' => 'high', // Visibility changes are high-risk
+                'requires_review' => false,
+                'metadata' => [
+                    'reason' => $request->input('reason'),
+                    'changed_fields' => array_keys(array_filter($newValues, fn($v, $k) => $v !== $oldValues[$k], ARRAY_FILTER_USE_BOTH)),
+                ],
+            ]);
+
+            \Log::info('[AUDIT] Company visibility changed', [
+                'company_id' => $company->id,
+                'admin_id' => $admin->id,
+                'admin_email' => $admin->email,
+                'old_values' => $oldValues,
+                'new_values' => $newValues,
+                'reason' => $request->input('reason'),
+                'ip_address' => $request->ip(),
+            ]);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Company visibility updated successfully',
+                'data' => [
+                    'company_id' => $company->id,
+                    'is_visible_public' => $company->is_visible_public,
+                    'is_visible_subscribers' => $company->is_visible_subscribers,
+                    'updated_by' => $admin->name,
+                    'updated_at' => $company->updated_at->toIso8601String(),
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to update company visibility', [
+                'company_id' => $id,
+                'admin_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to update company visibility',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Preview platform context change impact (ISSUE 2 FIX)
+     *
+     * POST /api/admin/companies/{id}/preview-platform-context-change
+     *
+     * Shows impact of suspend/freeze/buying changes before applying.
+     * Used by admin UI to display confirmation modal.
+     */
+    public function previewPlatformContextChange(int $id, Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'is_suspended' => 'sometimes|boolean',
+            'is_frozen' => 'sometimes|boolean',
+            'buying_enabled' => 'sometimes|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $company = Company::findOrFail($id);
+
+            // Get current state
+            $currentState = [
+                'lifecycle_state' => $company->lifecycle_state,
+                'is_suspended' => $company->lifecycle_state === 'suspended',
+                'is_frozen' => $company->is_frozen ?? false,
+                'buying_enabled' => $company->buying_enabled,
+            ];
+
+            // Build proposed change
+            $proposedChange = [];
+            if ($request->has('is_suspended')) {
+                $proposedChange['is_suspended'] = $request->boolean('is_suspended');
+            }
+            if ($request->has('is_frozen')) {
+                $proposedChange['is_frozen'] = $request->boolean('is_frozen');
+            }
+            if ($request->has('buying_enabled')) {
+                $proposedChange['buying_enabled'] = $request->boolean('buying_enabled');
+            }
+
+            // Calculate impact metrics
+            $activeInvestors = $company->investments()
+                ->where('status', 'active')
+                ->distinct('user_id')
+                ->count('user_id');
+
+            $activeSubscriptions = $company->subscriptions()
+                ->where('status', 'active')
+                ->count();
+
+            $pendingInvestments = $company->investments()
+                ->where('status', 'pending')
+                ->count();
+
+            // Determine blocked actions
+            $blockedIssuerActions = [];
+            $blockedInvestorActions = [];
+            $warnings = [];
+
+            // Check if suspension is being enabled
+            if (isset($proposedChange['is_suspended']) && $proposedChange['is_suspended'] && !$currentState['is_suspended']) {
+                $blockedIssuerActions = [
+                    'edit_disclosure',
+                    'submit_disclosure',
+                    'answer_clarification',
+                ];
+                $blockedInvestorActions = [
+                    'create_investment',
+                    'new_subscription',
+                ];
+                $warnings[] = 'Suspending will BLOCK all issuer actions and prevent new investments.';
+                $warnings[] = 'Existing investors are UNAFFECTED (historical snapshots remain accessible).';
+            }
+
+            // Check if freeze is being enabled
+            if (isset($proposedChange['is_frozen']) && $proposedChange['is_frozen'] && !$currentState['is_frozen']) {
+                $blockedIssuerActions = array_unique(array_merge($blockedIssuerActions, [
+                    'edit_disclosure',
+                    'submit_disclosure',
+                ]));
+                $warnings[] = 'Freezing will prevent issuer from editing or submitting disclosures.';
+            }
+
+            // Check if buying is being disabled
+            if (isset($proposedChange['buying_enabled']) && !$proposedChange['buying_enabled'] && $currentState['buying_enabled']) {
+                $blockedInvestorActions = array_unique(array_merge($blockedInvestorActions, [
+                    'create_investment',
+                ]));
+                $warnings[] = 'Disabling buying will prevent new investments (existing investors unaffected).';
+            }
+
+            $impact = [
+                'current_state' => $currentState,
+                'proposed_change' => $proposedChange,
+                'active_investors' => $activeInvestors,
+                'active_investors_unaffected' => true, // Always true - platform actions don't affect existing investments
+                'active_subscriptions' => $activeSubscriptions,
+                'pending_investments' => $pendingInvestments,
+                'blocked_issuer_actions' => $blockedIssuerActions,
+                'blocked_investor_actions' => $blockedInvestorActions,
+                'warnings' => $warnings,
+                'impact_summary' => $this->buildImpactSummary($proposedChange, $currentState),
+            ];
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $impact,
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to preview platform context change', [
+                'company_id' => $id,
+                'admin_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to preview platform context change',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Build human-readable impact summary
+     */
+    private function buildImpactSummary(array $proposedChange, array $currentState): string
+    {
+        $changes = [];
+
+        if (isset($proposedChange['is_suspended']) && $proposedChange['is_suspended'] !== $currentState['is_suspended']) {
+            $changes[] = $proposedChange['is_suspended']
+                ? 'Company will be SUSPENDED (blocks all issuer actions and new investments)'
+                : 'Company will be UNSUSPENDED (restores normal operations)';
+        }
+
+        if (isset($proposedChange['is_frozen']) && $proposedChange['is_frozen'] !== $currentState['is_frozen']) {
+            $changes[] = $proposedChange['is_frozen']
+                ? 'Disclosures will be FROZEN (issuer cannot edit or submit)'
+                : 'Disclosures will be UNFROZEN (issuer can edit and submit)';
+        }
+
+        if (isset($proposedChange['buying_enabled']) && $proposedChange['buying_enabled'] !== $currentState['buying_enabled']) {
+            $changes[] = $proposedChange['buying_enabled']
+                ? 'Buying will be ENABLED (investors can make new investments)'
+                : 'Buying will be DISABLED (investors cannot make new investments)';
+        }
+
+        return implode(' | ', $changes) ?: 'No changes detected.';
+    }
 }

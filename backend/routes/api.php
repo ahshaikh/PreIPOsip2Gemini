@@ -1241,6 +1241,13 @@ Route::prefix('v1')->group(function () {
                     Route::post('/companies/{id}/reactivate', [App\Http\Controllers\Api\Admin\CompanyLifecycleController::class, 'reactivate']);
                     Route::post('/companies/{id}/enable-buying', [App\Http\Controllers\Api\Admin\CompanyLifecycleController::class, 'enableBuying']);
                     Route::post('/companies/{id}/disable-buying', [App\Http\Controllers\Api\Admin\CompanyLifecycleController::class, 'disableBuying']);
+
+                    // GAP 5 FIX: Visibility change with immutable audit trail
+                    Route::post('/companies/{id}/preview-visibility-change', [App\Http\Controllers\Api\Admin\CompanyLifecycleController::class, 'previewVisibilityChange']);
+                    Route::put('/companies/{id}/visibility', [App\Http\Controllers\Api\Admin\CompanyLifecycleController::class, 'updateVisibility']);
+
+                    // ISSUE 2 FIX: Platform context change with impact preview
+                    Route::post('/companies/{id}/preview-platform-context-change', [App\Http\Controllers\Api\Admin\CompanyLifecycleController::class, 'previewPlatformContextChange']);
                 });
             });
         });

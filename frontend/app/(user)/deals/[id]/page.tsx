@@ -83,6 +83,51 @@ export default function InvestorCompanyDetailPage() {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // ISSUE 1 FIX: Restore form state from localStorage on mount
+  useEffect(() => {
+    if (company) {
+      const storageKey = `investment-form-${company.id}`;
+      const savedState = localStorage.getItem(storageKey);
+
+      if (savedState) {
+        try {
+          const parsed = JSON.parse(savedState);
+          const age = Date.now() - (parsed.timestamp || 0);
+
+          // Only restore if less than 1 hour old (3600000 ms)
+          if (age < 3600000) {
+            if (parsed.allocationAmount) {
+              setAllocationAmount(parsed.allocationAmount);
+            }
+            if (parsed.acknowledgements) {
+              setAcknowledgements(parsed.acknowledgements);
+            }
+            console.log("[FORM RESTORE] Restored form state from localStorage");
+          } else {
+            // Clear stale data
+            localStorage.removeItem(storageKey);
+          }
+        } catch (err) {
+          console.error("[FORM RESTORE] Failed to parse saved state:", err);
+          localStorage.removeItem(storageKey);
+        }
+      }
+    }
+  }, [company]);
+
+  // ISSUE 1 FIX: Save form state to localStorage whenever it changes
+  useEffect(() => {
+    if (company && (allocationAmount || Object.values(acknowledgements).some(v => v))) {
+      const storageKey = `investment-form-${company.id}`;
+      const formState = {
+        allocationAmount,
+        acknowledgements,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem(storageKey, JSON.stringify(formState));
+    }
+  }, [allocationAmount, acknowledgements, company]);
+
   // Load company detail and wallet
   useEffect(() => {
     async function loadCompanyDetail() {
@@ -104,7 +149,7 @@ export default function InvestorCompanyDetailPage() {
         setWallet(walletData);
         setRequiredAcknowledgements(acknowledgementsData);
 
-        // Initialize acknowledgements state
+        // Initialize acknowledgements state (will be overridden by localStorage if exists)
         const initialAcks: Record<string, boolean> = {};
         acknowledgementsData.forEach((ack) => {
           initialAcks[ack.type] = false;
@@ -200,6 +245,10 @@ export default function InvestorCompanyDetailPage() {
         toast.success("Investment successful!", {
           description: `Investment snapshot ID: ${result.snapshot_ids[0]}`,
         });
+
+        // ISSUE 1 FIX: Clear localStorage after successful submission
+        const storageKey = `investment-form-${company.id}`;
+        localStorage.removeItem(storageKey);
 
         // ISSUE 3 FIX: Refresh wallet balance before navigation
         // This ensures wallet shows updated balance when user returns
