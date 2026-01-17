@@ -184,19 +184,30 @@ export default function InvestorCompanyDetailPage() {
         await recordAcknowledgement(company.id, ackType);
       }
 
-      // Submit investment
+      // GAP 3 FIX: Generate idempotency key to prevent duplicate submissions
+      const idempotencyKey = `invest-${company.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      // Submit investment with idempotency key
       const result = await submitInvestment([
         {
           company_id: company.id,
           amount: getAllocationAmountNumber(),
           acknowledged_risks: acknowledgedTypes,
         },
-      ]);
+      ], idempotencyKey);
 
       if (result.success) {
         toast.success("Investment successful!", {
           description: `Investment snapshot ID: ${result.snapshot_ids[0]}`,
         });
+
+        // ISSUE 3 FIX: Refresh wallet balance before navigation
+        // This ensures wallet shows updated balance when user returns
+        try {
+          await getWalletBalance();
+        } catch (err) {
+          console.warn("[INVEST] Failed to refresh wallet balance:", err);
+        }
 
         // Navigate to portfolio
         router.push("/portfolio?investment=success");
@@ -204,10 +215,64 @@ export default function InvestorCompanyDetailPage() {
         toast.error("Investment failed. Please try again.");
       }
     } catch (err: any) {
+      // GAP 4 FIX: Structured error handling with specific error codes
       console.error("[INVEST] Failed to submit investment:", err);
-      toast.error("Investment failed", {
-        description: err?.response?.data?.message || "Please try again later",
-      });
+
+      const errorCode = err?.response?.data?.error_code;
+      const errorMessage = err?.response?.data?.message;
+
+      switch (errorCode) {
+        case 'INSUFFICIENT_BALANCE':
+          toast.error("Insufficient Wallet Balance", {
+            description: errorMessage || "Your wallet doesn't have enough balance for this investment. Please add funds first.",
+          });
+          break;
+
+        case 'COMPANY_SUSPENDED':
+        case 'PLATFORM_RESTRICTION':
+          toast.error("Investment Not Allowed", {
+            description: errorMessage || "This company is currently not accepting investments due to platform restrictions.",
+          });
+          break;
+
+        case 'BUY_ELIGIBILITY_FAILED':
+          toast.error("Investment Eligibility Failed", {
+            description: errorMessage || "You are not eligible to invest in this company. Please check your account status.",
+          });
+          break;
+
+        case 'ACKNOWLEDGEMENT_MISSING':
+          toast.error("Missing Risk Acknowledgements", {
+            description: "All required risk acknowledgements must be checked before investing.",
+          });
+          break;
+
+        case 'INVALID_AMOUNT':
+        case 'AMOUNT_EXCEEDS_BALANCE':
+          toast.error("Invalid Investment Amount", {
+            description: errorMessage || "The investment amount is invalid or exceeds your wallet balance.",
+          });
+          break;
+
+        case 'SNAPSHOT_FAILED':
+          toast.error("Snapshot Creation Failed", {
+            description: "Failed to capture investment snapshot. Please try again or contact support.",
+          });
+          break;
+
+        case 'WALLET_DEBIT_FAILED':
+          toast.error("Wallet Transaction Failed", {
+            description: "Failed to process wallet transaction. Please try again or contact support.",
+          });
+          break;
+
+        case 'INTERNAL_ERROR':
+        default:
+          toast.error("Investment Failed", {
+            description: errorMessage || "An unexpected error occurred. Please try again later.",
+          });
+          break;
+      }
     } finally {
       setSubmitting(false);
       setShowReviewModal(false);
@@ -300,15 +365,47 @@ export default function InvestorCompanyDetailPage() {
           <AlertTriangle className="h-5 w-5" />
           <AlertTitle>Material Changes Detected</AlertTitle>
           <AlertDescription>
-            Platform context or disclosures have changed materially since last review. Please
-            review all information carefully before investing.
+            <p className="mb-3">
+              Platform context or disclosures have changed materially since your last review.
+              You must review these changes before investing.
+            </p>
             {company.material_change_warnings && (
-              <ul className="list-disc list-inside mt-2">
+              <ul className="list-disc list-inside mb-4">
                 {company.material_change_warnings.map((warning, i) => (
                   <li key={i}>{warning}</li>
                 ))}
               </ul>
             )}
+            {/* GAP 6 FIX: Action button for material changes */}
+            <div className="flex gap-3 mt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  // Scroll to disclosure section or navigate to changes page
+                  const disclosureSection = document.getElementById('company-disclosures');
+                  if (disclosureSection) {
+                    disclosureSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
+                }}
+                className="bg-white dark:bg-slate-900"
+              >
+                <Info className="w-4 h-4 mr-2" />
+                View Disclosure Changes
+              </Button>
+              {company.material_change_diff_url && (
+                <Link href={company.material_change_diff_url}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-white dark:bg-slate-900"
+                  >
+                    <ArrowRight className="w-4 h-4 mr-2" />
+                    See What Changed
+                  </Button>
+                </Link>
+              )}
+            </div>
           </AlertDescription>
         </Alert>
       )}

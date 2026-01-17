@@ -22,6 +22,9 @@ use App\Http\Controllers\Api\User\DiagnosticsController;
 use App\Http\Controllers\Api\User\KycController;
 use App\Http\Controllers\Api\User\SubscriptionController;
 use App\Http\Controllers\Api\User\InvestmentController;
+
+// Investor Controllers (Phase 5)
+use App\Http\Controllers\Api\Investor\InvestorInvestmentController;
 use App\Http\Controllers\Api\User\DealController as UserDealController;
 use App\Http\Controllers\Api\User\PaymentController;
 use App\Http\Controllers\Api\User\PortfolioController;
@@ -473,6 +476,20 @@ Route::prefix('v1')->group(function () {
             // -------------------------------------------------------------
             // Shows investors what changed since their last visit
             Route::get('/companies/{id}/whats-new', [App\Http\Controllers\Api\PlatformContextController::class, 'getWhatsNew']);
+        });
+
+        // === INVESTOR ROUTES (PHASE 5) ===
+        // Investment submission with comprehensive backend validation
+        // Addresses Protocol-1 Audit GAP 1: Backend validation bypass
+        Route::prefix('investor')->group(function () {
+            // Investment submission with:
+            // - Wallet balance validation
+            // - Risk acknowledgement enforcement
+            // - Buy eligibility check (6-layer guard)
+            // - Platform supremacy check
+            // - Idempotency support
+            Route::post('/investments', [InvestorInvestmentController::class, 'store'])
+                ->middleware(['throttle:10,1']); // GAP 3: Rate limit 10 investments per minute
         });
     }); // Close auth:sanctum + mfa.verified group from line 243
 

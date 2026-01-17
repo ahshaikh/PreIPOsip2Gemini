@@ -262,8 +262,13 @@ export async function previewInvestment(allocations: AllocationIntent[]): Promis
  * - RiskAcknowledgementService (records acknowledgements)
  *
  * DEFENSIVE: Backend validates everything, creates immutable snapshots
+ *
+ * GAP 3 FIX: Added idempotency key to prevent duplicate submissions
  */
-export async function submitInvestment(allocations: AllocationIntent[]): Promise<{
+export async function submitInvestment(
+  allocations: AllocationIntent[],
+  idempotencyKey?: string
+): Promise<{
   success: boolean;
   investment_ids: number[];
   snapshot_ids: number[];
@@ -271,6 +276,7 @@ export async function submitInvestment(allocations: AllocationIntent[]): Promise
 }> {
   const response = await api.post('/investor/investments', {
     allocations,
+    idempotency_key: idempotencyKey,
   });
 
   return response.data.data;
