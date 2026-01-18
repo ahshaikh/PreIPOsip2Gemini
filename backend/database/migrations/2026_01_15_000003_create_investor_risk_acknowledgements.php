@@ -22,49 +22,66 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('investor_risk_acknowledgements', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->foreignId('company_id')->constrained('companies')->onDelete('cascade');
+    Schema::create('investor_risk_acknowledgements', function (Blueprint $table) {
+        $table->id();
 
-            // Acknowledgement type
-            $table->enum('acknowledgement_type', [
-                'illiquidity',
-                'no_guarantee',
-                'platform_non_advisory',
-                'material_changes',
-            ]);
+        $table->foreignId('user_id')
+            ->constrained('users')
+            ->cascadeOnDelete();
 
-            // Acknowledgement context
-            $table->timestamp('acknowledged_at');
-            $table->string('ip_address', 45)->nullable();
-            $table->text('user_agent')->nullable();
-            $table->string('session_id', 100)->nullable();
+        $table->foreignId('company_id')
+            ->constrained('companies')
+            ->cascadeOnDelete();
 
-            // Optional: Link to specific investment if acknowledged during investment flow
-            $table->foreignId('investment_id')->nullable()->constrained('investments')->onDelete('set null');
+        // Acknowledgement type
+        $table->enum('acknowledgement_type', [
+            'illiquidity',
+            'no_guarantee',
+            'platform_non_advisory',
+            'material_changes',
+        ]);
 
-            // Optional: Acknowledgement text shown to user
-            $table->text('acknowledgement_text_shown')->nullable();
+        // Acknowledgement context
+        $table->timestamp('acknowledged_at')->useCurrent();
+        $table->string('ip_address', 45)->nullable();
+        $table->text('user_agent')->nullable();
+        $table->string('session_id', 100)->nullable();
 
-            // Optional: Platform context snapshot at time of acknowledgement
-            $table->foreignId('platform_context_snapshot_id')->nullable()
-                ->constrained('platform_context_snapshots')->onDelete('set null');
+        // Optional: Link to specific investment
+        $table->foreignId('investment_id')->nullable();
+        $table->foreign(
+            'investment_id',
+            'fk_ira_investment'
+        )->references('id')
+        ->on('investments')
+        ->nullOnDelete();
 
-            // Expiry tracking (if acknowledgements have time limits)
-            $table->timestamp('expires_at')->nullable();
-            $table->boolean('is_expired')->default(false);
+        // Optional: Acknowledgement text shown to user
+        $table->text('acknowledgement_text_shown')->nullable();
 
-            // Metadata
-            $table->json('metadata')->nullable();
+        // Optional: Platform context snapshot
+        $table->foreignId('platform_context_snapshot_id')->nullable();
+        $table->foreign(
+            'platform_context_snapshot_id',
+            'fk_ira_platform_snapshot'
+        )->references('id')
+        ->on('platform_context_snapshots')
+        ->nullOnDelete();
 
-            $table->timestamps();
+        // Expiry tracking
+        $table->timestamp('expires_at')->nullable();
+        $table->boolean('is_expired')->default(false);
 
-            // Indexes
-            $table->index(['user_id', 'company_id', 'acknowledgement_type']);
-            $table->index('acknowledged_at');
-            $table->index('expires_at');
-        });
+        // Metadata
+        $table->json('metadata')->nullable();
+
+        $table->timestamps();
+
+        // Indexes
+        $table->index(['user_id', 'company_id', 'acknowledgement_type'], 'idx_ira_user_company_type');
+        $table->index('acknowledged_at', 'idx_ira_acknowledged_at');
+        $table->index('expires_at', 'idx_ira_expires_at');
+    });
 
         // Log table for acknowledgement events
         Schema::create('investor_acknowledgement_log', function (Blueprint $table) {

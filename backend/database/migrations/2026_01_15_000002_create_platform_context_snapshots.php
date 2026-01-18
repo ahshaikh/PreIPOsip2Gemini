@@ -106,7 +106,7 @@ return new class extends Migration
                 ->comment('Previous snapshot ID that this one supersedes');
 
             // Validity period
-            $table->timestamp('valid_from')->index()
+            $table->timestamp('valid_from')->useCurrent()
                 ->comment('Snapshot is valid from this time');
             $table->timestamp('valid_until')->nullable()->index()
                 ->comment('Snapshot is valid until this time (null = current)');

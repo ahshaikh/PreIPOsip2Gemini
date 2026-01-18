@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 /**
  * PROTOCOL-1 DATABASE MIGRATION
@@ -33,42 +34,97 @@ use Illuminate\Support\Facades\Schema;
  * DATA RETENTION:
  * - Violation logs: Retain for 2 years (compliance requirement)
  * - Alerts: Retain indefinitely (audit trail)
+ *
+ * CRITICAL COMPATIBILITY NOTE:
+ * ------------------------------------------------------------
+ * - This project uses MariaDB.
+ * - MariaDB does NOT support `COMMENT ON TABLE`.
+ * - This Laravel version does NOT support `Schema::create()->comment()`.
+ *
+ * Therefore:
+ * - Table comments are applied using raw:
+ *     ALTER TABLE table_name COMMENT = '...';
+ *
+ * This is intentional, explicit, and production-safe.
  */
 return new class extends Migration
 {
     /**
-     * Run the migrations
+     * Run the migrations.
      */
     public function up(): void
     {
-        // 1. VIOLATION LOG TABLE
+        /**
+         * --------------------------------------------------------------
+         * 1. PROTOCOL-1 VIOLATION LOG TABLE
+         * --------------------------------------------------------------
+         *
+         * Authoritative, append-only audit log for all Protocol-1
+         * governance rule violations.
+         */
         Schema::create('protocol1_violation_log', function (Blueprint $table) {
             $table->id();
 
             // Protocol Version
-            $table->string('protocol_version', 20)->default('1.0.0')->index();
+            $table->string('protocol_version', 20)
+                ->default('1.0.0')
+                ->index();
 
             // Rule Details
-            $table->string('rule_id', 100)->index()->comment('Rule identifier (e.g., RULE_1_1_SUSPENSION)');
-            $table->string('rule_name', 255)->nullable()->comment('Human-readable rule name');
-            $table->enum('severity', ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'])->index()->comment('Violation severity');
-            $table->text('message')->comment('Violation description');
+            $table->string('rule_id', 100)
+                ->index()
+                ->comment('Rule identifier (e.g., RULE_1_1_SUSPENSION)');
+
+            $table->string('rule_name', 255)
+                ->nullable()
+                ->comment('Human-readable rule name');
+
+            $table->enum('severity', ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'])
+                ->index()
+                ->comment('Violation severity');
+
+            $table->text('message')
+                ->comment('Violation description');
 
             // Context: Actor Attribution
-            $table->string('actor_type', 50)->index()->comment('Actor type: issuer, admin_judgment, investor, system_enforcement, etc.');
-            $table->string('action', 100)->index()->comment('Action attempted (e.g., submit_disclosure, create_investment)');
+            $table->string('actor_type', 50)
+                ->index()
+                ->comment('Actor type: issuer, admin_judgment, investor, system_enforcement, etc.');
+
+            $table->string('action', 100)
+                ->index()
+                ->comment('Action attempted (e.g., submit_disclosure, create_investment)');
 
             // Context: Company & User
-            $table->foreignId('company_id')->nullable()->index()->constrained('companies')->onDelete('cascade');
-            $table->foreignId('user_id')->nullable()->index()->constrained('users')->onDelete('set null');
+            $table->foreignId('company_id')
+                ->nullable()
+                ->index()
+                ->constrained('companies')
+                ->cascadeOnDelete();
+
+            $table->foreignId('user_id')
+                ->nullable()
+                ->index()
+                ->constrained('users')
+                ->nullOnDelete();
 
             // Metadata: Full Context
-            $table->json('violation_details')->comment('Full violation data structure');
-            $table->json('context_data')->nullable()->comment('Request context: IP, user agent, URL, etc.');
+            $table->json('violation_details')
+                ->comment('Full violation data structure');
+
+            $table->json('context_data')
+                ->nullable()
+                ->comment('Request context: IP, user agent, URL, etc.');
 
             // Enforcement: Blocking Status
-            $table->boolean('was_blocked')->default(false)->index()->comment('Was action blocked?');
-            $table->enum('enforcement_mode', ['strict', 'lenient', 'monitor'])->default('strict')->comment('Enforcement mode at time of violation');
+            $table->boolean('was_blocked')
+                ->default(false)
+                ->index()
+                ->comment('Was action blocked?');
+
+            $table->enum('enforcement_mode', ['strict', 'lenient', 'monitor'])
+                ->default('strict')
+                ->comment('Enforcement mode at time of violation');
 
             // Timestamps
             $table->timestamps();
@@ -80,25 +136,65 @@ return new class extends Migration
             $table->index(['severity', 'was_blocked', 'created_at'], 'idx_severity_blocked_date');
         });
 
-        // 2. ALERTS TABLE
+        /**
+         * Apply table-level comment using MariaDB-compatible syntax.
+         * This MUST be a separate statement.
+         */
+        DB::statement(
+            "ALTER TABLE protocol1_violation_log COMMENT = 'Protocol-1 governance violation log - comprehensive audit trail for all rule violations'"
+        );
+
+        /**
+         * --------------------------------------------------------------
+         * 2. PROTOCOL-1 ALERTS TABLE
+         * --------------------------------------------------------------
+         *
+         * Represents actionable alerts requiring admin attention.
+         */
         Schema::create('protocol1_alerts', function (Blueprint $table) {
             $table->id();
 
             // Alert Details
-            $table->enum('severity', ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'])->index()->comment('Alert severity');
-            $table->string('title', 255)->comment('Alert title');
-            $table->text('message')->comment('Alert message');
-            $table->json('alert_data')->comment('Full alert context and violation details');
+            $table->enum('severity', ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'])
+                ->index()
+                ->comment('Alert severity');
+
+            $table->string('title', 255)
+                ->comment('Alert title');
+
+            $table->text('message')
+                ->comment('Alert message');
+
+            $table->json('alert_data')
+                ->comment('Full alert context and violation details');
 
             // Admin Response
-            $table->boolean('is_acknowledged')->default(false)->index()->comment('Has admin acknowledged alert?');
-            $table->foreignId('acknowledged_by')->nullable()->constrained('users')->onDelete('set null')->comment('Admin who acknowledged');
-            $table->timestamp('acknowledged_at')->nullable()->comment('When alert was acknowledged');
-            $table->text('admin_notes')->nullable()->comment('Admin notes on resolution');
+            $table->boolean('is_acknowledged')
+                ->default(false)
+                ->index()
+                ->comment('Has admin acknowledged alert?');
+
+            $table->foreignId('acknowledged_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete()
+                ->comment('Admin who acknowledged');
+
+            $table->timestamp('acknowledged_at')
+                ->nullable()
+                ->comment('When alert was acknowledged');
+
+            $table->text('admin_notes')
+                ->nullable()
+                ->comment('Admin notes on resolution');
 
             // Resolution Tracking
-            $table->enum('resolution_status', ['pending', 'investigating', 'resolved', 'escalated'])->default('pending')->index();
-            $table->timestamp('resolved_at')->nullable();
+            $table->enum('resolution_status', ['pending', 'investigating', 'resolved', 'escalated'])
+                ->default('pending')
+                ->index();
+
+            $table->timestamp('resolved_at')
+                ->nullable();
 
             // Timestamps
             $table->timestamps();
@@ -108,13 +204,16 @@ return new class extends Migration
             $table->index(['resolution_status', 'created_at'], 'idx_resolution_status_date');
         });
 
-        // Add comments to tables
-        DB::statement("COMMENT ON TABLE protocol1_violation_log IS 'Protocol-1 governance violation log - comprehensive audit trail for all rule violations'");
-        DB::statement("COMMENT ON TABLE protocol1_alerts IS 'Protocol-1 alerts - critical violations and anomalies requiring admin attention'");
+        /**
+         * Apply table-level comment using MariaDB-compatible syntax.
+         */
+        DB::statement(
+            "ALTER TABLE protocol1_alerts COMMENT = 'Protocol-1 alerts - critical violations and anomalies requiring admin attention'"
+        );
     }
 
     /**
-     * Reverse the migrations
+     * Reverse the migrations.
      */
     public function down(): void
     {
