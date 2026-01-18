@@ -88,7 +88,10 @@ return new class extends Migration
             $table->index('investment_id');
             $table->index(['user_id', 'company_id']);
             $table->index('snapshot_timestamp');
-            $table->index(['snapshot_trigger', 'snapshot_timestamp']);
+            $table->index(
+		['snapshot_trigger', 'snapshot_timestamp'],
+		'ids_trigger_ts_ids'
+	    );
 
             // Foreign keys
             // $table->foreign('investment_id')->references('id')->on('investments')->onDelete('cascade');

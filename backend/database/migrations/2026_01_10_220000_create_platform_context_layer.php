@@ -83,7 +83,10 @@ return new class extends Migration
             $table->index('financial_health_band');
             $table->index('governance_quality_band');
             $table->index('risk_intensity_band');
-            $table->index(['last_disclosure_update', 'last_platform_review']);
+            $table->index(
+		['last_disclosure_update', 'last_platform_review'],
+		'pcm_disclosure_review_idx'
+	    );
         });
 
         // =====================================================================
@@ -189,7 +192,7 @@ return new class extends Migration
 
             // Data Freshness
             $table->timestamp('calculated_at')->comment('When this context was calculated');
-            $table->timestamp('data_as_of')->comment('Date of underlying data');
+            $table->timestamp('data_as_of')->nullable()->comment('Date of underlying data');
             $table->boolean('is_stale')->default(false)->comment('Whether data needs recalculation');
 
             // Metadata
@@ -295,7 +298,10 @@ return new class extends Migration
             $table->index(['company_id', 'changed_at']);
             $table->index(['company_disclosure_id', 'changed_at']);
             $table->index('change_type');
-            $table->index(['is_material_change', 'investor_notification_priority']);
+            $table->index(
+		['is_material_change', 'investor_notification_priority'],
+		'dcl_material_priority_idx'
+	    );
         });
     }
 

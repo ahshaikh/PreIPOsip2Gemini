@@ -88,6 +88,7 @@ return new class extends Migration
                 ->comment('Company reporting error');
 
             $table->foreignId('reported_by')
+		->nullable()
                 ->constrained('users')
                 ->nullOnDelete()
                 ->comment('User who reported error');

@@ -109,10 +109,11 @@ return new class extends Migration
             // =====================================================================
             // Who approved this version and when
 
-            $table->timestamp('approved_at')
+            $table->timestamp('approved_at')->nullable()
                 ->comment('When admin approved this version');
 
-            $table->foreignId('approved_by')
+	    $table->unsignedBigInteger('approved_by')->nullable()
+            //$table->foreignId('approved_by')
                 ->constrained('users')
                 ->restrictOnDelete()
                 ->comment('Admin who approved this version (REQUIRED)');

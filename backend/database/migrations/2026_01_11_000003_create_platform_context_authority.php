@@ -46,8 +46,11 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index('context_type');
-            $table->index(['is_company_writable', 'is_platform_managed']);
-        });
+            $table->index(
+		['is_company_writable', 'is_platform_managed'],
+		'pca_write_managed_idx'
+	    );
+         });
 
         // 2. Platform Context Versions Table
         Schema::create('platform_context_versions', function (Blueprint $table) {
