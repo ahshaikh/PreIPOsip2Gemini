@@ -1229,7 +1229,7 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 'question_subject' => 'Self-Reported Error: EBITDA Calculation Correction',
                 'question_body' => 'SELF-REPORTED: We identified an error in our EBITDA calculation. The reported EBITDA of ₹18.5 Cr incorrectly excluded certain non-cash expenses. The corrected EBITDA should be ₹16.2 Cr. We are submitting a revised disclosure with the corrected figures and detailed reconciliation. This was discovered during our internal quarterly review before external audit.',
                 'question_type' => 'other', // Self-reported correction
-                'asked_by' => $this->companyUsers['live_limited']->id ?? $this->admin->id,
+                'asked_by' => $this->admin->id,
                 'asked_at' => Carbon::now()->subDays(1),
                 'field_path' => 'disclosure_data.ebitda',
                 'highlighted_data' => ['reported_ebitda' => 1850000000, 'corrected_ebitda' => 1620000000, 'difference' => -230000000],
@@ -1237,7 +1237,10 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 'is_blocking' => true,
                 'status' => 'answered',
                 'answer_body' => 'Thank you for proactively reporting this discrepancy. We appreciate the transparency. Please submit the revised disclosure with: (1) Detailed reconciliation showing the ₹2.3 Cr adjustment, (2) Internal review notes explaining how this was discovered, (3) Confirmation from auditors that this is the only correction needed.',
-                'answered_by' => $this->admin->id,
+                // 'answered_by' => $this->admin->id,
+                // ✅ Polymorphic actor (admin answering)
+                'answered_by_type' => \App\Models\User::class,
+                'answered_by_id'   => $this->admin->id,
                 'answered_at' => Carbon::now()->subHours(12),
             ]);
 
@@ -1250,19 +1253,18 @@ class CompanyDisclosureSystemSeeder extends Seeder
 
         if ($businessModule) {
             // Create a submitted disclosure that gets REJECTED
-            $rejectedDisclosure = CompanyDisclosure::create([
-                'company_id' => $draftCompany->id,
-                'disclosure_module_id' => $businessModule->id,
-                'disclosure_data' => [
-                    'business_description' => 'Incomplete and vague description...',
-                    'revenue_streams' => [
-                        ['name' => 'Sales', 'percentage' => 80], // Missing details, percentages don't add to 100
-                    ],
-                ],
+            $rejectedDisclosure = CompanyDisclosure::where(
+                    'company_id', $draftCompany->id
+                )
+                ->where(
+                    'disclosure_module_id', $businessModule->id
+                )
+                ->firstOrFail();
+            $rejectedDisclosure->update([
                 'status' => 'rejected',
                 'completion_percentage' => 40,
                 'submitted_at' => Carbon::now()->subDays(5),
-                'submitted_by_type' => CompanyUser::class,  // Polymorphic: CompanyUser submits (even rejected ones)
+                'submitted_by_type' => CompanyUser::class,
                 'submitted_by_id' => $this->companyUsers['draft']->id,
                 'rejected_at' => Carbon::now()->subDays(3),
                 'rejected_by' => $this->admin->id,
@@ -1463,20 +1465,44 @@ class CompanyDisclosureSystemSeeder extends Seeder
 
         // 1. Create a Deal for the investable company
         $deal = Deal::create([
+            'product_id' => 1, // or a valid product ID from your system
             'company_id' => $investableCompany->id,
             'title' => 'FinSecure Series D Investment Round',
+            'slug' => 'finsecure-series-d',
             'description' => 'Series D funding round for FinSecure Digital Lending with pre-money valuation of ₹500 Cr',
-            'deal_type' => 'equity',
-            'target_amount_paise' => 5000000000, // ₹5 Cr target
-            'min_investment_paise' => 5000000, // ₹50K minimum
-            'max_investment_paise' => 50000000, // ₹5L maximum
-            'price_per_share_paise' => 500000, // ₹5000 per share
-            'total_shares' => 10000,
-            'available_shares' => 9500, // Some already sold
-            'start_date' => Carbon::now()->subMonths(3),
-            'end_date' => Carbon::now()->addMonths(3),
+            'sector' => $investableCompany->sector ?? 'Financial Services',
+
+            // Schema enums: live | upcoming | closed
+            'deal_type' => 'live',
+
+            // Monetary fields (DECIMAL, not paise)
+            'min_investment' => 50000.00,      // ₹50,000
+            'max_investment' => 500000.00,     // ₹5,00,000
+            'valuation' => 5000000000.00,      // ₹500 Cr
+            'valuation_currency' => 'INR',
+            'share_price' => 5000.00,           // ₹5,000 per share
+
+            // Timing
+            'deal_opens_at' => Carbon::now()->subMonths(3),
+            'deal_closes_at' => Carbon::now()->addMonths(3),
+            'days_remaining' => 90,
+
+            // Optional marketing fields
+            'highlights' => [
+                'RBI-approved NBFC',
+                'Net NPA ratio of 1.8%',
+                '₹1,200+ Cr loan book',
+                'AI-driven credit underwriting',
+            ],
+            'documents' => [
+                ['type' => 'term_sheet', 'path' => 'deals/finsecure/series_d_term_sheet.pdf'],
+                ['type' => 'pitch_deck', 'path' => 'deals/finsecure/series_d_pitch_deck.pdf'],
+            ],
+
+            // Lifecycle
             'status' => 'active',
             'is_featured' => true,
+            'sort_order' => 1,
         ]);
 
         // 2. Create investment for first investor with IMMUTABLE SNAPSHOT
