@@ -1568,14 +1568,22 @@ class CompanyDisclosureSystemSeeder extends Seeder
             ->get();
 
         $disclosureSnapshot = [];
+        $disclosureVersionsMap = [];
         foreach ($allDisclosures as $disc) {
+            $version = $disc->currentVersion;
             $disclosureSnapshot[$disc->module->code] = [
-                'module_name' => $disc->module->name,
-                'version_number' => $disc->version_number,
-                'version_hash' => $disc->currentVersion->version_hash ?? hash('sha256', json_encode($disc->disclosure_data)),
+                'module_name'   => $disc->module->name,
+                'version_number'=> $disc->version_number,
+                'version_hash'  => $version->version_hash ?? hash('sha256', json_encode($disc->disclosure_data)),
                 'disclosure_data' => $disc->disclosure_data,
-                'approved_at' => $disc->approved_at?->toISOString(),
-                'locked_at' => $disc->currentVersion->locked_at?->toISOString(),
+                'approved_at'   => $disc->approved_at?->toISOString(),
+                'locked_at'     => $version?->locked_at?->toISOString(),
+            ];
+            $disclosureVersionsMap[$disc->module->code] = [
+                'company_disclosure_id'  => $disc->id,
+                'disclosure_version_id'  => $version?->id,
+                'version_number'         => $disc->version_number,
+                'version_hash'           => $version?->version_hash,
             ];
         }
 
@@ -1591,8 +1599,11 @@ class CompanyDisclosureSystemSeeder extends Seeder
             'snapshot_timestamp' => Carbon::now()->subWeeks(2),
             'snapshot_trigger' => 'investment_purchase',
 
-            // Complete disclosure snapshot
+            // Complete disclosure snapshot (immutable content)
             'disclosure_snapshot' => $disclosureSnapshot,
+
+            // REQUIRED: authoritative version linkage map (NOT NULL column)
+            'disclosure_versions_map' => $disclosureVersionsMap,
 
             // Platform context snapshot
             'metrics_snapshot' => $platformMetrics ? [
@@ -1604,7 +1615,7 @@ class CompanyDisclosureSystemSeeder extends Seeder
             ] : [],
 
             // Risk flags snapshot
-            'risk_flags_snapshot' => $platformRiskFlags->map(fn($flag) => [
+            'risk_flags_snapshot' => $platformRiskFlags->map(fn ($flag) => [
                 'flag_type' => $flag->flag_type,
                 'severity' => $flag->severity,
                 'description' => $flag->description,
@@ -1614,8 +1625,9 @@ class CompanyDisclosureSystemSeeder extends Seeder
             // Immutability enforcement
             'is_immutable' => true,
             'locked_at' => Carbon::now()->subWeeks(2),
-            'hash_algorithm' => 'sha256',
-            'snapshot_hash' => hash('sha256', json_encode($disclosureSnapshot)),
+
+            // Snapshot integrity hash (no hash_algorithm column in schema)
+            // 'snapshot_hash' => hash('sha256', json_encode($disclosureSnapshot)),
         ]);
 
         // PROTOCOL 1 FIX #8: Verify Hash After Creation
