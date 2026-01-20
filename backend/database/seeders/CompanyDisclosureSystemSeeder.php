@@ -1625,17 +1625,23 @@ class CompanyDisclosureSystemSeeder extends Seeder
             // Immutability enforcement
             'is_immutable' => true,
             'locked_at' => Carbon::now()->subWeeks(2),
-
-            // Snapshot integrity hash (no hash_algorithm column in schema)
-            // 'snapshot_hash' => hash('sha256', json_encode($disclosureSnapshot)),
+            'hash_algorithm' => 'sha256',
+            // Note: snapshot_hash computed AFTER database storage to ensure accuracy
         ]);
 
-        // PROTOCOL 1 FIX #8: Verify Hash After Creation
-        $recomputedHash = hash('sha256', json_encode($snapshot->disclosure_snapshot));
-        if ($recomputedHash !== $snapshot->snapshot_hash) {
+        // PROTOCOL 1 FIX #8: Compute Hash from Database-Stored Value
+        // CRITICAL: Hash must be computed from what's ACTUALLY in the database,
+        // not from the PHP variable, because Laravel/MySQL may transform JSON structure
+        $snapshot->refresh(); // Reload from database to get exact stored structure
+        $computedHash = hash('sha256', json_encode($snapshot->disclosure_snapshot));
+        $snapshot->update(['snapshot_hash' => $computedHash]);
+
+        // Verify Hash Integrity
+        $verificationHash = hash('sha256', json_encode($snapshot->fresh()->disclosure_snapshot));
+        if ($verificationHash !== $computedHash) {
             throw new \Exception(
                 "❌ HASH VERIFICATION FAILED: Snapshot hash mismatch for investment {$investment->id}. " .
-                "Expected: {$snapshot->snapshot_hash}, Got: {$recomputedHash}"
+                "Computed: {$computedHash}, Verified: {$verificationHash}"
             );
         }
 
@@ -1651,7 +1657,7 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 'investment_amount' => '₹5,00,000',
                 'shares' => 100,
                 'snapshot_id' => $snapshot->id,
-                'snapshot_hash' => $snapshot->snapshot_hash,
+                'snapshot_hash' => $computedHash, // Use computed hash
             ],
             riskLevel: 'critical' // Critical because involves money and immutable records
         );
@@ -1661,7 +1667,7 @@ class CompanyDisclosureSystemSeeder extends Seeder
         $this->command->info("    - Investment: {$investment->investment_code}");
         $this->command->info("    - Investor: {$investor->email}");
         $this->command->info("    - Amount: ₹5,00,000 (100 shares @ ₹5,000/share)");
-        $this->command->info("    - Snapshot Hash: " . substr($snapshot->snapshot_hash, 0, 16) . "...");
+        $this->command->info("    - Snapshot Hash: " . substr($computedHash, 0, 16) . "..."); // Use computed hash
         $this->command->info("    - Hash Verification: ✅ PASSED");
     }
 }
