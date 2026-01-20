@@ -89,7 +89,8 @@ class DisclosureVersion extends Model
         'certification',
         'created_by_ip',
         'created_by_user_agent',
-        'created_by',
+        'created_by_type',  // Polymorphic: User or CompanyUser
+        'created_by_id',    // Polymorphic ID
     ];
 
     /**
@@ -151,6 +152,7 @@ class DisclosureVersion extends Model
 
     /**
      * Admin who approved this version
+     * Note: approved_by remains FK to users (only admins approve)
      */
     public function approver()
     {
@@ -158,11 +160,21 @@ class DisclosureVersion extends Model
     }
 
     /**
-     * CompanyUser who triggered this version creation
+     * Polymorphic: CompanyUser or User who triggered this version creation
+     * Usually: CompanyUser creates (by submitting), Admin may also trigger
+     */
+    public function createdBy()
+    {
+        return $this->morphTo(__FUNCTION__, 'created_by_type', 'created_by_id');
+    }
+
+    /**
+     * DEPRECATED: Use createdBy() instead (polymorphic)
+     * Kept for backwards compatibility
      */
     public function creator()
     {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->createdBy();
     }
 
     // =========================================================================

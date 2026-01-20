@@ -91,7 +91,8 @@ class DisclosureClarification extends Model
         'highlighted_data',
         'suggested_fix',
         'answer_body',
-        'answered_by',
+        'answered_by_type',  // Polymorphic: User or CompanyUser
+        'answered_by_id',    // Polymorphic ID
         'answered_at',
         'supporting_documents',
         'status',
@@ -173,6 +174,7 @@ class DisclosureClarification extends Model
 
     /**
      * Admin who asked the question
+     * Note: asked_by remains FK to users (only admins ask questions)
      */
     public function asker()
     {
@@ -180,11 +182,21 @@ class DisclosureClarification extends Model
     }
 
     /**
-     * CompanyUser who answered
+     * Polymorphic: CompanyUser or User who answered the clarification
+     * Usually: CompanyUser answers, but Admin may also answer in some cases
+     */
+    public function answeredBy()
+    {
+        return $this->morphTo(__FUNCTION__, 'answered_by_type', 'answered_by_id');
+    }
+
+    /**
+     * DEPRECATED: Use answeredBy() instead (polymorphic)
+     * Kept for backwards compatibility
      */
     public function answerer()
     {
-        return $this->belongsTo(User::class, 'answered_by');
+        return $this->answeredBy();
     }
 
     /**

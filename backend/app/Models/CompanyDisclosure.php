@@ -72,7 +72,8 @@ class CompanyDisclosure extends Model
         'completion_percentage',
         'is_locked',
         'submitted_at',
-        'submitted_by',
+        'submitted_by_type',  // Polymorphic: User or CompanyUser
+        'submitted_by_id',    // Polymorphic ID
         'approved_at',
         'approved_by',
         'rejection_reason',
@@ -81,7 +82,8 @@ class CompanyDisclosure extends Model
         'version_number',
         'current_version_id',
         'last_modified_at',
-        'last_modified_by',
+        'last_modified_by_type',  // Polymorphic: User or CompanyUser
+        'last_modified_by_id',    // Polymorphic ID
         'last_modified_ip',
         'last_modified_user_agent',
         'internal_notes',
@@ -132,15 +134,26 @@ class CompanyDisclosure extends Model
     }
 
     /**
-     * CompanyUser who submitted this disclosure
+     * Polymorphic: CompanyUser or User who submitted this disclosure
+     * Usually: CompanyUser submits, Admin approves
+     */
+    public function submittedBy()
+    {
+        return $this->morphTo(__FUNCTION__, 'submitted_by_type', 'submitted_by_id');
+    }
+
+    /**
+     * DEPRECATED: Use submittedBy() instead (polymorphic)
+     * Kept for backwards compatibility
      */
     public function submitter()
     {
-        return $this->belongsTo(User::class, 'submitted_by');
+        return $this->submittedBy();
     }
 
     /**
      * Admin who approved this disclosure
+     * Note: approved_by remains FK to users (only admins approve)
      */
     public function approver()
     {
@@ -149,6 +162,7 @@ class CompanyDisclosure extends Model
 
     /**
      * Admin who rejected this disclosure
+     * Note: rejected_by remains FK to users (only admins reject)
      */
     public function rejecter()
     {
@@ -156,11 +170,21 @@ class CompanyDisclosure extends Model
     }
 
     /**
-     * User who last modified the disclosure data
+     * Polymorphic: CompanyUser or User who last modified the disclosure data
+     * Usually: CompanyUser edits, Admin may also edit
+     */
+    public function lastModifiedBy()
+    {
+        return $this->morphTo(__FUNCTION__, 'last_modified_by_type', 'last_modified_by_id');
+    }
+
+    /**
+     * DEPRECATED: Use lastModifiedBy() instead (polymorphic)
+     * Kept for backwards compatibility
      */
     public function lastModifier()
     {
-        return $this->belongsTo(User::class, 'last_modified_by');
+        return $this->lastModifiedBy();
     }
 
     /**
