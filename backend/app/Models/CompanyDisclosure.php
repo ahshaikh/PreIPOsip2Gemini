@@ -123,6 +123,15 @@ class CompanyDisclosure extends Model
     }
 
     /**
+     * Alias for disclosureModule() - for convenience
+     * Used by seeders and some queries
+     */
+    public function module()
+    {
+        return $this->disclosureModule();
+    }
+
+    /**
      * CompanyUser who submitted this disclosure
      */
     public function submitter()
