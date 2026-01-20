@@ -20,6 +20,7 @@ use App\Models\Investment;
 use App\Models\InvestmentDisclosureSnapshot;
 use App\Models\Sector;
 use App\Models\Deal;
+use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\AuditLog; // PROTOCOL 1 FIX #1
 use Illuminate\Database\Seeder;
@@ -1452,6 +1453,9 @@ class CompanyDisclosureSystemSeeder extends Seeder
     /**
      * PHASE 7: Seed Transactions & Snapshots
      * PROTOCOL 1 FIX #2: Minimal but functional implementation of investment snapshots
+     *
+     * ARCHITECTURAL RULE: Every investment MUST belong to a subscription.
+     * Even "one-time" investments are modeled as subscriptions at the data level.
      */
     private function seedTransactionsAndSnapshots(array $companies): void
     {
@@ -1463,7 +1467,25 @@ class CompanyDisclosureSystemSeeder extends Seeder
             return;
         }
 
-        // 1. Create a Deal for the investable company
+        // 1. Create or find a Plan for one-time investments
+        $plan = Plan::firstOrCreate(
+            ['slug' => 'one-time-investment'],
+            [
+                'name' => 'One-Time Investment',
+                'monthly_amount' => 0.00, // No recurring amount
+                'duration_months' => 1,
+                'description' => 'One-time lump sum investment (not a recurring SIP)',
+                'is_active' => true,
+                'is_featured' => false,
+                'display_order' => 999,
+                'max_subscriptions_per_user' => 999, // Allow multiple one-time investments
+                'allow_pause' => false, // No pausing for one-time investments
+                'max_pause_count' => 0,
+                'max_pause_duration_months' => 0,
+            ]
+        );
+
+        // 2. Create a Deal for the investable company
         $deal = Deal::create([
             'product_id' => 1, // or a valid product ID from your system
             'company_id' => $investableCompany->id,
@@ -1505,14 +1527,32 @@ class CompanyDisclosureSystemSeeder extends Seeder
             'sort_order' => 1,
         ]);
 
-        // 2. Create investment for first investor with IMMUTABLE SNAPSHOT
+        // 3. Create subscription for first investor
+        // ARCHITECTURAL: Every investment MUST have a subscription (NOT NULL constraint)
         $investor = $this->investors[0];
 
+        $subscription = Subscription::create([
+            'user_id' => $investor->id,
+            'plan_id' => $plan->id,
+            'amount' => 500000.00, // ₹5L (one-time amount)
+            'subscription_code' => 'SUB-' . strtoupper(uniqid()),
+            'razorpay_subscription_id' => null, // Not a Razorpay subscription
+            'status' => 'completed', // One-time investment is immediately completed
+            'is_auto_debit' => false,
+            'start_date' => Carbon::now()->subWeeks(2)->toDateString(),
+            'end_date' => Carbon::now()->subWeeks(2)->toDateString(), // Same day = one-time
+            'next_payment_date' => Carbon::now()->subWeeks(2)->toDateString(), // No future payment
+            'bonus_multiplier' => 1.00,
+            'consecutive_payments_count' => 1, // Single payment
+            'pause_count' => 0,
+        ]);
+
+        // 4. Create investment linked to subscription
         $investment = Investment::create([
             'user_id' => $investor->id,
             'company_id' => $investableCompany->id,
             'deal_id' => $deal->id,
-            'subscription_id' => null, // Not tied to SIP subscription
+            'subscription_id' => $subscription->id, // REQUIRED: Must reference subscription
             'investment_code' => 'INV-' . strtoupper(uniqid()),
             'shares_allocated' => 100,
             'price_per_share' => 5000.00,
@@ -1521,7 +1561,7 @@ class CompanyDisclosureSystemSeeder extends Seeder
             'invested_at' => Carbon::now()->subWeeks(2),
         ]);
 
-        // 3. Create IMMUTABLE SNAPSHOT (CRITICAL GOVERNANCE REQUIREMENT)
+        // 5. Create IMMUTABLE SNAPSHOT (CRITICAL GOVERNANCE REQUIREMENT)
         $allDisclosures = CompanyDisclosure::where('company_id', $investableCompany->id)
             ->where('status', 'approved')
             ->with('module', 'currentVersion')
@@ -1594,6 +1634,8 @@ class CompanyDisclosureSystemSeeder extends Seeder
             description: "Investment created for {$investor->email} in {$investableCompany->name} with immutable disclosure snapshot",
             target: $investment,
             newValues: [
+                'subscription_code' => $subscription->subscription_code,
+                'investment_code' => $investment->investment_code,
                 'investment_amount' => '₹5,00,000',
                 'shares' => 100,
                 'snapshot_id' => $snapshot->id,
@@ -1602,7 +1644,9 @@ class CompanyDisclosureSystemSeeder extends Seeder
             riskLevel: 'critical' // Critical because involves money and immutable records
         );
 
-        $this->command->info("  ✓ Created investment with immutable snapshot: {$investment->investment_code}");
+        $this->command->info("  ✓ Created investment with immutable snapshot:");
+        $this->command->info("    - Subscription: {$subscription->subscription_code} (One-Time)");
+        $this->command->info("    - Investment: {$investment->investment_code}");
         $this->command->info("    - Investor: {$investor->email}");
         $this->command->info("    - Amount: ₹5,00,000 (100 shares @ ₹5,000/share)");
         $this->command->info("    - Snapshot Hash: " . substr($snapshot->snapshot_hash, 0, 16) . "...");
