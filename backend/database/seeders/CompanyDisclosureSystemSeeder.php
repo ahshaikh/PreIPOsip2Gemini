@@ -601,7 +601,7 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 'completion_percentage' => 65,
                 'is_locked' => false,
                 'last_modified_at' => Carbon::now()->subDays(3),
-                'last_modified_by' => $this->companyUsers['draft']->id ?? null,
+                'last_modified_by' => null, // CompanyUser, not User - FK constraint expects users.id
             ]
         );
 
@@ -660,7 +660,7 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 'completion_percentage' => 100,
                 'is_locked' => true,
                 'submitted_at' => Carbon::now()->subMonths(2),
-                'submitted_by' => $this->companyUsers['live_limited']->id ?? null,
+                'submitted_by' => null, // FK expects users.id, not company_users.id
                 'approved_at' => Carbon::now()->subMonth(),
                 'approved_by' => $this->admin->id,
                 'version_number' => 1,
@@ -684,7 +684,7 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 'was_investor_visible' => true,
                 'first_investor_view_at' => Carbon::now()->subMonth()->addDays(2),
                 'investor_view_count' => 47,
-                'created_by' => $this->companyUsers['live_limited']->id ?? null,
+                'created_by' => null, // FK expects users.id, not company_users.id
             ]);
 
             $disclosure->update(['current_version_id' => $version->id]);
@@ -759,7 +759,7 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 'completion_percentage' => 100,
                 'is_locked' => true,
                 'submitted_at' => Carbon::now()->subMonths(2),
-                'submitted_by' => $this->companyUsers['live_limited']->id ?? null,
+                'submitted_by' => null, // FK expects users.id, not company_users.id
                 'approved_at' => Carbon::now()->subMonth(),
                 'approved_by' => $this->admin->id,
                 'version_number' => 1,
@@ -824,7 +824,7 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 'status' => 'under_review',
                 'completion_percentage' => 100,
                 'submitted_at' => Carbon::now()->subWeeks(2),
-                'submitted_by' => $this->companyUsers['live_limited']->id ?? null,
+                'submitted_by' => null, // FK expects users.id, not company_users.id
             ]);
         }
 
@@ -1185,7 +1185,7 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 'status' => 'answered',
                 // Company Answer
                 'answer_body' => 'The Q4 FY24 revenue surge was driven by three factors: (1) Launch of corporate wellness program in December 2023 with 12 large enterprise clients contributing ₹1.8 Cr in Q4, (2) Seasonal spike in telemedicine consultations during winter months (Nov-Feb) - historically our strongest quarter, (3) Government B2G contract for rural telemedicine went live in Jan 2024 adding ₹1.2 Cr recurring monthly revenue. We have attached: (a) Corporate client contracts, (b) 3-year historical seasonal trend analysis showing Q4 is typically 15-20% higher than Q3, (c) Government contract award letter.',
-                'answered_by' => $this->companyUsers['live_limited']->id ?? null,
+                'answered_by' => null, // FK expects users.id, not company_users.id
                 'answered_at' => Carbon::now()->subDays(5),
                 'supporting_documents' => [
                     ['file_path' => 'clarifications/medicare/corporate_contracts_q4.pdf', 'description' => 'Corporate wellness client contracts'],
@@ -1210,7 +1210,7 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 'due_date' => Carbon::now()->addDays(3),
                 'status' => 'answered',
                 'answer_body' => 'Of the ₹1.8 Cr Q4 revenue: (1) One-time setup fees = ₹45 Lakhs (25%), (2) Recurring subscription fees = ₹1.35 Cr (75%). Going forward, the 12 corporate clients will generate ₹45 Lakhs monthly recurring revenue (annualized ₹5.4 Cr). Contracts are 2-year lock-in with auto-renewal clauses. Average contract value is ₹3.75 Lakhs per month per client for 500-employee company.',
-                'answered_by' => $this->companyUsers['live_limited']->id ?? null,
+                'answered_by' => null, // FK expects users.id, not company_users.id
                 'answered_at' => Carbon::now()->subDays(2),
             ]);
 
@@ -1255,7 +1255,7 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 'status' => 'rejected',
                 'completion_percentage' => 40,
                 'submitted_at' => Carbon::now()->subDays(5),
-                'submitted_by' => $this->companyUsers['draft']->id ?? null,
+                'submitted_by' => null, // FK expects users.id, not company_users.id
                 'rejected_at' => Carbon::now()->subDays(3),
                 'rejected_by' => $this->admin->id,
                 'rejection_reason' => 'REJECTED: (1) Business description is too vague and lacks specific details about AI algorithms, (2) Revenue streams are incomplete - percentages only total 80%, missing 20%, (3) No information about customer segments or competitive advantages. Please review disclosure requirements checklist and resubmit with complete information.',
