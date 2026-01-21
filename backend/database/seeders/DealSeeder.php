@@ -73,21 +73,21 @@ class DealSeeder extends Seeder
                     'is_featured' => true,
                     'visibility' => 'public',
                 ],
-                // Deal 3: FinSecure (Live-Investable - Already has deal from CompanyDisclosureSystemSeeder)
-                // We'll create a DIFFERENT deal for FinSecure to show multiple rounds
+                // Deal 3: FinSecure (Live-Investable - Already has ACTIVE deal from CompanyDisclosureSystemSeeder)
+                // This is a CLOSED historical deal (completed ESOP secondary sale) - won't overlap with active Series D
                 [
                     'company_id' => $finsecure->id,
                     'product_id' => $product1?->id,
-                    'title' => 'FinSecure Digital Lending - Employee Stock Ownership',
-                    'description' => 'Special ESOP secondary sale opportunity. RBI-approved NBFC with ₹1,200 Cr+ loan book and 1.8% NPA ratio.',
+                    'title' => 'FinSecure Digital Lending - Employee Stock Ownership (Closed)',
+                    'description' => 'Completed ESOP secondary sale. RBI-approved NBFC with ₹1,200 Cr+ loan book and 1.8% NPA ratio.',
                     'share_price' => 4500.00,
                     'min_investment' => 100000.00,
                     'max_investment' => 2000000.00,
                     'total_shares_available' => 20000,
-                    'shares_allocated' => 5000,
-                    'deal_opens_at' => now()->subDays(15),
-                    'deal_closes_at' => now()->addDays(30),
-                    'status' => 'active',
+                    'shares_allocated' => 20000, // Fully allocated (closed deal)
+                    'deal_opens_at' => now()->subMonths(6), // Historical deal - 6 months ago
+                    'deal_closes_at' => now()->subMonths(4), // Closed 4 months ago
+                    'status' => 'closed', // CLOSED status - won't trigger overlap validation
                     'is_featured' => false,
                     'visibility' => 'public',
                 ],
