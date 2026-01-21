@@ -21,49 +21,33 @@ class DealSeeder extends Seeder
      */
     public function run(): void
     {
-        // Get verified companies
-        $techCorp = Company::where('slug', 'techcorp-india')->first();
-        $healthPlus = Company::where('slug', 'healthplus-solutions')->first();
-        $financeHub = Company::where('slug', 'financehub-technologies')->first();
-        $eduTech = Company::where('slug', 'edutech-academy')->first();
-        $greenEnergy = Company::where('slug', 'greenenergy-innovations')->first();
+        // Get verified companies from CompanyDisclosureSystemSeeder
+        // Note: FinSecure already has a deal created by CompanyDisclosureSystemSeeder, so we skip it
+        $nexgen = Company::where('slug', 'nexgen-ai-solutions')->first();
+        $medicare = Company::where('slug', 'medicare-plus-healthtech')->first();
+        $finsecure = Company::where('slug', 'finsecure-digital-lending')->first(); // Already has deal
+        $eduverse = Company::where('slug', 'eduverse-learning-platform')->first();
+        $greenpower = Company::where('slug', 'greenpower-energy-solutions')->first();
 
-        if (!$techCorp || !$healthPlus || !$financeHub || !$eduTech || !$greenEnergy) {
-            $this->command->warn('⚠ Companies not found. Run CompanySeeder first.');
+        if (!$medicare && !$eduverse) {
+            $this->command->warn('⚠ Companies not found. Run CompanyDisclosureSystemSeeder first.');
             return;
         }
 
         // Get products (optional - deals can exist without products)
-        $product1 = Product::where('slug', 'techcorp-india-series-a')->first();
-        $product2 = Product::where('slug', 'healthplus-pre-ipo')->first();
-        $product3 = Product::where('slug', 'financehub-seed-round')->first();
+        $product1 = Product::first(); // Use any existing product or null
 
-        DB::transaction(function () use ($techCorp, $healthPlus, $financeHub, $eduTech, $greenEnergy, $product1, $product2, $product3) {
+        DB::transaction(function () use ($nexgen, $medicare, $finsecure, $eduverse, $greenpower, $product1) {
             $deals = [
+                // Deal 1: NexGen AI Solutions (Draft company - but let's create a deal anyway for testing)
                 [
-                    'company_id' => $techCorp->id,
+                    'company_id' => $nexgen->id,
                     'product_id' => $product1?->id,
-                    'title' => 'TechCorp India - Series A Investment',
-                    'description' => 'Invest in India\'s leading SaaS automation platform. Pre-IPO opportunity with strong growth trajectory.',
-                    'share_price' => 500.00,
-                    'min_investment' => 10000.00,
-                    'max_investment' => 500000.00,
-                    'total_shares_available' => 50000,
-                    'shares_allocated' => 15000,
-                    'deal_opens_at' => now()->subDays(5),
-                    'deal_closes_at' => now()->addDays(60),
-                    'status' => 'active',
-                    'is_featured' => true,
-                    'visibility' => 'public',
-                ],
-                [
-                    'company_id' => $healthPlus->id,
-                    'product_id' => $product2?->id,
-                    'title' => 'HealthPlus Solutions - Pre-IPO Round',
-                    'description' => 'Last chance to invest before IPO. AI-powered telemedicine with 5,000+ doctors and rapid growth.',
+                    'title' => 'NexGen AI - Series B Investment',
+                    'description' => 'Invest in enterprise AI automation leader. Serving 250+ Fortune 500 clients with 99.9% uptime SLA.',
                     'share_price' => 750.00,
                     'min_investment' => 25000.00,
-                    'max_investment' => 1000000.00,
+                    'max_investment' => 500000.00,
                     'total_shares_available' => 40000,
                     'shares_allocated' => 8000,
                     'deal_opens_at' => now()->subDays(10),
@@ -72,52 +56,73 @@ class DealSeeder extends Seeder
                     'is_featured' => true,
                     'visibility' => 'public',
                 ],
+                // Deal 2: MediCare Plus (Live-Limited - Tier 1 approved)
                 [
-                    'company_id' => $financeHub->id,
-                    'product_id' => $product3?->id,
-                    'title' => 'FinanceHub Technologies - Seed Investment',
-                    'description' => 'High-growth fintech with ₹500 Cr+ loan book. NBFC licensed and ready to scale.',
-                    'share_price' => 300.00,
-                    'min_investment' => 5000.00,
-                    'max_investment' => 250000.00,
-                    'total_shares_available' => 100000,
-                    'shares_allocated' => 25000,
-                    'deal_opens_at' => now()->subDays(3),
-                    'deal_closes_at' => now()->addDays(90),
+                    'company_id' => $medicare->id,
+                    'product_id' => $product1?->id,
+                    'title' => 'MediCare Plus - Series C Pre-IPO Round',
+                    'description' => 'Last chance before IPO! AI telemedicine platform with 10,000+ doctors and 5M+ consultations completed.',
+                    'share_price' => 1000.00,
+                    'min_investment' => 50000.00,
+                    'max_investment' => 1000000.00,
+                    'total_shares_available' => 50000,
+                    'shares_allocated' => 12000,
+                    'deal_opens_at' => now()->subDays(7),
+                    'deal_closes_at' => now()->addDays(60),
                     'status' => 'active',
                     'is_featured' => true,
                     'visibility' => 'public',
                 ],
+                // Deal 3: FinSecure (Live-Investable - Already has deal from CompanyDisclosureSystemSeeder)
+                // We'll create a DIFFERENT deal for FinSecure to show multiple rounds
                 [
-                    'company_id' => $eduTech->id,
-                    'product_id' => null,
-                    'title' => 'EduTech Academy - Growth Round',
-                    'description' => 'Invest in India\'s fastest-growing edtech platform. 500,000+ active learners and growing.',
-                    'share_price' => 200.00,
-                    'min_investment' => 10000.00,
-                    'max_investment' => 300000.00,
-                    'total_shares_available' => 75000,
-                    'shares_allocated' => 20000,
-                    'deal_opens_at' => now()->subDays(7),
+                    'company_id' => $finsecure->id,
+                    'product_id' => $product1?->id,
+                    'title' => 'FinSecure Digital Lending - Employee Stock Ownership',
+                    'description' => 'Special ESOP secondary sale opportunity. RBI-approved NBFC with ₹1,200 Cr+ loan book and 1.8% NPA ratio.',
+                    'share_price' => 4500.00,
+                    'min_investment' => 100000.00,
+                    'max_investment' => 2000000.00,
+                    'total_shares_available' => 20000,
+                    'shares_allocated' => 5000,
+                    'deal_opens_at' => now()->subDays(15),
                     'deal_closes_at' => now()->addDays(30),
                     'status' => 'active',
                     'is_featured' => false,
                     'visibility' => 'public',
                 ],
+                // Deal 4: EduVerse (Live-Full - All tiers approved)
                 [
-                    'company_id' => $greenEnergy->id,
-                    'product_id' => null,
-                    'title' => 'GreenEnergy Innovations - Series B',
-                    'description' => 'Renewable energy leader with 100 MW+ capacity. Government-backed green energy projects.',
-                    'share_price' => 1000.00,
-                    'min_investment' => 50000.00,
-                    'max_investment' => 2000000.00,
-                    'total_shares_available' => 30000,
-                    'shares_allocated' => 5000,
-                    'deal_opens_at' => now()->subDays(15),
+                    'company_id' => $eduverse->id,
+                    'product_id' => $product1?->id,
+                    'title' => 'EduVerse Learning - Series E Growth Round',
+                    'description' => 'India\'s largest K-12 edtech with 2.5M+ students. Partnerships with 500+ schools. Complete disclosure package.',
+                    'share_price' => 1500.00,
+                    'min_investment' => 75000.00,
+                    'max_investment' => 1500000.00,
+                    'total_shares_available' => 60000,
+                    'shares_allocated' => 18000,
+                    'deal_opens_at' => now()->subDays(20),
                     'deal_closes_at' => now()->addDays(75),
                     'status' => 'active',
                     'is_featured' => true,
+                    'visibility' => 'public',
+                ],
+                // Deal 5: GreenPower (Suspended - but deal exists, just not investable)
+                [
+                    'company_id' => $greenpower->id,
+                    'product_id' => $product1?->id,
+                    'title' => 'GreenPower Energy - Series C (Temporarily Paused)',
+                    'description' => 'Renewable energy leader with 250 MW capacity. Deal temporarily paused pending compliance review.',
+                    'share_price' => 800.00,
+                    'min_investment' => 50000.00,
+                    'max_investment' => 1000000.00,
+                    'total_shares_available' => 35000,
+                    'shares_allocated' => 3000,
+                    'deal_opens_at' => now()->subDays(30),
+                    'deal_closes_at' => now()->addDays(90),
+                    'status' => 'suspended', // Suspended deal for suspended company
+                    'is_featured' => false,
                     'visibility' => 'public',
                 ],
             ];
@@ -132,7 +137,7 @@ class DealSeeder extends Seeder
                 );
             }
 
-            $this->command->info('✓ Deals seeded: ' . count($deals) . ' active investment opportunities');
+            $this->command->info('✓ Deals seeded: ' . count($deals) . ' investment opportunities for CompanyDisclosureSystemSeeder companies');
         });
     }
 }
