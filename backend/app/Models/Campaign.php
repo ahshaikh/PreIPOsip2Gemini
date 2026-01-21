@@ -253,19 +253,6 @@ class Campaign extends Model
     }
 
     /**
-     * FIX 12 (P3): Scopes for approval status
-     */
-    public function scopeApproved($query)
-    {
-        return $query->whereNotNull('approved_at');
-    }
-
-    public function scopeUnapproved($query)
-    {
-        return $query->whereNull('approved_at');
-    }
-
-    /**
      * FIX 12 (P3): Approve campaign
      */
     public function approve(int $adminId): void
