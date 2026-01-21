@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\User\SubscriptionController;
 use App\Http\Controllers\Api\User\InvestmentController;
 
 // Investor Controllers (Phase 5)
+use App\Http\Controllers\Api\Investor\InvestorCompanyController;
 use App\Http\Controllers\Api\Investor\InvestorInvestmentController;
 use App\Http\Controllers\Api\User\DealController as UserDealController;
 use App\Http\Controllers\Api\User\PaymentController;
@@ -487,6 +488,11 @@ Route::prefix('v1')->group(function () {
         // Investment submission with comprehensive backend validation
         // Addresses Protocol-1 Audit GAP 1: Backend validation bypass
         Route::prefix('investor')->group(function () {
+            // Company discovery and eligibility checks
+            Route::get('/companies', [InvestorCompanyController::class, 'index']); // List companies with active deals + wallet
+            Route::get('/companies/{id}', [InvestorCompanyController::class, 'show']); // Company detail
+            Route::post('/companies/{id}/check-eligibility', [InvestorCompanyController::class, 'checkEligibility']); // KYC + balance check
+
             // Investment submission with:
             // - Wallet balance validation
             // - Risk acknowledgement enforcement
