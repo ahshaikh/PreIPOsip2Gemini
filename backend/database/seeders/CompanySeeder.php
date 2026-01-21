@@ -48,7 +48,9 @@ class CompanySeeder extends Seeder
                     'headquarters' => 'Bangalore, Karnataka',
                     'employees_count' => 250,
                     'status' => 'active',
+                    'is_verified' => true,
                     'is_featured' => true,
+                    'profile_completed' => 100,
                 ],
                 [
                     'name' => 'HealthPlus Solutions',
@@ -61,7 +63,9 @@ class CompanySeeder extends Seeder
                     'headquarters' => 'Mumbai, Maharashtra',
                     'employees_count' => 180,
                     'status' => 'active',
+                    'is_verified' => true,
                     'is_featured' => true,
+                    'profile_completed' => 100,
                 ],
                 [
                     'name' => 'FinanceHub Technologies',
@@ -74,7 +78,9 @@ class CompanySeeder extends Seeder
                     'headquarters' => 'Gurugram, Haryana',
                     'employees_count' => 320,
                     'status' => 'active',
+                    'is_verified' => true,
                     'is_featured' => true,
+                    'profile_completed' => 100,
                 ],
                 [
                     'name' => 'EduTech Academy',
@@ -87,7 +93,9 @@ class CompanySeeder extends Seeder
                     'headquarters' => 'Pune, Maharashtra',
                     'employees_count' => 150,
                     'status' => 'active',
+                    'is_verified' => true,
                     'is_featured' => false,
+                    'profile_completed' => 95,
                 ],
                 [
                     'name' => 'GreenEnergy Innovations',
@@ -100,7 +108,9 @@ class CompanySeeder extends Seeder
                     'headquarters' => 'Chennai, Tamil Nadu',
                     'employees_count' => 200,
                     'status' => 'active',
+                    'is_verified' => true,
                     'is_featured' => true,
+                    'profile_completed' => 100,
                 ],
             ];
 
