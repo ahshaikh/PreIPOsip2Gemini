@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
         // 2. Taxonomy & Master Data (NEW - Post-Audit)
         $this->call(SectorSeeder::class);     // Industry sectors
         $this->call(CompanySeeder::class);    // Sample Pre-IPO companies
+        $this->call(DealSeeder::class);       // Active investment deals for companies
 
         // 3. Core Content Seeders (Plans, Products, CMS)
         $this->call(PlanSeeder::class);
