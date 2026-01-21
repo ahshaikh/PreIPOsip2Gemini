@@ -675,11 +675,14 @@ class CompanyDisclosureSystemSeeder extends Seeder
             );
 
             // Create immutable version
-            $version = DisclosureVersion::create([
-                'company_disclosure_id' => $disclosure->id,
+            $version = DisclosureVersion::updateOrCreate(
+                [
+                    'company_disclosure_id' => $disclosure->id,
+                    'version_number' => 1,
+                ],
+                [
                 'company_id' => $company->id,
                 'disclosure_module_id' => $businessModule->id,
-                'version_number' => 1,
                 'version_hash' => hash('sha256', json_encode($disclosure->disclosure_data)),
                 'disclosure_data' => $disclosure->disclosure_data,
                 'attachments' => $disclosure->attachments,
@@ -778,11 +781,14 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 ]
             );
 
-            DisclosureVersion::create([
-                'company_disclosure_id' => $disclosure->id,
+            DisclosureVersion::updateOrCreate(
+                [
+                    'company_disclosure_id' => $disclosure->id,
+                    'version_number' => 1,
+                ],
+                [
                 'company_id' => $company->id,
                 'disclosure_module_id' => $boardModule->id,
-                'version_number' => 1,
                 'version_hash' => hash('sha256', json_encode($disclosure->disclosure_data)),
                 'disclosure_data' => $disclosure->disclosure_data,
                 'is_locked' => true,
@@ -910,11 +916,14 @@ class CompanyDisclosureSystemSeeder extends Seeder
             );
 
             // Create Version 2
-            DisclosureVersion::create([
-                'company_disclosure_id' => $disclosure->id,
+            DisclosureVersion::updateOrCreate(
+                [
+                    'company_disclosure_id' => $disclosure->id,
+                    'version_number' => 2,
+                ],
+                [
                 'company_id' => $company->id,
                 'disclosure_module_id' => $businessModule->id,
-                'version_number' => 2,
                 'version_hash' => hash('sha256', json_encode($disclosure->disclosure_data)),
                 'disclosure_data' => $disclosure->disclosure_data,
                 'changes_summary' => ['market_size' => 'Updated TAM/SAM/SOM based on latest NASSCOM report', 'key_partners' => 'Added Axis Bank co-lending partnership'],
@@ -981,11 +990,14 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 ]
             );
 
-            DisclosureVersion::create([
-                'company_disclosure_id' => $disclosure->id,
+            DisclosureVersion::updateOrCreate(
+                [
+                    'company_disclosure_id' => $disclosure->id,
+                    'version_number' => 1,
+                ],
+                [
                 'company_id' => $company->id,
                 'disclosure_module_id' => $finModule->id,
-                'version_number' => 1,
                 'version_hash' => hash('sha256', json_encode($disclosure->disclosure_data)),
                 'disclosure_data' => $disclosure->disclosure_data,
                 'attachments' => $disclosure->attachments,
@@ -1072,11 +1084,14 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 ]
             );
 
-            DisclosureVersion::create([
-                'company_disclosure_id' => $disclosure->id,
+            DisclosureVersion::updateOrCreate(
+                [
+                    'company_disclosure_id' => $disclosure->id,
+                    'version_number' => 1,
+                ],
+                [
                 'company_id' => $company->id,
                 'disclosure_module_id' => $riskModule->id,
-                'version_number' => 1,
                 'version_hash' => hash('sha256', json_encode($disclosure->disclosure_data)),
                 'disclosure_data' => $disclosure->disclosure_data,
                 'is_locked' => true,
@@ -1126,11 +1141,14 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 ]
             );
 
-            DisclosureVersion::create([
-                'company_disclosure_id' => $disclosure->id,
+            DisclosureVersion::updateOrCreate(
+                [
+                    'company_disclosure_id' => $disclosure->id,
+                    'version_number' => 1,
+                ],
+                [
                 'company_id' => $company->id,
                 'disclosure_module_id' => $legalModule->id,
-                'version_number' => 1,
                 'version_hash' => hash('sha256', json_encode($disclosure->disclosure_data)),
                 'disclosure_data' => $disclosure->disclosure_data,
                 'is_locked' => true,
@@ -1206,76 +1224,88 @@ class CompanyDisclosureSystemSeeder extends Seeder
 
         if ($finDisclosure) {
             // Clarification 1: Admin Question about Revenue Growth
-            $clarification1 = DisclosureClarification::create([
-                'company_disclosure_id' => $finDisclosure->id,
-                'company_id' => $company->id,
-                'disclosure_module_id' => $finDisclosure->disclosure_module_id,
-                'question_subject' => 'Revenue Growth Rate Clarification',
-                'question_body' => 'Your Q4 FY24 revenue shows a significant jump from ₹22 Cr (Q3) to ₹25 Cr (Q4), representing 13.6% quarter-over-quarter growth. This is substantially higher than the 5-10% QoQ growth seen in Q1-Q3. Please explain the drivers of this accelerated growth and provide supporting documentation.',
-                'question_type' => 'verification',
-                'asked_by' => $this->admin->id,
-                'asked_at' => Carbon::now()->subWeeks(1),
-                'field_path' => 'disclosure_data.revenue.breakdown[3].amount',
-                'highlighted_data' => ['Q4 revenue' => 2500000000, 'Q3 revenue' => 2200000000, 'growth' => '13.6%'],
-                'priority' => 'high',
-                'due_date' => Carbon::now()->addDays(5),
-                'is_blocking' => true,
-                'status' => 'answered',
-                // Company Answer
-                'answer_body' => 'The Q4 FY24 revenue surge was driven by three factors: (1) Launch of corporate wellness program in December 2023 with 12 large enterprise clients contributing ₹1.8 Cr in Q4, (2) Seasonal spike in telemedicine consultations during winter months (Nov-Feb) - historically our strongest quarter, (3) Government B2G contract for rural telemedicine went live in Jan 2024 adding ₹1.2 Cr recurring monthly revenue. We have attached: (a) Corporate client contracts, (b) 3-year historical seasonal trend analysis showing Q4 is typically 15-20% higher than Q3, (c) Government contract award letter.',
-                'answered_by_type' => CompanyUser::class,  // Polymorphic: CompanyUser answers
-                'answered_by_id' => $this->companyUsers['live_limited']->id,
-                'answered_at' => Carbon::now()->subDays(5),
-                'supporting_documents' => [
-                    ['file_path' => 'clarifications/medicare/corporate_contracts_q4.pdf', 'description' => 'Corporate wellness client contracts'],
-                    ['file_path' => 'clarifications/medicare/seasonal_trends_2020_2024.xlsx', 'description' => '3-year seasonal trend analysis'],
-                    ['file_path' => 'clarifications/medicare/govt_contract_award.pdf', 'description' => 'Government telemedicine contract'],
+            $clarification1 = DisclosureClarification::updateOrCreate(
+                [
+                    'company_disclosure_id' => $finDisclosure->id,
+                    'question_subject' => 'Revenue Growth Rate Clarification',
                 ],
-            ]);
+                [
+                    'company_id' => $company->id,
+                    'disclosure_module_id' => $finDisclosure->disclosure_module_id,
+                    'question_body' => 'Your Q4 FY24 revenue shows a significant jump from ₹22 Cr (Q3) to ₹25 Cr (Q4), representing 13.6% quarter-over-quarter growth. This is substantially higher than the 5-10% QoQ growth seen in Q1-Q3. Please explain the drivers of this accelerated growth and provide supporting documentation.',
+                    'question_type' => 'verification',
+                    'asked_by' => $this->admin->id,
+                    'asked_at' => Carbon::now()->subWeeks(1),
+                    'field_path' => 'disclosure_data.revenue.breakdown[3].amount',
+                    'highlighted_data' => ['Q4 revenue' => 2500000000, 'Q3 revenue' => 2200000000, 'growth' => '13.6%'],
+                    'priority' => 'high',
+                    'due_date' => Carbon::now()->addDays(5),
+                    'is_blocking' => true,
+                    'status' => 'answered',
+                    // Company Answer
+                    'answer_body' => 'The Q4 FY24 revenue surge was driven by three factors: (1) Launch of corporate wellness program in December 2023 with 12 large enterprise clients contributing ₹1.8 Cr in Q4, (2) Seasonal spike in telemedicine consultations during winter months (Nov-Feb) - historically our strongest quarter, (3) Government B2G contract for rural telemedicine went live in Jan 2024 adding ₹1.2 Cr recurring monthly revenue. We have attached: (a) Corporate client contracts, (b) 3-year historical seasonal trend analysis showing Q4 is typically 15-20% higher than Q3, (c) Government contract award letter.',
+                    'answered_by_type' => CompanyUser::class,  // Polymorphic: CompanyUser answers
+                    'answered_by_id' => $this->companyUsers['live_limited']->id,
+                    'answered_at' => Carbon::now()->subDays(5),
+                    'supporting_documents' => [
+                        ['file_path' => 'clarifications/medicare/corporate_contracts_q4.pdf', 'description' => 'Corporate wellness client contracts'],
+                        ['file_path' => 'clarifications/medicare/seasonal_trends_2020_2024.xlsx', 'description' => '3-year seasonal trend analysis'],
+                        ['file_path' => 'clarifications/medicare/govt_contract_award.pdf', 'description' => 'Government telemedicine contract'],
+                    ],
+                ]
+            );
 
             // Clarification 2: Follow-up question
-            DisclosureClarification::create([
-                'company_disclosure_id' => $finDisclosure->id,
-                'company_id' => $company->id,
-                'disclosure_module_id' => $finDisclosure->disclosure_module_id,
-                'parent_id' => $clarification1->id,
-                'thread_depth' => 1,
-                'question_subject' => 'Follow-up: Corporate Revenue Sustainability',
-                'question_body' => 'Thank you for the detailed response. The corporate wellness contracts show one-time setup fees in addition to recurring monthly fees. Please clarify: (1) What portion of the ₹1.8 Cr is one-time vs recurring, and (2) What is the expected monthly recurring revenue from these 12 clients going forward?',
-                'question_type' => 'insufficient_detail',
-                'asked_by' => $this->admin->id,
-                'asked_at' => Carbon::now()->subDays(4),
-                'priority' => 'medium',
-                'due_date' => Carbon::now()->addDays(3),
-                'status' => 'answered',
-                'answer_body' => 'Of the ₹1.8 Cr Q4 revenue: (1) One-time setup fees = ₹45 Lakhs (25%), (2) Recurring subscription fees = ₹1.35 Cr (75%). Going forward, the 12 corporate clients will generate ₹45 Lakhs monthly recurring revenue (annualized ₹5.4 Cr). Contracts are 2-year lock-in with auto-renewal clauses. Average contract value is ₹3.75 Lakhs per month per client for 500-employee company.',
-                'answered_by_type' => CompanyUser::class,  // Polymorphic: CompanyUser answers
-                'answered_by_id' => $this->companyUsers['live_limited']->id,
-                'answered_at' => Carbon::now()->subDays(2),
-            ]);
+            DisclosureClarification::updateOrCreate(
+                [
+                    'company_disclosure_id' => $finDisclosure->id,
+                    'question_subject' => 'Follow-up: Corporate Revenue Sustainability',
+                ],
+                [
+                    'company_id' => $company->id,
+                    'disclosure_module_id' => $finDisclosure->disclosure_module_id,
+                    'parent_id' => $clarification1->id,
+                    'thread_depth' => 1,
+                    'question_body' => 'Thank you for the detailed response. The corporate wellness contracts show one-time setup fees in addition to recurring monthly fees. Please clarify: (1) What portion of the ₹1.8 Cr is one-time vs recurring, and (2) What is the expected monthly recurring revenue from these 12 clients going forward?',
+                    'question_type' => 'insufficient_detail',
+                    'asked_by' => $this->admin->id,
+                    'asked_at' => Carbon::now()->subDays(4),
+                    'priority' => 'medium',
+                    'due_date' => Carbon::now()->addDays(3),
+                    'status' => 'answered',
+                    'answer_body' => 'Of the ₹1.8 Cr Q4 revenue: (1) One-time setup fees = ₹45 Lakhs (25%), (2) Recurring subscription fees = ₹1.35 Cr (75%). Going forward, the 12 corporate clients will generate ₹45 Lakhs monthly recurring revenue (annualized ₹5.4 Cr). Contracts are 2-year lock-in with auto-renewal clauses. Average contract value is ₹3.75 Lakhs per month per client for 500-employee company.',
+                    'answered_by_type' => CompanyUser::class,  // Polymorphic: CompanyUser answers
+                    'answered_by_id' => $this->companyUsers['live_limited']->id,
+                    'answered_at' => Carbon::now()->subDays(2),
+                ]
+            );
 
             // PROTOCOL 1 FIX #10: Self-Reported Error Scenario
-            DisclosureClarification::create([
-                'company_disclosure_id' => $finDisclosure->id,
-                'company_id' => $company->id,
-                'disclosure_module_id' => $finDisclosure->disclosure_module_id,
-                'question_subject' => 'Self-Reported Error: EBITDA Calculation Correction',
-                'question_body' => 'SELF-REPORTED: We identified an error in our EBITDA calculation. The reported EBITDA of ₹18.5 Cr incorrectly excluded certain non-cash expenses. The corrected EBITDA should be ₹16.2 Cr. We are submitting a revised disclosure with the corrected figures and detailed reconciliation. This was discovered during our internal quarterly review before external audit.',
-                'question_type' => 'other', // Self-reported correction
-                'asked_by' => $this->admin->id,
-                'asked_at' => Carbon::now()->subDays(1),
-                'field_path' => 'disclosure_data.ebitda',
-                'highlighted_data' => ['reported_ebitda' => 1850000000, 'corrected_ebitda' => 1620000000, 'difference' => -230000000],
-                'priority' => 'high',
-                'is_blocking' => true,
-                'status' => 'answered',
-                'answer_body' => 'Thank you for proactively reporting this discrepancy. We appreciate the transparency. Please submit the revised disclosure with: (1) Detailed reconciliation showing the ₹2.3 Cr adjustment, (2) Internal review notes explaining how this was discovered, (3) Confirmation from auditors that this is the only correction needed.',
-                // 'answered_by' => $this->admin->id,
-                // ✅ Polymorphic actor (admin answering)
-                'answered_by_type' => \App\Models\User::class,
-                'answered_by_id'   => $this->admin->id,
-                'answered_at' => Carbon::now()->subHours(12),
-            ]);
+            DisclosureClarification::updateOrCreate(
+                [
+                    'company_disclosure_id' => $finDisclosure->id,
+                    'question_subject' => 'Self-Reported Error: EBITDA Calculation Correction',
+                ],
+                [
+                    'company_id' => $company->id,
+                    'disclosure_module_id' => $finDisclosure->disclosure_module_id,
+                    'question_body' => 'SELF-REPORTED: We identified an error in our EBITDA calculation. The reported EBITDA of ₹18.5 Cr incorrectly excluded certain non-cash expenses. The corrected EBITDA should be ₹16.2 Cr. We are submitting a revised disclosure with the corrected figures and detailed reconciliation. This was discovered during our internal quarterly review before external audit.',
+                    'question_type' => 'other', // Self-reported correction
+                    'asked_by' => $this->admin->id,
+                    'asked_at' => Carbon::now()->subDays(1),
+                    'field_path' => 'disclosure_data.ebitda',
+                    'highlighted_data' => ['reported_ebitda' => 1850000000, 'corrected_ebitda' => 1620000000, 'difference' => -230000000],
+                    'priority' => 'high',
+                    'is_blocking' => true,
+                    'status' => 'answered',
+                    'answer_body' => 'Thank you for proactively reporting this discrepancy. We appreciate the transparency. Please submit the revised disclosure with: (1) Detailed reconciliation showing the ₹2.3 Cr adjustment, (2) Internal review notes explaining how this was discovered, (3) Confirmation from auditors that this is the only correction needed.',
+                    // 'answered_by' => $this->admin->id,
+                    // ✅ Polymorphic actor (admin answering)
+                    'answered_by_type' => \App\Models\User::class,
+                    'answered_by_id'   => $this->admin->id,
+                    'answered_at' => Carbon::now()->subHours(12),
+                ]
+            );
 
             $this->command->info("  ✓ Created clarification cycle for: {$company->name}");
         }
@@ -1404,20 +1434,24 @@ class CompanyDisclosureSystemSeeder extends Seeder
 
             // Platform Risk Flags (only for investable/suspended companies)
             if (in_array($key, ['live_investable', 'suspended'])) {
-                PlatformRiskFlag::create([
-                    'company_id' => $company->id,
-                    'flag_type' => 'high_npa_concentration',
-                    'severity' => 'medium',
-                    'category' => 'financial',
-                    'description' => 'While overall NPA ratio is healthy at 1.8%, there is concentration risk with 45% of NPAs in a single industry sector (manufacturing).',
-                    'detection_logic' => 'Automated analysis of disclosed financial data detected NPA concentration exceeding 40% threshold in single sector.',
-                    'supporting_data' => ['manufacturing_npa_percentage' => 45, 'threshold' => 40],
-                    'status' => 'active',
-                    'detected_at' => Carbon::now()->subWeeks(3),
-                    'is_visible_to_investors' => true,
-                    'investor_message' => 'The company has concentration of non-performing assets in the manufacturing sector. Consider this sector exposure when evaluating investment.',
-                    'detection_version' => 'v1.2.0',
-                ]);
+                PlatformRiskFlag::updateOrCreate(
+                    [
+                        'company_id' => $company->id,
+                        'flag_type' => 'high_npa_concentration',
+                    ],
+                    [
+                        'severity' => 'medium',
+                        'category' => 'financial',
+                        'description' => 'While overall NPA ratio is healthy at 1.8%, there is concentration risk with 45% of NPAs in a single industry sector (manufacturing).',
+                        'detection_logic' => 'Automated analysis of disclosed financial data detected NPA concentration exceeding 40% threshold in single sector.',
+                        'supporting_data' => ['manufacturing_npa_percentage' => 45, 'threshold' => 40],
+                        'status' => 'active',
+                        'detected_at' => Carbon::now()->subWeeks(3),
+                        'is_visible_to_investors' => true,
+                        'investor_message' => 'The company has concentration of non-performing assets in the manufacturing sector. Consider this sector exposure when evaluating investment.',
+                        'detection_version' => 'v1.2.0',
+                    ]
+                );
             }
 
             $this->command->info("  ✓ Created platform context for: {$company->name}");
@@ -1464,18 +1498,22 @@ class CompanyDisclosureSystemSeeder extends Seeder
             // Acknowledge all risk types
             $riskTypes = ['illiquidity', 'no_guarantee', 'platform_non_advisory', 'material_changes'];
             foreach ($riskTypes as $type) {
-                InvestorRiskAcknowledgement::create([
-                    'user_id' => $investor->id,
-                    'company_id' => $investableCompany->id,
-                    'acknowledgement_type' => $type,
-                    'acknowledged_at' => Carbon::now()->subDays(rand(1, 10)),
-                    'ip_address' => '192.168.1.' . rand(1, 255),
-                    'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                    'session_id' => 'sess_' . uniqid(),
-                    'acknowledgement_text_shown' => "I acknowledge and understand the {$type} risk associated with this investment.",
-                    'expires_at' => Carbon::now()->addMonths(6),
-                    'is_expired' => false,
-                ]);
+                InvestorRiskAcknowledgement::updateOrCreate(
+                    [
+                        'user_id' => $investor->id,
+                        'company_id' => $investableCompany->id,
+                        'acknowledgement_type' => $type,
+                    ],
+                    [
+                        'acknowledged_at' => Carbon::now()->subDays(rand(1, 10)),
+                        'ip_address' => '192.168.1.' . rand(1, 255),
+                        'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        'session_id' => 'sess_' . uniqid(),
+                        'acknowledgement_text_shown' => "I acknowledge and understand the {$type} risk associated with this investment.",
+                        'expires_at' => Carbon::now()->addMonths(6),
+                        'is_expired' => false,
+                    ]
+                );
             }
         }
 
@@ -1518,11 +1556,14 @@ class CompanyDisclosureSystemSeeder extends Seeder
         );
 
         // 2. Create a Deal for the investable company
-        $deal = Deal::create([
+        $deal = Deal::updateOrCreate(
+            [
+                'slug' => 'finsecure-series-d',
+            ],
+            [
             'product_id' => 1, // or a valid product ID from your system
             'company_id' => $investableCompany->id,
             'title' => 'FinSecure Series D Investment Round',
-            'slug' => 'finsecure-series-d',
             'description' => 'Series D funding round for FinSecure Digital Lending with pre-money valuation of ₹500 Cr',
             'sector' => $investableCompany->sector ?? 'Financial Services',
 
@@ -1563,35 +1604,41 @@ class CompanyDisclosureSystemSeeder extends Seeder
         // ARCHITECTURAL: Every investment MUST have a subscription (NOT NULL constraint)
         $investor = $this->investors[0];
 
-        $subscription = Subscription::create([
-            'user_id' => $investor->id,
-            'plan_id' => $plan->id,
-            'amount' => 500000.00, // ₹5L (one-time amount)
-            'subscription_code' => 'SUB-' . strtoupper(uniqid()),
-            'razorpay_subscription_id' => null, // Not a Razorpay subscription
-            'status' => 'completed', // One-time investment is immediately completed
-            'is_auto_debit' => false,
-            'start_date' => Carbon::now()->subWeeks(2)->toDateString(),
-            'end_date' => Carbon::now()->subWeeks(2)->toDateString(), // Same day = one-time
-            'next_payment_date' => Carbon::now()->subWeeks(2)->toDateString(), // No future payment
-            'bonus_multiplier' => 1.00,
-            'consecutive_payments_count' => 1, // Single payment
-            'pause_count' => 0,
-        ]);
+        $subscriptionCode = 'SUB-FINSECURE-INVESTOR1-SEED';
+        $subscription = Subscription::updateOrCreate(
+            ['subscription_code' => $subscriptionCode],
+            [
+                'user_id' => $investor->id,
+                'plan_id' => $plan->id,
+                'amount' => 500000.00, // ₹5L (one-time amount)
+                'razorpay_subscription_id' => null, // Not a Razorpay subscription
+                'status' => 'completed', // One-time investment is immediately completed
+                'is_auto_debit' => false,
+                'start_date' => Carbon::now()->subWeeks(2)->toDateString(),
+                'end_date' => Carbon::now()->subWeeks(2)->toDateString(), // Same day = one-time
+                'next_payment_date' => Carbon::now()->subWeeks(2)->toDateString(), // No future payment
+                'bonus_multiplier' => 1.00,
+                'consecutive_payments_count' => 1, // Single payment
+                'pause_count' => 0,
+            ]
+        );
 
         // 4. Create investment linked to subscription
-        $investment = Investment::create([
-            'user_id' => $investor->id,
-            'company_id' => $investableCompany->id,
-            'deal_id' => $deal->id,
-            'subscription_id' => $subscription->id, // REQUIRED: Must reference subscription
-            'investment_code' => 'INV-' . strtoupper(uniqid()),
-            'shares_allocated' => 100,
-            'price_per_share' => 5000.00,
-            'total_amount' => 500000.00, // ₹5L
-            'status' => 'active',
-            'invested_at' => Carbon::now()->subWeeks(2),
-        ]);
+        $investmentCode = 'INV-FINSECURE-INVESTOR1-SEED';
+        $investment = Investment::updateOrCreate(
+            ['investment_code' => $investmentCode],
+            [
+                'user_id' => $investor->id,
+                'company_id' => $investableCompany->id,
+                'deal_id' => $deal->id,
+                'subscription_id' => $subscription->id, // REQUIRED: Must reference subscription
+                'shares_allocated' => 100,
+                'price_per_share' => 5000.00,
+                'total_amount' => 500000.00, // ₹5L
+                'status' => 'active',
+                'invested_at' => Carbon::now()->subWeeks(2),
+            ]
+        );
 
         // 5. Create IMMUTABLE SNAPSHOT (CRITICAL GOVERNANCE REQUIREMENT)
         $allDisclosures = CompanyDisclosure::where('company_id', $investableCompany->id)
@@ -1624,18 +1671,19 @@ class CompanyDisclosureSystemSeeder extends Seeder
             ->where('status', 'active')
             ->get();
 
-        $snapshot = InvestmentDisclosureSnapshot::create([
-            'investment_id' => $investment->id,
-            'user_id' => $investor->id,
-            'company_id' => $investableCompany->id,
-            'snapshot_timestamp' => Carbon::now()->subWeeks(2),
-            'snapshot_trigger' => 'investment_purchase',
+        $snapshot = InvestmentDisclosureSnapshot::updateOrCreate(
+            ['investment_id' => $investment->id],
+            [
+                'user_id' => $investor->id,
+                'company_id' => $investableCompany->id,
+                'snapshot_timestamp' => Carbon::now()->subWeeks(2),
+                'snapshot_trigger' => 'investment_purchase',
 
-            // Complete disclosure snapshot (immutable content)
-            'disclosure_snapshot' => $disclosureSnapshot,
+                // Complete disclosure snapshot (immutable content)
+                'disclosure_snapshot' => $disclosureSnapshot,
 
-            // REQUIRED: authoritative version linkage map (NOT NULL column)
-            'disclosure_versions_map' => $disclosureVersionsMap,
+                // REQUIRED: authoritative version linkage map (NOT NULL column)
+                'disclosure_versions_map' => $disclosureVersionsMap,
 
             // Platform context snapshot
             'metrics_snapshot' => $platformMetrics ? [
