@@ -675,7 +675,7 @@ class CompanyDisclosureSystemSeeder extends Seeder
             );
 
             // Create immutable version
-            $version = DisclosureVersion::updateOrCreate(
+            $version = DisclosureVersion::firstOrCreate(
                 [
                     'company_disclosure_id' => $disclosure->id,
                     'version_number' => 1,
@@ -781,7 +781,7 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 ]
             );
 
-            DisclosureVersion::updateOrCreate(
+            DisclosureVersion::firstOrCreate(
                 [
                     'company_disclosure_id' => $disclosure->id,
                     'version_number' => 1,
@@ -916,7 +916,7 @@ class CompanyDisclosureSystemSeeder extends Seeder
             );
 
             // Create Version 2
-            DisclosureVersion::updateOrCreate(
+            DisclosureVersion::firstOrCreate(
                 [
                     'company_disclosure_id' => $disclosure->id,
                     'version_number' => 2,
@@ -990,7 +990,7 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 ]
             );
 
-            DisclosureVersion::updateOrCreate(
+            DisclosureVersion::firstOrCreate(
                 [
                     'company_disclosure_id' => $disclosure->id,
                     'version_number' => 1,
@@ -1084,7 +1084,7 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 ]
             );
 
-            DisclosureVersion::updateOrCreate(
+            DisclosureVersion::firstOrCreate(
                 [
                     'company_disclosure_id' => $disclosure->id,
                     'version_number' => 1,
@@ -1141,7 +1141,7 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 ]
             );
 
-            DisclosureVersion::updateOrCreate(
+            DisclosureVersion::firstOrCreate(
                 [
                     'company_disclosure_id' => $disclosure->id,
                     'version_number' => 1,
@@ -1671,7 +1671,7 @@ class CompanyDisclosureSystemSeeder extends Seeder
             ->where('status', 'active')
             ->get();
 
-        $snapshot = InvestmentDisclosureSnapshot::updateOrCreate(
+        $snapshot = InvestmentDisclosureSnapshot::firstOrCreate(
             ['investment_id' => $investment->id],
             [
                 'user_id' => $investor->id,
