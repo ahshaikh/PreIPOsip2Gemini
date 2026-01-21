@@ -35,14 +35,16 @@ class DealSeeder extends Seeder
         }
 
         // Get products (optional - deals can exist without products)
-        $product1 = Product::first(); // Use any existing product or null
+        // NOTE: Using null product_id to avoid overlap validation conflicts with
+        // CompanyDisclosureSystemSeeder's FinSecure deal (product_id=1, 6-month window)
+        $product1 = null; // Standalone deals without product packaging
 
         DB::transaction(function () use ($nexgen, $medicare, $finsecure, $eduverse, $greenpower, $product1) {
             $deals = [
                 // Deal 1: NexGen AI Solutions (Draft company - but let's create a deal anyway for testing)
                 [
                     'company_id' => $nexgen->id,
-                    'product_id' => $product1?->id,
+                    'product_id' => null, // Standalone deal (avoids product overlap validation)
                     'title' => 'NexGen AI - Series B Investment',
                     'description' => 'Invest in enterprise AI automation leader. Serving 250+ Fortune 500 clients with 99.9% uptime SLA.',
                     'share_price' => 750.00,
@@ -59,7 +61,7 @@ class DealSeeder extends Seeder
                 // Deal 2: MediCare Plus (Live-Limited - Tier 1 approved)
                 [
                     'company_id' => $medicare->id,
-                    'product_id' => $product1?->id,
+                    'product_id' => null, // Standalone deal (avoids product overlap validation)
                     'title' => 'MediCare Plus - Series C Pre-IPO Round',
                     'description' => 'Last chance before IPO! AI telemedicine platform with 10,000+ doctors and 5M+ consultations completed.',
                     'share_price' => 1000.00,
@@ -77,7 +79,7 @@ class DealSeeder extends Seeder
                 // This is a CLOSED historical deal (completed ESOP secondary sale) - won't overlap with active Series D
                 [
                     'company_id' => $finsecure->id,
-                    'product_id' => $product1?->id,
+                    'product_id' => null, // Standalone deal (avoids product overlap validation)
                     'title' => 'FinSecure Digital Lending - Employee Stock Ownership (Closed)',
                     'description' => 'Completed ESOP secondary sale. RBI-approved NBFC with ₹1,200 Cr+ loan book and 1.8% NPA ratio.',
                     'share_price' => 4500.00,
@@ -94,7 +96,7 @@ class DealSeeder extends Seeder
                 // Deal 4: EduVerse (Live-Full - All tiers approved)
                 [
                     'company_id' => $eduverse->id,
-                    'product_id' => $product1?->id,
+                    'product_id' => null, // Standalone deal (avoids product overlap validation)
                     'title' => 'EduVerse Learning - Series E Growth Round',
                     'description' => 'India\'s largest K-12 edtech with 2.5M+ students. Partnerships with 500+ schools. Complete disclosure package.',
                     'share_price' => 1500.00,
@@ -111,7 +113,7 @@ class DealSeeder extends Seeder
                 // Deal 5: GreenPower (Suspended - but deal exists, just not investable)
                 [
                     'company_id' => $greenpower->id,
-                    'product_id' => $product1?->id,
+                    'product_id' => null, // Standalone deal (avoids product overlap validation)
                     'title' => 'GreenPower Energy - Series C (Temporarily Paused)',
                     'description' => 'Renewable energy leader with 250 MW capacity. Deal temporarily paused pending compliance review.',
                     'share_price' => 800.00,
