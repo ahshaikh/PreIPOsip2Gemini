@@ -22,7 +22,8 @@ class Deal extends Model
         'product_id', 'company_id', 'title', 'slug', 'description',
         'sector', 'deal_type', 'min_investment',
         'max_investment', 'valuation', 'valuation_currency',
-        'share_price', 'deal_opens_at', 'deal_closes_at', 'days_remaining',
+        'share_price', 'total_shares', 'available_shares',
+        'deal_opens_at', 'deal_closes_at', 'days_remaining',
         'highlights', 'documents', 'video_url', 'status',
         'is_featured', 'sort_order',
     ];
