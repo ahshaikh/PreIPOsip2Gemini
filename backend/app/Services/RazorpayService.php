@@ -43,6 +43,11 @@ class RazorpayService implements PaymentGatewayInterface
     // [AUDIT FIX] Implements interface method
     public function createOrder(float $amount, string $receiptId)
     {
+        // DEFENSIVE CHECK: Ensure Razorpay API is configured
+        if (!$this->api) {
+            throw new Exception("Razorpay API not configured. Please set razorpay_key_id and razorpay_key_secret in settings or .env file.");
+        }
+
         $this->validateAmount($amount);
 
         $this->log("Creating Order: Amount={$amount}, Receipt={$receiptId}");
@@ -135,9 +140,17 @@ class RazorpayService implements PaymentGatewayInterface
 
     /**
      * [AUDIT FIX] Renamed to match interface: createOrUpdateRazorpayPlan -> createOrUpdatePlan
+     *
+     * DEFENSIVE: Gracefully handles missing Razorpay configuration
      */
     public function createOrUpdatePlan(Plan $plan)
     {
+        // DEFENSIVE CHECK: If Razorpay is not configured, skip sync gracefully
+        if (!$this->api) {
+            $this->log("Razorpay API not configured. Skipping plan sync for Plan #{$plan->id}", 'warning');
+            return null; // Return null to indicate no Razorpay plan ID
+        }
+
         $this->log("Syncing Plan #{$plan->id} with Razorpay...");
 
         $this->validateAmount($plan->monthly_amount);
@@ -162,7 +175,7 @@ class RazorpayService implements PaymentGatewayInterface
 
             $razorpayPlan = $this->api->plan->create($planData);
             $plan->update(['razorpay_plan_id' => $razorpayPlan->id]);
-            
+
             $this->log("Razorpay Plan created: {$razorpayPlan->id}");
             return $razorpayPlan->id;
 
@@ -174,11 +187,18 @@ class RazorpayService implements PaymentGatewayInterface
 
     /**
      * [AUDIT FIX] Renamed to match interface: createRazorpaySubscription -> createSubscription
+     *
+     * DEFENSIVE: Ensures Razorpay API is configured
      */
     public function createSubscription(string $gatewayPlanId, string $customerEmail, int $totalCount)
     {
+        // DEFENSIVE CHECK: Ensure Razorpay API is configured
+        if (!$this->api) {
+            throw new Exception("Razorpay API not configured. Please set razorpay_key_id and razorpay_key_secret in settings or .env file.");
+        }
+
         $this->log("Creating Subscription for Plan {$gatewayPlanId}");
-        
+
         try {
             $subscription = $this->api->subscription->create([
                 'plan_id' => $gatewayPlanId,
@@ -188,7 +208,7 @@ class RazorpayService implements PaymentGatewayInterface
                     'email' => $customerEmail
                 ]
             ]);
-            
+
             $this->log("Subscription created: {$subscription->id}");
             return $subscription;
 
