@@ -619,9 +619,12 @@ class CompanyDisclosureSystemSeeder extends Seeder
         // Business Model Disclosure - APPROVED
         $businessModule = $this->modules->get('business_model');
         if ($businessModule) {
-            $disclosure = CompanyDisclosure::create([
-                'company_id' => $company->id,
-                'disclosure_module_id' => $businessModule->id,
+            $disclosure = CompanyDisclosure::updateOrCreate(
+                [
+                    'company_id' => $company->id,
+                    'disclosure_module_id' => $businessModule->id,
+                ],
+                [
                 'disclosure_data' => [
                     'business_description' => 'MediCare Plus HealthTech operates India\'s most comprehensive telemedicine platform, connecting patients with verified healthcare providers through AI-powered triage and consultation matching. Our platform serves 500+ cities with a network of 10,000+ doctors across 40+ specialties. We provide HIPAA-compliant, end-to-end encrypted video consultations, e-prescription services, diagnostic test bookings, and medicine delivery integration. Our proprietary AI symptom checker has 95% accuracy validated by AIIMS and has served 5 million+ consultations. The platform operates 24/7 with average doctor response time under 5 minutes for emergency consultations.',
                     'revenue_streams' => [
@@ -668,7 +671,8 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 'approved_by' => $this->admin->id,
                 'version_number' => 1,
                 'last_modified_at' => Carbon::now()->subMonths(2),
-            ]);
+                ]
+            );
 
             // Create immutable version
             $version = DisclosureVersion::create([
@@ -708,9 +712,12 @@ class CompanyDisclosureSystemSeeder extends Seeder
         // Board & Management Disclosure - APPROVED
         $boardModule = $this->modules->get('board_management');
         if ($boardModule) {
-            $disclosure = CompanyDisclosure::create([
-                'company_id' => $company->id,
-                'disclosure_module_id' => $boardModule->id,
+            $disclosure = CompanyDisclosure::updateOrCreate(
+                [
+                    'company_id' => $company->id,
+                    'disclosure_module_id' => $boardModule->id,
+                ],
+                [
                 'disclosure_data' => [
                     'board_members' => [
                         [
@@ -768,7 +775,8 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 'approved_at' => Carbon::now()->subMonth(),
                 'approved_by' => $this->admin->id,
                 'version_number' => 1,
-            ]);
+                ]
+            );
 
             DisclosureVersion::create([
                 'company_disclosure_id' => $disclosure->id,
@@ -799,9 +807,12 @@ class CompanyDisclosureSystemSeeder extends Seeder
         // Financial Performance - UNDER REVIEW (Tier 2)
         $finModule = $this->modules->get('financial_performance');
         if ($finModule) {
-            CompanyDisclosure::create([
-                'company_id' => $company->id,
-                'disclosure_module_id' => $finModule->id,
+            CompanyDisclosure::updateOrCreate(
+                [
+                    'company_id' => $company->id,
+                    'disclosure_module_id' => $finModule->id,
+                ],
+                [
                 'disclosure_data' => [
                     'fiscal_year' => '2023-2024',
                     'revenue' => [
@@ -831,7 +842,8 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 'submitted_at' => Carbon::now()->subWeeks(2),
                 'submitted_by_type' => CompanyUser::class,  // Polymorphic: CompanyUser submits
                 'submitted_by_id' => $this->companyUsers['live_limited']->id,
-            ]);
+                ]
+            );
         }
 
         $this->command->info("  ✓ Created live-limited disclosures for: {$company->name}");
@@ -847,9 +859,12 @@ class CompanyDisclosureSystemSeeder extends Seeder
         // Business Model - APPROVED (Version 2 - Updated)
         $businessModule = $this->modules->get('business_model');
         if ($businessModule) {
-            $disclosure = CompanyDisclosure::create([
-                'company_id' => $company->id,
-                'disclosure_module_id' => $businessModule->id,
+            $disclosure = CompanyDisclosure::updateOrCreate(
+                [
+                    'company_id' => $company->id,
+                    'disclosure_module_id' => $businessModule->id,
+                ],
+                [
                 'disclosure_data' => [
                     'business_description' => 'FinSecure Digital Lending is an RBI-approved Non-Banking Financial Company (NBFC) providing instant digital loans to Micro, Small, and Medium Enterprises (MSMEs) and salaried individuals across India. Our proprietary AI-powered credit scoring engine analyzes 200+ data points including GST returns, bank statements, utility payments, and social media behavior to make instant loan decisions with 95% accuracy. We have disbursed ₹1,200+ Crores across 75,000+ loans with an industry-leading Net NPA ratio of 1.8% (Industry average: 4.2%). Our technology stack enables loan disbursal within 15 minutes of application, with a completely paperless process. We partner with 15 major banks and financial institutions for co-lending arrangements.',
                     'revenue_streams' => [
@@ -891,7 +906,8 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 'approved_at' => Carbon::now()->subMonths(2),
                 'approved_by' => $this->admin->id,
                 'version_number' => 2,
-            ]);
+                ]
+            );
 
             // Create Version 2
             DisclosureVersion::create([
@@ -915,9 +931,12 @@ class CompanyDisclosureSystemSeeder extends Seeder
         // Financial Performance - APPROVED (Tier 2 - ENABLES BUYING)
         $finModule = $this->modules->get('financial_performance');
         if ($finModule) {
-            $disclosure = CompanyDisclosure::create([
-                'company_id' => $company->id,
-                'disclosure_module_id' => $finModule->id,
+            $disclosure = CompanyDisclosure::updateOrCreate(
+                [
+                    'company_id' => $company->id,
+                    'disclosure_module_id' => $finModule->id,
+                ],
+                [
                 'disclosure_data' => [
                     'fiscal_year' => '2023-2024',
                     'revenue' => [
@@ -959,7 +978,8 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 'approved_at' => Carbon::now()->subMonths(2),
                 'approved_by' => $this->admin->id,
                 'version_number' => 1,
-            ]);
+                ]
+            );
 
             DisclosureVersion::create([
                 'company_disclosure_id' => $disclosure->id,
@@ -993,9 +1013,12 @@ class CompanyDisclosureSystemSeeder extends Seeder
         // Risk Factors - APPROVED (Tier 3)
         $riskModule = $this->modules->get('risk_factors');
         if ($riskModule) {
-            $disclosure = CompanyDisclosure::create([
-                'company_id' => $company->id,
-                'disclosure_module_id' => $riskModule->id,
+            $disclosure = CompanyDisclosure::updateOrCreate(
+                [
+                    'company_id' => $company->id,
+                    'disclosure_module_id' => $riskModule->id,
+                ],
+                [
                 'disclosure_data' => [
                     'business_risks' => [
                         [
@@ -1046,7 +1069,8 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 'approved_at' => Carbon::now()->subMonths(2),
                 'approved_by' => $this->admin->id,
                 'version_number' => 1,
-            ]);
+                ]
+            );
 
             DisclosureVersion::create([
                 'company_disclosure_id' => $disclosure->id,
@@ -1075,9 +1099,12 @@ class CompanyDisclosureSystemSeeder extends Seeder
         // Legal & Compliance Module - APPROVED (Tier 4)
         $legalModule = $this->modules->get('legal_compliance');
         if ($legalModule) {
-            $disclosure = CompanyDisclosure::create([
-                'company_id' => $company->id,
-                'disclosure_module_id' => $legalModule->id,
+            $disclosure = CompanyDisclosure::updateOrCreate(
+                [
+                    'company_id' => $company->id,
+                    'disclosure_module_id' => $legalModule->id,
+                ],
+                [
                 'disclosure_data' => [
                     'regulatory_compliance' => [
                         ['authority' => 'Ministry of Education', 'license_number' => 'EDU/2017/12345', 'expiry_date' => '2027-06-01', 'status' => 'active'],
@@ -1096,7 +1123,8 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 'approved_at' => Carbon::now()->subMonths(4),
                 'approved_by' => $this->admin->id,
                 'version_number' => 1,
-            ]);
+                ]
+            );
 
             DisclosureVersion::create([
                 'company_disclosure_id' => $disclosure->id,
@@ -1128,9 +1156,12 @@ class CompanyDisclosureSystemSeeder extends Seeder
         // Create previously approved disclosure
         $businessModule = $this->modules->get('business_model');
         if ($businessModule) {
-            $disclosure = CompanyDisclosure::create([
-                'company_id' => $company->id,
-                'disclosure_module_id' => $businessModule->id,
+            $disclosure = CompanyDisclosure::updateOrCreate(
+                [
+                    'company_id' => $company->id,
+                    'disclosure_module_id' => $businessModule->id,
+                ],
+                [
                 'disclosure_data' => [
                     'business_description' => 'GreenPower Energy Solutions develops and operates renewable energy projects across India. Specializing in solar and wind power with 250 MW operational capacity.',
                 ],
@@ -1138,7 +1169,8 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 'is_locked' => true,
                 'approved_at' => Carbon::now()->subMonths(6),
                 'approved_by' => $this->admin->id,
-            ]);
+                ]
+            );
         }
 
         // CRITICAL: Create Audit Log for Suspension Action
