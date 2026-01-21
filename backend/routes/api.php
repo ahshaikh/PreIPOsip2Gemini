@@ -170,7 +170,7 @@ Route::prefix('v1')->group(function () {
 
     // Banner Public Access:
     Route::get('/public/banners', [CmsController::class, 'getPublicBanners']);
-    
+
     // --- Public Data Routes ---
     Route::get('/plans', [PublicPlanController::class, 'index']);
     Route::get('/plans/{slug}', [PublicPlanController::class, 'show']);
@@ -180,6 +180,11 @@ Route::prefix('v1')->group(function () {
     Route::get('/public/blog/{slug}', [PublicBlogController::class, 'publicShow']);
     Route::get('/global-settings', [GlobalSettingsController::class, 'index']);
     Route::get('/products/{slug}/history', [ProductDataController::class, 'getPriceHistory']);
+
+    // Public Companies Routes
+    Route::get('/public/companies', [PublicCompanyProfileController::class, 'index']);
+    Route::get('/public/companies/{slug}', [PublicCompanyProfileController::class, 'show']);
+    Route::get('/public/companies/sectors', [PublicCompanyProfileController::class, 'sectors']);
 
     // Help Center Public Access
     Route::get('/help-center/menu', [App\Http\Controllers\Api\Public\HelpCenterController::class, 'menu']);
