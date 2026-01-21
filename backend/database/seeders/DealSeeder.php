@@ -46,34 +46,42 @@ class DealSeeder extends Seeder
                     'company_id' => $nexgen->id,
                     'product_id' => null, // Standalone deal (avoids product overlap validation)
                     'title' => 'NexGen AI - Series B Investment',
+                    'slug' => 'nexgen-series-b',
                     'description' => 'Invest in enterprise AI automation leader. Serving 250+ Fortune 500 clients with 99.9% uptime SLA.',
+                    'sector' => 'Technology',
+                    'deal_type' => 'live',
                     'share_price' => 750.00,
                     'min_investment' => 25000.00,
                     'max_investment' => 500000.00,
-                    'total_shares_available' => 40000,
-                    'shares_allocated' => 8000,
+                    'total_shares' => 40000,
+                    'available_shares' => 32000, // 8000 allocated
                     'deal_opens_at' => now()->subDays(10),
                     'deal_closes_at' => now()->addDays(45),
+                    'days_remaining' => 45,
                     'status' => 'active',
                     'is_featured' => true,
-                    'visibility' => 'public',
+                    'sort_order' => 1,
                 ],
                 // Deal 2: MediCare Plus (Live-Limited - Tier 1 approved)
                 [
                     'company_id' => $medicare->id,
                     'product_id' => null, // Standalone deal (avoids product overlap validation)
                     'title' => 'MediCare Plus - Series C Pre-IPO Round',
+                    'slug' => 'medicare-series-c',
                     'description' => 'Last chance before IPO! AI telemedicine platform with 10,000+ doctors and 5M+ consultations completed.',
+                    'sector' => 'Healthcare',
+                    'deal_type' => 'live',
                     'share_price' => 1000.00,
                     'min_investment' => 50000.00,
                     'max_investment' => 1000000.00,
-                    'total_shares_available' => 50000,
-                    'shares_allocated' => 12000,
+                    'total_shares' => 50000,
+                    'available_shares' => 38000, // 12000 allocated
                     'deal_opens_at' => now()->subDays(7),
                     'deal_closes_at' => now()->addDays(60),
+                    'days_remaining' => 60,
                     'status' => 'active',
                     'is_featured' => true,
-                    'visibility' => 'public',
+                    'sort_order' => 2,
                 ],
                 // Deal 3: FinSecure (Live-Investable - Already has ACTIVE deal from CompanyDisclosureSystemSeeder)
                 // This is a CLOSED historical deal (completed ESOP secondary sale) - won't overlap with active Series D
@@ -81,51 +89,63 @@ class DealSeeder extends Seeder
                     'company_id' => $finsecure->id,
                     'product_id' => null, // Standalone deal (avoids product overlap validation)
                     'title' => 'FinSecure Digital Lending - Employee Stock Ownership (Closed)',
+                    'slug' => 'finsecure-esop-closed',
                     'description' => 'Completed ESOP secondary sale. RBI-approved NBFC with ₹1,200 Cr+ loan book and 1.8% NPA ratio.',
+                    'sector' => 'Financial Services',
+                    'deal_type' => 'closed',
                     'share_price' => 4500.00,
                     'min_investment' => 100000.00,
                     'max_investment' => 2000000.00,
-                    'total_shares_available' => 20000,
-                    'shares_allocated' => 20000, // Fully allocated (closed deal)
+                    'total_shares' => 20000,
+                    'available_shares' => 0, // Fully allocated (closed deal)
                     'deal_opens_at' => now()->subMonths(6), // Historical deal - 6 months ago
                     'deal_closes_at' => now()->subMonths(4), // Closed 4 months ago
+                    'days_remaining' => 0,
                     'status' => 'closed', // CLOSED status - won't trigger overlap validation
                     'is_featured' => false,
-                    'visibility' => 'public',
+                    'sort_order' => 99,
                 ],
                 // Deal 4: EduVerse (Live-Full - All tiers approved)
                 [
                     'company_id' => $eduverse->id,
                     'product_id' => null, // Standalone deal (avoids product overlap validation)
                     'title' => 'EduVerse Learning - Series E Growth Round',
+                    'slug' => 'eduverse-series-e',
                     'description' => 'India\'s largest K-12 edtech with 2.5M+ students. Partnerships with 500+ schools. Complete disclosure package.',
+                    'sector' => 'Education',
+                    'deal_type' => 'live',
                     'share_price' => 1500.00,
                     'min_investment' => 75000.00,
                     'max_investment' => 1500000.00,
-                    'total_shares_available' => 60000,
-                    'shares_allocated' => 18000,
+                    'total_shares' => 60000,
+                    'available_shares' => 42000, // 18000 allocated
                     'deal_opens_at' => now()->subDays(20),
                     'deal_closes_at' => now()->addDays(75),
+                    'days_remaining' => 75,
                     'status' => 'active',
                     'is_featured' => true,
-                    'visibility' => 'public',
+                    'sort_order' => 3,
                 ],
-                // Deal 5: GreenPower (Suspended - but deal exists, just not investable)
+                // Deal 5: GreenPower (Paused - but deal exists, just not investable)
                 [
                     'company_id' => $greenpower->id,
                     'product_id' => null, // Standalone deal (avoids product overlap validation)
                     'title' => 'GreenPower Energy - Series C (Temporarily Paused)',
+                    'slug' => 'greenpower-series-c',
                     'description' => 'Renewable energy leader with 250 MW capacity. Deal temporarily paused pending compliance review.',
+                    'sector' => 'Clean Energy',
+                    'deal_type' => 'live',
                     'share_price' => 800.00,
                     'min_investment' => 50000.00,
                     'max_investment' => 1000000.00,
-                    'total_shares_available' => 35000,
-                    'shares_allocated' => 3000,
+                    'total_shares' => 35000,
+                    'available_shares' => 32000, // 3000 allocated
                     'deal_opens_at' => now()->subDays(30),
                     'deal_closes_at' => now()->addDays(90),
-                    'status' => 'suspended', // Suspended deal for suspended company
+                    'days_remaining' => 90,
+                    'status' => 'paused', // Paused deal for suspended company
                     'is_featured' => false,
-                    'visibility' => 'public',
+                    'sort_order' => 4,
                 ],
             ];
 
