@@ -43,6 +43,7 @@ class DealSeeder extends Seeder
                 'sector' => 'Technology',
                 'description' => 'AI automation investment package',
                 'face_value_per_unit' => 750.00,
+                'min_investment' => 1000.00, // Platform minimum: Rs. 1000/-
                 'status' => 'draft',
             ]);
 
@@ -51,6 +52,7 @@ class DealSeeder extends Seeder
                 'sector' => 'Healthcare',
                 'description' => 'Telemedicine platform investment package',
                 'face_value_per_unit' => 1000.00,
+                'min_investment' => 1000.00, // Platform minimum: Rs. 1000/-
                 'status' => 'draft',
             ]);
 
@@ -59,6 +61,7 @@ class DealSeeder extends Seeder
                 'sector' => 'Financial Services',
                 'description' => 'Employee stock ownership secondary sale',
                 'face_value_per_unit' => 4500.00,
+                'min_investment' => 1000.00, // Platform minimum: Rs. 1000/-
                 'status' => 'draft',
             ]);
 
@@ -67,6 +70,7 @@ class DealSeeder extends Seeder
                 'sector' => 'Education',
                 'description' => 'Edtech platform investment package',
                 'face_value_per_unit' => 1500.00,
+                'min_investment' => 1000.00, // Platform minimum: Rs. 1000/-
                 'status' => 'draft',
             ]);
 
@@ -75,6 +79,7 @@ class DealSeeder extends Seeder
                 'sector' => 'Clean Energy',
                 'description' => 'Renewable energy investment package',
                 'face_value_per_unit' => 800.00,
+                'min_investment' => 1000.00, // Platform minimum: Rs. 1000/-
                 'status' => 'draft',
             ]);
 
