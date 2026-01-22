@@ -35,6 +35,7 @@ export default function CompaniesManagementPage() {
     linkedin_url: '',
     twitter_url: '',
     is_featured: false,
+    is_verified: false, // FIX: Added is_verified for admin to verify companies
     status: 'active',
   });
 
@@ -99,6 +100,7 @@ export default function CompaniesManagementPage() {
       linkedin_url: company.linkedin_url || '',
       twitter_url: company.twitter_url || '',
       is_featured: company.is_featured || false,
+      is_verified: company.is_verified || false, // FIX: Include is_verified when editing
       status: company.status || 'active',
     });
     setIsDialogOpen(true);
@@ -126,6 +128,7 @@ export default function CompaniesManagementPage() {
       linkedin_url: '',
       twitter_url: '',
       is_featured: false,
+      is_verified: false, // FIX: Reset is_verified to false
       status: 'active',
     });
   };
@@ -286,6 +289,16 @@ export default function CompaniesManagementPage() {
                 />
                 <Label htmlFor="is_featured">Featured Company</Label>
               </div>
+              <div className="space-y-2 flex items-center">
+                <input
+                  type="checkbox"
+                  id="is_verified"
+                  checked={formData.is_verified}
+                  onChange={(e) => setFormData({ ...formData, is_verified: e.target.checked })}
+                  className="mr-2"
+                />
+                <Label htmlFor="is_verified">Verified Company (Required for public visibility)</Label>
+              </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Cancel
@@ -335,6 +348,7 @@ export default function CompaniesManagementPage() {
                     <TableHead>Funding Stage</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Featured</TableHead>
+                    <TableHead>Verified</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -352,6 +366,13 @@ export default function CompaniesManagementPage() {
                       </TableCell>
                       <TableCell>
                         {company.is_featured && <Badge variant="secondary">⭐ Featured</Badge>}
+                      </TableCell>
+                      <TableCell>
+                        {company.is_verified ? (
+                          <Badge variant="default" className="bg-green-600">✓ Verified</Badge>
+                        ) : (
+                          <Badge variant="destructive">✗ Not Verified</Badge>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
