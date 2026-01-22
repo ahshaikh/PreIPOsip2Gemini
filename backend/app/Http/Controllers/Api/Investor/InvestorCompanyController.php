@@ -212,4 +212,67 @@ class InvestorCompanyController extends Controller
             ],
         ]);
     }
+
+    /**
+     * Get required risk acknowledgements for a company
+     *
+     * GET /investor/companies/{id}/required-acknowledgements
+     *
+     * Returns list of acknowledgements that must be accepted before investing
+     */
+    public function getRequiredAcknowledgements(Request $request, $id)
+    {
+        $company = Company::find($id);
+
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company not found',
+            ], 404);
+        }
+
+        // Base acknowledgements required for all investments
+        $acknowledgements = [
+            [
+                'type' => 'market_risk',
+                'text' => 'I understand that Pre-IPO investments are subject to market risks and the value of my investment may go up or down.',
+                'required' => true,
+            ],
+            [
+                'type' => 'liquidity_risk',
+                'text' => 'I understand that Pre-IPO shares are not readily tradeable and may have limited liquidity until the company goes public.',
+                'required' => true,
+            ],
+            [
+                'type' => 'company_risk',
+                'text' => 'I have reviewed the company information, financial disclosures, and risk factors, and understand the company-specific risks involved.',
+                'required' => true,
+            ],
+        ];
+
+        // Add suspended company acknowledgement if applicable
+        if ($company->is_suspended) {
+            $acknowledgements[] = [
+                'type' => 'suspended_company',
+                'text' => 'I understand that this company is currently suspended by the platform. Investing may carry additional risks.',
+                'required' => true,
+            ];
+        }
+
+        // Add early stage risk if applicable
+        if ($company->funding_stage === 'seed' || $company->funding_stage === 'pre_seed') {
+            $acknowledgements[] = [
+                'type' => 'early_stage_risk',
+                'text' => 'I understand that this is an early-stage company with higher risk and potential for total loss of investment.',
+                'required' => true,
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'acknowledgements' => $acknowledgements,
+            ],
+        ]);
+    }
 }

@@ -489,9 +489,13 @@ Route::prefix('v1')->group(function () {
         // Investment submission with comprehensive backend validation
         // Addresses Protocol-1 Audit GAP 1: Backend validation bypass
         Route::prefix('investor')->group(function () {
+            // Wallet balance endpoint for investor pages
+            Route::get('/wallet', [WalletController::class, 'show']); // Wallet balance
+
             // Company discovery and eligibility checks
             Route::get('/companies', [InvestorCompanyController::class, 'index']); // List companies with active deals + wallet
             Route::get('/companies/{id}', [InvestorCompanyController::class, 'show']); // Company detail
+            Route::get('/companies/{id}/required-acknowledgements', [InvestorCompanyController::class, 'getRequiredAcknowledgements']); // Risk acknowledgements
             Route::post('/companies/{id}/check-eligibility', [InvestorCompanyController::class, 'checkEligibility']); // KYC + balance check
 
             // Investment submission with:
