@@ -41,16 +41,16 @@ class InvestorCompanyController extends Controller
             ->where('is_verified', true)
             ->with([
                 'deals' => function ($query) {
-                    $query->where('status', 'active')
-                        ->where('deal_type', 'live')
+                    // Use Deal's live() scope which validates dates
+                    $query->live()
                         ->orderBy('is_featured', 'desc')
                         ->orderBy('deal_opens_at', 'desc');
                 },
                 'sector'
             ])
             ->whereHas('deals', function ($query) {
-                $query->where('status', 'active')
-                    ->where('deal_type', 'live');
+                // Use Deal's live() scope which validates dates
+                $query->live();
             })
             ->get();
 
