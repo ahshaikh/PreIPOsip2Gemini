@@ -72,23 +72,33 @@ class CompanyProfileController extends Controller
         $query = Company::where('status', 'active')
             ->where('is_verified', true);
 
-        // Filter by deal availability
-        if ($request->filled('filter')) {
-            switch ($request->filter) {
-                case 'live':
-                    // Only show companies with currently live deals
-                    $query->whereHas('deals', function ($q) {
-                        $q->live(); // Uses Deal's live() scope which validates dates
-                    });
-                    break;
-                case 'upcoming':
-                    // FIX: Use Deal::upcoming() scope for consistency with Deal model
-                    $query->whereHas('deals', function ($q) {
-                        $q->upcoming(); // Uses Deal's upcoming() scope
-                    });
-                    break;
-                // 'all' or any other value shows all companies (no filter)
-            }
+        // CRITICAL FIX: ALWAYS filter by deal availability
+        // Public products page should ONLY show companies that have active deals
+        // Filter by deal type based on request
+        $filter = $request->get('filter', 'all');
+
+        switch ($filter) {
+            case 'live':
+                // Only show companies with currently live deals
+                $query->whereHas('deals', function ($q) {
+                    $q->live(); // Uses Deal's live() scope which validates dates
+                });
+                break;
+            case 'upcoming':
+                // Only show companies with upcoming deals
+                $query->whereHas('deals', function ($q) {
+                    $q->upcoming(); // Uses Deal's upcoming() scope
+                });
+                break;
+            case 'all':
+            default:
+                // CRITICAL FIX: 'all' means "all companies WITH deals" (live OR upcoming)
+                // NOT "all companies period"
+                $query->whereHas('deals', function ($q) {
+                    $q->where('status', 'active')
+                      ->whereIn('deal_type', ['live', 'upcoming']);
+                });
+                break;
         }
 
         // Filter by sector

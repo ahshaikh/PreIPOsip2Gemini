@@ -21,13 +21,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   // Don't show public navbar/footer on dashboard, admin, or company pages
   // FIX: Added /company to exclusion list so company portal has its own nav (CompanyNav + CompanyTopNav)
-  // FIX: Exclude user-specific routes but keep public pages like /plans, /products, /deals
+  // FIX: Exclude ALL user-specific routes to prevent double nav (public Navbar + UserTopNav)
   // Note: /plan (singular) is user route, /plans (plural) is public
+  // CRITICAL FIX: Added /deals - this is a user route under (user) layout, not a public page
   const userRoutes = [
     '/profile', '/Profile', '/wallet', '/subscription', '/subscriptions',
     '/investments', '/portfolio', '/referrals', '/support', '/lucky-draws',
     '/settings', '/transactions', '/bonuses', '/kyc', '/compliance',
-    '/materials', '/notifications', '/promote', '/reports', '/profit-sharing', '/offers'
+    '/materials', '/notifications', '/promote', '/reports', '/profit-sharing', '/offers',
+    '/deals' // CRITICAL FIX: Was missing, caused public Navbar + Footer to render alongside UserTopNav
   ];
   const isPublicPage = !pathname?.startsWith('/dashboard') &&
                        !pathname?.startsWith('/admin') &&
