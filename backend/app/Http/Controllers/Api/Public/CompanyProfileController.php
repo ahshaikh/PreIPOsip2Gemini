@@ -61,6 +61,11 @@ class CompanyProfileController extends Controller
 
     /**
      * Get all active companies (for listing/comparison)
+     *
+     * FIX: Updated response structure to match frontend expectations
+     * - Frontend expects: response.data.data.companies (not response.data.data)
+     * - Added sectors list to response
+     * - Fixed 'upcoming' filter to use Deal::upcoming() scope for consistency
      */
     public function index(Request $request)
     {
@@ -77,10 +82,9 @@ class CompanyProfileController extends Controller
                     });
                     break;
                 case 'upcoming':
-                    // Companies with deals opening in the future
+                    // FIX: Use Deal::upcoming() scope for consistency with Deal model
                     $query->whereHas('deals', function ($q) {
-                        $q->where('status', 'active')
-                          ->where('deal_opens_at', '>', now());
+                        $q->upcoming(); // Uses Deal's upcoming() scope
                     });
                     break;
                 // 'all' or any other value shows all companies (no filter)
@@ -119,9 +123,30 @@ class CompanyProfileController extends Controller
 
         $companies = $query->paginate(12);
 
+        // FIX: Get available sectors from companies with active deals
+        // Frontend needs this for sector filtering UI
+        $sectors = Company::where('status', 'active')
+            ->where('is_verified', true)
+            ->whereNotNull('sector')
+            ->whereHas('deals', function($dealQuery) {
+                $dealQuery->where('status', 'active')
+                         ->whereIn('deal_type', ['live', 'upcoming']);
+            })
+            ->distinct()
+            ->pluck('sector')
+            ->filter() // Remove empty values
+            ->sort()
+            ->values()
+            ->toArray();
+
+        // FIX: Match frontend expected structure: response.data.data.companies
         return response()->json([
             'success' => true,
-            'data' => $companies->items(),
+            'data' => [
+                'companies' => $companies->items(),
+                'total' => $companies->total(),
+                'sectors' => $sectors,
+            ],
             'pagination' => [
                 'total' => $companies->total(),
                 'per_page' => $companies->perPage(),
@@ -133,19 +158,33 @@ class CompanyProfileController extends Controller
 
     /**
      * Get company sectors for filtering
+     *
+     * FIX: Updated response structure to match frontend expectations
+     * - Frontend expects: response.data.data.sectors (not response.data.sectors)
+     * - Filter sectors to only show those with active deals
      */
     public function sectors()
     {
+        // FIX: Only return sectors that have companies with active deals
         $sectors = Company::where('status', 'active')
             ->where('is_verified', true)
+            ->whereNotNull('sector')
+            ->whereHas('deals', function($dealQuery) {
+                $dealQuery->where('status', 'active')
+                         ->whereIn('deal_type', ['live', 'upcoming']);
+            })
             ->distinct()
             ->pluck('sector')
             ->filter()
+            ->sort()
             ->values();
 
+        // FIX: Match frontend expected structure: response.data.data.sectors
         return response()->json([
             'success' => true,
-            'sectors' => $sectors,
+            'data' => [
+                'sectors' => $sectors,
+            ],
         ], 200);
     }
 }
