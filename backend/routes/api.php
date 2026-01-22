@@ -183,9 +183,10 @@ Route::prefix('v1')->group(function () {
     Route::get('/products/{slug}/history', [ProductDataController::class, 'getPriceHistory']);
 
     // Public Companies Routes
+    // FIX: Define specific routes BEFORE slug route to avoid route conflicts
+    Route::get('/public/sectors', [PublicCompanyProfileController::class, 'sectors']); // Must be before {slug} route
     Route::get('/public/companies', [PublicCompanyProfileController::class, 'index']);
     Route::get('/public/companies/{slug}', [PublicCompanyProfileController::class, 'show']);
-    Route::get('/public/companies/sectors', [PublicCompanyProfileController::class, 'sectors']);
 
     // Help Center Public Access
     Route::get('/help-center/menu', [App\Http\Controllers\Api\Public\HelpCenterController::class, 'menu']);
