@@ -34,6 +34,7 @@ import {
   ArrowRight,
   Loader2,
   Info,
+  FileText,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -371,6 +372,25 @@ export default function InvestorCompanyDetailPage() {
         <ArrowLeft className="w-4 h-4 mr-2" />
         Back to All Deals
       </Link>
+
+      {/* Comprehensive View Callout */}
+      <Alert className="mb-6 border-2 border-purple-200 bg-purple-50 dark:bg-purple-950/30">
+        <Info className="h-5 w-5 text-purple-600" />
+        <AlertTitle className="text-purple-900 dark:text-purple-200 font-bold">
+          Want Complete Investment Analysis?
+        </AlertTitle>
+        <AlertDescription className="text-purple-800 dark:text-purple-300">
+          <p className="mb-3">
+            View our comprehensive deal page with ALL 15 investment decision categories including instrument details, shareholder rights, cap table analysis, financial health, IPO readiness, risk disclosures, and more.
+          </p>
+          <Link href={`/deals/${id}/comprehensive`}>
+            <Button className="bg-purple-600 hover:bg-purple-700">
+              <FileText className="w-4 h-4 mr-2" />
+              View Comprehensive Analysis
+            </Button>
+          </Link>
+        </AlertDescription>
+      </Alert>
 
       {/* Company Header */}
       <div className="flex flex-col md:flex-row items-start gap-6 mb-8">
