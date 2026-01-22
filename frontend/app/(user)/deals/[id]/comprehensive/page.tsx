@@ -962,7 +962,7 @@ export default function ComprehensiveDealPage() {
                         <span className="text-sm text-gray-600 dark:text-gray-400">
                           Merchant Banker Appointed
                         </span>
-                        <p className="font-semibold">
+                        <div className="font-semibold">
                           {company.ipo_readiness?.merchant_banker_appointed ? (
                             <>
                               <Badge className="bg-green-100 text-green-700 border-green-300 mr-2">
@@ -973,7 +973,7 @@ export default function ComprehensiveDealPage() {
                           ) : (
                             <Badge variant="secondary">Not yet appointed</Badge>
                           )}
-                        </p>
+                        </div>
                       </div>
                       <div>
                         <span className="text-sm text-gray-600 dark:text-gray-400">
@@ -1051,18 +1051,18 @@ export default function ComprehensiveDealPage() {
                         <span className="text-sm text-gray-600 dark:text-gray-400">
                           Secondary Market
                         </span>
-                        <p className="font-semibold">
+                        <div className="font-semibold">
                           {company.liquidity_exit?.secondary_market_available ? (
                             <>
                               <Badge className="bg-blue-100 text-blue-700 border-blue-300">
                                 Available
                               </Badge>
-                              <p className="text-sm mt-1">{company.liquidity_exit?.secondary_platform_name}</p>
+                              <div className="text-sm mt-1">{company.liquidity_exit?.secondary_platform_name}</div>
                             </>
                           ) : (
                             <Badge variant="secondary">Not Available</Badge>
                           )}
-                        </p>
+                        </div>
                       </div>
                     </div>
 
@@ -1230,7 +1230,7 @@ export default function ComprehensiveDealPage() {
                         <span className="text-sm text-gray-600 dark:text-gray-400">
                           SEBI Registered
                         </span>
-                        <p className="font-semibold">
+                        <div className="font-semibold">
                           {company.regulatory_legal?.sebi_registered ? (
                             <>
                               <Badge className="bg-green-100 text-green-700 border-green-300 mr-2">
@@ -1243,13 +1243,13 @@ export default function ComprehensiveDealPage() {
                           ) : (
                             <Badge variant="secondary">Not Registered</Badge>
                           )}
-                        </p>
+                        </div>
                       </div>
                       <div>
                         <span className="text-sm text-gray-600 dark:text-gray-400">
                           Pending Litigation
                         </span>
-                        <p className="font-semibold">
+                        <div className="font-semibold">
                           {company.regulatory_legal?.pending_litigation_count === 0 ? (
                             <Badge className="bg-green-100 text-green-700 border-green-300">
                               None
@@ -1259,7 +1259,7 @@ export default function ComprehensiveDealPage() {
                               {company.regulatory_legal?.pending_litigation_count} cases
                             </Badge>
                           )}
-                        </p>
+                        </div>
                       </div>
                     </div>
 

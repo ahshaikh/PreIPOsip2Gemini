@@ -150,6 +150,10 @@ export default function InvestorCompanyDetailPage() {
         setWallet(walletData);
         setRequiredAcknowledgements(acknowledgementsData);
 
+        // DEBUG: Log acknowledgements received from API
+        console.log('[DEAL PAGE] Acknowledgements from API:', acknowledgementsData);
+        console.log('[DEAL PAGE] Acknowledgement types:', acknowledgementsData.map((a: any) => a.type));
+
         // Initialize acknowledgements state (will be overridden by localStorage if exists)
         const initialAcks: Record<string, boolean> = {};
         acknowledgementsData.forEach((ack) => {
@@ -232,6 +236,14 @@ export default function InvestorCompanyDetailPage() {
 
       // GAP 3 FIX: Generate idempotency key to prevent duplicate submissions
       const idempotencyKey = `invest-${company.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      // DEBUG: Log what we're sending
+      console.log('[INVESTMENT] Submitting investment with:', {
+        company_id: company.id,
+        amount: getAllocationAmountNumber(),
+        acknowledged_risks: acknowledgedTypes,
+        acknowledged_risks_count: acknowledgedTypes.length,
+      });
 
       // Submit investment with idempotency key
       const result = await submitInvestment([

@@ -81,6 +81,13 @@ class InvestorInvestmentController extends Controller
     {
         $user = $request->user();
 
+        // DEBUG: Log incoming request data
+        \Log::info('[INVESTMENT] Incoming request data', [
+            'user_id' => $user->id,
+            'allocations' => $request->input('allocations'),
+            'idempotency_key' => $request->input('idempotency_key'),
+        ]);
+
         // 1. INPUT VALIDATION
         $validated = $request->validate([
             'allocations' => 'required|array|min:1',
