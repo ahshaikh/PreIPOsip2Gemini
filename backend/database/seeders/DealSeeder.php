@@ -42,30 +42,40 @@ class DealSeeder extends Seeder
                 'slug' => 'nexgen-series-b-offering',
                 'sector' => 'Technology',
                 'description' => 'AI automation investment package',
+                'face_value_per_unit' => 750.00,
+                'status' => 'draft',
             ]);
 
             $productMedicare = Product::firstOrCreate(['name' => 'MediCare Series C Offering'], [
                 'slug' => 'medicare-series-c-offering',
                 'sector' => 'Healthcare',
                 'description' => 'Telemedicine platform investment package',
+                'face_value_per_unit' => 1000.00,
+                'status' => 'draft',
             ]);
 
             $productFinsecure = Product::firstOrCreate(['name' => 'FinSecure ESOP Package'], [
                 'slug' => 'finsecure-esop-package',
                 'sector' => 'Financial Services',
                 'description' => 'Employee stock ownership secondary sale',
+                'face_value_per_unit' => 4500.00,
+                'status' => 'draft',
             ]);
 
             $productEduverse = Product::firstOrCreate(['name' => 'EduVerse Series E Offering'], [
                 'slug' => 'eduverse-series-e-offering',
                 'sector' => 'Education',
                 'description' => 'Edtech platform investment package',
+                'face_value_per_unit' => 1500.00,
+                'status' => 'draft',
             ]);
 
             $productGreenpower = Product::firstOrCreate(['name' => 'GreenPower Series C Offering'], [
                 'slug' => 'greenpower-series-c-offering',
                 'sector' => 'Clean Energy',
                 'description' => 'Renewable energy investment package',
+                'face_value_per_unit' => 800.00,
+                'status' => 'draft',
             ]);
 
             $deals = [
