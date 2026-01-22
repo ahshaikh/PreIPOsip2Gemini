@@ -248,6 +248,16 @@ class Company extends Model
 
     // --- STANDARD RELATIONSHIPS ---
 
+    /**
+     * FIX: Added missing sector() relationship
+     * Company has sector_id foreign key to sectors table
+     * Required by InvestorCompanyController and CompanyProfileController
+     */
+    public function sector()
+    {
+        return $this->belongsTo(Sector::class);
+    }
+
     public function deals()
     {
         return $this->hasMany(Deal::class); // Now uses company_id FK
