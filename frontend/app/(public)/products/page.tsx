@@ -211,67 +211,63 @@ export default function ProductsPage() {
               {companies.length > 0 ? (
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                   {companies.map((company) => (
-                    <Link
-                      key={company.id}
-                      href={`/products/${company.slug}`}
-                      className="group"
-                    >
-                      <Card className="h-full border-gray-200 dark:border-slate-800 hover:shadow-2xl transition-all duration-300 hover:scale-105">
-                        <CardContent className="p-8">
-                          {/* Company Logo */}
-                          {company.logo_url && (
-                            <div className="mb-6 flex items-center justify-center">
-                              <div className="relative w-24 h-24 rounded-xl overflow-hidden bg-gray-100 dark:bg-slate-800">
-                                <Image
-                                  src={company.logo_url}
-                                  alt={`${company.name} logo`}
-                                  fill
-                                  className="object-contain p-2"
-                                />
-                              </div>
+                    <Card key={company.id} className="h-full border-gray-200 dark:border-slate-800 hover:shadow-2xl transition-all duration-300 hover:scale-105">
+                      <CardContent className="p-8">
+                        {/* Company Logo */}
+                        {company.logo_url && (
+                          <div className="mb-6 flex items-center justify-center">
+                            <div className="relative w-24 h-24 rounded-xl overflow-hidden bg-gray-100 dark:bg-slate-800">
+                              <Image
+                                src={company.logo_url}
+                                alt={`${company.name} logo`}
+                                fill
+                                className="object-contain p-2"
+                              />
                             </div>
-                          )}
-
-                          {/* Company Name */}
-                          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
-                            {company.name}
-                          </h3>
-
-                          {/* Sector Badge */}
-                          {company.sector && (
-                            <span className="inline-block px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-sm font-medium rounded-full mb-4">
-                              {company.sector}
-                            </span>
-                          )}
-
-                          {/* Short Description */}
-                          {company.short_description && (
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 line-clamp-3">
-                              {company.short_description}
-                            </p>
-                          )}
-
-                          {/* Headquarters & Founded */}
-                          <div className="flex flex-wrap gap-4 text-xs text-gray-500 dark:text-gray-500 mb-6">
-                            {company.headquarters && (
-                              <span>📍 {company.headquarters}</span>
-                            )}
-                            {company.founded_year && (
-                              <span>📅 Founded {company.founded_year}</span>
-                            )}
                           </div>
+                        )}
 
-                          {/* PHASE 5: No "Invest Now" button, just "Learn More" */}
+                        {/* Company Name */}
+                        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+                          {company.name}
+                        </h3>
+
+                        {/* Sector Badge */}
+                        {company.sector && (
+                          <span className="inline-block px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-sm font-medium rounded-full mb-4">
+                            {company.sector}
+                          </span>
+                        )}
+
+                        {/* Short Description */}
+                        {company.short_description && (
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 line-clamp-3">
+                            {company.short_description}
+                          </p>
+                        )}
+
+                        {/* Headquarters & Founded */}
+                        <div className="flex flex-wrap gap-4 text-xs text-gray-500 dark:text-gray-500 mb-6">
+                          {company.headquarters && (
+                            <span>📍 {company.headquarters}</span>
+                          )}
+                          {company.founded_year && (
+                            <span>📅 Founded {company.founded_year}</span>
+                          )}
+                        </div>
+
+                        {/* FIX: Redirect to login instead of company detail page */}
+                        <Link href="/login">
                           <Button
                             variant="outline"
-                            className="w-full group-hover:bg-purple-600 group-hover:text-white group-hover:border-purple-600 transition-all"
+                            className="w-full hover:bg-purple-600 hover:text-white hover:border-purple-600 transition-all"
                           >
-                            Learn More
-                            <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                            Login to View Details
+                            <ArrowRight className="w-4 h-4 ml-2" />
                           </Button>
-                        </CardContent>
-                      </Card>
-                    </Link>
+                        </Link>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               ) : (

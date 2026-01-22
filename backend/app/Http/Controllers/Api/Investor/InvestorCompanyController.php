@@ -21,6 +21,9 @@ class InvestorCompanyController extends Controller
      * Also returns wallet balance for the authenticated investor
      *
      * GET /investor/companies
+     *
+     * FIX: Added buy_eligibility calculation for each company
+     * Frontend expects company.buy_eligibility.allowed and company.buy_eligibility.blockers
      */
     public function index(Request $request)
     {
@@ -53,6 +56,37 @@ class InvestorCompanyController extends Controller
                 $query->live();
             })
             ->get();
+
+        // FIX: Calculate buy_eligibility for each company
+        $companies = $companies->map(function ($company) use ($user, $wallet) {
+            $blockers = [];
+
+            // Check if user KYC is verified
+            if ($user->kyc_status !== 'verified') {
+                $blockers[] = [
+                    'guard' => 'kyc_not_verified',
+                    'severity' => 'critical',
+                    'message' => 'KYC verification required before investing',
+                ];
+            }
+
+            // Check wallet balance
+            if (!$wallet || $wallet->balance <= 0) {
+                $blockers[] = [
+                    'guard' => 'insufficient_balance',
+                    'severity' => 'warning',
+                    'message' => 'Insufficient wallet balance. Please add funds to invest.',
+                ];
+            }
+
+            // Add buy_eligibility to company object
+            $company->buy_eligibility = [
+                'allowed' => count($blockers) === 0,
+                'blockers' => $blockers,
+            ];
+
+            return $company;
+        });
 
         return response()->json([
             'success' => true,
