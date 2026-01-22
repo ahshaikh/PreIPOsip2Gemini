@@ -811,7 +811,7 @@ export default function ComprehensiveDealPage() {
                         <span className="text-sm text-gray-600 dark:text-gray-400">
                           Next Funding Round Planned
                         </span>
-                        <p className="font-semibold">
+                        <div className="font-semibold">
                           {company.cash_runway?.next_funding_round_planned ? (
                             <Badge className="bg-blue-100 text-blue-700">
                               Yes - {company.cash_runway?.next_funding_timeline}
@@ -819,7 +819,7 @@ export default function ComprehensiveDealPage() {
                           ) : (
                             <Badge variant="secondary">No immediate plans</Badge>
                           )}
-                        </p>
+                        </div>
                       </div>
                       <div>
                         <span className="text-sm text-gray-600 dark:text-gray-400">
@@ -1205,9 +1205,9 @@ export default function ComprehensiveDealPage() {
                           Board Committees
                         </span>
                         <div className="flex flex-wrap gap-2">
-                          {company.promoter_governance.board_composition.map((committee: string, i: number) => (
+                          {company.promoter_governance.board_composition.map((committee: any, i: number) => (
                             <Badge key={i} variant="outline">
-                              {committee}
+                              {typeof committee === 'string' ? committee : committee.name} ({committee.members || 0} members)
                             </Badge>
                           ))}
                         </div>

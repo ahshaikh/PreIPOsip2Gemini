@@ -338,41 +338,33 @@ class InvestorCompanyController extends Controller
         }
 
         // Base acknowledgements required for all investments
+        // IMPORTANT: These types MUST match the validation in InvestorInvestmentController
         $acknowledgements = [
             [
-                'type' => 'market_risk',
-                'text' => 'I understand that Pre-IPO investments are subject to market risks and the value of my investment may go up or down.',
+                'type' => 'illiquidity',
+                'text' => 'I understand that Pre-IPO shares are highly illiquid and may not be tradeable for an extended period (3-5+ years).',
                 'required' => true,
             ],
             [
-                'type' => 'liquidity_risk',
-                'text' => 'I understand that Pre-IPO shares are not readily tradeable and may have limited liquidity until the company goes public.',
+                'type' => 'no_guarantee',
+                'text' => 'I understand there is NO guarantee of returns, IPO listing, or exit. I may lose 100% of my invested capital.',
                 'required' => true,
             ],
             [
-                'type' => 'company_risk',
-                'text' => 'I have reviewed the company information, financial disclosures, and risk factors, and understand the company-specific risks involved.',
+                'type' => 'platform_non_advisory',
+                'text' => 'I understand this platform is non-advisory. I am making my own independent investment decision without relying on platform recommendations.',
+                'required' => true,
+            ],
+            [
+                'type' => 'material_changes',
+                'text' => 'I understand that material changes in the company (valuation, timeline, structure) may occur and I will be bound by updated terms.',
                 'required' => true,
             ],
         ];
 
-        // Add suspended company acknowledgement if applicable
-        if ($company->is_suspended) {
-            $acknowledgements[] = [
-                'type' => 'suspended_company',
-                'text' => 'I understand that this company is currently suspended by the platform. Investing may carry additional risks.',
-                'required' => true,
-            ];
-        }
-
-        // Add early stage risk if applicable
-        if ($company->funding_stage === 'seed' || $company->funding_stage === 'pre_seed') {
-            $acknowledgements[] = [
-                'type' => 'early_stage_risk',
-                'text' => 'I understand that this is an early-stage company with higher risk and potential for total loss of investment.',
-                'required' => true,
-            ];
-        }
+        // REMOVED conditional acknowledgements (suspended_company, early_stage_risk)
+        // because they don't match the validation rules in InvestorInvestmentController
+        // which only allows: illiquidity, no_guarantee, platform_non_advisory, material_changes
 
         return response()->json([
             'success' => true,
