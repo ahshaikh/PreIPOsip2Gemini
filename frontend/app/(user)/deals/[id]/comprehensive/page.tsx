@@ -366,7 +366,7 @@ export default function ComprehensiveDealPage() {
                         <span className="text-sm text-gray-600 dark:text-gray-400">
                           Voting Rights
                         </span>
-                        <p className="font-semibold">
+                        <div className="font-semibold">
                           {company.instrument_details?.voting_rights ? (
                             <Badge className="bg-green-100 text-green-700 border-green-300">
                               ✓ Included
@@ -374,13 +374,13 @@ export default function ComprehensiveDealPage() {
                           ) : (
                             <Badge variant="destructive">✗ Not Included</Badge>
                           )}
-                        </p>
+                        </div>
                       </div>
                       <div>
                         <span className="text-sm text-gray-600 dark:text-gray-400">
                           Information Rights
                         </span>
-                        <p className="font-semibold">
+                        <div className="font-semibold">
                           {company.instrument_details?.information_rights ? (
                             <Badge className="bg-green-100 text-green-700 border-green-300">
                               ✓ Included
@@ -388,7 +388,7 @@ export default function ComprehensiveDealPage() {
                           ) : (
                             <Badge variant="destructive">✗ Not Included</Badge>
                           )}
-                        </p>
+                        </div>
                       </div>
                     </div>
                     <div>
@@ -416,7 +416,7 @@ export default function ComprehensiveDealPage() {
                         <span className="text-sm text-gray-600 dark:text-gray-400">
                           SHA Available
                         </span>
-                        <p className="font-semibold">
+                        <div className="font-semibold">
                           {company.shareholder_rights?.sha_available ? (
                             <>
                               <Badge className="bg-green-100 text-green-700 border-green-300 mr-2">
@@ -435,13 +435,13 @@ export default function ComprehensiveDealPage() {
                           ) : (
                             <Badge variant="secondary">Not Available</Badge>
                           )}
-                        </p>
+                        </div>
                       </div>
                       <div>
                         <span className="text-sm text-gray-600 dark:text-gray-400">
                           Tag-Along Rights
                         </span>
-                        <p className="font-semibold">
+                        <div className="font-semibold">
                           {company.shareholder_rights?.tag_along_rights ? (
                             <Badge className="bg-green-100 text-green-700 border-green-300">
                               ✓ Included
@@ -449,13 +449,13 @@ export default function ComprehensiveDealPage() {
                           ) : (
                             <Badge variant="secondary">Not Included</Badge>
                           )}
-                        </p>
+                        </div>
                       </div>
                       <div>
                         <span className="text-sm text-gray-600 dark:text-gray-400">
                           Drag-Along Rights
                         </span>
-                        <p className="font-semibold">
+                        <div className="font-semibold">
                           {company.shareholder_rights?.drag_along_rights ? (
                             <Badge variant="secondary">Applicable</Badge>
                           ) : (
@@ -463,7 +463,7 @@ export default function ComprehensiveDealPage() {
                               Not Applicable
                             </Badge>
                           )}
-                        </p>
+                        </div>
                       </div>
                       <div>
                         <span className="text-sm text-gray-600 dark:text-gray-400">
@@ -616,14 +616,14 @@ export default function ComprehensiveDealPage() {
                         <span className="text-sm text-gray-600 dark:text-gray-400">
                           LTV/CAC Ratio
                         </span>
-                        <p className="font-semibold">
+                        <div className="font-semibold">
                           {company.business_model?.ltv_cac_ratio}
                           {company.business_model?.ltv_cac_ratio >= 3 && (
                             <Badge className="ml-2 bg-green-100 text-green-700 border-green-300">
                               Healthy
                             </Badge>
                           )}
-                        </p>
+                        </div>
                       </div>
                       <div>
                         <span className="text-sm text-gray-600 dark:text-gray-400">
