@@ -669,54 +669,870 @@ export default function ComprehensiveDealPage() {
               {/* For brevity, I'll add placeholders for other tabs */}
               {/* You can expand these similarly */}
 
-              <TabsContent value="financials">
+              <TabsContent value="financials" className="space-y-6">
+                {/* Financial Health */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Financial Health, Cash Runway & Valuation</CardTitle>
+                    <CardTitle className="flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5" />
+                      5. Financial Health
+                    </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-600">
-                      Comprehensive financial data including 3-5 year history, cash burn analysis, and valuation metrics...
-                    </p>
+                  <CardContent className="space-y-4">
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Financials Available
+                        </span>
+                        <p className="font-semibold">
+                          {company.financial_health?.financials_available ? 'Yes' : 'No'}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Years of Data
+                        </span>
+                        <p className="font-semibold">
+                          {company.financial_health?.years_of_data || 0} years
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Auditor
+                        </span>
+                        <p className="font-semibold text-sm">
+                          {company.financial_health?.auditor_credibility}
+                        </p>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Financial Reports Table */}
+                    {company.financial_health?.financials && company.financial_health.financials.length > 0 && (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-100 dark:bg-gray-800">
+                            <tr>
+                              <th className="px-4 py-2 text-left">Year</th>
+                              <th className="px-4 py-2 text-right">Revenue</th>
+                              <th className="px-4 py-2 text-right">Growth YoY</th>
+                              <th className="px-4 py-2 text-right">Operating Margin</th>
+                              <th className="px-4 py-2 text-right">Net Profit Margin</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {company.financial_health.financials.map((report: any, i: number) => (
+                              <tr key={i} className="border-b dark:border-gray-700">
+                                <td className="px-4 py-2">{report.year}</td>
+                                <td className="px-4 py-2 text-right font-semibold">
+                                  {formatCurrency(report.revenue)}
+                                </td>
+                                <td className="px-4 py-2 text-right">
+                                  <Badge className={report.revenue_growth_yoy >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
+                                    {report.revenue_growth_yoy >= 0 ? '+' : ''}{formatPercent(report.revenue_growth_yoy || 0)}
+                                  </Badge>
+                                </td>
+                                <td className="px-4 py-2 text-right">
+                                  {formatPercent(report.operating_margin || 0)}
+                                </td>
+                                <td className="px-4 py-2 text-right">
+                                  {formatPercent(report.net_profit_margin || 0)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    <div>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Financial Transparency Score
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Progress
+                          value={(company.financial_health?.financial_transparency_score || 0) * 20}
+                          className="flex-1 h-3"
+                        />
+                        <span className="font-bold">
+                          {company.financial_health?.financial_transparency_score}/5
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Cash Runway */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Target className="w-5 h-5" />
+                      6. Cash Burn & Runway
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Monthly Burn Rate
+                        </span>
+                        <p className="text-xl font-bold text-red-600">
+                          {formatCurrency(company.cash_runway?.monthly_burn_rate || 0)}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Current Cash Balance
+                        </span>
+                        <p className="text-xl font-bold text-green-600">
+                          {formatCurrency(company.cash_runway?.current_cash_balance || 0)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="text-sm text-gray-600 dark:text-gray-400 mb-2 block">
+                        Cash Runway: <strong>{company.cash_runway?.runway_months || 0} months</strong>
+                      </span>
+                      <Progress
+                        value={Math.min((company.cash_runway?.runway_months || 0) / 36 * 100, 100)}
+                        className="h-4"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        36 months = Healthy runway for pre-IPO companies
+                      </p>
+                    </div>
+
+                    <Separator />
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Next Funding Round Planned
+                        </span>
+                        <p className="font-semibold">
+                          {company.cash_runway?.next_funding_round_planned ? (
+                            <Badge className="bg-blue-100 text-blue-700">
+                              Yes - {company.cash_runway?.next_funding_timeline}
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary">No immediate plans</Badge>
+                          )}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Break-Even Timeline
+                        </span>
+                        <p className="font-semibold">
+                          {company.cash_runway?.break_even_timeline || 'Not disclosed'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {company.cash_runway?.runway_months < 12 && (
+                      <Alert className="border-red-200 bg-red-50 dark:bg-red-950/30">
+                        <AlertTriangle className="h-4 w-4 text-red-600" />
+                        <AlertTitle className="text-red-900 dark:text-red-200">
+                          Short Runway Alert
+                        </AlertTitle>
+                        <AlertDescription className="text-red-800 dark:text-red-300 text-sm">
+                          Company has less than 12 months runway. Near-term funding requirement may affect valuation.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Valuation Metrics */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <PieChart className="w-5 h-5" />
+                      7. Valuation Discipline
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Pre-Money Valuation
+                        </span>
+                        <p className="text-xl font-bold">
+                          {formatCurrency(company.valuation_metrics?.pre_money_valuation || 0)}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Post-Money Valuation
+                        </span>
+                        <p className="text-xl font-bold text-purple-600">
+                          {formatCurrency(company.valuation_metrics?.post_money_valuation || 0)}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Revenue Multiple
+                        </span>
+                        <p className="font-semibold">
+                          {company.valuation_metrics?.revenue_multiple}x
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Last Round Valuation
+                        </span>
+                        <p className="font-semibold">
+                          {formatCurrency(company.valuation_metrics?.last_round_valuation || 0)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Pre-IPO Premium
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Progress
+                          value={company.valuation_metrics?.pre_ipo_premium_percentage || 0}
+                          className="flex-1 h-3"
+                        />
+                        <span className="font-bold">
+                          {formatPercent(company.valuation_metrics?.pre_ipo_premium_percentage || 0)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Premium over last institutional round
+                      </p>
+                    </div>
+
+                    <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/30">
+                      <Info className="h-4 w-4 text-blue-600" />
+                      <AlertTitle className="text-blue-900 dark:text-blue-200">
+                        Valuation Justification
+                      </AlertTitle>
+                      <AlertDescription className="text-blue-800 dark:text-blue-300 text-sm">
+                        {company.valuation_metrics?.valuation_justification}
+                      </AlertDescription>
+                    </Alert>
+
+                    {/* Comparable Companies */}
+                    {company.valuation_metrics?.comparable_companies && company.valuation_metrics.comparable_companies.length > 0 && (
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold mb-2 block">
+                          Comparable Companies
+                        </span>
+                        <div className="space-y-2">
+                          {company.valuation_metrics.comparable_companies.map((comp: any, i: number) => (
+                            <div key={i} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                              <span className="text-sm">{comp.name}</span>
+                              <Badge variant="outline">{comp.revenue_multiple}x Revenue Multiple</Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
 
-              <TabsContent value="ipo">
+              <TabsContent value="ipo" className="space-y-6">
+                {/* IPO Readiness */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>IPO Readiness & Exit Scenarios</CardTitle>
+                    <CardTitle className="flex items-center gap-2">
+                      <Building2 className="w-5 h-5" />
+                      8. IPO Readiness
+                    </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-600">
-                      IPO timeline, merchant banker status, exit probability analysis...
-                    </p>
+                  <CardContent className="space-y-4">
+                    <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/30">
+                      <AlertTriangle className="h-4 w-4 text-amber-600" />
+                      <AlertTitle className="text-amber-900 dark:text-amber-200">
+                        IPO Timeline
+                      </AlertTitle>
+                      <AlertDescription className="text-amber-800 dark:text-amber-300">
+                        {company.ipo_readiness?.ipo_timeline_indicative}
+                      </AlertDescription>
+                    </Alert>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Merchant Banker Appointed
+                        </span>
+                        <p className="font-semibold">
+                          {company.ipo_readiness?.merchant_banker_appointed ? (
+                            <>
+                              <Badge className="bg-green-100 text-green-700 border-green-300 mr-2">
+                                ✓ Yes
+                              </Badge>
+                              <span className="text-sm">{company.ipo_readiness?.merchant_banker_name}</span>
+                            </>
+                          ) : (
+                            <Badge variant="secondary">Not yet appointed</Badge>
+                          )}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          SEBI Compliance Status
+                        </span>
+                        <p className="font-semibold">
+                          {company.ipo_readiness?.sebi_compliance_status}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Legal Advisors
+                        </span>
+                        <p className="font-semibold text-sm">
+                          {company.ipo_readiness?.legal_advisors || 'To be appointed'}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Governance Upgrades
+                        </span>
+                        <p className="font-semibold text-sm">
+                          {company.ipo_readiness?.governance_upgrades_status}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="text-sm text-gray-600 dark:text-gray-400 mb-2 block">
+                        IPO Preparedness Score
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Progress
+                          value={(company.ipo_readiness?.ipo_preparedness_score || 0) * 20}
+                          className="flex-1 h-4"
+                        />
+                        <span className="font-bold text-lg">
+                          {company.ipo_readiness?.ipo_preparedness_score}/5
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Liquidity & Exit */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Target className="w-5 h-5" />
+                      9. Liquidity & Exit Reality
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <Alert variant="destructive">
+                      <XCircle className="h-4 w-4" />
+                      <AlertTitle>No Guaranteed Returns</AlertTitle>
+                      <AlertDescription>
+                        This investment has NO guaranteed liquidity or returns. Exit may take 3-5+ years.
+                      </AlertDescription>
+                    </Alert>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Lock-in Period
+                        </span>
+                        <p className="text-2xl font-bold text-red-600">
+                          {company.liquidity_exit?.lock_in_period_months} months
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Cannot sell shares before this period
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Secondary Market
+                        </span>
+                        <p className="font-semibold">
+                          {company.liquidity_exit?.secondary_market_available ? (
+                            <>
+                              <Badge className="bg-blue-100 text-blue-700 border-blue-300">
+                                Available
+                              </Badge>
+                              <p className="text-sm mt-1">{company.liquidity_exit?.secondary_platform_name}</p>
+                            </>
+                          ) : (
+                            <Badge variant="secondary">Not Available</Badge>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Historical Secondary Transactions
+                      </span>
+                      <p className="font-semibold">
+                        {company.liquidity_exit?.historical_secondary_transactions || 0} transactions
+                      </p>
+                    </div>
+
+                    <Separator />
+
+                    {/* Exit Scenarios */}
+                    <div>
+                      <h4 className="font-semibold mb-3">Potential Exit Scenarios</h4>
+                      <div className="space-y-2">
+                        {company.liquidity_exit?.exit_scenarios?.map((scenario: any, i: number) => (
+                          <div key={i} className="p-3 border rounded-lg dark:border-gray-700">
+                            <div className="flex justify-between items-start">
+                              <span className="font-semibold">{scenario.scenario}</span>
+                              <Badge
+                                className={
+                                  scenario.probability === 'High'
+                                    ? 'bg-green-100 text-green-700'
+                                    : scenario.probability === 'Medium'
+                                    ? 'bg-yellow-100 text-yellow-700'
+                                    : 'bg-gray-100 text-gray-700'
+                                }
+                              >
+                                {scenario.probability} Probability
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                              Timeline: {scenario.timeline}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <Alert className="border-red-200 bg-red-50 dark:bg-red-950/30">
+                      <AlertTriangle className="h-4 w-4 text-red-600" />
+                      <AlertDescription className="text-red-800 dark:text-red-300 text-sm">
+                        <strong>Critical:</strong> IPO timelines are indicative only and not guaranteed. Market conditions,
+                        regulatory delays, or business performance may significantly delay or prevent IPO.
+                      </AlertDescription>
+                    </Alert>
                   </CardContent>
                 </Card>
               </TabsContent>
 
-              <TabsContent value="governance">
+              <TabsContent value="governance" className="space-y-6">
+                {/* Promoter & Governance */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Promoter Quality, Governance & Legal</CardTitle>
+                    <CardTitle className="flex items-center gap-2">
+                      <Shield className="w-5 h-5" />
+                      10. Promoter & Governance Quality
+                    </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-600">
-                      Founder background, board composition, regulatory compliance, litigation status...
-                    </p>
+                  <CardContent className="space-y-4">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Founder / CEO
+                        </span>
+                        <p className="text-xl font-bold">
+                          {company.promoter_governance?.founder_name}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Background
+                        </span>
+                        <p className="font-semibold text-sm">
+                          {company.promoter_governance?.founder_background}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Track Record
+                        </span>
+                        <p className="font-semibold text-sm">
+                          {company.promoter_governance?.founder_track_record}
+                        </p>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Board Composition */}
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Board Size
+                        </span>
+                        <p className="text-2xl font-bold">
+                          {company.promoter_governance?.board_size} members
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Independent Directors
+                        </span>
+                        <p className="text-2xl font-bold text-green-600">
+                          {company.promoter_governance?.independent_directors}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Governance Score
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <Progress
+                            value={(company.promoter_governance?.governance_score || 0) * 20}
+                            className="flex-1 h-3"
+                          />
+                          <span className="font-bold">
+                            {company.promoter_governance?.governance_score}/5
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Related Party Transactions
+                      </span>
+                      <p className="text-sm mt-1">
+                        {company.promoter_governance?.related_party_transactions}
+                      </p>
+                    </div>
+
+                    {/* Board Committees */}
+                    {company.promoter_governance?.board_composition && company.promoter_governance.board_composition.length > 0 && (
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold mb-2 block">
+                          Board Committees
+                        </span>
+                        <div className="flex flex-wrap gap-2">
+                          {company.promoter_governance.board_composition.map((committee: string, i: number) => (
+                            <Badge key={i} variant="outline">
+                              {committee}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Regulatory & Legal */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <FileText className="w-5 h-5" />
+                      11. Regulatory & Legal Risk
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          SEBI Registered
+                        </span>
+                        <p className="font-semibold">
+                          {company.regulatory_legal?.sebi_registered ? (
+                            <>
+                              <Badge className="bg-green-100 text-green-700 border-green-300 mr-2">
+                                ✓ Yes
+                              </Badge>
+                              <span className="text-sm">
+                                {company.regulatory_legal?.sebi_registration_number}
+                              </span>
+                            </>
+                          ) : (
+                            <Badge variant="secondary">Not Registered</Badge>
+                          )}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Pending Litigation
+                        </span>
+                        <p className="font-semibold">
+                          {company.regulatory_legal?.pending_litigation_count === 0 ? (
+                            <Badge className="bg-green-100 text-green-700 border-green-300">
+                              None
+                            </Badge>
+                          ) : (
+                            <Badge variant="destructive">
+                              {company.regulatory_legal?.pending_litigation_count} cases
+                            </Badge>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Pending Litigation Details
+                      </span>
+                      <p className="text-sm mt-1">
+                        {company.regulatory_legal?.pending_litigation}
+                      </p>
+                    </div>
+
+                    <div>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Regulatory Investigations
+                      </span>
+                      <p className="font-semibold">
+                        {company.regulatory_legal?.regulatory_investigations}
+                      </p>
+                    </div>
+
+                    <div>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Compliance History
+                      </span>
+                      <p className="text-sm mt-1">
+                        {company.regulatory_legal?.compliance_history}
+                      </p>
+                    </div>
+
+                    {/* Sector Approvals */}
+                    {company.regulatory_legal?.sector_approvals_status && company.regulatory_legal.sector_approvals_status.length > 0 && (
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold mb-2 block">
+                          Sector-Specific Approvals
+                        </span>
+                        <div className="flex flex-wrap gap-2">
+                          {company.regulatory_legal.sector_approvals_status.map((approval: string, i: number) => (
+                            <Badge key={i} className="bg-blue-100 text-blue-700 border-blue-300">
+                              {approval}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <span className="text-sm text-gray-600 dark:text-gray-400 mb-2 block">
+                        Legal Risk Score
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Progress
+                          value={(company.regulatory_legal?.legal_risk_score || 0) * 20}
+                          className="flex-1 h-4"
+                        />
+                        <span className="font-bold text-lg">
+                          {company.regulatory_legal?.legal_risk_score}/5
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Lower score = Lower legal risk
+                      </p>
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>
 
-              <TabsContent value="risks">
+              <TabsContent value="risks" className="space-y-6">
+                {/* Platform Risk */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Comprehensive Risk Disclosure</CardTitle>
+                    <CardTitle className="flex items-center gap-2">
+                      <Shield className="w-5 h-5" />
+                      12. Platform / Intermediary Risk
+                    </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-600">
-                      Complete risk analysis including downside scenarios, platform risks...
-                    </p>
+                  <CardContent className="space-y-4">
+                    <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/30">
+                      <Info className="h-4 w-4 text-blue-600" />
+                      <AlertTitle className="text-blue-900 dark:text-blue-200">
+                        Legal Owner of Shares
+                      </AlertTitle>
+                      <AlertDescription className="text-blue-800 dark:text-blue-300 text-sm">
+                        {company.platform_risk?.legal_owner_of_shares}
+                      </AlertDescription>
+                    </Alert>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Platform Fee
+                        </span>
+                        <p className="text-xl font-bold">
+                          {formatPercent(company.platform_risk?.platform_fee_percentage || 0)}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          Platform Spread
+                        </span>
+                        <p className="text-xl font-bold">
+                          {formatPercent(company.platform_risk?.platform_spread_percentage || 0)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    <div>
+                      <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
+                        Contingency Plan
+                      </span>
+                      <p className="text-sm mt-1">
+                        {company.platform_risk?.contingency_plan}
+                      </p>
+                    </div>
+
+                    <div>
+                      <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
+                        Demat Mechanism
+                      </span>
+                      <p className="text-sm mt-1">
+                        {company.platform_risk?.demat_mechanism}
+                      </p>
+                    </div>
+
+                    <div>
+                      <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
+                        Custody Mechanism
+                      </span>
+                      <p className="text-sm mt-1">
+                        {company.platform_risk?.custody_mechanism}
+                      </p>
+                    </div>
+
+                    <div>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Platform Track Record
+                      </span>
+                      <p className="font-semibold">
+                        {company.platform_risk?.platform_track_record}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Comprehensive Risks */}
+                <Card className="border-2 border-red-200 dark:border-red-800">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-red-700 dark:text-red-400">
+                      <AlertTriangle className="w-5 h-5" />
+                      13. Comprehensive Risk Disclosures
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Critical Warnings */}
+                    <Alert variant="destructive">
+                      <XCircle className="h-4 w-4" />
+                      <AlertTitle>Critical Investment Warnings</AlertTitle>
+                      <AlertDescription>
+                        <ul className="list-disc list-inside text-sm space-y-1 mt-2">
+                          <li><strong>Total Loss Possible:</strong> You may lose 100% of your investment</li>
+                          <li><strong>No Guaranteed Returns:</strong> {company.comprehensive_risks?.no_guaranteed_claims}</li>
+                          <li><strong>IPO Delay Acknowledged:</strong> IPO may be delayed beyond stated timeline or may never occur</li>
+                        </ul>
+                      </AlertDescription>
+                    </Alert>
+
+                    {/* Risk Levels */}
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <Card className={`border-2 ${getRiskColor(company.comprehensive_risks?.market_risk_level || 'high')}`}>
+                        <CardContent className="pt-4">
+                          <div className="text-center">
+                            <div className="text-sm font-semibold mb-1">Market Risk</div>
+                            <div className="text-2xl font-bold">
+                              {company.comprehensive_risks?.market_risk_level}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className={`border-2 ${getRiskColor(company.comprehensive_risks?.liquidity_risk_level || 'high')}`}>
+                        <CardContent className="pt-4">
+                          <div className="text-center">
+                            <div className="text-sm font-semibold mb-1">Liquidity Risk</div>
+                            <div className="text-2xl font-bold">
+                              {company.comprehensive_risks?.liquidity_risk_level}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-2 border-amber-200 bg-amber-50 dark:bg-amber-950/30">
+                        <CardContent className="pt-4">
+                          <div className="text-center">
+                            <div className="text-sm font-semibold mb-1">Overall Risk</div>
+                            <div className="text-2xl font-bold text-red-600">
+                              High
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    <Separator />
+
+                    {/* Downside Scenarios */}
+                    <div>
+                      <h4 className="font-semibold text-red-700 dark:text-red-400 mb-3">
+                        Potential Downside Scenarios
+                      </h4>
+                      <div className="space-y-2">
+                        {company.comprehensive_risks?.downside_scenarios?.map((scenario: string, i: number) => (
+                          <Alert key={i} className="border-red-200 bg-red-50 dark:bg-red-950/30">
+                            <AlertTriangle className="h-4 w-4 text-red-600" />
+                            <AlertDescription className="text-red-800 dark:text-red-300 text-sm">
+                              {scenario}
+                            </AlertDescription>
+                          </Alert>
+                        ))}
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Dilution Risk */}
+                    <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/30">
+                      <AlertTriangle className="h-4 w-4 text-amber-600" />
+                      <AlertTitle className="text-amber-900 dark:text-amber-200">
+                        Dilution Risk
+                      </AlertTitle>
+                      <AlertDescription className="text-amber-800 dark:text-amber-300 text-sm">
+                        {company.comprehensive_risks?.dilution_risk_explained}
+                      </AlertDescription>
+                    </Alert>
+
+                    {/* Company-Specific Risks */}
+                    {company.comprehensive_risks?.company_specific_risks && company.comprehensive_risks.company_specific_risks.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold mb-3">Company-Specific Risks</h4>
+                        <ul className="space-y-2">
+                          {company.comprehensive_risks.company_specific_risks.map((risk: string, i: number) => (
+                            <li key={i} className="flex items-start gap-2">
+                              <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                              <span className="text-sm">{risk}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    <Separator />
+
+                    {/* Final Warning */}
+                    <Alert variant="destructive" className="border-2">
+                      <XCircle className="h-5 w-5" />
+                      <AlertTitle className="text-lg">INVESTMENT SUITABILITY WARNING</AlertTitle>
+                      <AlertDescription className="text-sm space-y-2">
+                        <p className="font-semibold">
+                          This investment is ONLY suitable for sophisticated investors who:
+                        </p>
+                        <ul className="list-disc list-inside space-y-1">
+                          <li>Can afford to lose 100% of invested capital</li>
+                          <li>Have high risk tolerance and investment experience</li>
+                          <li>Can wait 3-5+ years without liquidity</li>
+                          <li>Understand Pre-IPO investment mechanics thoroughly</li>
+                          <li>Have diversified portfolio with other liquid assets</li>
+                        </ul>
+                        <p className="font-bold mt-3">
+                          DO NOT INVEST IF YOU NEED THIS MONEY FOR NEAR-TERM EXPENSES OR CANNOT AFFORD TO LOSE IT.
+                        </p>
+                      </AlertDescription>
+                    </Alert>
                   </CardContent>
                 </Card>
               </TabsContent>
