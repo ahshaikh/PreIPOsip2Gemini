@@ -683,7 +683,7 @@ export default function InvestorCompanyDetailPage() {
           )}
 
           {/* Investment Form */}
-          <Card>
+          <Card id="investment">
             <CardHeader>
               <CardTitle>Invest in {company.name}</CardTitle>
             </CardHeader>

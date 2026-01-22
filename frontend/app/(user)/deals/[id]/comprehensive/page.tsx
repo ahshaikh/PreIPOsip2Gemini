@@ -1296,11 +1296,24 @@ export default function ComprehensiveDealPage() {
                         <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold mb-2 block">
                           Sector-Specific Approvals
                         </span>
-                        <div className="flex flex-wrap gap-2">
-                          {company.regulatory_legal.sector_approvals_status.map((approval: string, i: number) => (
-                            <Badge key={i} className="bg-blue-100 text-blue-700 border-blue-300">
-                              {approval}
-                            </Badge>
+                        <div className="space-y-2">
+                          {company.regulatory_legal.sector_approvals_status.map((approval: any, i: number) => (
+                            <div key={i} className="p-2 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <Badge className="bg-blue-100 text-blue-700 border-blue-300 mb-1">
+                                    {typeof approval === 'string' ? approval : approval.type || approval.authority}
+                                  </Badge>
+                                  {typeof approval === 'object' && (
+                                    <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                      {approval.authority && <span>{approval.authority}</span>}
+                                      {approval.approval_number && <span> • {approval.approval_number}</span>}
+                                      {approval.date && <span> • {new Date(approval.date).toLocaleDateString()}</span>}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
                           ))}
                         </div>
                       </div>
@@ -1681,6 +1694,7 @@ export default function ComprehensiveDealPage() {
                   className="w-full"
                   size="lg"
                   disabled={!company.buy_eligibility?.allowed || !allChecksComplete}
+                  onClick={() => router.push(`/deals/${id}#investment`)}
                 >
                   Proceed to Invest
                 </Button>
