@@ -163,6 +163,20 @@ export async function fetchInvestorCompanyDetail(
 }
 
 /**
+ * Fetch comprehensive company detail for investment decision
+ *
+ * Backend endpoint: GET /investor/companies/{id}/comprehensive
+ * Returns ALL 15 categories of information for informed investment decisions
+ */
+export async function fetchInvestorCompanyDetailComprehensive(
+  companyId: number
+): Promise<any> {
+  const response = await api.get(`/investor/companies/${companyId}/comprehensive`);
+
+  return response.data.data;
+}
+
+/**
  * Check buy eligibility for company
  *
  * Backend endpoint: POST /investor/companies/{id}/check-eligibility

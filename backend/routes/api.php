@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\User\InvestmentController;
 
 // Investor Controllers (Phase 5)
 use App\Http\Controllers\Api\Investor\InvestorCompanyController;
+use App\Http\Controllers\Api\Investor\InvestorCompanyControllerComprehensive;
 use App\Http\Controllers\Api\Investor\InvestorInvestmentController;
 use App\Http\Controllers\Api\User\DealController as UserDealController;
 use App\Http\Controllers\Api\User\PaymentController;
@@ -494,7 +495,8 @@ Route::prefix('v1')->group(function () {
 
             // Company discovery and eligibility checks
             Route::get('/companies', [InvestorCompanyController::class, 'index']); // List companies with active deals + wallet
-            Route::get('/companies/{id}', [InvestorCompanyController::class, 'show']); // Company detail
+            Route::get('/companies/{id}', [InvestorCompanyController::class, 'show']); // Company detail (basic)
+            Route::get('/companies/{id}/comprehensive', [InvestorCompanyControllerComprehensive::class, 'showComprehensive']); // Company detail (comprehensive - all 15 categories)
             Route::get('/companies/{id}/required-acknowledgements', [InvestorCompanyController::class, 'getRequiredAcknowledgements']); // Risk acknowledgements
             Route::post('/companies/{id}/check-eligibility', [InvestorCompanyController::class, 'checkEligibility']); // KYC + balance check
 
