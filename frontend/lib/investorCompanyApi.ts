@@ -304,11 +304,24 @@ export async function submitInvestment(
 export async function getWalletBalance(): Promise<WalletBalance> {
   const response = await api.get('/investor/wallet');
 
-  return response.data.wallet || {
-    available_balance: 0,
-    allocated_balance: 0,
-    pending_balance: 0,
-    total_balance: 0,
+  const wallet = response.data.wallet;
+
+  if (!wallet) {
+    return {
+      available_balance: 0,
+      allocated_balance: 0,
+      pending_balance: 0,
+      total_balance: 0,
+      currency: 'INR',
+    };
+  }
+
+  // Map Wallet model fields to WalletBalance interface
+  return {
+    available_balance: parseFloat(wallet.balance || 0),
+    allocated_balance: parseFloat(wallet.allocated_balance || wallet.locked_balance || 0),
+    pending_balance: parseFloat(wallet.pending_balance || 0),
+    total_balance: parseFloat(wallet.balance || 0) + parseFloat(wallet.allocated_balance || wallet.locked_balance || 0) + parseFloat(wallet.pending_balance || 0),
     currency: 'INR',
   };
 }

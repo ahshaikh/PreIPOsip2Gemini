@@ -26,6 +26,11 @@ const nextConfig = {
         hostname: 'preiposip.com',
         pathname: '/storage/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'placehold.co',
+        pathname: '/**',
+      },
     ],
   },
 
