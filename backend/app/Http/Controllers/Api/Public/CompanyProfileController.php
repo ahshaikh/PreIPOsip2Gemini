@@ -47,8 +47,9 @@ class CompanyProfileController extends Controller
         CompanyAnalytics::incrementMetric($company->id, 'profile_views');
 
         // Get deals for this company
+        // Use Deal's live() scope to validate dates
         $deals = \App\Models\Deal::where('company_id', $company->id)
-            ->where('status', 'active')
+            ->live()
             ->get();
 
         return response()->json([
@@ -65,6 +66,26 @@ class CompanyProfileController extends Controller
     {
         $query = Company::where('status', 'active')
             ->where('is_verified', true);
+
+        // Filter by deal availability
+        if ($request->filled('filter')) {
+            switch ($request->filter) {
+                case 'live':
+                    // Only show companies with currently live deals
+                    $query->whereHas('deals', function ($q) {
+                        $q->live(); // Uses Deal's live() scope which validates dates
+                    });
+                    break;
+                case 'upcoming':
+                    // Companies with deals opening in the future
+                    $query->whereHas('deals', function ($q) {
+                        $q->where('status', 'active')
+                          ->where('deal_opens_at', '>', now());
+                    });
+                    break;
+                // 'all' or any other value shows all companies (no filter)
+            }
+        }
 
         // Filter by sector
         if ($request->filled('sector')) {
