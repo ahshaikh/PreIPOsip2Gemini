@@ -500,6 +500,9 @@ Route::prefix('v1')->group(function () {
             Route::get('/companies/{id}/required-acknowledgements', [InvestorCompanyController::class, 'getRequiredAcknowledgements']); // Risk acknowledgements
             Route::post('/companies/{id}/check-eligibility', [InvestorCompanyController::class, 'checkEligibility']); // KYC + balance check
 
+            // Risk acknowledgements
+            Route::post('/acknowledgements', [InvestorCompanyController::class, 'recordAcknowledgement']); // Record risk acknowledgement
+
             // Investment submission with:
             // - Wallet balance validation
             // - Risk acknowledgement enforcement

@@ -381,4 +381,44 @@ class InvestorCompanyController extends Controller
             ],
         ]);
     }
+
+    /**
+     * Record risk acknowledgement
+     *
+     * POST /investor/acknowledgements
+     *
+     * Records that an investor has acknowledged a specific risk
+     * This is tracked for compliance and audit purposes
+     */
+    public function recordAcknowledgement(Request $request)
+    {
+        $validated = $request->validate([
+            'company_id' => 'required|integer|exists:companies,id',
+            'acknowledgement_type' => 'required|string',
+            'context' => 'nullable|array',
+        ]);
+
+        $user = $request->user();
+
+        // Log the acknowledgement
+        \Log::info('Risk acknowledgement recorded', [
+            'user_id' => $user->id,
+            'company_id' => $validated['company_id'],
+            'acknowledgement_type' => $validated['acknowledgement_type'],
+            'context' => $validated['context'] ?? null,
+            'timestamp' => now(),
+        ]);
+
+        // TODO: Store in database table 'risk_acknowledgements' when model is created
+        // For now, we log it and return success
+        // Future: RiskAcknowledgement::create([...])
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'acknowledgement_id' => rand(1000, 9999), // Temporary ID until DB implementation
+                'recorded_at' => now()->toIso8601String(),
+            ],
+        ]);
+    }
 }
