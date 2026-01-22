@@ -49,7 +49,7 @@ class InvestorCompanyControllerComprehensive extends Controller
                         ->limit(5);
                 },
                 'fundingRounds' => function ($query) {
-                    $query->orderBy('funded_at', 'desc');
+                    $query->orderBy('round_date', 'desc');
                 },
                 'documents' => function ($query) {
                     $query->where('is_public', true)

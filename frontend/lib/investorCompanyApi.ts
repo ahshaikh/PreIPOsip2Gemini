@@ -304,7 +304,7 @@ export async function submitInvestment(
 export async function getWalletBalance(): Promise<WalletBalance> {
   const response = await api.get('/investor/wallet');
 
-  return response.data.data?.wallet || {
+  return response.data.wallet || {
     available_balance: 0,
     allocated_balance: 0,
     pending_balance: 0,
