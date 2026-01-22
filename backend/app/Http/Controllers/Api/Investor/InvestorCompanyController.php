@@ -108,7 +108,8 @@ class InvestorCompanyController extends Controller
      *
      * GET /investor/companies/{id}
      *
-     * FIX: Added buy_eligibility calculation just like index() method
+     * FIX: Added buy_eligibility, platform_context, disclosures, and required_acknowledgements
+     * to match frontend InvestorCompanyDetail interface
      */
     public function show(Request $request, $id)
     {
@@ -186,6 +187,69 @@ class InvestorCompanyController extends Controller
             'allowed' => count($blockers) === 0,
             'blockers' => $blockers,
         ];
+
+        // Build platform_context object (required by frontend)
+        $company->platform_context = [
+            'lifecycle_state' => $company->lifecycle_state ?? 'active',
+            'buying_enabled' => $company->buying_enabled ?? true,
+            'tier_status' => [
+                'tier_1_approved' => $company->tier_1_approved ?? false,
+                'tier_2_approved' => $company->tier_2_approved ?? false,
+                'tier_3_approved' => $company->tier_3_approved ?? false,
+            ],
+            'restrictions' => [
+                'is_suspended' => $company->is_suspended ?? false,
+                'is_frozen' => $company->is_frozen ?? false,
+                'is_under_investigation' => $company->is_under_investigation ?? false,
+                'buying_pause_reason' => $company->buying_pause_reason ?? null,
+            ],
+            'risk_assessment' => [
+                'platform_risk_score' => $company->platform_risk_score ?? 0,
+                'risk_level' => $company->risk_level ?? 'low',
+                'risk_flags' => $company->risk_flags ?? [],
+            ],
+        ];
+
+        // Build disclosures array (empty for now, can be populated from related models later)
+        $company->disclosures = [];
+
+        // Build required_acknowledgements array
+        $acknowledgements = [
+            [
+                'type' => 'market_risk',
+                'text' => 'I understand that Pre-IPO investments are subject to market risks and the value of my investment may go up or down.',
+                'required' => true,
+            ],
+            [
+                'type' => 'liquidity_risk',
+                'text' => 'I understand that Pre-IPO shares are not readily tradeable and may have limited liquidity until the company goes public.',
+                'required' => true,
+            ],
+            [
+                'type' => 'company_risk',
+                'text' => 'I have reviewed the company information, financial disclosures, and risk factors, and understand the company-specific risks involved.',
+                'required' => true,
+            ],
+        ];
+
+        // Add conditional acknowledgements
+        if ($company->is_suspended) {
+            $acknowledgements[] = [
+                'type' => 'suspended_company',
+                'text' => 'I understand that this company is currently suspended by the platform. Investing may carry additional risks.',
+                'required' => true,
+            ];
+        }
+
+        if ($company->funding_stage === 'seed' || $company->funding_stage === 'pre_seed') {
+            $acknowledgements[] = [
+                'type' => 'early_stage_risk',
+                'text' => 'I understand that this is an early-stage company with higher risk and potential for total loss of investment.',
+                'required' => true,
+            ];
+        }
+
+        $company->required_acknowledgements = $acknowledgements;
 
         return response()->json([
             'success' => true,
