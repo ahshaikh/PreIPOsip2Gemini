@@ -107,9 +107,23 @@ class InvestorCompanyController extends Controller
      * Get single company detail with deals (investor view)
      *
      * GET /investor/companies/{id}
+     *
+     * FIX: Added buy_eligibility calculation just like index() method
      */
     public function show(Request $request, $id)
     {
+        $user = $request->user();
+
+        // Get user's wallet
+        $wallet = Wallet::firstOrCreate(
+            ['user_id' => $user->id],
+            [
+                'balance' => 0,
+                'allocated_balance' => 0,
+                'pending_balance' => 0,
+            ]
+        );
+
         $company = Company::where('id', $id)
             ->where('status', 'active')
             ->where('is_verified', true)
@@ -135,6 +149,7 @@ class InvestorCompanyController extends Controller
                         ->orderBy('published_at', 'desc')
                         ->limit(10);
                 },
+                'sector'
             ])
             ->first();
 
@@ -144,6 +159,33 @@ class InvestorCompanyController extends Controller
                 'message' => 'Company not found or not available for investment',
             ], 404);
         }
+
+        // Calculate buy_eligibility for this company
+        $blockers = [];
+
+        // Check if user KYC is verified
+        if ($user->kyc_status !== 'verified') {
+            $blockers[] = [
+                'guard' => 'kyc_not_verified',
+                'severity' => 'critical',
+                'message' => 'KYC verification required before investing',
+            ];
+        }
+
+        // Check wallet balance
+        if (!$wallet || $wallet->balance <= 0) {
+            $blockers[] = [
+                'guard' => 'insufficient_balance',
+                'severity' => 'warning',
+                'message' => 'Insufficient wallet balance. Please add funds to invest.',
+            ];
+        }
+
+        // Add buy_eligibility to company object
+        $company->buy_eligibility = [
+            'allowed' => count($blockers) === 0,
+            'blockers' => $blockers,
+        ];
 
         return response()->json([
             'success' => true,
