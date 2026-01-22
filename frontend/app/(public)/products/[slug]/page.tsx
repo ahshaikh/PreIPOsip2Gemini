@@ -160,7 +160,7 @@ export default function ProductDetailPage() {
               {/* Sector Badge */}
               {company.sector && (
                 <Badge className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-base px-4 py-2 mb-4">
-                  {company.sector}
+                  {typeof company.sector === 'string' ? company.sector : company.sector.name}
                 </Badge>
               )}
 

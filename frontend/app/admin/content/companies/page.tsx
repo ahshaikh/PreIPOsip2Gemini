@@ -356,7 +356,7 @@ export default function CompaniesManagementPage() {
                   {companies?.data?.map((company: any) => (
                     <TableRow key={company.id}>
                       <TableCell className="font-medium">{company.name}</TableCell>
-                      <TableCell>{company.sector}</TableCell>
+                      <TableCell>{typeof company.sector === 'string' ? company.sector : company.sector?.name || '-'}</TableCell>
                       <TableCell>{company.headquarters || '-'}</TableCell>
                       <TableCell>{company.funding_stage || '-'}</TableCell>
                       <TableCell>

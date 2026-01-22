@@ -389,7 +389,7 @@ export default function InvestorCompanyDetailPage() {
           <h1 className="text-4xl font-bold mb-3">{company.name}</h1>
           {company.sector && (
             <Badge className="mb-3" variant="outline">
-              {company.sector}
+              {typeof company.sector === 'string' ? company.sector : company.sector.name}
             </Badge>
           )}
 

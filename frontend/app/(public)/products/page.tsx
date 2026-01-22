@@ -235,7 +235,7 @@ export default function ProductsPage() {
                         {/* Sector Badge */}
                         {company.sector && (
                           <span className="inline-block px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-sm font-medium rounded-full mb-4">
-                            {company.sector}
+                            {typeof company.sector === 'string' ? company.sector : company.sector.name}
                           </span>
                         )}
 

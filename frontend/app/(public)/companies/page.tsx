@@ -236,7 +236,7 @@ export default function CompaniesPage() {
                               <CheckCircle2 className="w-5 h-5 text-green-500" />
                             )}
                           </div>
-                          <Badge variant="secondary">{company.sector}</Badge>
+                          <Badge variant="secondary">{typeof company.sector === 'string' ? company.sector : company.sector.name}</Badge>
                         </div>
                       </div>
                       <CardDescription className="line-clamp-3">
