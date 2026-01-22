@@ -316,7 +316,7 @@ export default function DealsPage() {
                   <div className="flex justify-between items-center">
                     <span className="text-gray-500">Lifecycle:</span>
                     <Badge variant="outline" className="text-xs capitalize">
-                      {company.lifecycle_state.replace("_", " ")}
+                      {company.lifecycle_state?.replace("_", " ") || "Active"}
                     </Badge>
                   </div>
 
