@@ -38,13 +38,13 @@ import {
   Clock,
   GitCommit,
   FileSearch,
-  CheckSquare
+  CheckSquare,
+  Eye
 } from 'lucide-react';
 
 const navItems = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/users', label: 'User Management', icon: Users },
-  { href: '/admin/company-users', label: 'Company Users', icon: Building2 },
   { href: '/admin/payments', label: 'Payments', icon: CreditCard },
   { href: '/admin/kyc-queue', label: 'KYC Queue', icon: FileCheck2 },
   { href: '/admin/withdrawal-queue', label: 'Withdrawal Queue', icon: DollarSign },
@@ -58,19 +58,25 @@ const navItems = [
   { href: '/admin/help-center', label: 'Help Center', icon: BookOpen },
 ];
 
+const companiesNav = [
+    { href: '/admin/content/companies', label: 'All Companies', icon: Building2 },
+    { href: '/admin/company-users', label: 'Company Users', icon: Users },
+    { href: '/admin/company-versions', label: 'Company Versions', icon: GitCommit },
+    { href: '/admin/content/deals', label: 'Deals Management', icon: TrendingUp },
+    { href: '/admin/content/sectors', label: 'Sectors', icon: Layers },
+    { href: '/admin/settings/product', label: 'Product Management', icon: ShoppingCart },
+    { href: '/admin/disclosures', label: 'Disclosure Reviews', icon: Eye },
+];
+
 const auditDashboardNav = [
     { href: '/admin/product-audits', label: 'Product Audit Trail', icon: FileSearch },
     { href: '/admin/deal-approvals', label: 'Deal Approvals', icon: CheckSquare },
-    { href: '/admin/company-versions', label: 'Company Versions', icon: GitCommit },
     { href: '/admin/sagas', label: 'Payment Sagas', icon: Activity },
 ];
 
 const contentManagementNav = [
-    { href: '/admin/content/deals', label: 'Deals Management', icon: TrendingUp },
-    { href: '/admin/content/companies', label: 'Companies', icon: Building2 },
     { href: '/admin/content/tutorials', label: 'Tutorials', icon: GraduationCap },
     { href: '/admin/content/reports', label: 'Reports & Analysis', icon: FileBarChart },
-    { href: '/admin/content/sectors', label: 'Sectors', icon: Layers },
 ];
 
 const notificationNav = [
@@ -80,12 +86,11 @@ const notificationNav = [
 const settingsNav = [
     { href: '/admin/settings/system', label: 'General Settings', icon: Settings },
     { href: '/admin/settings/plans', label: 'Plan Management', icon: Package },
-    { href: '/admin/settings/product', label: 'Product Management', icon: ShoppingCart },
     { href: '/admin/settings/bonuses', label: 'Bonus Config', icon: Gift },
     { href: '/admin/settings/referral-campaigns', label: 'Referral Campaigns', icon: Zap },
     { href: '/admin/settings/roles', label: 'Role Management', icon: ShieldCheck },
     { href: '/admin/settings/ip-whitelist', label: 'IP Whitelist', icon: ShieldCheck },
-    { href: '/admin/settings/captcha', label: 'CAPTCHA', icon: Shield }, // <-- NEW
+    { href: '/admin/settings/captcha', label: 'CAPTCHA', icon: Shield },
     { href: '/admin/settings/compliance', label: 'Compliance', icon: ShieldCheck },
     { href: '/admin/settings/cms', label: 'CMS / Pages', icon: FileText },
     { href: '/admin/settings/menus', label: 'Menu Manager', icon: Menu },
@@ -122,6 +127,9 @@ export function AdminNav() {
     <nav className="flex flex-col space-y-1">
       <h4 className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Main</h4>
       {navItems.map(renderLink)}
+
+      <h4 className="px-3 pt-4 pb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Companies</h4>
+      {companiesNav.map(renderLink)}
 
       <h4 className="px-3 pt-4 pb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Audit Dashboard</h4>
       {auditDashboardNav.map(renderLink)}
