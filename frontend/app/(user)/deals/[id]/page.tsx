@@ -520,9 +520,9 @@ export default function InvestorCompanyDetailPage() {
         </Alert>
       )}
 
-      <div className="grid lg:grid-cols-3 gap-8">
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
+      {/* Main Content - Full Width (Wallet card removed) */}
+      <div className="max-w-5xl mx-auto">
+        <div className="space-y-6">
           {/* Description */}
           {company.description && (
             <Card>
@@ -667,110 +667,79 @@ export default function InvestorCompanyDetailPage() {
             </Card>
           )}
 
-          {/* Investment Form */}
-          <Card id="investment">
-            <CardHeader>
-              <CardTitle>Invest in {company.name}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Allocation Input */}
-              <div>
-                <Label htmlFor="amount">Investment Amount</Label>
-                <Input
-                  id="amount"
-                  type="text"
-                  placeholder="Enter amount"
-                  value={allocationAmount}
-                  onChange={(e) => handleAllocationChange(e.target.value)}
-                  disabled={!company.buy_eligibility.allowed}
-                  className="text-lg"
-                />
-                {allocationAmount && wallet && (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                    Remaining: {formatCurrency(wallet.available_balance - getAllocationAmountNumber())}
-                  </p>
-                )}
-                {getAllocationAmountNumber() > (wallet?.available_balance || 0) && (
-                  <p className="text-sm text-red-600 mt-1">Insufficient wallet balance</p>
-                )}
-              </div>
-
-              {/* Risk Acknowledgements */}
-              {requiredAcknowledgements.length > 0 && (
-                <div className="space-y-3">
-                  <Label>Required Acknowledgements</Label>
-                  {requiredAcknowledgements.map((ack) => (
-                    <div key={ack.type} className="flex items-start space-x-2 p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
-                      <Checkbox
-                        id={ack.type}
-                        checked={acknowledgements[ack.type] || false}
-                        onCheckedChange={(checked) =>
-                          setAcknowledgements({ ...acknowledgements, [ack.type]: !!checked })
-                        }
-                        disabled={!company.buy_eligibility.allowed}
-                      />
-                      <Label htmlFor={ack.type} className="text-sm leading-relaxed cursor-pointer">
-                        {ack.text}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Invest Button */}
-              <Button
-                className="w-full"
-                size="lg"
-                onClick={handleInvestClick}
-                disabled={
-                  !company.buy_eligibility.allowed ||
-                  !isAllocationValid() ||
-                  !areAllAcknowledgementsChecked()
-                }
-              >
-                Review & Confirm Investment
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-
-              {!company.buy_eligibility.allowed && (
-                <p className="text-xs text-red-600 text-center">
-                  Investment blocked - see reasons above
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Platform Notice */}
-          <Alert className="border-blue-300 bg-blue-50 dark:bg-blue-950/30">
-            <Info className="h-4 w-4 text-blue-600" />
-            <AlertTitle className="text-sm">Snapshot Guarantee</AlertTitle>
-            <AlertDescription className="text-xs">
-              Your investment will be bound to an immutable snapshot of all information you see
-              here, including platform context and acknowledgements.
-            </AlertDescription>
-          </Alert>
-        </div>
-
-        {/* Sidebar - Wallet Only */}
-        <div className="space-y-6">
-          {/* Wallet Card */}
-          {wallet && (
-            <Card className="border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-white dark:from-purple-950/30 dark:to-slate-900">
+          {/* Investment Form - Only show if buying is allowed */}
+          {company.buy_eligibility.allowed && (
+            <Card id="investment">
               <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Wallet className="w-5 h-5 mr-2 text-purple-600" />
-                  Your Wallet
-                </CardTitle>
+                <CardTitle>Invest in {company.name}</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-center mb-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Available Balance</p>
-                  <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">
-                    {formatCurrency(wallet.available_balance)}
-                  </p>
+              <CardContent className="space-y-4">
+                {/* Allocation Input */}
+                <div>
+                  <Label htmlFor="amount">Investment Amount</Label>
+                  <Input
+                    id="amount"
+                    type="text"
+                    placeholder="Enter amount"
+                    value={allocationAmount}
+                    onChange={(e) => handleAllocationChange(e.target.value)}
+                    className="text-lg"
+                  />
+                  {allocationAmount && wallet && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      Remaining: {formatCurrency(wallet.available_balance - getAllocationAmountNumber())}
+                    </p>
+                  )}
+                  {getAllocationAmountNumber() > (wallet?.available_balance || 0) && (
+                    <p className="text-sm text-red-600 mt-1">Insufficient wallet balance</p>
+                  )}
                 </div>
+
+                {/* Risk Acknowledgements */}
+                {requiredAcknowledgements.length > 0 && (
+                  <div className="space-y-3">
+                    <Label>Required Acknowledgements</Label>
+                    {requiredAcknowledgements.map((ack) => (
+                      <div key={ack.type} className="flex items-start space-x-2 p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
+                        <Checkbox
+                          id={ack.type}
+                          checked={acknowledgements[ack.type] || false}
+                          onCheckedChange={(checked) =>
+                            setAcknowledgements({ ...acknowledgements, [ack.type]: !!checked })
+                          }
+                        />
+                        <Label htmlFor={ack.type} className="text-sm leading-relaxed cursor-pointer">
+                          {ack.text}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Invest Button */}
+                <Button
+                  className="w-full"
+                  size="lg"
+                  onClick={handleInvestClick}
+                  disabled={!isAllocationValid() || !areAllAcknowledgementsChecked()}
+                >
+                  Review & Confirm Investment
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
               </CardContent>
             </Card>
+          )}
+
+          {/* Platform Notice */}
+          {company.buy_eligibility.allowed && (
+            <Alert className="border-blue-300 bg-blue-50 dark:bg-blue-950/30">
+              <Info className="h-4 w-4 text-blue-600" />
+              <AlertTitle className="text-sm">Snapshot Guarantee</AlertTitle>
+              <AlertDescription className="text-xs">
+                Your investment will be bound to an immutable snapshot of all information you see
+                here, including platform context and acknowledgements.
+              </AlertDescription>
+            </Alert>
           )}
         </div>
       </div>
