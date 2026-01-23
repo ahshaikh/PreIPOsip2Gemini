@@ -255,27 +255,20 @@ class BuyEnablementGuardService
     {
         $blockers = [];
 
-        // Check if company has active disputes (optional - table may not exist yet)
-        try {
-            $hasDisputes = DB::table('disputes')
-                ->where('company_id', $company->id)
-                ->whereIn('status', ['open', 'under_investigation'])
-                ->exists();
+        // Check if company has active disputes
+        $hasDisputes = DB::table('disputes')
+            ->where('company_id', $company->id)
+            ->whereIn('status', ['open', 'under_investigation'])
+            ->where('blocks_investment', true)
+            ->exists();
 
-            if ($hasDisputes) {
-                $blockers[] = [
-                    'guard' => 'active_disputes',
-                    'severity' => 'critical',
-                    'message' => 'Company has active disputes',
-                    'user_facing_message' => 'Investment is temporarily unavailable due to ongoing disputes.',
-                ];
-            }
-        } catch (\Exception $e) {
-            // Disputes table doesn't exist yet - skip this check
-            Log::debug('Disputes table not found - skipping active disputes check', [
-                'company_id' => $company->id,
-                'error' => $e->getMessage(),
-            ]);
+        if ($hasDisputes) {
+            $blockers[] = [
+                'guard' => 'active_disputes',
+                'severity' => 'critical',
+                'message' => 'Company has active disputes that block investment',
+                'user_facing_message' => 'Investment is temporarily unavailable due to ongoing disputes.',
+            ];
         }
 
         // Check platform-wide investment freeze
@@ -412,22 +405,17 @@ class BuyEnablementGuardService
             'ip_address' => request()?->ip(),
         ]);
 
-        // Try to log to investment_denial_log table if it exists
-        try {
-            DB::table('investment_denial_log')->insert([
-                'company_id' => $company->id,
-                'user_id' => $user->id,
-                'blockers' => json_encode($blockers),
-                'ip_address' => request()?->ip(),
-                'user_agent' => request()?->userAgent(),
-                'created_at' => now(),
-            ]);
-        } catch (\Exception $e) {
-            // Table doesn't exist yet - only log to Laravel log
-            Log::debug('Investment denial log table not found - logged to Laravel log only', [
-                'error' => $e->getMessage(),
-            ]);
-        }
+        // Log to investment_denial_log table for audit trail
+        DB::table('investment_denial_log')->insert([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'blockers' => json_encode($blockers),
+            'ip_address' => request()?->ip(),
+            'user_agent' => request()?->userAgent(),
+            'session_id' => session()->getId(),
+            'denial_source' => 'buy_enablement_guard',
+            'created_at' => now(),
+        ]);
     }
 
     /**
