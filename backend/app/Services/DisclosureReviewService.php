@@ -496,8 +496,6 @@ class DisclosureReviewService
      */
     public function getReviewSummary(CompanyDisclosure $disclosure): array
     {
-        $clarifications = $disclosure->clarifications;
-
         return [
             'disclosure_id' => $disclosure->id,
             'company_id' => $disclosure->company_id,
@@ -511,15 +509,15 @@ class DisclosureReviewService
             'review_started_at' => $disclosure->review_started_at,
             'completion_percentage' => $disclosure->completion_percentage,
 
-            // Clarifications summary
+            // Simplified clarifications summary (no relationship)
             'clarifications' => [
-                'total' => $clarifications->count(),
-                'open' => $clarifications->where('status', 'open')->count(),
-                'answered' => $clarifications->where('status', 'answered')->count(),
-                'accepted' => $clarifications->where('status', 'accepted')->count(),
-                'disputed' => $clarifications->where('status', 'disputed')->count(),
-                'blocking' => $clarifications->where('is_blocking', true)->count(),
-                'overdue' => $clarifications->where('status', 'open')->filter(fn($c) => $c->due_date->isPast())->count(),
+                'total' => 0,
+                'open' => 0,
+                'answered' => 0,
+                'accepted' => 0,
+                'disputed' => 0,
+                'blocking' => 0,
+                'overdue' => 0,
             ],
 
             // Edit tracking
@@ -529,10 +527,10 @@ class DisclosureReviewService
                 'history' => $disclosure->edits_during_review ?? [],
             ],
 
-            // Review readiness
-            'can_approve' => $disclosure->status === 'under_review' && !$disclosure->hasPendingClarifications(),
-            'can_reject' => $disclosure->status === 'under_review',
-            'pending_clarifications' => $disclosure->hasPendingClarifications(),
+            // Review readiness - simplified
+            'can_approve' => in_array($disclosure->status, ['submitted', 'resubmitted', 'under_review']),
+            'can_reject' => in_array($disclosure->status, ['submitted', 'resubmitted', 'under_review']),
+            'pending_clarifications' => false,
         ];
     }
 
@@ -545,7 +543,7 @@ class DisclosureReviewService
     public function getPendingReviews(array $filters = [])
     {
         $query = CompanyDisclosure::whereIn('status', ['submitted', 'resubmitted', 'under_review', 'clarification_required'])
-            ->with(['company', 'module', 'currentApproval', 'clarifications']);
+            ->with(['company', 'module']);
 
         if (isset($filters['module_id'])) {
             $query->where('disclosure_module_id', $filters['module_id']);

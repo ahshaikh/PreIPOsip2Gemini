@@ -134,8 +134,8 @@ export default function AdminCompanyManagementPage() {
   useEffect(() => {
     if (!company) return;
     const changed =
-      visiblePublic !== company.is_visible_public ||
-      visibleSubscribers !== company.is_visible_subscribers;
+      visiblePublic !== (company.is_visible_public ?? true) ||
+      visibleSubscribers !== (company.is_visible_subscribers ?? true);
     setVisibilityChanged(changed);
   }, [visiblePublic, visibleSubscribers, company]);
 
