@@ -110,14 +110,14 @@ export default function AdminCompanyManagementPage() {
 
         setCompany(data);
 
-        // Initialize visibility controls (optional fields)
-        setVisiblePublic(data.is_visible_public ?? true);
-        setVisibleSubscribers(data.is_visible_subscribers ?? true);
+        // Initialize visibility controls
+        setVisiblePublic(data.is_visible_public);
+        setVisibleSubscribers(data.is_visible_subscribers);
 
-        // Initialize platform context controls from direct company fields
-        setIsSuspended(data.suspended_at != null || data.lifecycle_state === 'suspended');
-        setIsFrozen(data.is_frozen ?? false);
-        setBuyingEnabled(data.buying_enabled ?? false);
+        // Initialize platform context controls
+        setIsSuspended(data.platform_context.is_suspended);
+        setIsFrozen(data.platform_context.is_frozen);
+        setBuyingEnabled(data.platform_context.buying_enabled);
       } catch (err: any) {
         console.error("[ADMIN COMPANY] Failed to load:", err);
         setError("Unable to load company. Please try again later.");
@@ -134,8 +134,8 @@ export default function AdminCompanyManagementPage() {
   useEffect(() => {
     if (!company) return;
     const changed =
-      visiblePublic !== (company.is_visible_public ?? true) ||
-      visibleSubscribers !== (company.is_visible_subscribers ?? true);
+      visiblePublic !== company.is_visible_public ||
+      visibleSubscribers !== company.is_visible_subscribers;
     setVisibilityChanged(changed);
   }, [visiblePublic, visibleSubscribers, company]);
 
