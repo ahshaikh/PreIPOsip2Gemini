@@ -110,14 +110,14 @@ export default function AdminCompanyManagementPage() {
 
         setCompany(data);
 
-        // Initialize visibility controls
-        setVisiblePublic(data.is_visible_public);
-        setVisibleSubscribers(data.is_visible_subscribers);
+        // Initialize visibility controls (optional fields)
+        setVisiblePublic(data.is_visible_public ?? true);
+        setVisibleSubscribers(data.is_visible_subscribers ?? true);
 
-        // Initialize platform context controls
-        setIsSuspended(data.platform_context.is_suspended);
-        setIsFrozen(data.platform_context.is_frozen);
-        setBuyingEnabled(data.platform_context.buying_enabled);
+        // Initialize platform context controls from direct company fields
+        setIsSuspended(data.suspended_at != null || data.lifecycle_state === 'suspended');
+        setIsFrozen(data.is_frozen ?? false);
+        setBuyingEnabled(data.buying_enabled ?? false);
       } catch (err: any) {
         console.error("[ADMIN COMPANY] Failed to load:", err);
         setError("Unable to load company. Please try again later.");

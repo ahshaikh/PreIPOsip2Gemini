@@ -83,6 +83,20 @@ class CompanyController extends Controller
     public function show($id)
     {
         $company = Company::with('deals')->findOrFail($id);
+
+        // Build platform_context for admin frontend
+        $company->platform_context = [
+            'lifecycle_state' => $company->lifecycle_state ?? 'draft',
+            'buying_enabled' => $company->buying_enabled ?? false,
+            'is_suspended' => $company->suspended_at !== null || $company->lifecycle_state === 'suspended',
+            'is_frozen' => $company->is_frozen ?? false,
+            'tier_status' => [
+                'tier_1_approved' => $company->tier_1_approved_at !== null,
+                'tier_2_approved' => $company->tier_2_approved_at !== null,
+                'tier_3_approved' => $company->tier_3_approved_at !== null,
+            ],
+        ];
+
         return response()->json($company);
     }
 

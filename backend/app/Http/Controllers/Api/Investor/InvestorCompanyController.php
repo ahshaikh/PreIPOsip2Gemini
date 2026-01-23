@@ -164,6 +164,38 @@ class InvestorCompanyController extends Controller
         // Calculate buy_eligibility for this company
         $blockers = [];
 
+        // COMPANY-LEVEL BLOCKERS (Platform restrictions)
+
+        // Check if company is suspended
+        if ($company->suspended_at !== null || $company->lifecycle_state === 'suspended') {
+            $blockers[] = [
+                'guard' => 'company_suspended',
+                'severity' => 'critical',
+                'message' => 'Company is currently suspended by platform. Investment is not allowed.',
+            ];
+        }
+
+        // Check if buying is enabled (Tier 2 approval required)
+        if (!$company->buying_enabled) {
+            $blockers[] = [
+                'guard' => 'buying_disabled',
+                'severity' => 'critical',
+                'message' => 'Company must complete Tier 2 disclosures before accepting investments.',
+            ];
+        }
+
+        // Check lifecycle state
+        $investableStates = ['live_investable', 'live_fully_disclosed'];
+        if (!in_array($company->lifecycle_state, $investableStates)) {
+            $blockers[] = [
+                'guard' => 'lifecycle_not_investable',
+                'severity' => 'critical',
+                'message' => 'Company is not yet ready to accept investments. Current state: ' . ($company->lifecycle_state ?? 'unknown'),
+            ];
+        }
+
+        // USER-LEVEL BLOCKERS
+
         // Check if user KYC is verified
         if ($user->kyc_status !== 'verified') {
             $blockers[] = [
