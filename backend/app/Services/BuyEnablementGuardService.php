@@ -467,7 +467,7 @@ class BuyEnablementGuardService
             ->where('user_id', $userId)
             ->where('company_id', $companyId)
             ->where('status', 'active')
-            ->sum('amount');
+            ->sum('total_amount');
 
         // Check per-company limit (example: ₹10 lakhs)
         $perCompanyLimit = 1000000; // ₹10 lakhs
