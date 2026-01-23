@@ -548,22 +548,26 @@ export default function InvestorCompanyDetailPage() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-gray-500">Lifecycle State</span>
-                  <p className="font-semibold capitalize">
-                    {company.platform_context.lifecycle_state.replace("_", " ")}
-                  </p>
+                  <span className="text-gray-500 text-xs">Lifecycle State</span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="outline" className="font-semibold capitalize">
+                      {company.platform_context.lifecycle_state.replace(/_/g, " ")}
+                    </Badge>
+                  </div>
                 </div>
                 <div>
-                  <span className="text-gray-500">Buying Status</span>
-                  <p
-                    className={`font-semibold ${
-                      company.platform_context.buying_enabled
-                        ? "text-green-600"
-                        : "text-red-600"
-                    }`}
-                  >
-                    {company.platform_context.buying_enabled ? "Enabled" : "Disabled"}
-                  </p>
+                  <span className="text-gray-500 text-xs">Investment Buying</span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge
+                      className={`font-semibold ${
+                        company.platform_context.buying_enabled
+                          ? "bg-green-600 text-white"
+                          : "bg-red-600 text-white"
+                      }`}
+                    >
+                      {company.platform_context.buying_enabled ? "✓ Enabled" : "✗ Disabled"}
+                    </Badge>
+                  </div>
                 </div>
               </div>
 
@@ -572,14 +576,18 @@ export default function InvestorCompanyDetailPage() {
               <div>
                 <h4 className="font-semibold mb-2">Tier Approvals</h4>
                 <div className="space-y-2 text-sm">
-                  {Object.entries(company.platform_context.tier_status).map(([tier, approved]) => (
-                    <div key={tier} className="flex justify-between items-center">
-                      <span className="capitalize">{tier.replace("_", " ")}</span>
-                      <span className={approved ? "text-green-600" : "text-gray-400"}>
-                        {approved ? "✓ Approved" : "Pending"}
-                      </span>
-                    </div>
-                  ))}
+                  {Object.entries(company.platform_context.tier_status).map(([tier, approved]) => {
+                    // Clean up tier name - remove "_approved" suffix if present
+                    const tierName = tier.replace(/_approved$/, '').replace(/_/g, ' ').toUpperCase();
+                    return (
+                      <div key={tier} className="flex justify-between items-center">
+                        <span>{tierName}</span>
+                        <Badge variant={approved ? "default" : "secondary"} className={approved ? "bg-green-600" : ""}>
+                          {approved ? "✓ Approved" : "Pending"}
+                        </Badge>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -654,29 +662,6 @@ export default function InvestorCompanyDetailPage() {
                       </p>
                     </div>
                   ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        {/* Sidebar - Investment Form */}
-        <div className="space-y-6">
-          {/* Wallet Card */}
-          {wallet && (
-            <Card className="border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-white dark:from-purple-950/30 dark:to-slate-900">
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Wallet className="w-5 h-5 mr-2 text-purple-600" />
-                  Your Wallet
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center mb-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Available Balance</p>
-                  <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">
-                    {formatCurrency(wallet.available_balance)}
-                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -765,11 +750,34 @@ export default function InvestorCompanyDetailPage() {
             </AlertDescription>
           </Alert>
         </div>
+
+        {/* Sidebar - Wallet Only */}
+        <div className="space-y-6">
+          {/* Wallet Card */}
+          {wallet && (
+            <Card className="border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-white dark:from-purple-950/30 dark:to-slate-900">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Wallet className="w-5 h-5 mr-2 text-purple-600" />
+                  Your Wallet
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center mb-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Available Balance</p>
+                  <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">
+                    {formatCurrency(wallet.available_balance)}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
 
       {/* Review Modal */}
       <Dialog open={showReviewModal} onOpenChange={setShowReviewModal}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Review Your Investment</DialogTitle>
             <DialogDescription>
