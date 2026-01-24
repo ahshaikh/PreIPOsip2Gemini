@@ -141,11 +141,11 @@ export default function AdminCompanyManagementPage() {
 
   // Track platform context changes
   useEffect(() => {
-    if (!company) return;
+    if (!company || !company.platform_context) return;
     const changed =
-      isSuspended !== company.platform_context.is_suspended ||
-      isFrozen !== company.platform_context.is_frozen ||
-      buyingEnabled !== company.platform_context.buying_enabled;
+      isSuspended !== (company.platform_context.is_suspended ?? false) ||
+      isFrozen !== (company.platform_context.is_frozen ?? false) ||
+      buyingEnabled !== (company.platform_context.buying_enabled ?? false);
     setPlatformContextChanged(changed);
   }, [isSuspended, isFrozen, buyingEnabled, company]);
 
@@ -155,10 +155,10 @@ export default function AdminCompanyManagementPage() {
 
     try {
       const changes: any = {};
-      if (visiblePublic !== company.is_visible_public) {
+      if (visiblePublic !== (company.is_visible_public ?? true)) {
         changes.is_visible_public = visiblePublic;
       }
-      if (visibleSubscribers !== company.is_visible_subscribers) {
+      if (visibleSubscribers !== (company.is_visible_subscribers ?? true)) {
         changes.is_visible_subscribers = visibleSubscribers;
       }
 
@@ -210,17 +210,17 @@ export default function AdminCompanyManagementPage() {
 
   // Handle platform context preview (ISSUE 2 FIX)
   const handlePreviewPlatformContextChange = async () => {
-    if (!company) return;
+    if (!company || !company.platform_context) return;
 
     try {
       const changes: any = {};
-      if (isSuspended !== company.platform_context.is_suspended) {
+      if (isSuspended !== (company.platform_context.is_suspended ?? false)) {
         changes.is_suspended = isSuspended;
       }
-      if (isFrozen !== (company.platform_context.is_frozen || false)) {
+      if (isFrozen !== (company.platform_context.is_frozen ?? false)) {
         changes.is_frozen = isFrozen;
       }
-      if (buyingEnabled !== company.platform_context.buying_enabled) {
+      if (buyingEnabled !== (company.platform_context.buying_enabled ?? false)) {
         changes.buying_enabled = buyingEnabled;
       }
 
@@ -404,13 +404,13 @@ export default function AdminCompanyManagementPage() {
               <strong>Current State:</strong>
               <ul className="list-disc list-inside mt-2 space-y-1">
                 <li>
-                  Public Site: <strong>{company.is_visible_public ? "VISIBLE" : "HIDDEN"}</strong>
+                  Public Site: <strong>{(company.is_visible_public ?? true) ? "VISIBLE" : "HIDDEN"}</strong>
                 </li>
                 <li>
-                  Subscribers: <strong>{company.is_visible_subscribers ? "VISIBLE" : "HIDDEN"}</strong>
+                  Subscribers: <strong>{(company.is_visible_subscribers ?? true) ? "VISIBLE" : "HIDDEN"}</strong>
                 </li>
                 <li>
-                  Existing Investors: {company.investor_snapshots.total_investors} (unaffected by visibility changes)
+                  Existing Investors: {company.investor_snapshots?.total_investors ?? 0} (unaffected by visibility changes)
                 </li>
               </ul>
             </AlertDescription>
@@ -530,25 +530,25 @@ export default function AdminCompanyManagementPage() {
           <div className="grid md:grid-cols-4 gap-4 text-center">
             <div>
               <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                {company.investor_snapshots.total_investors}
+                {company.investor_snapshots?.total_investors ?? 0}
               </p>
               <p className="text-sm text-blue-700 dark:text-blue-300">Total Investors</p>
             </div>
             <div>
               <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                {company.investor_snapshots.total_investments}
+                {company.investor_snapshots?.total_investments ?? 0}
               </p>
               <p className="text-sm text-blue-700 dark:text-blue-300">Total Investments</p>
             </div>
             <div>
               <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                {company.investor_snapshots.snapshot_count}
+                {company.investor_snapshots?.snapshot_count ?? 0}
               </p>
               <p className="text-sm text-blue-700 dark:text-blue-300">Snapshots Created</p>
             </div>
             <div>
               <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
-                {company.investor_snapshots.latest_snapshot_at
+                {company.investor_snapshots?.latest_snapshot_at
                   ? new Date(company.investor_snapshots.latest_snapshot_at).toLocaleDateString()
                   : "N/A"}
               </p>
