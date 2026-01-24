@@ -97,33 +97,59 @@ class CompanyController extends Controller
             ],
         ];
 
-        // Build investor_snapshots data
-        $totalInvestors = \DB::table('investments')
-            ->where('company_id', $company->id)
-            ->where('status', 'active')
-            ->distinct('user_id')
-            ->count('user_id');
+        // Build investor_snapshots data (with graceful handling if tables don't exist)
+        try {
+            $totalInvestors = \DB::table('investments')
+                ->where('company_id', $company->id)
+                ->where('status', 'active')
+                ->distinct('user_id')
+                ->count('user_id');
 
-        $totalInvestments = \DB::table('investments')
-            ->where('company_id', $company->id)
-            ->where('status', 'active')
-            ->count();
+            $totalInvestments = \DB::table('investments')
+                ->where('company_id', $company->id)
+                ->where('status', 'active')
+                ->count();
 
-        $snapshotCount = \DB::table('investment_snapshots')
-            ->where('company_id', $company->id)
-            ->count();
+            // Try to get snapshots data, but don't fail if table doesn't exist
+            $snapshotCount = 0;
+            $latestSnapshotAt = null;
 
-        $latestSnapshot = \DB::table('investment_snapshots')
-            ->where('company_id', $company->id)
-            ->orderBy('snapshot_at', 'desc')
-            ->first();
+            try {
+                $snapshotCount = \DB::table('investment_snapshots')
+                    ->where('company_id', $company->id)
+                    ->count();
 
-        $company->investor_snapshots = [
-            'total_investors' => $totalInvestors,
-            'total_investments' => $totalInvestments,
-            'snapshot_count' => $snapshotCount,
-            'latest_snapshot_at' => $latestSnapshot->snapshot_at ?? null,
-        ];
+                $latestSnapshot = \DB::table('investment_snapshots')
+                    ->where('company_id', $company->id)
+                    ->orderBy('snapshot_at', 'desc')
+                    ->first();
+
+                $latestSnapshotAt = $latestSnapshot->snapshot_at ?? null;
+            } catch (\Exception $e) {
+                // investment_snapshots table doesn't exist yet - skip
+                \Log::debug('investment_snapshots table not found', ['company_id' => $company->id]);
+            }
+
+            $company->investor_snapshots = [
+                'total_investors' => $totalInvestors,
+                'total_investments' => $totalInvestments,
+                'snapshot_count' => $snapshotCount,
+                'latest_snapshot_at' => $latestSnapshotAt,
+            ];
+        } catch (\Exception $e) {
+            // If investments table doesn't exist either, return zeros
+            \Log::debug('Error fetching investor data', [
+                'company_id' => $company->id,
+                'error' => $e->getMessage()
+            ]);
+
+            $company->investor_snapshots = [
+                'total_investors' => 0,
+                'total_investments' => 0,
+                'snapshot_count' => 0,
+                'latest_snapshot_at' => null,
+            ];
+        }
 
         return response()->json([
             'success' => true,
