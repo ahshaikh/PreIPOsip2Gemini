@@ -97,6 +97,34 @@ class CompanyController extends Controller
             ],
         ];
 
+        // Build investor_snapshots data
+        $totalInvestors = \DB::table('investments')
+            ->where('company_id', $company->id)
+            ->where('status', 'active')
+            ->distinct('user_id')
+            ->count('user_id');
+
+        $totalInvestments = \DB::table('investments')
+            ->where('company_id', $company->id)
+            ->where('status', 'active')
+            ->count();
+
+        $snapshotCount = \DB::table('investment_snapshots')
+            ->where('company_id', $company->id)
+            ->count();
+
+        $latestSnapshot = \DB::table('investment_snapshots')
+            ->where('company_id', $company->id)
+            ->orderBy('snapshot_at', 'desc')
+            ->first();
+
+        $company->investor_snapshots = [
+            'total_investors' => $totalInvestors,
+            'total_investments' => $totalInvestments,
+            'snapshot_count' => $snapshotCount,
+            'latest_snapshot_at' => $latestSnapshot->snapshot_at ?? null,
+        ];
+
         return response()->json([
             'success' => true,
             'data' => $company,
