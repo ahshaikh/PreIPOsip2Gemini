@@ -97,7 +97,10 @@ class CompanyController extends Controller
             ],
         ];
 
-        return response()->json($company);
+        return response()->json([
+            'success' => true,
+            'data' => $company,
+        ]);
     }
 
     /**
