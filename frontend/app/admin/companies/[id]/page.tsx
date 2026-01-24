@@ -494,7 +494,7 @@ export default function AdminCompanyManagementPage() {
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-3 gap-4">
-            {Object.entries(company.platform_context.tier_status).map(([tier, approved]) => {
+            {company.platform_context?.tier_status && Object.entries(company.platform_context.tier_status).map(([tier, approved]) => {
               if (tier.includes("_at")) return null;
               return (
                 <div key={tier} className="flex items-center justify-between p-4 border rounded-lg">
