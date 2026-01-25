@@ -370,6 +370,96 @@ class WalletService
     }
 
     /**
+     * P0 FIX: Debit funds for investment/purchase operations.
+     *
+     * This method provides a simplified interface for immediate fund deduction,
+     * returning a structured result array for controller consumption.
+     *
+     * @param int $userId User ID to debit from
+     * @param int|float|string $amount Amount to debit
+     * @param string $description Transaction description
+     * @param string $type Transaction type string
+     * @param array $metadata Additional metadata for audit trail
+     * @return array{success: bool, transaction_id?: int, error?: string}
+     */
+    public function debit(
+        int $userId,
+        int|float|string $amount,
+        string $description,
+        string $type = 'company_investment',
+        array $metadata = []
+    ): array {
+        try {
+            $user = User::findOrFail($userId);
+
+            // Map string type to TransactionType enum
+            $transactionType = match ($type) {
+                'company_investment' => TransactionType::INVESTMENT,
+                'investment' => TransactionType::INVESTMENT,
+                'withdrawal' => TransactionType::WITHDRAWAL,
+                'tds_deduction' => TransactionType::TDS_DEDUCTION,
+                default => TransactionType::from($type),
+            };
+
+            // Create a reference model if metadata contains identifiable info
+            $reference = null;
+            if (!empty($metadata['company_id'])) {
+                $reference = \App\Models\Company::find($metadata['company_id']);
+            }
+
+            // Call withdraw internally
+            $transaction = $this->withdraw(
+                user: $user,
+                amount: $amount,
+                type: $transactionType,
+                description: $description,
+                reference: $reference,
+                lockBalance: false,
+                allowOverdraft: false
+            );
+
+            Log::info('WALLET DEBIT SUCCESS', [
+                'user_id' => $userId,
+                'amount' => $amount,
+                'transaction_id' => $transaction->id,
+                'type' => $type,
+                'metadata' => $metadata,
+            ]);
+
+            return [
+                'success' => true,
+                'transaction_id' => $transaction->id,
+                'balance_after' => $transaction->balance_after_paise,
+            ];
+
+        } catch (InsufficientBalanceException $e) {
+            Log::warning('WALLET DEBIT FAILED: Insufficient balance', [
+                'user_id' => $userId,
+                'amount' => $amount,
+                'available' => $e->getAvailableBalance(),
+            ]);
+
+            return [
+                'success' => false,
+                'error' => 'Insufficient balance',
+                'available_balance' => $e->getAvailableBalance(),
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('WALLET DEBIT FAILED', [
+                'user_id' => $userId,
+                'amount' => $amount,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
      * FIX 1 (P0): Debit locked funds (final processing of withdrawal/payment)
      * Moves funds from both balance and locked_balance simultaneously.
      *

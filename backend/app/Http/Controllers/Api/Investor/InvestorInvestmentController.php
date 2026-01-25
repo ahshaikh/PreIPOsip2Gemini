@@ -232,23 +232,8 @@ class InvestorInvestmentController extends Controller
                     );
                 }
 
-                // 5. CAPTURE SNAPSHOT (IMMUTABLE BINDING)
-                $snapshotResult = $this->snapshotService->captureAtPurchase($companyId, $user->id);
-
-                if (!$snapshotResult['success']) {
-                    DB::rollBack();
-                    return $this->errorResponse(
-                        'SNAPSHOT_FAILED',
-                        'Failed to capture investment snapshot',
-                        500,
-                        ['company_id' => $companyId]
-                    );
-                }
-
-                $snapshotId = $snapshotResult['snapshot_id'];
-                $snapshotIds[] = $snapshotId;
-
-                // 6. RECORD RISK ACKNOWLEDGEMENTS (IMMUTABLE)
+                // 5. RECORD RISK ACKNOWLEDGEMENTS FIRST (for snapshot capture)
+                // P0 FIX: Record acknowledgements before snapshot so they can be included
                 foreach ($acknowledgedRisks as $riskType) {
                     RiskAcknowledgement::create([
                         'user_id' => $user->id,
@@ -260,35 +245,68 @@ class InvestorInvestmentController extends Controller
                     ]);
                 }
 
-                // 7. DEBIT WALLET (ATOMIC)
+                // 6. CREATE INVESTMENT RECORD FIRST (P0 FIX: Snapshot needs investment ID)
+                // Investment created with null snapshot_id initially
+                $investment = CompanyInvestment::create([
+                    'user_id' => $user->id,
+                    'company_id' => $companyId,
+                    'amount' => $amount,
+                    'disclosure_snapshot_id' => null, // Will be updated after snapshot capture
+                    'status' => 'pending', // Pending until snapshot captured
+                    'invested_at' => now(),
+                    'idempotency_key' => $validated['idempotency_key'] ?? null,
+                ]);
+
+                // 7. CAPTURE SNAPSHOT (IMMUTABLE BINDING)
+                // P0 FIX: Correct method signature - captureAtPurchase(investmentId, User, Company, acknowledgements)
+                try {
+                    $snapshotId = $this->snapshotService->captureAtPurchase(
+                        $investment->id,
+                        $user,
+                        $company,
+                        $acknowledgedRisks
+                    );
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    Log::error('[INVESTMENT] Snapshot capture failed', [
+                        'investment_id' => $investment->id,
+                        'company_id' => $companyId,
+                        'error' => $e->getMessage(),
+                    ]);
+                    return $this->errorResponse(
+                        'SNAPSHOT_FAILED',
+                        'Failed to capture investment snapshot: ' . $e->getMessage(),
+                        500,
+                        ['company_id' => $companyId]
+                    );
+                }
+
+                $snapshotIds[] = $snapshotId;
+
+                // 8. UPDATE INVESTMENT WITH SNAPSHOT ID
+                $investment->update([
+                    'disclosure_snapshot_id' => $snapshotId,
+                    'status' => 'active',
+                ]);
+
+                // 9. DEBIT WALLET (ATOMIC)
                 $walletResult = $this->walletService->debit(
                     $user->id,
                     $amount,
                     "Investment in {$company->name}",
                     'company_investment',
-                    ['company_id' => $companyId, 'snapshot_id' => $snapshotId]
+                    ['company_id' => $companyId, 'snapshot_id' => $snapshotId, 'investment_id' => $investment->id]
                 );
 
                 if (!$walletResult['success']) {
                     DB::rollBack();
                     return $this->errorResponse(
                         'WALLET_DEBIT_FAILED',
-                        'Wallet debit failed',
+                        'Wallet debit failed: ' . ($walletResult['error'] ?? 'Unknown error'),
                         500,
-                        ['company_id' => $companyId]
+                        ['company_id' => $companyId, 'wallet_error' => $walletResult['error'] ?? null]
                     );
                 }
-
-                // 8. CREATE INVESTMENT RECORD
-                $investment = CompanyInvestment::create([
-                    'user_id' => $user->id,
-                    'company_id' => $companyId,
-                    'amount' => $amount,
-                    'disclosure_snapshot_id' => $snapshotId,
-                    'status' => 'active',
-                    'invested_at' => now(),
-                    'idempotency_key' => $validated['idempotency_key'] ?? null,
-                ]);
 
                 $investmentRecords[] = $investment;
 
@@ -298,6 +316,7 @@ class InvestorInvestmentController extends Controller
                     'amount' => $amount,
                     'investment_id' => $investment->id,
                     'snapshot_id' => $snapshotId,
+                    'wallet_transaction_id' => $walletResult['transaction_id'] ?? null,
                 ]);
             }
 
