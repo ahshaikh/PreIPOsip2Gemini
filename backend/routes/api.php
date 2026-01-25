@@ -572,6 +572,24 @@ Route::prefix('v1')->group(function () {
                 Route::post('custom/generate', [AdvancedReportController::class, 'generateCustomReport'])->middleware('permission:reports.view_financial');
             });
 
+            // -------------------------------------------------------------
+            // P0 FIX (GAP 28-30): PLATFORM RECONCILIATION DASHBOARD
+            // -------------------------------------------------------------
+            Route::prefix('reconciliation')->middleware('permission:reports.view_financial')->group(function () {
+                // GAP 28: Platform cash position
+                Route::get('cash-position', [App\Http\Controllers\Api\Admin\ReconciliationDashboardController::class, 'getCashPosition']);
+                Route::get('cash-flow', [App\Http\Controllers\Api\Admin\ReconciliationDashboardController::class, 'getCashFlow']);
+
+                // GAP 29: Share lifecycle tracing
+                Route::get('share-lifecycle/{bulkPurchaseId}', [App\Http\Controllers\Api\Admin\ReconciliationDashboardController::class, 'traceShareLifecycle']);
+                Route::get('investment-provenance/{investmentId}', [App\Http\Controllers\Api\Admin\ReconciliationDashboardController::class, 'traceInvestmentProvenance']);
+
+                // GAP 30: Full reconciliation dashboard
+                Route::get('dashboard', [App\Http\Controllers\Api\Admin\ReconciliationDashboardController::class, 'getDashboard']);
+                Route::get('unreconciled', [App\Http\Controllers\Api\Admin\ReconciliationDashboardController::class, 'getUnreconciledItems']);
+                Route::get('export', [App\Http\Controllers\Api\Admin\ReconciliationDashboardController::class, 'exportReport']);
+            });
+
             // Scheduled Reports Management
             Route::prefix('scheduled-reports')->middleware('permission:reports.manage_scheduled')->group(function () {
                 Route::get('/', [AdvancedReportController::class, 'listScheduledReports']);
