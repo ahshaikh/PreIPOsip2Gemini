@@ -256,6 +256,11 @@ Route::prefix('v1')->group(function () {
         Route::get('/metrics', [App\Http\Controllers\Api\PlatformContextController::class, 'getMetrics']);
         Route::get('/risk-flags', [App\Http\Controllers\Api\PlatformContextController::class, 'getRiskFlags']);
         Route::get('/valuation-context', [App\Http\Controllers\Api\PlatformContextController::class, 'getValuationContext']);
+
+        // P0 FIX (GAP 14-16): Attribution, history, and separation endpoints
+        Route::get('/platform-context/attributed', [App\Http\Controllers\Api\PlatformContextController::class, 'getAttributedContext']);
+        Route::get('/platform-context/history', [App\Http\Controllers\Api\PlatformContextController::class, 'getChangeHistory']);
+        Route::get('/context/separated', [App\Http\Controllers\Api\PlatformContextController::class, 'getSeparatedContext']);
     });
 
     // --- Webhook Routes (V-SECURITY: Signature verification required) ---
