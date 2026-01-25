@@ -11,6 +11,7 @@ use App\Services\BuyEnablementGuardService;
 use App\Services\InvestmentSnapshotService;
 use App\Services\WalletService;
 use App\Services\PlatformSupremacyGuard;
+use App\Services\Accounting\AdminLedger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -37,17 +38,20 @@ class InvestorInvestmentController extends Controller
     protected InvestmentSnapshotService $snapshotService;
     protected WalletService $walletService;
     protected PlatformSupremacyGuard $platformGuard;
+    protected AdminLedger $adminLedger;
 
     public function __construct(
         BuyEnablementGuardService $buyGuard,
         InvestmentSnapshotService $snapshotService,
         WalletService $walletService,
-        PlatformSupremacyGuard $platformGuard
+        PlatformSupremacyGuard $platformGuard,
+        AdminLedger $adminLedger
     ) {
         $this->buyGuard = $buyGuard;
         $this->snapshotService = $snapshotService;
         $this->walletService = $walletService;
         $this->platformGuard = $platformGuard;
+        $this->adminLedger = $adminLedger;
     }
 
     /**
@@ -308,6 +312,36 @@ class InvestorInvestmentController extends Controller
                     );
                 }
 
+                // 10. P0 FIX: RECORD SHARE SALE IN ADMIN LEDGER
+                // CRITICAL: This creates the platform cash credit entry
+                // Without this, platform cannot prove it received money for shares sold
+                try {
+                    $ledgerEntries = $this->adminLedger->recordShareSale(
+                        saleAmount: $amount,
+                        investmentId: $investment->id,
+                        companyId: $companyId,
+                        bulkPurchaseId: null, // TODO: Link to specific bulk purchase if allocation tracking is implemented
+                        description: "Share sale: User #{$user->id} invested ₹{$amount} in {$company->name}"
+                    );
+
+                    Log::info('[INVESTMENT] Admin ledger entry created for share sale', [
+                        'investment_id' => $investment->id,
+                        'amount' => $amount,
+                        'debit_entry_id' => $ledgerEntries[0]->id ?? null,
+                        'credit_entry_id' => $ledgerEntries[1]->id ?? null,
+                    ]);
+                } catch (\Exception $e) {
+                    // Log but don't fail the transaction - ledger is secondary to investment
+                    // In production, this should alert admins for manual reconciliation
+                    Log::error('[INVESTMENT] CRITICAL: Admin ledger entry failed', [
+                        'investment_id' => $investment->id,
+                        'amount' => $amount,
+                        'error' => $e->getMessage(),
+                    ]);
+                    // Note: We continue despite ledger failure to not block user investment
+                    // Reconciliation job should catch and fix these gaps
+                }
+
                 $investmentRecords[] = $investment;
 
                 Log::info('[INVESTMENT] Investment created successfully', [
@@ -317,6 +351,7 @@ class InvestorInvestmentController extends Controller
                     'investment_id' => $investment->id,
                     'snapshot_id' => $snapshotId,
                     'wallet_transaction_id' => $walletResult['transaction_id'] ?? null,
+                    'ledger_recorded' => isset($ledgerEntries),
                 ]);
             }
 
