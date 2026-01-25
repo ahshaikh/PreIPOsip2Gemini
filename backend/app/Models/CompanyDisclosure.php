@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\HasVisibilityScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -53,7 +54,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class CompanyDisclosure extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasVisibilityScope;
 
     /**
      * The table associated with the model.
@@ -69,6 +70,8 @@ class CompanyDisclosure extends Model
         'disclosure_data',
         'attachments',
         'status',
+        'visibility',           // P0 FIX (GAP 27): public, subscriber, admin, company
+        'is_visible',           // P0 FIX (GAP 26): Master visibility toggle
         'completion_percentage',
         'is_locked',
         'submitted_at',
@@ -97,6 +100,7 @@ class CompanyDisclosure extends Model
         'attachments' => 'array',
         'completion_percentage' => 'integer',
         'is_locked' => 'boolean',
+        'is_visible' => 'boolean', // P0 FIX (GAP 26)
         'submitted_at' => 'datetime',
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
