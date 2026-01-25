@@ -1,0 +1,297 @@
+ENGINEERING BACKLOG — PREIPOSIP DISCLOSURE & INVESTMENT PLATFORM
+EPIC 0 — PLATFORM FOUNDATIONS (MANDATORY FIRST)
+0.1 Database & Core Infrastructure
+TICKET 0.1.1 — Design & Migrate Core Company Schema
+
+Description:
+Create and migrate the full companies master table with legal, business, compliance, and platform control fields.
+
+Acceptance Criteria:
+- Supports partial profile completion
+- Supports freeze/suspend
+- Soft deletes enabled
+- Indexed on slug, status, sector_id
+
+TICKET 0.1.2 — Company User & Role System
+
+Description:
+Implement company_users with role-based permissions (founder, finance, legal, viewer).
+
+Acceptance Criteria:
+- Role-based access enforced at API layer
+- Authorized signatory flag supported
+- Max user quota enforced per company
+
+TICKET 0.1.3 — Global Audit Log System
+
+Description:
+Implement immutable audit_logs capturing all critical actions.
+
+Acceptance Criteria:
+- Before/after JSON stored
+- Actor attribution (company/admin/system)
+- No hard deletes allowed
+
+EPIC 1 — COMPANY DISCLOSURE ENGINE (CORE)
+1.1 Disclosure Data Model
+TICKET 1.1.1 — Disclosure Modules Framework
+
+Description:
+Create company_disclosures and company_disclosure_versions tables.
+
+Acceptance Criteria:
+- Supports versioning
+- Supports module-level status
+- Payload stored as structured JSON
+- Cannot overwrite approved versions
+
+TICKET 1.1.2 — Disclosure Query & Response System
+
+Description:
+Enable admin → company clarification loops.
+
+Acceptance Criteria:
+- Unlimited clarification rounds
+- Queries tied to disclosure version
+- Responses logged with attachments
+- Disclosure cannot be approved with open queries
+
+1.2 Disclosure State Machine
+TICKET 1.2.1 — Module Status Transitions
+
+Description:
+Implement state machine:
+Draft → Submitted → Under Review → Clarification Required → Approved
+
+Acceptance Criteria:
+- Editable until Approved
+- Edits under review notify admin
+- Approved modules become read-only
+
+TICKET 1.2.2 — Error & Omission Reporting
+
+Description:
+Add “Report Error / Omission” workflow per module.
+
+Acceptance Criteria:
+- Self-reported correction logged
+- Admin notified
+- Diff view available for admin
+
+EPIC 2 — ADMIN REVIEW & GOVERNANCE WORKFLOWS
+2.1 Admin Review System
+TICKET 2.1.1 — Admin Disclosure Review Dashboard
+
+Description:
+Build admin queues by disclosure status and tier.
+
+Acceptance Criteria:
+- Filter by Tier (1/2/3)
+- Highlight edited-after-review items
+- SLA timestamps visible
+
+TICKET 2.1.2 — Admin Decision Engine
+
+Description:
+Allow admin to approve, reject, or request clarification per module.
+
+Acceptance Criteria:
+- Admin remarks mandatory
+- Decision logged
+- Triggers next workflow step
+
+2.2 Company Status Lifecycle
+TICKET 2.2.1 — Company Status Engine
+
+Description:
+Implement lifecycle:
+Draft → Live Limited → Live Investable → Live Fully Disclosed
+
+Acceptance Criteria:
+- Driven only by module approvals
+- Manual override only for freeze/suspend
+- Status reflected across platform
+
+TICKET 2.2.2 — Freeze & Enforcement Controls
+
+Description:
+Enable admin freeze with reason.
+
+Acceptance Criteria:
+- Buy disabled immediately
+- Banner shown to investors
+- Freeze logged and reversible
+
+EPIC 3 — COMPANY SUBMISSION UX (ISSUER SIDE)
+3.1 Company Dashboard
+TICKET 3.1.1 — Disclosure Progress Tracker UI
+
+Description:
+Visual progress of modules by tier and status.
+
+Acceptance Criteria:
+- Click-through to blocking module
+- Status badges accurate
+- Partial go-live clearly indicated
+
+TICKET 3.1.2 — Module Submission UI
+
+Description:
+Build standardized module submission screens.
+
+Acceptance Criteria:
+- Structured fields enforced
+- Document uploads mapped to fields
+- Submit locks version
+
+3.2 Clarification & Editing UX
+TICKET 3.2.1 — Clarification Conversation UI
+
+Description:
+Threaded admin–company clarification interface.
+
+Acceptance Criteria:
+- Questions and responses grouped
+- Attachments supported
+- Version-aware
+
+TICKET 3.2.2 — Edit-While-Under-Review Support
+
+Description:
+Allow edits during Under Review with admin notification.
+
+Acceptance Criteria:
+- Change diffs tracked
+- Review clock reset
+- Admin alerted
+
+EPIC 4 — INVESTOR DECISION EXPERIENCE
+4.1 Public Company Profile
+TICKET 4.1.1 — Investor Company Page
+
+Description:
+Render public company profile from approved disclosures only.
+
+Acceptance Criteria:
+- Unapproved sections clearly marked
+- Disclosure completeness visible
+- Last reviewed date shown
+
+TICKET 4.1.2 — Platform Context Layer
+
+Description:
+Inject platform interpretation (non-advisory).
+
+Acceptance Criteria:
+- Clearly labeled
+- No return projections
+- Immutable after publish
+
+4.2 Risk & Buy Gating
+TICKET 4.2.1 — Buy Enablement Guard
+
+Description:
+Enable Buy only when Tier 2 approved.
+
+Acceptance Criteria:
+- Hard backend check
+- Disabled UI when not eligible
+- Clear reason shown
+
+TICKET 4.2.2 — Investor Risk Acknowledgement Flow
+
+Description:
+Mandatory acknowledgement before first investment.
+
+Acceptance Criteria:
+- Multiple checkboxes
+- Timestamp + IP logged
+- Required for every company
+
+EPIC 5 — PLATFORM SCORING & TRUST SIGNALS
+5.1 Scoring Engine
+TICKET 5.1.1 — Company Risk Scoring Service
+
+Description:
+Generate platform-only company scores.
+
+Acceptance Criteria:
+- Deterministic logic
+- Scores recalculated on updates
+- Companies cannot edit
+
+TICKET 5.1.2 — Score Visualization
+
+Description:
+Display grades without numeric promises.
+
+Acceptance Criteria:
+- A/B/C/D bands
+- Explanation tooltips
+- No ranking language
+
+EPIC 6 — LEGAL, COMPLIANCE & AUDIT READINESS
+6.1 Issuer Legal Controls
+TICKET 6.1.1 — Issuer Master Declaration
+
+Description:
+Require digital acceptance before go-live.
+
+Acceptance Criteria:
+- Signed by authorized signatory
+- Stored with IP + timestamp
+- Blocking if missing
+
+TICKET 6.1.2 — Continuous Disclosure Obligation
+
+Description:
+Force periodic updates & material change declarations.
+
+Acceptance Criteria:
+- Reminders triggered
+- Admin notified on non-compliance
+- Public indicator shown
+
+6.2 Investor Legal Controls
+TICKET 6.2.1 — Platform Role Disclosure Enforcement
+
+Description:
+Ensure platform non-advisory role is visible everywhere.
+
+Acceptance Criteria:
+- Shown on company pages
+- Shown at checkout
+- Cannot be hidden
+
+6.3 Transaction Snapshotting
+TICKET 6.3.1 — Investor-Time Snapshot Capture
+
+Description:
+Snapshot company profile at time of investment.
+
+Acceptance Criteria:
+- Snapshot immutable
+- Linked to transaction
+- Retrievable for disputes
+
+EPIC 7 — INTERNAL OPS & QUALITY
+TICKET 7.1.1 — Admin SOP Tooling
+
+Description:
+Internal checklist & review aids for admins.
+
+TICKET 7.1.2 — Language & Compliance Guardrails
+
+Description:
+Block disallowed marketing language in content.
+
+FINAL DELIVERY STATE
+
+When all epics are complete, we will have:
+- A governed disclosure engine
+- A defensible investment workflow
+- Clear issuer accountability
+- Investor-first risk communication
+- Audit-ready transaction history
+
+This is not a feature list — we can say, this is a private-markets infrastructure.

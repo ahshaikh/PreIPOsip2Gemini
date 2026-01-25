@@ -1,0 +1,119 @@
+What TSX Files SHOULD Exist?
+
+Below is a concrete, role-wise TSX file map.
+
+A. COMPANY (ISSUER) FRONTEND — TSX EXPECTATION
+1. Company Shell & Navigation
+/company
+ ├── CompanyLayout.tsx
+ ├── CompanySidebar.tsx
+ ├── CompanyHeader.tsx
+
+Purpose
+- Role-guarded layout
+- Shows lifecycle status
+- Shows progress indicators
+
+2. Company Dashboard
+/company/dashboard
+ └── CompanyDashboard.tsx
+
+Must render
+- Tier progress bars
+- “Next action required”
+- Admin feedback summary
+- Read-only lifecycle state
+
+3. Disclosure Modules
+/company/disclosures
+ ├── DisclosureIndex.tsx
+ ├── DisclosureModuleCard.tsx
+ ├── DisclosureEditor.tsx
+ ├── DisclosureVersionHistory.tsx
+
+Key rule
+- Editor enabled only if module is not approved
+- Approved versions are view-only
+
+4. Clarification Threads
+/company/clarifications
+ └── ClarificationThread.tsx
+
+Must
+- Be module-scoped
+- Show admin questions verbatim
+- Preserve chronology
+
+B. ADMIN FRONTEND — TSX EXPECTATION
+5. Admin Shell
+/admin
+ ├── AdminLayout.tsx
+ ├── AdminSidebar.tsx
+
+6. Admin Dashboard
+/admin/dashboard
+ └── AdminDashboard.tsx
+
+Must show
+- Pending reviews
+- Companies by tier
+- Clarifications awaiting response
+
+7. Admin Company Review
+/admin/companies
+ ├── CompanyReview.tsx
+ ├── DisclosureReviewPanel.tsx
+ ├── DisclosureDiffViewer.tsx
+
+Critical
+- Diff viewer between disclosure versions
+- Explicit approve / reject / clarify actions
+
+8. Platform Context Review (Admin-only)
+/admin/platform-context
+ └── PlatformContextReview.tsx
+
+Admins can review, not casually edit.
+
+C. INVESTOR / SUBSCRIBER FRONTEND — TSX EXPECTATION
+9. Public Company Listing
+/invest
+ └── CompanyListing.tsx
+
+Must show
+- Status badges
+- Disclosure completeness
+- Risk band
+- No buy button yet
+
+10. Company Detail Page (MOST IMPORTANT)
+/invest/company
+ ├── CompanyProfile.tsx
+ ├── DisclosureSection.tsx
+ ├── PlatformContextPanel.tsx
+ ├── DisclosureStatusBadge.tsx
+
+Hard separation
+- Company disclosures ≠ Platform context
+- Different visual language
+
+If these are merged into one component → design violation.
+
+11. Buy / Invest Flow
+/invest/buy
+ ├── BuyGate.tsx
+ ├── RiskAcknowledgementModal.tsx
+ ├── InvestmentForm.tsx
+
+BuyGate.tsx must
+- Block render unless Tier 2 approved
+- Block if frozen
+- Block if acknowledgements incomplete
+
+12. Post-Investment Snapshot
+/invest/portfolio
+ └── InvestmentSnapshot.tsx
+
+Must
+- Render immutable snapshot
+- Show “data as of investment date”

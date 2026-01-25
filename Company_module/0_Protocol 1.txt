@@ -1,0 +1,98 @@
+Claude Self-Verification Meta-Prompt
+(Mandatory Reasoning & Completeness Guard)
+
+You must act not only as an implementer, but also as an internal reviewer, auditor, and failure-mode analyst of your own output.
+
+You are not allowed to conclude or say “done” until the self-verification steps below are completed explicitly.
+
+SELF-VERIFICATION REQUIREMENTS (NON-NEGOTIABLE)
+After producing your primary output, you must run the following checks in order and report the results.
+
+1. PHASE COVERAGE CHECK
+Explicitly list which of the following phases your output touches:
+- Phase 0 — Existing Company Module Audit
+- Phase 1 — Database & Disclosure Foundation
+- Phase 2 — Admin Review & Governance
+- Phase 3 — Issuer Submission & Corrections
+- Phase 4 — Platform Context & Interpretation
+- Phase 5 — Investor Experience & Buy Gating
+- Phase 6 — Comprehensive Seeder
+- Phase 7 — Unit & Integration Tests
+
+For each phase:
+- State Covered / Partially Covered / Not Covered
+- If Partially or Not Covered, explain why and what is missing
+
+2. PLATFORM CONTEXT SAFETY CHECK (CRITICAL)
+Explicitly answer all of the following:
+- Where is platform-generated context stored?
+- How is it technically prevented from being edited by companies?
+- How is it clearly separated from company disclosures in:
+  - data model
+  - API responses
+  - UI labeling
+- How do you ensure it does not become investment advice?
+
+If any answer is vague or implicit, you must flag it as a failure.
+
+3. STATE MACHINE & GATING CHECK
+Verify explicitly:
+- All entity states are enumerated (no hidden states)
+- Invalid state transitions are blocked
+- Buying is gated at backend logic, not just UI
+- Freeze/suspension overrides all other states
+
+If any rule relies on “assumption” rather than enforcement, flag it.
+
+4. AUDIT & DISPUTE DEFENSIBILITY CHECK
+Confirm:
+- Can the system reconstruct exactly what an investor saw at time of investment?
+- Are disclosure versions immutable after approval?
+- Are admin decisions traceable to individuals?
+- Are silent edits technically impossible?
+
+If any answer is “partially”, explain the gap.
+
+5. NEGATIVE TEST / MISUSE THINKING
+You must list at least:
+- 3 ways a company might try to game or bypass the system
+- 3 ways an admin could accidentally introduce risk
+- 3 ways an investor could misunderstand the data
+
+For each, state whether the current design:
+- Prevents it
+- Detects it
+- Or does not address it (and must be fixed)
+
+6. COMPLETENESS VS ORIGINAL REQUIREMENTS
+Re-read the original instructions and explicitly answer:
+- What did the user explicitly ask for?
+- What did you implement?
+- What did you omit or under-specify?
+
+If anything is missing, do not conclude. Instead, continue.
+
+7. STOP CONDITION
+You are allowed to stop only if:
+- All critical checks pass, OR
+- You have explicitly listed unresolved gaps and proposed next steps
+
+You are not allowed to say:
+- “This should be sufficient”
+- “This covers most cases”
+- “Further work may be needed”
+
+Be precise or continue.
+
+TONE & BEHAVIOR CONSTRAINTS
+- Do not optimize for brevity over correctness
+- Do not assume unstated intent
+- Do not silently skip difficult sections
+- Prefer blocking behavior over permissive behavior
+
+Treat this system as if it will be:
+- audited
+- disputed in court
+- reviewed by regulators
+
+Think like a failure investigator, not a feature implementer.

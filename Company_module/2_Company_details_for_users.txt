@@ -1,0 +1,366 @@
+LIST 0
+
+We are not building just an investor-facing page — it is a two-sided disclosure system:
+
+Company → Platform (mandatory, structured, auditable disclosures)
+Platform → Investor (interpreted, risk-balanced, compliant presentation)
+
+Below is a complete, end-to-end blueprint, structured in four layers, exactly as we require — but explicitly two-way by design.
+
+LAYER 0 — CORE PRINCIPLE (This governs everything)
+Nothing appears on the investor page unless it is first collected, validated and logged from the company.
+
+This protects us legally, operationally and reputationally.
+Every data point must have:
+- Source (company declaration / document / third-party)
+- Timestamp
+- Responsibility owner (company vs platform)
+
+LAYER 1 — TWO-WAY INFORMATION ARCHITECTURE (FOUNDATION)
+A. Company Disclosure Intake (Private, Mandatory)
+
+This is not a form. It is a structured disclosure workflow.
+Each company must submit data across 8 compulsory modules:
+
+Module			Mandatory	Evidence Required
+Company Identity	Yes		Incorporation docs
+Business Model		Yes		Written declaration
+Financials		Yes		CA-certified statements
+Cap Table & Securities	Yes		Share register
+Valuation & Pricing	Yes		Term sheet / rationale
+Governance & Management	Yes		Board details
+Risks & Disclosures	Yes		Signed risk declaration
+Exit & Liquidity	Yes		Written policy
+
+No submission → no listing.
+
+B. Investor Information Output (Public, Interpreted)
+What investors see is:
+- Structured
+- Comparable
+- Risk-balanced
+- Annotated (company-sourced vs platform analysis)
+
+LAYER 2 — UI WIREFRAME (BOTH SIDES)
+A. Company-Side UI (Disclosure Dashboard)
+1. Disclosure Progress Tracker
+[✓] Company Profile
+[✓] Financials
+[✓] Cap Table
+[⚠] Valuation Rationale (Needs clarification)
+[✓] Risks & Disclosures
+[ ] Exit Plan (Pending)
+
+- Companies cannot publish until 100% complete
+- Changes require re-acknowledgement
+
+2. Structured Disclosure Forms (Example: Valuation)
+Company must answer:
+- Last funding round valuation
+- Date of valuation
+- Valuation method (DCF / comparables / negotiated)
+- Assumptions used
+- Reason for current offer price
+- Comparison with listed peers (company-provided)
+
+Hard rule:
+Free text + structured fields + document upload.
+
+3. Legal Acknowledgement (Critical)
+Before submission:
+“I confirm that the information provided is complete, accurate, and not misleading. I understand this will be shown to investors.”
+This matters in disputes.
+
+B. Investor-Side UI (Decision Page Wireframe)
+Section 1 — Snapshot (Top Fold)
+- Company name, sector, stage
+- Offer price, minimum investment
+- Risk grade (derived, not company-supplied)
+- Liquidity status (Low / Medium / High)
+
+Section 2 — What the Company Does
+Source: Company disclosure
+Platform adds: Plain-language summary
+
+Show both:
+“Company says”
+“Platform interpretation”
+
+Section 3 — Financial Reality
+- 3–5 year financial table
+- Profit / loss trend
+- Cash burn
+- Auditor details
+
+Platform annotation:
+“Company is loss-making but revenue CAGR is X%.”
+
+Section 4 — Offer Details (Non-Negotiable Clarity)
+- Security type
+- Lock-in
+- Dilution impact
+- Shareholding mechanism
+
+No marketing language allowed here.
+
+Section 5 — Valuation Analysis
+Split into two panels:
+
+Company’s Rationale
+Platform’s Comparative Context
+
+This is where credibility is built.
+
+Section 6 — Risks (Mandatory Scroll)
+- Business risk
+- Liquidity risk
+- Regulatory risk
+- Platform structure risk
+
+Users must acknowledge before investing.
+
+Section 7 — Exit Scenarios
+- Best / base / worst case
+- No guarantees clearly stated
+
+Section 8 — Documents Vault
+- Financials
+- Cap table summary
+- Offer note
+- Risk disclosure
+
+LAYER 3 — COMPLIANCE-ALIGNED PRODUCT SPEC
+Core Compliance Principles Applied
+Even without explicit regulations on Pre-IPOs, let's align with:
+- Fair disclosure
+- No misrepresentation
+- Risk prominence
+- Suitability signalling
+
+Product Rules (Hard Constraints)
+1. No return projections
+2. No guaranteed exit language
+3. Risk section cannot be collapsed
+4. Company claims must be attributable
+5. Material updates require re-disclosure
+
+Audit Trail (Very Important)
+Every field:
+- Who submitted
+- When
+- What changed
+- Previous version retained
+
+This protects us in audits, disputes and regulator queries.
+
+LAYER 4 — STANDARDIZED COMPANY SCORING MODEL`1
+This score is platform-generated, never company-provided.
+
+Score Components (Example: 100-point scale)
+Category			Weight
+Financial Health		25
+Governance Quality		20
+Business Model Clarity		15
+Valuation Reasonableness	15
+Risk Profile			15
+Liquidity Outlook		10
+
+Output to Investors
+- Overall Risk Grade: A / B / C / D
+- Sub-scores shown transparently
+- Explanation for each score
+
+This allows comparison without advice.
+
+LAYER 5 — REGULATORY BEST-PRACTICE MAPPING (ABSTRACTED)
+Our page should implicitly aligns with expectations from regulators like SEBI by:
+- Emphasizing risk over upside
+- Avoiding solicitation language
+- Enforcing issuer disclosures
+- Avoiding selective disclosure
+- Maintaining auditability
+
+We are acting as a disclosure facilitator, not as an investment advisor.
+
+FINAL STRATEGIC INSIGHT (IMPORTANT)
+What we are actually building is:
+A trust infrastructure for illiquid private markets.
+
+Platforms fail here when they:
+- Let companies oversell
+- Hide risks
+- Skip structured disclosure
+
+Platforms win when they:
+- Force discipline on issuers
+- Educate investors
+- Document everything
+
+---
+
+LIST A. User see all of the following sections:
+
+To help a retail customer make an informed decision to buy a Pre-IPO offering, our detail page must answer four core questions clearly and defensibly:
+1. What am I buying?
+2. Why might this become more valuable?
+3. What are the risks and constraints?
+4. How and when can I exit?
+
+Below is a comprehensive, decision-grade structure we should use to design the page. This is written from the perspective of investor psychology + regulatory reality, not marketing.
+
+1. Company Snapshot (Immediate Orientation)
+Purpose: Help the user understand what kind of business this is in 30 seconds.
+Include:
+- Company name, logo, incorporation year
+- Legal entity type (Private Ltd / LLP / Overseas entity)
+- Registered location
+- Industry & sub-sector
+- Core product / service (1–2 sentences)
+- Business stage (Early growth / Late-stage / Pre-listing)
+This prevents impulse investing based on brand name alone.
+
+2. Business Model & Revenue Clarity
+Purpose: Answer “How does this company actually make money?”
+Include:
+- Revenue streams (primary + secondary)
+- Pricing model (subscription, commission, licensing, etc.)
+- Customer segments (B2B / B2C / Govt / Enterprise)
+- Key geographies
+- Unit economics (if available)
+
+Avoid jargon.
+If revenue is not stable, explicitly state that.
+
+3. Financial Performance (Last 3–5 Years)
+Purpose: Ground the decision in numbers, not narratives.
+Include:
+- Revenue growth (YoY)
+- EBITDA / Profit / Loss
+- Cash burn (if loss-making)
+- Debt vs equity
+- Auditor name
+- Last valuation and basis
+
+Add plain-language interpretation:
+“The company is still loss-making but revenue has grown at X% CAGR.”
+
+4. Market Opportunity & Industry Context
+Purpose: Justify why this company could grow further.
+Include:
+- Target market size (TAM / SAM / SOM if credible)
+- Industry growth rate
+- Competitive landscape
+- Key tailwinds (policy, tech, demand)
+- Structural risks (regulation, capital intensity)
+
+Avoid hype. Cite sources where possible.
+
+5. Competitive Positioning
+Purpose: Answer “Why this company, not another?”
+Include:
+- Top 5 competitors (listed + private)
+- Differentiators (cost, moat, IP, distribution)
+- Market share (if available)
+- Switching costs / customer stickiness
+
+If the company is not differentiated, say so.
+
+6. Management & Governance
+Purpose: Investors buy people, not just balance sheets.
+Include:
+- Founders’ background (education, prior exits)
+- Promoter shareholding
+- Board composition (independent vs promoter)
+- Any related-party transactions
+- Key governance red flags (if any)
+
+This is where trust is built or broken.
+
+7. Pre-IPO Offering Details (Critical Section)
+Purpose: Clarify exactly what the user is buying.
+Include:
+- Type of shares (equity / CCPS / CCD)
+- Price per share
+- Minimum investment
+- Lock-in period
+- Shareholding post-investment (dilution impact)
+- How shares are held (demat / SPV / trust)
+
+This must be unambiguous.
+
+8. Valuation Rationale
+Purpose: Prevent blind price anchoring.
+Include:
+- Current valuation vs last funding round
+- Valuation multiples (P/E, EV/Revenue, etc.)
+- Comparable listed companies
+- Premium / discount justification
+
+Add a neutral statement:
+“At this price, future returns depend heavily on IPO valuation and timing.”
+
+9. Exit Scenarios & Liquidity
+Purpose: Set realistic expectations.
+Include:
+- Expected IPO timeline (best / base / worst case)
+- Secondary sale possibility
+- Buyback clauses (if any)
+- Liquidity risks
+
+Be explicit:
+“There is no guaranteed exit.”
+
+10. Risk Disclosure (Non-Negotiable)
+Purpose: Protect users and the platform.
+Include:
+- Business risks
+- Regulatory risks (including SEBI positioning on unlisted securities)
+- Liquidity risk
+- Valuation risk
+- Execution risk
+- Platform-specific risk (SPV, custody, counterparty)
+
+This should be clear, not buried.
+
+11. Suitability Guidance (Investor Fit)
+Purpose: Prevent mis-selling.
+Include:
+- Ideal investor profile (HNI / Long-term / High risk tolerance)
+- Time horizon required
+- Portfolio allocation guidance (e.g., “Not more than X% of net worth”)
+
+This builds credibility and reduces disputes.
+
+12. Document Vault & Transparency
+Purpose: Enable due diligence.
+Include:
+- Financial statements
+- Shareholder agreement (redacted)
+- Cap table (summary)
+- Legal opinions (if available)
+- Risk note / offer note
+
+Even partial disclosure is better than none.
+
+13. Decision Summary (Investor-Friendly)
+End with a balanced summary:
+Why investors may consider this
+X, Y, Z
+
+Why investors should be cautious
+A, B, C
+
+This signals platform integrity.
+
+Strategic Insight for PreIPOsip (Important)
+A platform that:
+- highlights risks clearly
+- explains downside as well as upside
+- discourages unsuitable investors
+
+will:
+- attract more serious capital
+- reduce regulatory exposure
+- build long-term trust
+
+This is especially important in India’s evolving unlisted securities space.

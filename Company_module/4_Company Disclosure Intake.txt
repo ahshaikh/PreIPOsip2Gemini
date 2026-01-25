@@ -1,0 +1,78 @@
+LIST B — COMPANY → PLATFORM
+Mandatory Company Disclosure Intake (Backend Source of Truth)
+This is everything we must ask the company, even if we don’t show all of it publicly.
+
+1. Legal & Identity
+- Certificate of incorporation
+- CIN / registration number
+- Registered address
+- Shareholding structure (current)
+- Subsidiaries / group entities
+- Jurisdictional exposure (India / overseas)
+
+Admin actions: verify documents, flag inconsistencies
+
+2. Business & Operations
+- Detailed business description
+- Revenue streams (actual, not planned)
+- Key customers (concentration %)
+- Supplier dependencies
+- Geographic revenue split
+- Operating model explanation
+
+Back-and-forth expected: revenue clarity, customer dependency
+
+3. Financial Disclosures
+- Last 3–5 years audited financials
+- Auditor name & remarks
+- Monthly burn rate
+- Debt details
+- Contingent liabilities
+- Cash runway estimate
+
+Admin review: red flags, unusual trends
+
+4. Capital Structure & Securities
+- Share classes (equity / CCPS / CCD)
+- ESOP pool details
+- Fully diluted cap table
+- Conversion / preference terms
+- Lock-ins on existing shareholders
+
+Critical: many disputes originate here
+
+5. Valuation & Pricing
+- Last funding round valuation
+- Date & investor of last round
+- Valuation methodology
+- Justification for current price
+- Comparison with peers (company’s view)
+
+Admin challenge zone: inflated assumptions
+
+6. Governance & Management
+- Founder backgrounds
+- Board composition
+- Independent directors (if any)
+- Related-party transactions
+- Past litigation / regulatory issues
+
+7. Risk Declaration (Signed)
+- Business risks
+- Regulatory risks
+- Liquidity risks
+- Technology risks
+- Promoter risks
+
+Must be explicitly acknowledged
+
+8. Exit & Liquidity Disclosure
+- Intended IPO timeline (non-binding)
+- Secondary sale history
+- Buyback clauses (if any)
+- Exit constraints
+
+9. Ongoing Updates
+- Material changes commitment
+- Quarterly update obligation
+- Disclosure responsibility owner

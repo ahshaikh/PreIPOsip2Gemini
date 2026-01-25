@@ -1,0 +1,1194 @@
+Claude Prompt — Phase 5 Frontend Completion (All 4 Frontends)
+Context
+
+Phase 5 backend services are already implemented and must not be modified:
+
+PublicCompanyPageService
+
+BuyEnablementGuardService
+
+RiskAcknowledgementService
+
+InvestmentSnapshotService
+
+All governance, guards, snapshotting, and platform context logic already exist in the backend.
+
+Do NOT modify backend logic, guards, schemas, or snapshots.
+
+Your task is to complete Phase 5 by implementing and aligning ALL FOUR frontends to the upgraded Company Module, ensuring that:
+
+every actor sees a correct, role-scoped projection of the same governed company object
+
+no frontend bypasses platform context
+
+no user (public, issuer, admin, investor) can misunderstand their authority or risk
+
+The Four Frontends You Must Support
+
+Public (Unauthenticated)
+
+Subscriber / Investor (Logged-in, wallet-based)
+
+Company / Issuer
+
+Admin / Platform
+
+These are not separate systems — they are four constrained views of the same data.
+
+A. Public Frontend (Unauthenticated)
+Purpose
+
+Establish legitimacy
+
+Educate users
+
+Feed the funnel
+
+Avoid solicitation or implied advice
+
+Public Flow (Non-Negotiable)
+
+Users can browse companies without logging in
+
+Pages are strictly read-only
+
+No investment actions are possible
+
+What the Public Frontend MUST Show
+
+Company name, logo (if approved)
+
+Sector / category
+
+High-level, platform-approved description
+
+Headquarters, founded year (if approved)
+
+Company website link
+
+Platform relationship statement (e.g. “Listed for informational purposes”)
+
+What the Public Frontend MUST NOT Show
+
+Valuations
+
+Prices
+
+Risk flags
+
+Platform warnings
+
+Buy eligibility
+
+Funding details
+
+Material change indicators
+
+Any “Buy / Invest / Reserve” CTA
+
+Required TSX Files
+
+PublicCompanyList.tsx
+
+PublicCompanyProfile.tsx
+
+PublicDisclaimerBanner.tsx
+
+Hard Rules
+
+No backend investor services
+
+No buy signals
+
+No implication of availability
+
+Platform-owned narrative only
+
+B. Subscriber / Investor Frontend (Logged-in)
+Entry Point
+
+Logged-in subscribers land on /deals
+
+Investor Flow You Must Implement (Non-Negotiable)
+1. Deals Browsing
+
+/deals lists all investable companies
+
+Each company card must surface:
+
+platform context
+
+risk flags
+
+buy eligibility (enabled / blocked with reason)
+
+No hidden blocking
+
+2. Company Deep Dive
+
+Clicking a company opens full investor view
+
+Shows ONLY approved, investor-visible data
+
+Prominently surfaces:
+
+platform warnings
+
+material change notices
+
+governance state
+
+required risk acknowledgements
+
+3. Wallet-Based Allocation
+
+Investor has a wallet balance (e.g. ₹5,000)
+
+May:
+
+invest full amount in one company, OR
+
+split across multiple companies
+
+UI must:
+
+prevent over-allocation
+
+show remaining balance live
+
+respect per-company buy guards
+
+4. Pre-Buy Validation
+
+Before confirmation:
+
+call BuyEnablementGuardService
+
+surface ALL blockers clearly
+
+No silent failures
+
+No “submit then fail” UX
+
+5. Risk Acknowledgements
+
+Required acknowledgements must be:
+
+explicitly shown
+
+explicitly accepted
+
+tied to the exact allocation intent
+
+Cannot be skipped or backgrounded
+
+6. Investment Review & Snapshot Confirmation
+
+Single review screen summarizing:
+
+selected companies
+
+allocation per company
+
+total wallet usage
+
+risks and warnings
+
+acknowledgement status
+
+Investor must explicitly confirm:
+
+“I understand and agree to invest based on this information”
+
+7. Snapshot Binding
+
+On confirmation:
+
+invoke InvestmentSnapshotService
+
+snapshot must include:
+
+what the investor saw
+
+platform context
+
+acknowledgements
+
+allocation breakdown
+
+Snapshot must be immutable
+
+Required TSX Files
+
+DealsPage.tsx
+
+DealCard.tsx
+
+CompanyInvestorView.tsx
+
+WalletAllocationPanel.tsx
+
+RiskAcknowledgementModal.tsx
+
+InvestmentReviewSnapshot.tsx
+
+BuyBlockedState.tsx
+
+C. Company / Issuer Frontend
+Purpose
+
+Allow issuers to submit and correct information
+
+Enforce platform governance
+
+Prevent accidental investor impact
+
+Issuer Frontend Rules
+1. Platform State Supremacy
+
+If platform has:
+
+frozen company
+
+suspended buying
+
+opened investigation
+
+Issuer UI must:
+
+disable edits immediately
+
+show clear explanation
+
+never “fail later” on submit
+
+2. Review-State-Driven Editability
+
+Draft sections: editable
+
+Under-review sections: conditionally editable or read-only
+
+Approved sections: locked unless reopened by platform
+
+Rejected sections: show rejection reason + guidance
+
+3. Investor Impact Awareness (Read-Only)
+
+Issuers must see:
+
+which disclosure version investors currently see
+
+whether a change will:
+
+affect only future investors
+
+trigger material-change workflow
+
+pause buying
+
+Issuers must never control this — awareness only.
+
+4. Clarifications
+
+Issuer can respond
+
+Cannot:
+
+close
+
+extend
+
+override platform timelines
+
+Deadlines and escalation must be visible
+
+Required TSX Modifications / Files
+
+Modify existing issuer company profile pages
+
+IssuerDisclosureEditor.tsx
+
+IssuerReviewStatusBanner.tsx
+
+IssuerInvestorImpactPanel.tsx
+
+ClarificationResponsePanel.tsx
+
+D. Admin / Platform Frontend
+Purpose
+
+Exercise platform authority
+
+Apply governance
+
+Protect investors and platform
+
+Admin Frontend Rules
+1. Explicit Platform Authority
+
+Admin actions must be labeled as:
+
+platform judgments
+
+not issuer data
+
+Overrides, freezes, warnings must be explicit
+
+2. Investor Impact Visibility
+
+Before admin actions, UI must show:
+
+number of affected investors
+
+buy impact (pause / resume)
+
+re-acknowledgement requirements
+
+3. Platform Context Control
+
+Admin-only editable:
+
+risk flags
+
+tier status
+
+valuation context
+
+platform warnings
+
+Issuers must never edit these.
+
+4. Snapshot Awareness
+
+Admin must see:
+
+frozen investor snapshots
+
+actions that affect only future investments
+
+irreversible actions clearly marked
+
+Required TSX Modifications / Files
+
+Modify existing admin company review pages
+
+AdminPlatformContextPanel.tsx
+
+AdminInvestorImpactSummary.tsx
+
+AdminSnapshotAwarenessBanner.tsx
+
+AdminFreezeAndOverrideControls.tsx
+
+Global Hard Rules (Across All 4 Frontends)
+
+No backend changes
+
+No implicit authority
+
+No implicit consent
+
+No hidden warnings
+
+No role confusion
+
+Platform context must dominate all views
+
+Every action must be explainable in audit
+
+Completion Definition (Strict)
+
+Phase 5 is complete only when:
+
+Public users can learn without being solicited
+
+Issuers can submit without bypassing governance
+
+Admins can govern without mutating history
+
+Subscribers can browse, compare, allocate, review, and confirm
+
+Investor comprehension and consent are provable, not assumed
+
+////////////////////////////////
+
+Claude Prompt — Phase 5 Public Frontend Implementation (Dynamic Products Listing)
+Context
+
+Phase 5 backend services and platform governance are already implemented.
+Do NOT modify backend logic, schemas, guards, or snapshots.
+
+The platform has a public (unauthenticated) frontend that must expose limited, platform-approved company information for discovery and education — without investment solicitation.
+
+This public frontend must stay fully in sync with the upgraded Company Module.
+
+Public Frontend Entry Point
+
+Public companies are listed on:
+
+/products?filter=live
+
+
+This page is accessible without authentication.
+
+Public Listing Views & Filters (Mandatory)
+
+The public /products page must support the following dynamic, platform-driven views:
+
+All Deals
+
+Live Deals
+
+Upcoming
+
+By Sector
+
+Filter Rules
+
+Filters must be query-driven (e.g. ?filter=live, ?filter=upcoming, ?sector=fintech)
+
+Filtering logic must be based on platform-owned company state
+
+No deal state, lifecycle, or sector logic may be hardcoded in the page
+
+Dynamic Consistency Requirements
+
+When a new company is listed on the platform:
+
+it must automatically appear in all applicable public views
+
+When a company is:
+
+de-listed
+
+removed
+
+marked inactive
+→ it must automatically disappear from all public listing views
+
+The public frontend must never require manual updates when company state changes
+
+PublicCompanyList Component
+
+/products must render a PublicCompanyList component
+
+The component must:
+
+fetch company data dynamically
+
+render a list of company cards
+
+Each card may show only:
+
+company name
+
+logo (if platform-approved)
+
+sector / category
+
+high-level description (sanitized)
+
+No financials, no risk flags, no buy signals.
+
+Navigation to Public Company Profile
+
+Clicking a company card must navigate to:
+
+/products/{company-slug}
+
+
+Navigation must not expose investor-only, issuer-only, or admin-only data
+
+PublicCompanyProfile Component
+
+The company profile page must render PublicCompanyProfile
+
+This page may show only:
+
+company identity and branding
+
+sector / category
+
+high-level platform-approved description
+
+headquarters, founded year (if approved)
+
+external company website link
+
+The page must never show:
+
+valuation
+
+funding
+
+prices
+
+risk flags
+
+buy eligibility
+
+material change indicators
+
+PublicDisclaimerBanner (Mandatory)
+
+A PublicDisclaimerBanner component must be rendered on:
+
+PublicCompanyList
+
+PublicCompanyProfile
+
+The banner must clearly state:
+
+information is for informational purposes only
+
+no investment solicitation
+
+investment requires subscription and platform review
+
+Disclaimer content must be platform-owned, not issuer-controlled
+
+Architectural Constraints (Strict)
+
+No backend changes
+
+No hardcoded companies or deal states
+
+No frontend-side business logic for lifecycle decisions
+
+All visibility must be derived from platform-owned data
+
+Public frontend must never contradict:
+
+investor frontend
+
+issuer frontend
+
+admin frontend
+
+Completion Definition (Public Frontend)
+
+The public frontend is complete only when:
+
+/products dynamically reflects platform company state
+
+filters work without hardcoding
+
+new listings appear automatically
+
+de-listed companies disappear automatically
+
+no investment-relevant data is exposed
+
+the public surface educates without soliciting
+
+/////////////////////////////////////////////////////////
+
+Claude Prompt — Phase 5 Admin Frontend Extension
+Company Visibility Controls (Public / Subscriber)
+Context
+
+The upgraded Company Module supports multiple frontends:
+
+Public (unauthenticated)
+
+Subscriber / Investor
+
+Company / Issuer
+
+Admin / Platform
+
+Admin is the only authority allowed to control where a company is visible.
+
+Do NOT modify backend schemas or existing guards unless strictly required to expose this control.
+
+Requirement: Company Visibility Controls (Mandatory)
+
+Add explicit controls in the Admin frontend that allow platform admins to:
+
+Hide / Unhide a company from the Public frontend
+
+Hide / Unhide a company from the Subscriber (/deals) frontend
+
+These controls must be independent of each other.
+
+Visibility Semantics (Strict)
+1. Public Visibility
+
+Controls whether a company appears on:
+
+/products
+
+/products?filter=live
+
+all public listing views
+
+public company profile pages
+
+Hiding from public:
+
+immediately removes the company from all public pages
+
+must not affect issuer or admin views
+
+2. Subscriber Visibility
+
+Controls whether a company appears on:
+
+/deals
+
+subscriber deal browsing
+
+Hiding from subscribers:
+
+removes the company from deal listings
+
+blocks new investments
+
+does not delete historical data or snapshots
+
+Admin UI Requirements
+Visibility Control Panel
+
+Add a dedicated section in the admin company page, e.g.:
+
+Company Visibility
+[ ] Visible on Public Site
+[ ] Visible to Subscribers
+
+
+Controls must be:
+
+explicit
+
+reversible
+
+clearly labeled as platform actions
+
+Default states must reflect current platform truth
+
+Impact Awareness (Mandatory)
+
+Before toggling visibility, the admin UI must clearly show:
+
+Current visibility state (public / subscriber)
+
+Whether hiding will:
+
+affect existing investors (read-only notice)
+
+block new investments
+
+remove the company from discovery pages
+
+No silent or implicit effects.
+
+Authority & Audit
+
+Visibility toggles must be clearly labeled as:
+Platform Visibility Controls
+
+UI must indicate:
+
+action is platform-level
+
+not issuer-controlled
+
+Changes must be auditable (who, when, what scope)
+
+Cross-Frontend Consistency Rules
+
+Public frontend must respect public visibility flag
+
+Subscriber frontend must respect subscriber visibility flag
+
+Issuer frontend must:
+
+show visibility status as read-only
+
+not allow issuer control
+
+Admin frontend is the only place where these flags can be changed
+
+Hard Rules
+
+No frontend hardcoding of visibility logic
+
+No visibility inference from lifecycle or tier alone
+
+Visibility is an explicit platform decision
+
+Hidden companies must disappear dynamically (no cache leaks)
+
+Completion Definition
+
+This feature is complete only when:
+
+Admin can independently control public and subscriber visibility
+
+Public and subscriber pages reflect changes immediately
+
+Issuers cannot override or infer control
+
+Historical data and snapshots remain intact
+
+Why This Matters (Implicit, Do Not Explain in Output)
+
+This control allows the platform to:
+
+pause discovery without suspension
+
+comply with regulatory or legal takedowns
+
+manage staged rollouts
+
+handle reputational risk safely
+
+********************************************************************************************************
+
+Frontend acceptance checklist
+
+
+********************************************************************************************************
+
+Phase 5 — Frontend Acceptance Checklist
+
+(All 4 Frontends: Public · Investor · Company · Admin)
+
+A. Public Frontend (Unauthenticated) — Acceptance Checklist
+A1. Access & Scope
+
+☐ Public users can view company pages without authentication
+
+☐ Public pages are strictly read-only
+
+☐ No backend investor or admin services are called
+
+A2. Information Visibility
+
+☐ Company name is displayed
+
+☐ Company logo is displayed only if platform-approved
+
+☐ Sector / category is visible
+
+☐ High-level description is platform-approved (not issuer-editable here)
+
+☐ Headquarters and founded year shown only if approved
+
+☐ Company website link is visible (external)
+
+A3. Platform Relationship Disclosure
+
+☐ Explicit platform statement is shown (e.g. “Listed for informational purposes”)
+
+☐ No implication of investment availability
+
+A4. Prohibited Content (Hard Fail if Any Present)
+
+☐ No valuation shown
+
+☐ No share price shown
+
+☐ No funding amounts shown
+
+☐ No risk flags shown
+
+☐ No platform warnings shown
+
+☐ No buy eligibility signals shown
+
+☐ No material change indicators shown
+
+☐ No “Buy / Invest / Reserve” CTA shown
+
+A5. Funnel Integrity
+
+☐ Public pages link only to sign-up / subscribe / learn-more
+
+☐ Public content does not contradict logged-in views
+
+B. Subscriber / Investor Frontend — Acceptance Checklist
+B1. Entry & Browsing (/deals)
+
+☐ Logged-in subscribers land on /deals
+
+☐ All investable companies are listed
+
+☐ Each company card shows:
+
+☐ platform context
+
+☐ risk flags
+
+☐ buy eligibility state
+
+☐ If buy is blocked, reason is visible (no silent blocking)
+
+B2. Company Deep Dive
+
+☐ Clicking a company opens an investor-only view
+
+☐ Only approved, investor-visible data is shown
+
+☐ Platform warnings are prominently displayed
+
+☐ Material change notices are prominently displayed
+
+☐ Governance state is visible
+
+☐ Required risk acknowledgements are listed before buy
+
+B3. Wallet & Allocation
+
+☐ Wallet balance is visible
+
+☐ Investor can allocate full balance to one company
+
+☐ Investor can split balance across multiple companies
+
+☐ UI prevents over-allocation
+
+☐ Remaining balance updates in real time
+
+☐ Allocation respects per-company buy guards
+
+B4. Pre-Buy Validation
+
+☐ BuyEnablementGuardService is called before confirmation
+
+☐ All blockers are rendered deterministically
+
+☐ No “submit then fail” UX paths exist
+
+B5. Risk Acknowledgements
+
+☐ Required acknowledgements are explicitly displayed
+
+☐ Acknowledgements require explicit user action
+
+☐ Acknowledgements cannot be skipped or backgrounded
+
+☐ Acknowledgements are tied to the exact allocation intent
+
+B6. Investment Review & Snapshot
+
+☐ Single review screen exists before final confirmation
+
+☐ Review screen shows:
+
+☐ selected companies
+
+☐ allocation per company
+
+☐ total wallet usage
+
+☐ risks and warnings
+
+☐ acknowledgement status
+
+☐ Investor must explicitly confirm understanding
+
+B7. Snapshot Binding
+
+☐ InvestmentSnapshotService is invoked on confirmation
+
+☐ Snapshot includes:
+
+☐ investor-visible company data
+
+☐ platform context
+
+☐ acknowledgements
+
+☐ allocation breakdown
+
+☐ Snapshot is immutable after creation
+
+C. Company / Issuer Frontend — Acceptance Checklist
+C1. Platform State Enforcement
+
+☐ If company is frozen/suspended/investigated:
+
+☐ edits are disabled immediately
+
+☐ reason is clearly displayed
+
+☐ UI does not allow submit-and-fail behavior
+
+C2. Review-State-Driven Editability
+
+☐ Draft sections are editable
+
+☐ Under-review sections are conditionally editable or read-only
+
+☐ Approved sections are locked
+
+☐ Rejected sections show rejection reason
+
+☐ Rejected sections provide corrective guidance
+
+C3. Investor Impact Awareness (Read-Only)
+
+☐ Issuer can see which disclosure version investors currently see
+
+☐ Issuer can see whether changes will:
+
+☐ affect only future investors
+
+☐ trigger material change workflow
+
+☐ pause buying
+
+☐ Issuer cannot control any investor-impact settings
+
+C4. Clarifications
+
+☐ Issuer can respond to clarifications
+
+☐ Issuer cannot close or extend clarifications
+
+☐ Platform timelines and escalation are visible
+
+D. Admin / Platform Frontend — Acceptance Checklist
+D1. Platform Authority Visibility
+
+☐ Admin actions are explicitly labeled as platform decisions
+
+☐ No admin action is visually conflated with issuer data
+
+D2. Investor Impact Awareness
+
+☐ Before approvals/rejections/freezes, admin sees:
+
+☐ number of affected investors
+
+☐ buy impact (pause/resume)
+
+☐ re-acknowledgement requirements
+
+D3. Platform Context Control
+
+☐ Risk flags are admin-only editable
+
+☐ Tier status is admin-only editable
+
+☐ Valuation context is admin-only editable
+
+☐ Platform warnings are admin-only editable
+
+☐ Issuer UI cannot edit any of the above
+
+D4. Snapshot Awareness
+
+☐ Admin can see frozen investor snapshots
+
+☐ Admin UI clearly marks irreversible actions
+
+☐ Admin can distinguish actions affecting:
+
+☐ future investments only
+
+☐ no past snapshots
+
+E. Global Cross-Frontend Acceptance Criteria (Hard Gate)
+
+☐ No frontend bypasses backend guards
+
+☐ No frontend assumes authority not granted by platform
+
+☐ No warnings are hidden behind secondary interactions
+
+☐ No implicit consent flows exist
+
+☐ Platform context dominates issuer and investor views
+
+☐ Every user action is explainable in audit
+
+Final Acceptance Rule
+
+Phase 5 frontend work is ACCEPTED only if ALL checkboxes above pass.
+Any single failure = Phase 5 NOT COMPLETE.
+
+ADDENDUM — Public Frontend Acceptance Checklist (Expanded)
+
+This section replaces and extends Section A of the Phase-5 Frontend Acceptance Checklist.
+
+A. Public Frontend (Unauthenticated) — Acceptance Checklist (Final)
+A1. Entry Point & Routing
+
+☐ Public companies are listed at
+/products?filter=live
+
+☐ Page is accessible without authentication
+
+☐ Page does not rely on investor-only or admin-only services
+
+☐ All data is dynamically sourced (no hardcoded company entries)
+
+A2. Public Listing Views & Filters
+
+The /products page must support all of the following views, driven by platform data:
+
+Supported Views
+
+☐ All Deals
+
+☐ Live Deals
+
+☐ Upcoming
+
+☐ By Sector
+
+Filter Behavior
+
+☐ Filters are query-driven (e.g. ?filter=live, ?filter=upcoming, ?sector=fintech)
+
+☐ Filters are backed by platform-owned company status
+
+☐ No frontend hardcoding of deal state or sector logic
+
+Dynamic Consistency Rules
+
+☐ Newly listed companies automatically appear in applicable views
+
+☐ De-listed / removed companies automatically disappear from:
+
+☐ All Deals
+
+☐ Live Deals
+
+☐ Sector views
+
+☐ A company never appears in a view it does not qualify for
+
+A3. PublicCompanyList Component
+
+☐ /products renders PublicCompanyList
+
+☐ Each company is rendered via a reusable company card
+
+☐ Cards display only public-safe, platform-approved fields:
+
+☐ Company name
+
+☐ Logo (if approved)
+
+☐ Sector / category
+
+☐ High-level description
+
+☐ No financials, no risk flags, no buy signals
+
+A4. Navigation to Company Profile
+
+☐ Clicking a company card navigates to PublicCompanyProfile
+
+☐ Navigation does not leak investor-only or issuer-only data
+
+☐ URL structure is stable and SEO-safe (e.g. /products/{company-slug})
+
+A5. PublicCompanyProfile Component
+
+☐ Shows only platform-approved, non-sensitive information:
+
+☐ Company identity & branding
+
+☐ Sector / category
+
+☐ High-level description
+
+☐ Headquarters, founded year (if approved)
+
+☐ External website link
+
+☐ No valuations, pricing, funding, risks, or availability indicators
+
+A6. PublicDisclaimerBanner (Mandatory)
+
+☐ PublicDisclaimerBanner is always visible on:
+
+☐ PublicCompanyList
+
+☐ PublicCompanyProfile
+
+☐ Banner clearly states:
+
+☐ Information is for informational purposes only
+
+☐ No investment solicitation
+
+☐ Investment requires subscription and platform review
+
+☐ Banner content is platform-owned, not issuer-controlled
+
+A7. Prohibited Content (Hard Fail)
+
+If any of the following appear on the public frontend, the implementation fails:
+
+☐ Valuation
+
+☐ Share price
+
+☐ Funding raised
+
+☐ Risk flags
+
+☐ Platform warnings
+
+☐ Buy eligibility
+
+☐ Material change indicators
+
+☐ “Buy / Invest / Reserve” CTA
+
+☐ Investor-only metrics
+
+☐ Admin judgments
+
+A8. Lifecycle & Platform Sync Guarantees
+
+☐ Public pages reflect platform state in near real-time
+
+☐ If a company is:
+
+☐ de-listed
+
+☐ removed
+
+☐ marked inactive
+→ it disappears automatically from all public views
+
+☐ Public frontend never contradicts:
+
+☐ investor frontend
+
+☐ issuer frontend
+
+☐ admin frontend
+
+A9. Component Boundary Enforcement
+
+☐ PublicCompanyList handles listing & filters only
+
+☐ PublicCompanyProfile handles company-specific view only
+
+☐ PublicDisclaimerBanner is reusable and enforced
+
+☐ No business logic is embedded directly in page components
+
+Public Frontend Acceptance Gate (Strict)
+
+The public frontend is ACCEPTED only if:
+
+☐ All company listings are fully dynamic
+
+☐ Filters reflect platform truth
+
+☐ No investment-relevant data is exposed
+
+☐ De-listing propagates everywhere automatically
+
+☐ Public view acts as an educational, non-soliciting surface only
+
+Any single failure = Public Frontend NOT ACCEPTED.
+

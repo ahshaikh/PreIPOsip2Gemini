@@ -1,0 +1,178 @@
+Step 1
+ADMIN REVIEW & VETTING WORKFLOW
+(Designed for Partial Go-Live + Continuous Disclosure)
+
+1. Core Principles (Non-Negotiable)
+ 1. Approval is modular, not binary
+ 2. Public visibility is tiered
+ 3. Admins never edit company data
+ 4. Clarifications are first-class citizens
+ 5. Anything shown to investors is explicitly approved
+ 6. Unapproved sections are clearly marked
+
+2. Disclosure Modules & Approval Levels
+We divide disclosures into three tiers.
+
+TIER 1 — BASIC (Required for Go-Live)
+Without this → company is NOT visible → with this completed, company appear in Upcoming Deals section of the frontend
+
+Module			Purpose
+Company Identity	Who they are
+Business Overview	What they do
+Management Snapshot	Who runs it
+Basic Risk Declaration	High-level risks
+
+Once all Tier 1 modules are approved, the company becomes:
+“Live – Limited Disclosure”  → Company visible in Upcoming Deals sections
+
+TIER 2 — FINANCIAL & OFFER (Investment-Critical)
+Required before any buying is enabled
+
+Module			Purpose
+Financials		Numbers
+Capital Structure	What investor gets
+Offer Details		Price, lock-in
+Valuation Rationale	Pricing logic
+
+Until Tier 2 is approved:
+Company page is viewable only  → after approval  → Buy button is enabled
+
+TIER 3 — ADVANCED (Depth & Confidence)
+Improves investor trust, not mandatory for buying
+
+Module			Purpose
+Governance Deep Dive	Board, controls
+Exit Scenarios		Liquidity thinking
+Extended Risk Notes	Edge cases
+Ongoing Updates		Discipline signal
+
+3. Company Status State Machine
+This is critical for backend logic.
+
+DRAFT
+ ↓
+SUBMITTED (Tier 1)
+ ↓
+LIVE_LIMITED
+ ↓
+UNDER_REVIEW (Tier 2)
+ ↓
+LIVE_INVESTABLE
+ ↓
+LIVE_FULLY_DISCLOSED
+
+Status meanings
+Status			Investor Visibility
+DRAFT			None
+SUBMITTED		None
+LIVE_LIMITED		View only
+LIVE_INVESTABLE		View + Buy
+LIVE_FULLY_DISCLOSED	View + Buy + High Trust
+
+4. Admin Review Queues (Operational Design)
+
+Admins do not review companies. They review disclosure modules.
+
+Admin Dashboard Queues
+1. New Submissions
+ - Tier 1 pending
+2. Clarification Required
+ - Company responded
+3. Re-submissions
+ - Updated versions
+4. Periodic Review
+ - Quarterly updates
+5. Flags & Incidents
+ - Complaints / anomalies
+
+5. Clarification Workflow (Core Loop)
+This is the heart of our system.
+
+Flow
+
+Company submits →
+Admin reviews →
+Admin asks questions →
+Company responds →
+Admin reviews again →
+Approve / Ask again
+
+Unlimited loops supported.
+
+Backend entities involved
+- company_disclosure_versions
+- disclosure_queries
+- disclosure_responses
+- admin_reviews
+
+Key rule
+A disclosure can only move to approved if all queries are closed.
+
+6. Partial Approval Logic (Important)
+A company can be:
+
+Tier 1: approved
+Tier 2: pending clarification
+Tier 3: not started
+
+How this reflects publicly
+Section			Status Badge
+Business Overview	✔ Verified
+Financials		⏳ Under Review
+Valuation		❗ Pending
+Exit			⏸ Not Disclosed
+
+This avoids misrepresentation without blocking discovery.
+
+7. Buy Enablement Rules (Hard Gates)
+Buying is enabled ONLY if:
+1. Company status = LIVE_INVESTABLE
+2. Tier 2 modules all approved
+3. No active freeze
+4. Investor has acknowledged risks
+
+8. Freeze, Rollback & Enforcement
+
+Admins can freeze at any time.
+Freeze triggers
+1. Misrepresentation
+2. Missed updates
+3. Regulatory concern
+4. Legal notice
+
+Freeze effects
+- Buying disabled immediately
+- Banner shown to investors
+- Status → SUSPENDED
+- Existing investments unaffected
+
+9. Change Management After Go-Live
+Material change examples
+- New funding round
+- Change in valuation
+- New litigation
+- Promoter exit
+
+Required behavior
+- Company must submit updated disclosure
+- Previous version remains visible (archived)
+- Admin re-approves
+- Investors see “Updated on X”
+
+This is critical for trust.
+
+10. Audit & Defensibility (Why This Survives Scrutiny)
+We can always answer:
+- Who said what?
+- When?
+- Based on which document?
+- Who approved it?
+- What changed later?
+
+Because:
+- Companies submit
+- Admins approve
+- Platform interprets
+- Investors acknowledge
+
+All separately logged.
