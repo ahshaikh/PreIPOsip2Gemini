@@ -13,6 +13,7 @@ use App\Services\WalletService;
 use App\Services\PlatformSupremacyGuard;
 use App\Services\Accounting\AdminLedger;
 use App\Services\CompanyShareAllocationService;
+use App\Services\InvestorJourneyStateMachine;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -41,6 +42,7 @@ class InvestorInvestmentController extends Controller
     protected PlatformSupremacyGuard $platformGuard;
     protected AdminLedger $adminLedger;
     protected CompanyShareAllocationService $allocationService;
+    protected InvestorJourneyStateMachine $journeyStateMachine;
 
     public function __construct(
         BuyEnablementGuardService $buyGuard,
@@ -48,7 +50,8 @@ class InvestorInvestmentController extends Controller
         WalletService $walletService,
         PlatformSupremacyGuard $platformGuard,
         AdminLedger $adminLedger,
-        CompanyShareAllocationService $allocationService
+        CompanyShareAllocationService $allocationService,
+        InvestorJourneyStateMachine $journeyStateMachine
     ) {
         $this->buyGuard = $buyGuard;
         $this->snapshotService = $snapshotService;
@@ -56,6 +59,7 @@ class InvestorInvestmentController extends Controller
         $this->platformGuard = $platformGuard;
         $this->adminLedger = $adminLedger;
         $this->allocationService = $allocationService;
+        $this->journeyStateMachine = $journeyStateMachine;
     }
 
     /**
@@ -103,6 +107,7 @@ class InvestorInvestmentController extends Controller
             'allocations.*.amount' => 'required|numeric|min:1',
             'allocations.*.acknowledged_risks' => 'required|array|min:4',
             'allocations.*.acknowledged_risks.*' => 'required|string|in:illiquidity,no_guarantee,platform_non_advisory,material_changes',
+            'allocations.*.journey_token' => 'required|string|size:64', // P0 FIX (GAP 18): Journey token required
             'idempotency_key' => 'nullable|string|max:255', // GAP 3: Idempotency support
         ]);
 
@@ -130,7 +135,46 @@ class InvestorInvestmentController extends Controller
             }
         }
 
-        // 3. WALLET BALANCE CHECK (CRITICAL - GAP 1)
+        // 3. P0 FIX (GAP 18-20): VALIDATE INVESTOR JOURNEY STATE MACHINE
+        // CRITICAL: Proves investor followed required sequence before investment
+        $journeyValidations = [];
+        foreach ($validated['allocations'] as $allocation) {
+            $journeyValidation = $this->journeyStateMachine->validateInvestmentRequest(
+                $user->id,
+                $allocation['company_id'],
+                $allocation['journey_token']
+            );
+
+            if (!$journeyValidation['valid']) {
+                Log::warning('[INVESTMENT] Journey validation failed', [
+                    'user_id' => $user->id,
+                    'company_id' => $allocation['company_id'],
+                    'journey_token' => substr($allocation['journey_token'], 0, 10) . '...',
+                    'message' => $journeyValidation['message'],
+                    'proof' => $journeyValidation['proof'] ?? null,
+                ]);
+
+                return $this->errorResponse(
+                    'JOURNEY_VALIDATION_FAILED',
+                    $journeyValidation['message'],
+                    400,
+                    [
+                        'company_id' => $allocation['company_id'],
+                        'journey_state' => $journeyValidation['journey']?->current_state,
+                        'violations' => $journeyValidation['proof']['violations'] ?? [],
+                    ]
+                );
+            }
+
+            $journeyValidations[$allocation['company_id']] = $journeyValidation;
+        }
+
+        Log::info('[INVESTMENT] All journey validations passed', [
+            'user_id' => $user->id,
+            'company_count' => count($journeyValidations),
+        ]);
+
+        // 4. WALLET BALANCE CHECK (CRITICAL - GAP 1)
         $wallet = $user->wallet;
         if (!$wallet) {
             return $this->errorResponse('WALLET_NOT_FOUND', 'Wallet not found. Please contact support.', 500);
@@ -146,7 +190,7 @@ class InvestorInvestmentController extends Controller
             );
         }
 
-        // 4. VALIDATE EACH ALLOCATION
+        // 5. VALIDATE EACH ALLOCATION
         $allocations = $validated['allocations'];
         $companies = [];
         $investmentRecords = [];
@@ -387,6 +431,42 @@ class InvestorInvestmentController extends Controller
                         'amount' => $amount,
                         'error' => $e->getMessage(),
                     ]);
+                }
+
+                // 12. P0 FIX (GAP 18-20): COMPLETE INVESTOR JOURNEY
+                // CRITICAL: Marks journey as successfully completed with investment
+                // This creates the audit proof that investor followed the required sequence
+                $journeyValidation = $journeyValidations[$companyId] ?? null;
+                if ($journeyValidation && $journeyValidation['journey']) {
+                    try {
+                        $journeyCompletion = $this->journeyStateMachine->completeWithInvestment(
+                            journey: $journeyValidation['journey'],
+                            investment: $investment,
+                            investmentSnapshotId: $snapshotId
+                        );
+
+                        if ($journeyCompletion['success']) {
+                            Log::info('[INVESTMENT] Journey completed successfully', [
+                                'investment_id' => $investment->id,
+                                'journey_id' => $journeyValidation['journey']->id,
+                                'journey_token' => $journeyValidation['journey']->journey_token,
+                            ]);
+                        } else {
+                            // Journey completion failed but investment succeeded
+                            // This is a reconciliation gap that should be investigated
+                            Log::warning('[INVESTMENT] Journey completion failed post-investment', [
+                                'investment_id' => $investment->id,
+                                'journey_id' => $journeyValidation['journey']->id,
+                                'message' => $journeyCompletion['message'],
+                            ]);
+                        }
+                    } catch (\Exception $e) {
+                        // Don't fail the investment due to journey completion issues
+                        Log::error('[INVESTMENT] Journey completion error', [
+                            'investment_id' => $investment->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
                 }
 
                 $investmentRecords[] = $investment;
