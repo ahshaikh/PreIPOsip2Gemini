@@ -590,6 +590,19 @@ Route::prefix('v1')->group(function () {
                 Route::get('export', [App\Http\Controllers\Api\Admin\ReconciliationDashboardController::class, 'exportReport']);
             });
 
+            // -------------------------------------------------------------
+            // P0 FIX (GAP 31-33): AUDIT & DISPUTE DEFENSIBILITY
+            // -------------------------------------------------------------
+            Route::prefix('disputes')->middleware('permission:compliance.view_legal')->group(function () {
+                // GAP 31: Full dispute snapshot retrieval
+                Route::get('snapshot/{investmentId}', [App\Http\Controllers\Api\Admin\DisputeSnapshotController::class, 'getSnapshot']);
+                Route::get('export/{investmentId}', [App\Http\Controllers\Api\Admin\DisputeSnapshotController::class, 'exportForLegal']);
+                Route::get('search', [App\Http\Controllers\Api\Admin\DisputeSnapshotController::class, 'searchInvestments']);
+
+                // GAP 33: State machine integrity verification
+                Route::get('verify-integrity/{investmentId}', [App\Http\Controllers\Api\Admin\DisputeSnapshotController::class, 'verifyIntegrity']);
+            });
+
             // Scheduled Reports Management
             Route::prefix('scheduled-reports')->middleware('permission:reports.manage_scheduled')->group(function () {
                 Route::get('/', [AdvancedReportController::class, 'listScheduledReports']);
