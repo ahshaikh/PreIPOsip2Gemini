@@ -14,6 +14,7 @@ use App\Services\PlatformSupremacyGuard;
 use App\Services\Accounting\AdminLedger;
 use App\Services\CompanyShareAllocationService;
 use App\Services\InvestorJourneyStateMachine;
+use App\Services\InvestmentSecurityGuard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -43,6 +44,7 @@ class InvestorInvestmentController extends Controller
     protected AdminLedger $adminLedger;
     protected CompanyShareAllocationService $allocationService;
     protected InvestorJourneyStateMachine $journeyStateMachine;
+    protected InvestmentSecurityGuard $securityGuard;
 
     public function __construct(
         BuyEnablementGuardService $buyGuard,
@@ -51,7 +53,8 @@ class InvestorInvestmentController extends Controller
         PlatformSupremacyGuard $platformGuard,
         AdminLedger $adminLedger,
         CompanyShareAllocationService $allocationService,
-        InvestorJourneyStateMachine $journeyStateMachine
+        InvestorJourneyStateMachine $journeyStateMachine,
+        InvestmentSecurityGuard $securityGuard
     ) {
         $this->buyGuard = $buyGuard;
         $this->snapshotService = $snapshotService;
@@ -60,6 +63,7 @@ class InvestorInvestmentController extends Controller
         $this->adminLedger = $adminLedger;
         $this->allocationService = $allocationService;
         $this->journeyStateMachine = $journeyStateMachine;
+        $this->securityGuard = $securityGuard;
     }
 
     /**
@@ -108,6 +112,7 @@ class InvestorInvestmentController extends Controller
             'allocations.*.acknowledged_risks' => 'required|array|min:4',
             'allocations.*.acknowledged_risks.*' => 'required|string|in:illiquidity,no_guarantee,platform_non_advisory,material_changes',
             'allocations.*.journey_token' => 'required|string|size:64', // P0 FIX (GAP 18): Journey token required
+            'allocations.*.snapshot_id' => 'required|integer|min:1', // P0 FIX (GAP 21): Snapshot ID for freshness validation
             'idempotency_key' => 'nullable|string|max:255', // GAP 3: Idempotency support
         ]);
 
@@ -174,7 +179,68 @@ class InvestorInvestmentController extends Controller
             'company_count' => count($journeyValidations),
         ]);
 
-        // 4. WALLET BALANCE CHECK (CRITICAL - GAP 1)
+        // 4. P0 FIX (GAP 21): SNAPSHOT FRESHNESS VALIDATION
+        // CRITICAL: Prevents stale snapshot attacks where context changed after page load
+        foreach ($validated['allocations'] as $allocation) {
+            $freshnessCheck = $this->securityGuard->validateSnapshotFreshness(
+                $allocation['company_id'],
+                $allocation['snapshot_id']
+            );
+
+            if (!$freshnessCheck['valid']) {
+                Log::warning('[INVESTMENT] SECURITY: Stale snapshot detected', [
+                    'user_id' => $user->id,
+                    'company_id' => $allocation['company_id'],
+                    'provided_snapshot' => $allocation['snapshot_id'],
+                    'current_snapshot' => $freshnessCheck['current_snapshot_id'],
+                    'stale_fields' => $freshnessCheck['stale_fields'],
+                ]);
+
+                return $this->errorResponse(
+                    'STALE_SNAPSHOT',
+                    $freshnessCheck['message'],
+                    409, // Conflict - state has changed
+                    [
+                        'company_id' => $allocation['company_id'],
+                        'current_snapshot_id' => $freshnessCheck['current_snapshot_id'],
+                        'stale_fields' => $freshnessCheck['stale_fields'],
+                        'requires_refresh' => true,
+                    ]
+                );
+            }
+        }
+
+        Log::info('[INVESTMENT] All snapshot freshness checks passed', [
+            'user_id' => $user->id,
+        ]);
+
+        // 5. P0 FIX (GAP 23): DUPLICATE ATTEMPT DETECTION
+        // Prevents rapid-fire duplicate submissions
+        foreach ($validated['allocations'] as $allocation) {
+            if ($this->securityGuard->isDuplicateAttempt(
+                $user->id,
+                $allocation['company_id'],
+                $allocation['amount']
+            )) {
+                Log::warning('[INVESTMENT] SECURITY: Duplicate attempt blocked', [
+                    'user_id' => $user->id,
+                    'company_id' => $allocation['company_id'],
+                    'amount' => $allocation['amount'],
+                ]);
+
+                return $this->errorResponse(
+                    'DUPLICATE_ATTEMPT',
+                    'This investment was recently submitted. Please wait before trying again.',
+                    429, // Too Many Requests
+                    [
+                        'company_id' => $allocation['company_id'],
+                        'retry_after_seconds' => 60,
+                    ]
+                );
+            }
+        }
+
+        // 6. WALLET BALANCE CHECK (CRITICAL - GAP 1)
         $wallet = $user->wallet;
         if (!$wallet) {
             return $this->errorResponse('WALLET_NOT_FOUND', 'Wallet not found. Please contact support.', 500);

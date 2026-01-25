@@ -56,7 +56,12 @@ class CompanyShareAllocationService
         }
 
         return DB::transaction(function () use ($investment, $company, $user, $amount, $adminLedgerEntryId) {
+            // P0 FIX (GAP 24): Set REPEATABLE READ isolation to prevent phantom reads
+            // This ensures consistent inventory reads within the transaction
+            DB::statement('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
+
             // 1. Find available inventory for this company (FIFO)
+            // P0 FIX (GAP 22): lockForUpdate() prevents concurrent allocation race conditions
             $batches = BulkPurchase::where('company_id', $company->id)
                 ->where('value_remaining', '>', 0)
                 ->orderBy('purchase_date', 'asc')
