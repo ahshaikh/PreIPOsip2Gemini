@@ -12,6 +12,7 @@ use App\Services\InvestmentSnapshotService;
 use App\Services\WalletService;
 use App\Services\PlatformSupremacyGuard;
 use App\Services\Accounting\AdminLedger;
+use App\Services\CompanyShareAllocationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -39,19 +40,22 @@ class InvestorInvestmentController extends Controller
     protected WalletService $walletService;
     protected PlatformSupremacyGuard $platformGuard;
     protected AdminLedger $adminLedger;
+    protected CompanyShareAllocationService $allocationService;
 
     public function __construct(
         BuyEnablementGuardService $buyGuard,
         InvestmentSnapshotService $snapshotService,
         WalletService $walletService,
         PlatformSupremacyGuard $platformGuard,
-        AdminLedger $adminLedger
+        AdminLedger $adminLedger,
+        CompanyShareAllocationService $allocationService
     ) {
         $this->buyGuard = $buyGuard;
         $this->snapshotService = $snapshotService;
         $this->walletService = $walletService;
         $this->platformGuard = $platformGuard;
         $this->adminLedger = $adminLedger;
+        $this->allocationService = $allocationService;
     }
 
     /**
@@ -315,20 +319,24 @@ class InvestorInvestmentController extends Controller
                 // 10. P0 FIX: RECORD SHARE SALE IN ADMIN LEDGER
                 // CRITICAL: This creates the platform cash credit entry
                 // Without this, platform cannot prove it received money for shares sold
+                $adminLedgerEntryId = null;
                 try {
                     $ledgerEntries = $this->adminLedger->recordShareSale(
                         saleAmount: $amount,
                         investmentId: $investment->id,
                         companyId: $companyId,
-                        bulkPurchaseId: null, // TODO: Link to specific bulk purchase if allocation tracking is implemented
+                        bulkPurchaseId: null, // Will be updated by allocation service
                         description: "Share sale: User #{$user->id} invested ₹{$amount} in {$company->name}"
                     );
+
+                    // Capture credit entry ID for allocation tracking
+                    $adminLedgerEntryId = $ledgerEntries[1]->id ?? null;
 
                     Log::info('[INVESTMENT] Admin ledger entry created for share sale', [
                         'investment_id' => $investment->id,
                         'amount' => $amount,
                         'debit_entry_id' => $ledgerEntries[0]->id ?? null,
-                        'credit_entry_id' => $ledgerEntries[1]->id ?? null,
+                        'credit_entry_id' => $adminLedgerEntryId,
                     ]);
                 } catch (\Exception $e) {
                     // Log but don't fail the transaction - ledger is secondary to investment
@@ -340,6 +348,45 @@ class InvestorInvestmentController extends Controller
                     ]);
                     // Note: We continue despite ledger failure to not block user investment
                     // Reconciliation job should catch and fix these gaps
+                }
+
+                // 11. P0 FIX: ALLOCATE SHARES FROM INVENTORY (PROVENANCE CHAIN)
+                // CRITICAL: This creates the immutable audit trail proving:
+                // BulkPurchase (platform inventory) → CompanyInvestment (subscriber ownership)
+                // Without this, we cannot prove which inventory lot funded which investment
+                try {
+                    $allocationResult = $this->allocationService->allocateForInvestment(
+                        investment: $investment,
+                        company: $company,
+                        user: $user,
+                        adminLedgerEntryId: $adminLedgerEntryId
+                    );
+
+                    if ($allocationResult['success']) {
+                        Log::info('[INVESTMENT] Share allocation successful', [
+                            'investment_id' => $investment->id,
+                            'allocation_status' => $allocationResult['allocation_status'],
+                            'allocated_value' => $allocationResult['allocated_value'],
+                            'batches_used' => $allocationResult['batches_used'],
+                        ]);
+                    } else {
+                        // Allocation failed but investment can still proceed
+                        // Admin will need to manually allocate or add inventory
+                        Log::warning('[INVESTMENT] Share allocation incomplete - needs admin review', [
+                            'investment_id' => $investment->id,
+                            'message' => $allocationResult['message'] ?? 'Unknown allocation issue',
+                            'partial_allocation' => $allocationResult['allocated_value'] ?? 0,
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    // Allocation failure should not block investment
+                    // Creates reconciliation gap that admin must resolve
+                    Log::error('[INVESTMENT] Share allocation failed - requires manual intervention', [
+                        'investment_id' => $investment->id,
+                        'company_id' => $companyId,
+                        'amount' => $amount,
+                        'error' => $e->getMessage(),
+                    ]);
                 }
 
                 $investmentRecords[] = $investment;
