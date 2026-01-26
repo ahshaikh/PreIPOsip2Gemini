@@ -10,13 +10,6 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 
-// FIX: Get backend URL for logo display
-const getBackendURL = () => {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-  return apiUrl.endsWith('/api/v1') ? apiUrl.slice(0, -7) : apiUrl.replace('/api/v1', '');
-};
-const BACKEND_URL = getBackendURL();
-
 export default function CompanyDashboardPage() {
   const { data: dashboardData, isLoading } = useQuery({
     queryKey: ['company-dashboard'],
@@ -84,14 +77,11 @@ export default function CompanyDashboardPage() {
           {company?.logo ? (
             <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
               <Image
-                src={`${BACKEND_URL}/storage/${company.logo}`}
+                src={`/api/storage/${company.logo}`}
                 alt={company.name || 'Company logo'}
                 width={64}
                 height={64}
                 className="object-contain"
-                // FIX: Use unoptimized to bypass Next.js image proxy for localhost
-                // This allows direct browser fetch which works with CORS
-                unoptimized
                 onError={(e) => {
                   console.error('Failed to load company logo on dashboard');
                   e.currentTarget.style.display = 'none';

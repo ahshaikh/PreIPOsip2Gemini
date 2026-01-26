@@ -14,15 +14,6 @@ import { toast } from 'sonner';
 import { Plus, Edit, Trash2, Upload, User, Star, Linkedin, Twitter } from 'lucide-react';
 import Image from 'next/image';
 
-// FIX: Get backend URL from environment or fallback to localhost
-// Remove /api/v1 suffix as we only need the base server URL for storage URLs
-// Using a more robust method to strip the suffix
-const getBackendURL = () => {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-  return apiUrl.endsWith('/api/v1') ? apiUrl.slice(0, -7) : apiUrl.replace('/api/v1', '');
-};
-const BACKEND_URL = getBackendURL();
-
 export default function TeamMembersPage() {
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -123,9 +114,9 @@ export default function TeamMembersPage() {
       display_order: member.display_order || 0,
       is_key_member: member.is_key_member,
     });
-    // FIX: Construct proper URL for existing photo
+    // FIX: Construct proper URL for existing photo using local API proxy
     if (member.photo_path) {
-      setPhotoPreview(`${BACKEND_URL}/storage/${member.photo_path}`);
+      setPhotoPreview(`/api/storage/${member.photo_path}`);
     }
     setIsDialogOpen(true);
   };
@@ -177,14 +168,15 @@ export default function TeamMembersPage() {
                   <div className="w-20 h-20 border-2 border-dashed rounded-full flex items-center justify-center bg-gray-50 dark:bg-gray-900 overflow-hidden">
                     {photoPreview ? (
                       // FIX: Display photo preview with proper error handling
-                      // Use unoptimized for localhost URLs to bypass Next.js image proxy
+                      // Use unoptimized only for data URLs (local file preview)
+                      // API proxy URLs go through Next.js optimization
                       <Image
                         src={photoPreview}
                         alt="Preview"
                         width={80}
                         height={80}
                         className="object-cover"
-                        unoptimized
+                        unoptimized={photoPreview.startsWith('data:')}
                       />
                     ) : (
                       <User className="h-8 w-8 text-muted-foreground" />
@@ -323,17 +315,15 @@ export default function TeamMembersPage() {
                       <div className="relative mb-4">
                         <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
                           {member.photo_path ? (
-                            // FIX: Construct proper URL for team member photo
+                            // FIX: Use local API proxy for team member photos
                             // Backend stores path as "team-photos/company_id/filename.png"
-                            // Storage is accessible at "{BACKEND_URL}/storage/team-photos/..."
-                            // Use unoptimized to bypass Next.js image proxy for localhost
+                            // Proxy fetches from Laravel and enables Next.js optimization
                             <Image
-                              src={`${BACKEND_URL}/storage/${member.photo_path}`}
+                              src={`/api/storage/${member.photo_path}`}
                               alt={member.name}
                               width={96}
                               height={96}
                               className="object-cover"
-                              unoptimized
                               onError={(e) => {
                                 console.error('Failed to load team member photo:', member.photo_path);
                                 // FIX: Fallback to placeholder on error
