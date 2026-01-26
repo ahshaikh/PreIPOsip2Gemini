@@ -1040,6 +1040,14 @@ Route::prefix('v1')->group(function () {
             // Tutorials Management
             Route::apiResource('/tutorials', TutorialController::class)->middleware('permission:settings.manage_cms');
 
+            // FIX: Sectors Management - Routes were missing for SectorController
+            Route::prefix('sectors')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Api\Admin\SectorController::class, 'index'])->middleware('permission:settings.manage_cms');
+                Route::post('/', [\App\Http\Controllers\Api\Admin\SectorController::class, 'store'])->middleware('permission:settings.manage_cms');
+                Route::put('/{id}', [\App\Http\Controllers\Api\Admin\SectorController::class, 'update'])->middleware('permission:settings.manage_cms');
+                Route::delete('/{id}', [\App\Http\Controllers\Api\Admin\SectorController::class, 'destroy'])->middleware('permission:settings.manage_cms');
+            });
+
             // Reports Management (Market Analysis, Research Reports)
             Route::prefix('content-reports')->group(function () {
                 Route::get('/', [ContentReportController::class, 'index'])->middleware('permission:settings.manage_cms');

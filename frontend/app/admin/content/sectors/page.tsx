@@ -1,20 +1,33 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
+import api from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Layers } from 'lucide-react';
+import { Layers, Loader2 } from 'lucide-react';
+
+// Default color for sectors without a color set
+const DEFAULT_COLOR = '#6366F1';
 
 export default function SectorsPage() {
-  const sectors = [
-    { name: 'Technology', icon: 'laptop', color: '#3B82F6', count: 0 },
-    { name: 'Healthcare', icon: 'heart', color: '#EF4444', count: 0 },
-    { name: 'Fintech', icon: 'credit-card', color: '#10B981', count: 0 },
-    { name: 'E-commerce', icon: 'shopping-cart', color: '#F59E0B', count: 0 },
-    { name: 'EdTech', icon: 'book', color: '#8B5CF6', count: 0 },
-    { name: 'Clean Energy', icon: 'zap', color: '#14B8A6', count: 0 },
-    { name: 'Real Estate', icon: 'home', color: '#F97316', count: 0 },
-    { name: 'Transportation', icon: 'truck', color: '#6366F1', count: 0 },
-  ];
+  // FIX: Fetch sectors from API instead of using hardcoded data
+  const { data: sectorsData, isLoading } = useQuery({
+    queryKey: ['admin-sectors'],
+    queryFn: async () => {
+      const response = await api.get('/admin/sectors');
+      return response.data;
+    },
+  });
+
+  const sectors = sectorsData?.data || [];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -32,26 +45,35 @@ export default function SectorsPage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {sectors.map((sector) => (
-              <Card key={sector.name} className="border-l-4" style={{ borderLeftColor: sector.color }}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold">{sector.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {sector.count} companies
-                      </p>
+            {sectors.length === 0 ? (
+              <p className="col-span-full text-center text-muted-foreground py-8">
+                No sectors found. Run the database seeder to add sectors.
+              </p>
+            ) : (
+              sectors.map((sector: any) => (
+                <Card key={sector.id} className="border-l-4" style={{ borderLeftColor: sector.color || DEFAULT_COLOR }}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold">{sector.name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {sector.companies_count || 0} companies
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {sector.deals_count || 0} deals • {sector.products_count || 0} products
+                        </p>
+                      </div>
+                      <div
+                        className="w-10 h-10 rounded-full flex items-center justify-center"
+                        style={{ backgroundColor: `${sector.color || DEFAULT_COLOR}20` }}
+                      >
+                        <Layers style={{ color: sector.color || DEFAULT_COLOR }} className="h-5 w-5" />
+                      </div>
                     </div>
-                    <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center"
-                      style={{ backgroundColor: `${sector.color}20` }}
-                    >
-                      <Layers style={{ color: sector.color }} className="h-5 w-5" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </CardContent>
       </Card>

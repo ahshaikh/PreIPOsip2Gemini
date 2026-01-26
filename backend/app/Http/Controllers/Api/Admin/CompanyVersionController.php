@@ -58,11 +58,16 @@ class CompanyVersionController extends Controller
 
         $versions = $query->paginate($request->get('per_page', 50));
 
-        // Get statistics
+        // Get statistics - FIX: Use consistent field names with stats() method
         $stats = [
             'total_versions' => CompanyVersion::count(),
-            'total_companies_versioned' => CompanyVersion::distinct('company_id')->count(),
+            'total_companies' => Company::count(),
+            'companies_with_versions' => CompanyVersion::distinct('company_id')->count(),
             'approval_snapshots' => CompanyVersion::where('is_approval_snapshot', true)->count(),
+            'protected_companies' => Company::whereHas('deals', function ($q) {
+                $q->where('status', 'active');
+            })->count(),
+            'versions_today' => CompanyVersion::whereDate('created_at', today())->count(),
             'recent_changes' => CompanyVersion::whereDate('created_at', '>=', now()->subDays(7))->count(),
         ];
 

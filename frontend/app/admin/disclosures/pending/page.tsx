@@ -11,14 +11,28 @@ import Link from "next/link";
 
 interface DisclosureSubmission {
   id: number;
-  company_id: number;
-  company_name: string;
-  module_code: string;
-  module_name: string;
-  tier: number;
+  company: {
+    id: number;
+    name: string;
+    lifecycle_state: string;
+  };
+  module: {
+    id: number;
+    code: string;
+    name: string;
+    tier: number;
+  };
   status: string;
   submitted_at: string;
-  review_priority: string;
+  review_started_at: string | null;
+  completion_percentage: number;
+  clarifications: {
+    total: number;
+    pending: number;
+    answered: number;
+  };
+  can_approve: boolean;
+  priority: string;
 }
 
 export default function PendingDisclosuresPage() {
@@ -34,7 +48,8 @@ export default function PendingDisclosuresPage() {
       setLoading(true);
       const response = await api.get("/admin/disclosures/pending");
 
-      if (response.data.success) {
+      // FIX: Backend returns { status: 'success', data: [...] } not { success: true }
+      if (response.data.status === 'success') {
         setDisclosures(response.data.data || []);
       } else {
         toast.error("Failed to load pending disclosures");
@@ -100,15 +115,15 @@ export default function PendingDisclosuresPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <Building2 className="w-5 h-5 text-gray-400" />
-                      <h3 className="text-lg font-semibold">{disclosure.company_name}</h3>
-                      <Badge className={getTierBadgeColor(disclosure.tier)}>
-                        Tier {disclosure.tier}
+                      <h3 className="text-lg font-semibold">{disclosure.company.name}</h3>
+                      <Badge className={getTierBadgeColor(disclosure.module.tier)}>
+                        Tier {disclosure.module.tier}
                       </Badge>
                     </div>
 
                     <div className="ml-8 space-y-1">
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        <span className="font-medium">Module:</span> {disclosure.module_name} ({disclosure.module_code})
+                        <span className="font-medium">Module:</span> {disclosure.module.name} ({disclosure.module.code})
                       </p>
                       <div className="flex items-center gap-2 text-sm text-gray-500">
                         <Clock className="w-4 h-4" />

@@ -24,10 +24,11 @@ export default function DealsManagementPage() {
   const [filterDealType, setFilterDealType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
 
-  // Form state
+  // Form state - FIX: Changed company_name to company_id (foreign key)
   const [formData, setFormData] = useState({
     title: '',
-    company_name: '',
+    company_id: '',
+    product_id: '',
     sector: '',
     deal_type: 'upcoming',
     description: '',
@@ -66,6 +67,27 @@ export default function DealsManagementPage() {
       return response.data;
     },
   });
+
+  // FIX: Fetch companies list for dropdown
+  const { data: companiesData } = useQuery({
+    queryKey: ['companies-list'],
+    queryFn: async () => {
+      const response = await api.get('/admin/companies?per_page=100&status=active');
+      return response.data;
+    },
+  });
+
+  // FIX: Fetch products list for dropdown
+  const { data: productsData } = useQuery({
+    queryKey: ['products-list'],
+    queryFn: async () => {
+      const response = await api.get('/admin/products?per_page=100&status=active');
+      return response.data;
+    },
+  });
+
+  const companies = companiesData?.data || [];
+  const products = productsData?.data || [];
 
   // Create/Update mutation
   const saveMutation = useMutation({
@@ -110,9 +132,11 @@ export default function DealsManagementPage() {
 
   const handleEdit = (deal: any) => {
     setEditingDeal(deal);
+    // FIX: Use company_id and product_id from the deal relationship
     setFormData({
       title: deal.title || '',
-      company_name: deal.company_name || '',
+      company_id: deal.company_id?.toString() || '',
+      product_id: deal.product_id?.toString() || '',
       sector: deal.sector || '',
       deal_type: deal.deal_type || 'upcoming',
       description: deal.description || '',
@@ -141,7 +165,8 @@ export default function DealsManagementPage() {
     setEditingDeal(null);
     setFormData({
       title: '',
-      company_name: '',
+      company_id: '',
+      product_id: '',
       sector: '',
       deal_type: 'upcoming',
       description: '',
@@ -213,13 +238,40 @@ export default function DealsManagementPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="company_name">Company Name *</Label>
-                  <Input
-                    id="company_name"
-                    value={formData.company_name}
-                    onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                    required
-                  />
+                  <Label htmlFor="company_id">Company *</Label>
+                  <Select
+                    value={formData.company_id}
+                    onValueChange={(value) => setFormData({ ...formData, company_id: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a company" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companies.map((company: any) => (
+                        <SelectItem key={company.id} value={company.id.toString()}>
+                          {company.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="product_id">Product *</Label>
+                  <Select
+                    value={formData.product_id}
+                    onValueChange={(value) => setFormData({ ...formData, product_id: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a product" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {products.map((product: any) => (
+                        <SelectItem key={product.id} value={product.id.toString()}>
+                          {product.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="sector">Sector *</Label>
@@ -492,7 +544,7 @@ export default function DealsManagementPage() {
                   {deals?.data?.map((deal: any) => (
                     <TableRow key={deal.id}>
                       <TableCell className="font-medium">{deal.title}</TableCell>
-                      <TableCell>{deal.company_name}</TableCell>
+                      <TableCell>{deal.company?.name || '-'}</TableCell>
                       <TableCell>{deal.sector}</TableCell>
                       <TableCell>{getDealTypeBadge(deal.deal_type)}</TableCell>
                       <TableCell>
