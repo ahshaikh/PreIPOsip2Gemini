@@ -89,7 +89,7 @@ return new class extends Migration
             // Audit fields
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
-            $table->timestamp('created_at');
+            $table->timestamp('created_at')->useCurrent();
 
             // INDEXES
             $table->index(['approval_request_id']);

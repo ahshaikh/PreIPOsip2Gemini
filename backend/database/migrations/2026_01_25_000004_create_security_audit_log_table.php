@@ -46,7 +46,7 @@ return new class extends Migration
                 $table->string('session_id', 100)->nullable();
 
                 // Timestamp
-                $table->timestamp('created_at');
+                $table->timestamp('created_at')->useCurrent();
 
                 // INDEXES for efficient querying
                 $table->index(['event_type', 'created_at']);
