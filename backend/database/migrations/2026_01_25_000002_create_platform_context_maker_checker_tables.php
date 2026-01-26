@@ -104,7 +104,7 @@ return new class extends Migration
         if (Schema::hasTable('platform_governance_log')) {
             Schema::table('platform_governance_log', function (Blueprint $table) {
                 if (!Schema::hasColumn('platform_governance_log', 'approval_request_id')) {
-                    $table->unsignedBigInteger('approval_request_id')->nullable()->after('admin_user_id');
+                    $table->unsignedBigInteger('approval_request_id')->nullable()->after('decided_by');
                     $table->index('approval_request_id');
                 }
             });
