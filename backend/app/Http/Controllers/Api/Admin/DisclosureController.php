@@ -141,8 +141,8 @@ class DisclosureController extends Controller
                 'company',
                 'module',
                 'currentApproval',
-                'clarifications.askedByUser',
-                'clarifications.answeredByUser',
+                'clarifications.asker',      // FIX: was 'askedByUser'
+                'clarifications.answeredBy', // FIX: was 'answeredByUser'
                 'versions',
             ])->findOrFail($id);
 
@@ -189,7 +189,7 @@ class DisclosureController extends Controller
                         'question_subject' => $c->question_subject,
                         'question_body' => $c->question_body,
                         'question_type' => $c->question_type,
-                        'asked_by' => $c->askedByUser ? $c->askedByUser->name : null,
+                        'asked_by' => $c->asker ? $c->asker->name : null, // FIX: was askedByUser
                         'asked_at' => $c->asked_at,
                         'field_path' => $c->field_path,
                         'status' => $c->status,
@@ -197,7 +197,7 @@ class DisclosureController extends Controller
                         'is_blocking' => $c->is_blocking,
                         'due_date' => $c->due_date,
                         'answer_body' => $c->answer_body,
-                        'answered_by' => $c->answeredByUser ? $c->answeredByUser->name : null,
+                        'answered_by' => $c->answeredBy ? $c->answeredBy->name : null, // FIX: was answeredByUser
                         'answered_at' => $c->answered_at,
                         'resolution_notes' => $c->resolution_notes,
                     ]),
