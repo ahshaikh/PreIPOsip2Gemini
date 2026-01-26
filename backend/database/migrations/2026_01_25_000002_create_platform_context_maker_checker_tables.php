@@ -33,7 +33,7 @@ return new class extends Migration
             // MAKER INFORMATION (who initiated the change)
             $table->foreignId('maker_user_id')->constrained('users');
             $table->string('maker_role', 50);
-            $table->timestamp('initiated_at');
+            $table->timestamp('initiated_at')->useCurrent();
             $table->text('maker_reason'); // Why this change is needed (REQUIRED)
             $table->string('maker_ip', 45)->nullable();
             $table->text('maker_user_agent')->nullable();
@@ -53,7 +53,8 @@ return new class extends Migration
             $table->json('supporting_data')->nullable(); // Evidence/documentation
 
             // EXPIRY (requests expire if not acted upon)
-            $table->timestamp('expires_at');
+            // Note: Application sets actual expiry; useCurrent() satisfies MySQL NOT NULL requirement
+            $table->timestamp('expires_at')->useCurrent();
             $table->boolean('is_expired')->default(false);
 
             // AUDIT
