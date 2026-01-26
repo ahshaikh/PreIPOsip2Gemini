@@ -42,11 +42,11 @@ return new class extends Migration
 
             // Current journey state
             $table->string('current_state', 30)->default('initiated');
-            $table->timestamp('state_entered_at');
+            $table->timestamp('state_entered_at')->useCurrent();
 
             // Journey tracking
             $table->string('journey_token', 64)->unique(); // Unique token for this journey
-            $table->timestamp('journey_started_at');
+            $table->timestamp('journey_started_at')->useCurrent();
             $table->timestamp('journey_completed_at')->nullable();
             $table->boolean('is_complete')->default(false);
             $table->string('completion_type', 20)->nullable(); // invested, blocked, abandoned
@@ -77,7 +77,7 @@ return new class extends Migration
             $table->string('device_fingerprint', 100)->nullable();
 
             // Expiry (journeys expire after inactivity)
-            $table->timestamp('expires_at');
+            $table->timestamp('expires_at')->useCurrent(); // App sets actual expiry
             $table->boolean('is_expired')->default(false);
 
             $table->timestamps();
@@ -116,7 +116,7 @@ return new class extends Migration
             $table->string('triggered_by', 30); // user_action, system, timeout, admin
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
-            $table->timestamp('transitioned_at');
+            $table->timestamp('transitioned_at')->useCurrent();
 
             // INDEXES
             $table->index(['journey_id', 'transitioned_at']);
@@ -147,7 +147,7 @@ return new class extends Migration
             // Proof of acknowledgement
             $table->text('acknowledgement_text')->nullable(); // Exact text user saw
             $table->boolean('explicit_consent')->default(false); // User explicitly clicked/checked
-            $table->timestamp('acknowledged_at');
+            $table->timestamp('acknowledged_at')->useCurrent();
 
             // Audit
             $table->string('ip_address', 45)->nullable();
