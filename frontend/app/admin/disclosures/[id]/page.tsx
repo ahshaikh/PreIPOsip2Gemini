@@ -12,17 +12,38 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import Link from "next/link";
 
+// FIX: Updated interface to match backend nested response structure
 interface DisclosureDetail {
-  id: number;
-  company_id: number;
-  company_name: string;
-  module_code: string;
-  module_name: string;
-  tier: number;
-  status: string;
-  submitted_at: string;
-  disclosure_data: any;
-  version: number;
+  disclosure: {
+    id: number;
+    status: string;
+    version_number: number;
+    completion_percentage: number;
+    disclosure_data: any;
+    attachments: any[];
+    submitted_at: string;
+    submitted_by: number | null;
+    review_started_at: string | null;
+    approved_at: string | null;
+    rejected_at: string | null;
+    rejection_reason: string | null;
+    is_locked: boolean;
+  };
+  company: {
+    id: number;
+    name: string;
+    lifecycle_state: string;
+    buying_enabled: boolean;
+  };
+  module: {
+    id: number;
+    code: string;
+    name: string;
+    tier: number;
+    json_schema: any;
+  };
+  clarifications: any[];
+  summary: any;
 }
 
 export default function DisclosureDetailPage() {
@@ -46,7 +67,8 @@ export default function DisclosureDetailPage() {
       setLoading(true);
       const response = await api.get(`/admin/disclosures/${disclosureId}`);
 
-      if (response.data.success) {
+      // FIX: Backend returns { status: 'success', data: {...} } not { success: true }
+      if (response.data.status === 'success') {
         setDisclosure(response.data.data);
       } else {
         toast.error("Failed to load disclosure");
@@ -64,7 +86,7 @@ export default function DisclosureDetailPage() {
 
     try {
       setSubmitting(true);
-      const response = await api.post(`/admin/disclosures/${disclosure.id}/approve`, {
+      const response = await api.post(`/admin/disclosures/${disclosure.disclosure.id}/approve`, {
         notes: reviewNotes,
       });
 
@@ -92,7 +114,7 @@ export default function DisclosureDetailPage() {
 
     try {
       setSubmitting(true);
-      const response = await api.post(`/admin/disclosures/${disclosure.id}/reject`, {
+      const response = await api.post(`/admin/disclosures/${disclosure.disclosure.id}/reject`, {
         reason: reviewNotes,
       });
 
@@ -150,21 +172,21 @@ export default function DisclosureDetailPage() {
       </Link>
 
       <div className="space-y-6">
-        {/* Disclosure Header */}
+        {/* Disclosure Header - FIX: Updated to use nested structure */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-3">
                   <Building2 className="w-6 h-6 text-purple-600" />
-                  {disclosure.company_name}
+                  {disclosure.company.name}
                 </CardTitle>
                 <p className="text-sm text-gray-500 mt-1">
                   Reviewing disclosure submission
                 </p>
               </div>
               <Badge className="bg-blue-100 text-blue-700 border-blue-300">
-                Tier {disclosure.tier}
+                Tier {disclosure.module.tier}
               </Badge>
             </div>
           </CardHeader>
@@ -172,21 +194,21 @@ export default function DisclosureDetailPage() {
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-gray-500">Module:</span>
-                <p className="font-medium">{disclosure.module_name}</p>
+                <p className="font-medium">{disclosure.module.name}</p>
               </div>
               <div>
                 <span className="text-gray-500">Status:</span>
-                <p className="font-medium capitalize">{disclosure.status}</p>
+                <p className="font-medium capitalize">{disclosure.disclosure.status}</p>
               </div>
               <div>
                 <span className="text-gray-500">Submitted:</span>
                 <p className="font-medium">
-                  {new Date(disclosure.submitted_at).toLocaleString()}
+                  {disclosure.disclosure.submitted_at ? new Date(disclosure.disclosure.submitted_at).toLocaleString() : 'N/A'}
                 </p>
               </div>
               <div>
                 <span className="text-gray-500">Version:</span>
-                <p className="font-medium">v{disclosure.version}</p>
+                <p className="font-medium">v{disclosure.disclosure.version_number}</p>
               </div>
             </div>
           </CardContent>
@@ -203,7 +225,7 @@ export default function DisclosureDetailPage() {
           <CardContent>
             <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
               <pre className="text-sm overflow-x-auto">
-                {JSON.stringify(disclosure.disclosure_data, null, 2)}
+                {JSON.stringify(disclosure.disclosure.disclosure_data, null, 2)}
               </pre>
             </div>
           </CardContent>
@@ -216,7 +238,7 @@ export default function DisclosureDetailPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="notes">Review Notes {disclosure.status === "pending" && "(Required for rejection)"}</Label>
+              <Label htmlFor="notes">Review Notes {disclosure.disclosure.status === "pending" && "(Required for rejection)"}</Label>
               <Textarea
                 id="notes"
                 placeholder="Add your review notes here..."
