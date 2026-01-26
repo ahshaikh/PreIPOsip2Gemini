@@ -177,12 +177,14 @@ export default function TeamMembersPage() {
                   <div className="w-20 h-20 border-2 border-dashed rounded-full flex items-center justify-center bg-gray-50 dark:bg-gray-900 overflow-hidden">
                     {photoPreview ? (
                       // FIX: Display photo preview with proper error handling
+                      // Use unoptimized for localhost URLs to bypass Next.js image proxy
                       <Image
                         src={photoPreview}
                         alt="Preview"
                         width={80}
                         height={80}
                         className="object-cover"
+                        unoptimized
                       />
                     ) : (
                       <User className="h-8 w-8 text-muted-foreground" />
@@ -324,12 +326,14 @@ export default function TeamMembersPage() {
                             // FIX: Construct proper URL for team member photo
                             // Backend stores path as "team-photos/company_id/filename.png"
                             // Storage is accessible at "{BACKEND_URL}/storage/team-photos/..."
+                            // Use unoptimized to bypass Next.js image proxy for localhost
                             <Image
                               src={`${BACKEND_URL}/storage/${member.photo_path}`}
                               alt={member.name}
                               width={96}
                               height={96}
                               className="object-cover"
+                              unoptimized
                               onError={(e) => {
                                 console.error('Failed to load team member photo:', member.photo_path);
                                 // FIX: Fallback to placeholder on error

@@ -89,6 +89,9 @@ export default function CompanyDashboardPage() {
                 width={64}
                 height={64}
                 className="object-contain"
+                // FIX: Use unoptimized to bypass Next.js image proxy for localhost
+                // This allows direct browser fetch which works with CORS
+                unoptimized
                 onError={(e) => {
                   console.error('Failed to load company logo on dashboard');
                   e.currentTarget.style.display = 'none';
