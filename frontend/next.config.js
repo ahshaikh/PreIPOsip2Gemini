@@ -22,6 +22,13 @@ const nextConfig = {
         pathname: '/api/v1/storage/**',
       },
       {
+        // FIX: Added pattern for direct storage URLs from Laravel backend (e.g., /storage/company-logos/*)
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '8000',
+        pathname: '/storage/**',
+      },
+      {
         protocol: 'https',
         hostname: 'preiposip.com',
         pathname: '/storage/**',
