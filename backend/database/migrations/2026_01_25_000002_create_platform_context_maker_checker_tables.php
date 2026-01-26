@@ -62,7 +62,10 @@ return new class extends Migration
 
             // INDEXES
             $table->index(['company_id', 'status']);
-            $table->index(['company_id', 'action_type', 'status']);
+            $table->index(
+                ['company_id', 'action_type', 'status'],
+                'pc_approval_company_action_status_idx'
+            );
             $table->index(['maker_user_id']);
             $table->index(['checker_user_id']);
             $table->index(['status', 'expires_at']);
@@ -104,7 +107,7 @@ return new class extends Migration
         if (Schema::hasTable('platform_governance_log')) {
             Schema::table('platform_governance_log', function (Blueprint $table) {
                 if (!Schema::hasColumn('platform_governance_log', 'approval_request_id')) {
-                    $table->unsignedBigInteger('approval_request_id')->nullable()->after('admin_user_id');
+                    $table->unsignedBigInteger('approval_request_id')->nullable()->after('decided_by');
                     $table->index('approval_request_id');
                 }
             });
