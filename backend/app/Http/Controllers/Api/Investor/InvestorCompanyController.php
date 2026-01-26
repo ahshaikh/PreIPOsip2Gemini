@@ -224,6 +224,7 @@ class InvestorCompanyController extends Controller
         ];
 
         // Build platform_context object (required by frontend)
+        // LEGACY: risk_assessment.risk_flags preserved for backward compatibility
         $company->platform_context = [
             'lifecycle_state' => $company->lifecycle_state ?? 'active',
             'buying_enabled' => $company->buying_enabled ?? true,
@@ -243,6 +244,8 @@ class InvestorCompanyController extends Controller
                 'risk_level' => $company->risk_level ?? 'low',
                 'risk_flags' => $company->risk_flags ?? [],
             ],
+            // P0 FIX (GAP 35): Enriched platform risk assessment for RiskFlagRationale component
+            'platform_risk_assessment' => $this->buildPlatformRiskAssessment($company),
         ];
 
         // Build disclosures array (empty for now, can be populated from related models later)
@@ -447,5 +450,113 @@ class InvestorCompanyController extends Controller
                 'recorded_at' => now()->toIso8601String(),
             ],
         ]);
+    }
+
+    /**
+     * P0 FIX (GAP 35): Build enriched platform risk assessment
+     *
+     * Returns structure compatible with RiskFlagRationale.tsx component:
+     * - company_id, company_name, overall_risk_level, risk_score
+     * - flags[] with: id, code, name, severity, category, is_active, rationale, mitigation_guidance
+     * - last_assessed_at
+     *
+     * @param Company $company
+     * @return array
+     */
+    private function buildPlatformRiskAssessment(Company $company): array
+    {
+        // Fetch active, investor-visible risk flags from database
+        $riskFlags = \App\Models\PlatformRiskFlag::where('company_id', $company->id)
+            ->where('status', 'active')
+            ->where('is_visible_to_investors', true)
+            ->orderBy('severity', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Map category values from database to frontend enum
+        $categoryMap = [
+            'financial' => 'financial',
+            'governance' => 'operational',
+            'legal' => 'regulatory',
+            'disclosure_quality' => 'regulatory',
+            'market' => 'market',
+            'operational' => 'operational',
+            'liquidity' => 'liquidity',
+        ];
+
+        // Transform flags to match RiskFlag interface
+        $enrichedFlags = $riskFlags->map(function ($flag) use ($categoryMap) {
+            return [
+                'id' => $flag->id,
+                'code' => $flag->flag_type,
+                'name' => ucwords(str_replace('_', ' ', $flag->flag_type)),
+                'severity' => $this->normalizeSeverity($flag->severity),
+                'category' => $categoryMap[$flag->category] ?? 'operational',
+                'is_active' => $flag->status === 'active',
+                'rationale' => $flag->description,
+                'mitigation_guidance' => $flag->investor_message ?? 'Review the underlying disclosures and conduct your own due diligence.',
+                'created_at' => $flag->created_at?->toIso8601String(),
+                'updated_at' => $flag->updated_at?->toIso8601String(),
+            ];
+        })->toArray();
+
+        // Determine overall risk level based on flags
+        $overallRiskLevel = $this->calculateOverallRiskLevel($riskFlags);
+
+        // Get last assessment timestamp
+        $lastAssessedAt = $riskFlags->max('created_at') ?? $company->updated_at;
+
+        return [
+            'company_id' => $company->id,
+            'company_name' => $company->name,
+            'overall_risk_level' => $overallRiskLevel,
+            'risk_score' => $company->platform_risk_score ?? 0,
+            'flags' => $enrichedFlags,
+            'last_assessed_at' => $lastAssessedAt?->toIso8601String() ?? now()->toIso8601String(),
+            'assessor_notes' => null, // Platform-determined, no manual notes
+        ];
+    }
+
+    /**
+     * Normalize severity to match frontend enum
+     */
+    private function normalizeSeverity(string $severity): string
+    {
+        $validSeverities = ['low', 'medium', 'high', 'critical'];
+        $severity = strtolower($severity);
+
+        // Map info to low
+        if ($severity === 'info') {
+            return 'low';
+        }
+
+        return in_array($severity, $validSeverities) ? $severity : 'medium';
+    }
+
+    /**
+     * Calculate overall risk level from flags
+     */
+    private function calculateOverallRiskLevel($riskFlags): string
+    {
+        if ($riskFlags->isEmpty()) {
+            return 'low';
+        }
+
+        // If any critical flag, overall is critical
+        if ($riskFlags->where('severity', 'critical')->isNotEmpty()) {
+            return 'critical';
+        }
+
+        // If any high flag, overall is high
+        if ($riskFlags->where('severity', 'high')->isNotEmpty()) {
+            return 'high';
+        }
+
+        // If any medium flag, overall is medium
+        if ($riskFlags->where('severity', 'medium')->isNotEmpty()) {
+            return 'medium';
+        }
+
+        return 'low';
     }
 }

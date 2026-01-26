@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\User\InvestmentController;
 use App\Http\Controllers\Api\Investor\InvestorCompanyController;
 use App\Http\Controllers\Api\Investor\InvestorCompanyControllerComprehensive;
 use App\Http\Controllers\Api\Investor\InvestorInvestmentController;
+use App\Http\Controllers\Api\Investor\InvestorSnapshotComparisonController;
 use App\Http\Controllers\Api\User\DealController as UserDealController;
 use App\Http\Controllers\Api\User\PaymentController;
 use App\Http\Controllers\Api\User\PortfolioController;
@@ -516,6 +517,9 @@ Route::prefix('v1')->group(function () {
             // - Idempotency support
             Route::post('/investments', [InvestorInvestmentController::class, 'store'])
                 ->middleware(['throttle:10,1']); // GAP 3: Rate limit 10 investments per minute
+
+            // P0 FIX (GAP 36): Snapshot comparison endpoint for "then vs now" comparison
+            Route::get('/investments/{investmentId}/snapshot-comparison', [InvestorSnapshotComparisonController::class, 'getSnapshotComparison']);
         });
     }); // Close auth:sanctum + mfa.verified group from line 243
 

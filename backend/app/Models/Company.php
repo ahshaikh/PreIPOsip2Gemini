@@ -292,6 +292,15 @@ class Company extends Model
         return $this->hasMany(CompanyUpdate::class);
     }
 
+    /**
+     * P0 FIX (GAP 35): Platform risk flags relationship
+     * Returns investor-visible risk flags with full rationale data
+     */
+    public function platformRiskFlags()
+    {
+        return $this->hasMany(PlatformRiskFlag::class);
+    }
+
     public function webinars()
     {
         return $this->hasMany(CompanyWebinar::class);
