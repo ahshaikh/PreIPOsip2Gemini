@@ -156,8 +156,14 @@ return new class extends Migration
             $table->timestamps();
 
             // INDEXES
-            $table->index(['journey_id', 'acknowledgement_type']);
-            $table->unique(['journey_id', 'acknowledgement_key']);
+            $table->index(
+                ['journey_id', 'acknowledgement_type'],
+                'ja_bind_journey_ack_type_idx'
+                );
+            $table->unique(
+                ['journey_id', 'acknowledgement_key'],
+                'ja_bind_journey_ack_key_idx'
+                );
         });
     }
 
