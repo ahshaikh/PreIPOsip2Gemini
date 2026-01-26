@@ -1,14 +1,21 @@
 'use client';
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TrendingUp, TrendingDown, Building2, Calendar, DollarSign, PieChart, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import Link from "next/link";
+// GAP 36 FIX: Import snapshot comparison components
+import { SnapshotComparisonUI, SnapshotChangeIndicator } from "@/components/features/investment/SnapshotComparison";
 
 export default function InvestmentsPage() {
+  // GAP 36 FIX: State for snapshot comparison modal
+  const [selectedInvestmentId, setSelectedInvestmentId] = useState<number | null>(null);
+
   const { data: portfolioResponse } = useQuery({
     queryKey: ['portfolio'],
     queryFn: async () => (await api.get('/user/portfolio')).data,
@@ -218,6 +225,13 @@ export default function InvestmentsPage() {
                           <DollarSign className="w-3 h-3" />
                           <span>Avg Price: {formatCurrency(investment.price_per_share)}</span>
                         </div>
+                        {/* GAP 36 FIX: Snapshot comparison indicator */}
+                        <div className="ml-auto">
+                          <SnapshotChangeIndicator
+                            investmentId={investment.id}
+                            onViewDetails={() => setSelectedInvestmentId(investment.id)}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -227,6 +241,18 @@ export default function InvestmentsPage() {
           })
         )}
       </div>
+
+      {/* GAP 36 FIX: Snapshot comparison modal */}
+      <Dialog open={selectedInvestmentId !== null} onOpenChange={() => setSelectedInvestmentId(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Platform State Comparison</DialogTitle>
+          </DialogHeader>
+          {selectedInvestmentId && (
+            <SnapshotComparisonUI investmentId={selectedInvestmentId} />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -618,18 +618,57 @@ export default function InvestorCompanyDetailPage() {
                 </>
               ) : null}
 
+              {/* GAP 35 FIX: Risk flags with rationale display */}
               {company.platform_context.risk_assessment.risk_flags.length > 0 && (
                 <>
                   <Separator />
                   <div>
-                    <h4 className="font-semibold mb-2 text-amber-600">Risk Flags</h4>
-                    <div className="space-y-2">
+                    <h4 className="font-semibold mb-2 text-amber-600 flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4" />
+                      Platform Risk Flags
+                    </h4>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Risk assessments determined by PreIPOsip platform governance
+                    </p>
+                    <div className="space-y-3">
                       {company.platform_context.risk_assessment.risk_flags.map((flag: any, i: number) => (
-                        <Alert key={i} variant="destructive" className="py-2">
-                          <AlertDescription className="text-sm">
-                            <span className="font-semibold">{flag.flag_type}:</span> {flag.description}
-                          </AlertDescription>
-                        </Alert>
+                        <div
+                          key={i}
+                          className={`rounded-lg border p-4 ${
+                            flag.severity === 'critical' || flag.severity === 'high'
+                              ? 'bg-red-50 dark:bg-red-950/30 border-red-300 dark:border-red-800'
+                              : 'bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <span className={`font-semibold ${
+                              flag.severity === 'critical' || flag.severity === 'high'
+                                ? 'text-red-800 dark:text-red-200'
+                                : 'text-amber-800 dark:text-amber-200'
+                            }`}>
+                              {flag.flag_type}
+                            </span>
+                            <Badge
+                              variant={flag.severity === 'critical' ? 'destructive' : 'secondary'}
+                              className="text-xs uppercase"
+                            >
+                              {flag.severity}
+                            </Badge>
+                          </div>
+                          {/* Rationale / Explanation */}
+                          <div className="mt-2">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                              Platform Rationale
+                            </p>
+                            <p className={`text-sm ${
+                              flag.severity === 'critical' || flag.severity === 'high'
+                                ? 'text-red-700 dark:text-red-300'
+                                : 'text-amber-700 dark:text-amber-300'
+                            }`}>
+                              {flag.description}
+                            </p>
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>
