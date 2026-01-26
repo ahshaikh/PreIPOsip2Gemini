@@ -529,3 +529,93 @@ export interface ValidationErrors {
   message: string;
   errors: Record<string, string[]>;
 }
+
+// =============================================================================
+// P0 FIX (GAP 35-36): Risk Flag & Snapshot Comparison Types
+// =============================================================================
+
+/**
+ * Risk Flag with Rationale
+ * GAP 35: Risk flags now include explanation for investor clarity
+ */
+export interface RiskFlag {
+  id: number;
+  code: string;
+  name: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  category: 'market' | 'liquidity' | 'regulatory' | 'operational' | 'financial';
+  is_active: boolean;
+  rationale: string;
+  mitigation_guidance: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Company Risk Assessment
+ * Aggregated risk flags for a company/investment
+ */
+export interface CompanyRiskAssessment {
+  company_id: number;
+  company_name: string;
+  overall_risk_level: 'low' | 'medium' | 'high' | 'critical';
+  risk_score: number;
+  flags: RiskFlag[];
+  last_assessed_at: string;
+  assessor_notes?: string;
+}
+
+/**
+ * Platform Context Snapshot
+ * GAP 36: For "then vs now" comparison
+ */
+export interface PlatformContextSnapshot {
+  id: number;
+  company_id: number;
+  lifecycle_state: string;
+  buying_enabled: boolean;
+  risk_level: string;
+  compliance_score: number;
+  active_risk_flags: RiskFlag[];
+  valid_from: string;
+  valid_until: string | null;
+  is_current: boolean;
+  is_locked: boolean;
+  created_at: string;
+}
+
+/**
+ * Snapshot Comparison Result
+ * Diff between investment-time and current platform state
+ */
+export interface SnapshotComparison {
+  investment_id: number;
+  investment_date: string;
+  company_name: string;
+  then: {
+    snapshot_id: number;
+    snapshot_date: string;
+    lifecycle_state: string;
+    buying_enabled: boolean;
+    risk_level: string;
+    compliance_score: number;
+    risk_flags: RiskFlag[];
+  };
+  now: {
+    snapshot_id: number;
+    snapshot_date: string;
+    lifecycle_state: string;
+    buying_enabled: boolean;
+    risk_level: string;
+    compliance_score: number;
+    risk_flags: RiskFlag[];
+  };
+  changes: {
+    lifecycle_state_changed: boolean;
+    buying_status_changed: boolean;
+    risk_level_changed: boolean;
+    compliance_score_delta: number;
+    new_risk_flags: RiskFlag[];
+    removed_risk_flags: RiskFlag[];
+  };
+}
