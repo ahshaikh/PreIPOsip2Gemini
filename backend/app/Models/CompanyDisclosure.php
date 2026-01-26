@@ -223,6 +223,15 @@ class CompanyDisclosure extends Model
         return $this->hasMany(DisclosureApproval::class)->orderBy('created_at', 'desc');
     }
 
+    /**
+     * Current/Latest approval record for this disclosure
+     * Used by admin disclosure review to show current approval status
+     */
+    public function currentApproval()
+    {
+        return $this->hasOne(DisclosureApproval::class)->latestOfMany();
+    }
+
     // =========================================================================
     // SCOPES
     // =========================================================================
