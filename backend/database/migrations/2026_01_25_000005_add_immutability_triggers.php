@@ -11,15 +11,16 @@ use Illuminate\Support\Facades\DB;
  * Application-level immutability (model boot methods) can be bypassed with raw queries.
  * These triggers provide defense-in-depth.
  *
- * TABLES PROTECTED:
- * - investor_journey_transitions: Audit trail of journey state changes
- * - journey_acknowledgement_bindings: Proof of what investor acknowledged
- * - share_allocation_logs: Proof of share allocation
- * - platform_context_snapshots: Proof of platform state (when locked)
+ * PREREQUISITES (migration will FAIL if these tables don't exist):
+ * - investor_journey_transitions (from 2026_01_25_000003)
+ * - journey_acknowledgement_bindings (from 2026_01_25_000003)
+ * - investor_journeys (from 2026_01_25_000003)
+ * - share_allocation_logs (from earlier migration)
+ * - platform_context_snapshots (from earlier migration)
+ * - company_investments (from earlier migration)
  *
- * STATE MACHINE ENFORCEMENT:
- * - company_investments: Prevent invalid status transitions
- * - investor_journeys: Prevent invalid state transitions
+ * INVARIANT: This migration MUST fail loudly if prerequisites are missing.
+ * Silent skipping of compliance controls is unacceptable.
  */
 return new class extends Migration
 {
@@ -28,6 +29,7 @@ return new class extends Migration
         // =====================================================================
         // GAP 32: IMMUTABILITY TRIGGERS
         // Prevent UPDATE and DELETE on audit trail tables
+        // These triggers MUST be created - failure indicates broken migration order
         // =====================================================================
 
         // 1. investor_journey_transitions - IMMUTABLE
@@ -146,6 +148,7 @@ return new class extends Migration
         // =====================================================================
         // GAP 33: STATE MACHINE ENFORCEMENT TRIGGERS
         // Prevent invalid state transitions
+        // These triggers MUST be created - failure indicates broken migration order
         // =====================================================================
 
         // 5. investor_journeys - Valid state transitions only
@@ -233,29 +236,8 @@ return new class extends Migration
             END;
         ");
 
-        // Log trigger creation
-        DB::table('audit_trails')->insert([
-            'auditable_type' => 'system',
-            'auditable_id' => 0,
-            'action' => 'create_immutability_triggers',
-            'changes' => json_encode([
-                'triggers_created' => [
-                    'prevent_journey_transition_update',
-                    'prevent_journey_transition_delete',
-                    'prevent_ack_binding_update',
-                    'prevent_ack_binding_delete',
-                    'prevent_allocation_log_update',
-                    'prevent_allocation_log_delete',
-                    'prevent_locked_snapshot_update',
-                    'prevent_snapshot_delete',
-                    'enforce_journey_state_machine',
-                    'enforce_investment_status_machine',
-                ],
-            ]),
-            'ip_address' => 'migration',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        // NOTE: No DML (audit_trails insert) in structural migrations.
+        // Governance logging belongs in a dedicated seeder or post-migration script.
     }
 
     public function down(): void
