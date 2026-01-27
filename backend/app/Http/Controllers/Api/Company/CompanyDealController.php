@@ -43,6 +43,7 @@ class CompanyDealController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
+            'product_id' => 'required|exists:products,id',
             'title' => 'required|string|max:255',
             'description' => 'required|string',
             'deal_type' => 'required|in:live,upcoming,closed',
@@ -86,6 +87,7 @@ class CompanyDealController extends Controller
         try {
             $deal = Deal::create([
                 'company_id' => $company->id,
+                'product_id' => $request->product_id,
                 'title' => $request->title,
                 'slug' => Str::slug($request->title),
                 'description' => $request->description,
@@ -111,6 +113,10 @@ class CompanyDealController extends Controller
             ], 201);
 
         } catch (\Exception $e) {
+            \Log::error('Failed to create deal', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create deal',
@@ -306,6 +312,35 @@ class CompanyDealController extends Controller
         return response()->json([
             'success' => true,
             'stats' => $stats,
+        ], 200);
+    }
+
+    /**
+     * Get all products available for a company to create deals from.
+     */
+    public function getProductsForCompany(Request $request)
+    {
+        $companyUser = $request->user();
+        $company = $companyUser->company;
+
+        if (!$company) {
+            return response()->json(['success' => false, 'message' => 'Company not found'], 404);
+        }
+
+        // Find product IDs from bulk purchases associated with this company
+        $productIds = \App\Models\BulkPurchase::where('company_id', $company->id)
+            ->distinct()
+            ->pluck('product_id');
+
+        // Fetch products with active status
+        $products = \App\Models\Product::whereIn('id', $productIds)
+            ->where('status', 'active')
+            ->select('id', 'name')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $products,
         ], 200);
     }
 }

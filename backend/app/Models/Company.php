@@ -231,11 +231,11 @@ class Company extends Model
     // --- [AUDIT FIX]: SCOPED ENTERPRISE RELATIONSHIPS ---
 
     /**
-     * Users belonging to this enterprise.
+     * CompanyUsers belonging to this enterprise.
      */
-    public function users(): HasMany
+    public function companyUsers(): HasMany
     {
-        return $this->hasMany(User::class);
+        return $this->hasMany(CompanyUser::class);
     }
 
     /**

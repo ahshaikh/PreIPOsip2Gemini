@@ -68,6 +68,12 @@ class AuthController extends Controller
             ], 201);
 
         } catch (\Exception $e) {
+            // FIX: Add explicit logging to diagnose silent failures
+            \Log::error('Company registration failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Registration failed. Please try again.',

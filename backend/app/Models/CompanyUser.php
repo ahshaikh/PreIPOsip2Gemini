@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
 use App\Models\Traits\LogsStateChanges;
 
 /**
@@ -18,7 +19,14 @@ use App\Models\Traits\LogsStateChanges;
  */
 class CompanyUser extends Authenticatable implements MustVerifyEmail
 {
-    use HasApiTokens, HasFactory, Notifiable, SoftDeletes, LogsStateChanges;
+    use HasApiTokens, HasFactory, Notifiable, SoftDeletes, LogsStateChanges, HasRoles;
+
+    /**
+     * The guard name for this model.
+     *
+     * @var string
+     */
+    public string $guard_name = 'company_api';
 
     protected $fillable = [
         'company_id',

@@ -22,6 +22,7 @@ export default function DealsPage() {
   const [highlightInput, setHighlightInput] = useState('');
 
   const [formData, setFormData] = useState({
+    product_id: '',
     title: '',
     description: '',
     deal_type: 'upcoming',
@@ -49,6 +50,16 @@ export default function DealsPage() {
       const response = await companyApi.get('/deals/statistics');
       return response.data;
     },
+  });
+
+  // Fetch products for the select dropdown
+  const { data: productsData, isLoading: isLoadingProducts } = useQuery({
+    queryKey: ['company-products-for-deals'],
+    queryFn: async () => {
+      const response = await companyApi.get('/deals/products-for-deals');
+      return response.data;
+    },
+    enabled: isDialogOpen, // Only fetch when the dialog is open
   });
 
   const saveMutation = useMutation({
@@ -91,6 +102,7 @@ export default function DealsPage() {
   const handleEdit = (deal: any) => {
     setEditingDeal(deal);
     setFormData({
+      product_id: deal.product_id,
       title: deal.title,
       description: deal.description,
       deal_type: deal.deal_type,
@@ -110,6 +122,7 @@ export default function DealsPage() {
     setEditingDeal(null);
     setHighlightInput('');
     setFormData({
+      product_id: '',
       title: '',
       description: '',
       deal_type: 'upcoming',
@@ -167,6 +180,35 @@ export default function DealsPage() {
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="product">Product *</Label>
+                <Select
+                  value={formData.product_id}
+                  onValueChange={(value) => setFormData({ ...formData, product_id: value })}
+                  required
+                  disabled={!!editingDeal} // Disable if editing, as product shouldn't change
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a product for this deal" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {isLoadingProducts ? (
+                      <SelectItem disabled value="loading">Loading products...</SelectItem>
+                    ) : productsData?.data?.length > 0 ? (
+                      productsData.data.map((product: any) => (
+                        <SelectItem key={product.id} value={String(product.id)}>
+                          {product.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem disabled value="no-products">
+                        No active products with inventory found.
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="title">Deal Title *</Label>
                 <Input

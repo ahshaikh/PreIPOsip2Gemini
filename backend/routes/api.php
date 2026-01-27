@@ -119,6 +119,7 @@ use App\Http\Controllers\Api\Company\CompanyQnaController;
 use App\Http\Controllers\Api\Company\CompanyWebinarController;
 use App\Http\Controllers\Api\Company\OnboardingWizardController;
 use App\Http\Controllers\Api\Company\ShareListingController;
+use App\Http\Controllers\Api\Company\UserManagementController;
 
 // Public Company Controllers
 use App\Http\Controllers\Api\Public\CompanyProfileController as PublicCompanyProfileController;
@@ -1334,6 +1335,11 @@ Route::prefix('v1')->group(function () {
 
             // Authenticated Company User Routes
             Route::middleware('auth:sanctum')->group(function () {
+                // User management (for company admins)
+                Route::middleware('role:company_admin,company_api')->group(function () {
+                    Route::apiResource('users', UserManagementController::class);
+                });
+
                 // Authentication
                 Route::post('/logout', [CompanyAuthController::class, 'logout']);
                 Route::get('/profile', [CompanyAuthController::class, 'profile']);
@@ -1400,6 +1406,7 @@ Route::prefix('v1')->group(function () {
 
                 // Company Deal Listings (Share Offerings)
                 Route::prefix('deals')->group(function () {
+                    Route::get('/products-for-deals', [CompanyDealController::class, 'getProductsForCompany']);
                     Route::get('/', [CompanyDealController::class, 'index']);
                     Route::post('/', [CompanyDealController::class, 'store']);
                     Route::get('/statistics', [CompanyDealController::class, 'statistics']);

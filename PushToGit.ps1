@@ -8,7 +8,28 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "Refactored UserTopNav bar"
+$CommitMessage = "feat(core): establish company actor authority and product ownership foundation
+
+EPIC 1 — Company Actor Authority
+- Corrected Company → CompanyUser relationship (removed retail User coupling)
+- Introduced company_api auth guard
+- Enabled company-scoped roles via spatie/laravel-permission
+- Seeded company roles (company_admin, finance, legal, marketing, viewer)
+- Refactored Company User Management APIs with strict multi-tenant scoping
+- Enforced company_admin-only access for team management
+- Prevented self-suspension and ensured token revocation on user suspension
+
+EPIC 2 — Product Ownership (Partial)
+- Added company_id foreign key to products table
+- Linked Product model to Company ownership
+- Implemented safe data backfill using BulkPurchase provenance
+- Introduced product lifecycle status column (default: approved)
+- Added initial product immutability and inventory-triggered locking logic
+
+Notes:
+- Product lifecycle enforcement pending final hardening (STORY 2.2 fixes)
+- No changes to disclosures, deals, inventory allocation, or user purchase flows
+- Backward-compatible with existing admin workflows"
 #----------------------
 
 function Get-GitCredential {

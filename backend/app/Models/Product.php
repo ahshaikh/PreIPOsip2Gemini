@@ -5,6 +5,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
@@ -17,6 +18,7 @@ class Product extends Model
     use HasFactory, SoftDeletes, HasDeletionProtection, HasWorkflowActions;
 
     protected $fillable = [
+        'company_id',
         'name',
         'slug',
         'sector',
@@ -70,6 +72,42 @@ class Product extends Model
     protected static function booted()
     {
         static::saving(function ($product) {
+            // STORY 2.2: Enforce lifecycle state machine and write guards
+            $originalStatus = $product->getOriginal('status');
+            $newStatus = $product->status;
+
+            if ($product->isDirty('status') && $originalStatus) {
+                $allowedTransitions = [
+                    'draft' => ['submitted'],
+                    'submitted' => ['approved', 'rejected', 'draft'], // Admin can approve/reject, company can withdraw
+                    'approved' => ['locked'], // Automatic transition
+                    'rejected' => ['draft'], // Company can resubmit
+                    'locked' => [], // Locked is a final state
+                ];
+
+                if (!in_array($newStatus, $allowedTransitions[$originalStatus] ?? [])) {
+                    throw new \RuntimeException("Illegal state transition from '{$originalStatus}' to '{$newStatus}'.");
+                }
+            }
+
+            if ($originalStatus === 'locked' && $product->isDirty()) {
+                $coreFields = [
+                    'name', 'slug', 'sector', 'face_value_per_unit', 'min_investment',
+                    'expected_ipo_date', 'description', 'sebi_approval_number',
+                    'sebi_approval_date', 'compliance_notes', 'regulatory_warnings',
+                    'company_id',
+                ];
+
+                $changedCoreFields = array_intersect(array_keys($product->getDirty()), $coreFields);
+
+                if (!empty($changedCoreFields)) {
+                    throw new \RuntimeException(
+                        'Cannot modify core fields of a locked product. Fields like name, face_value, and sector are immutable once inventory exists. Attempted to change: ' .
+                        implode(', ', $changedCoreFields)
+                    );
+                }
+            }
+            
             if ($product->face_value_per_unit <= 0) {
                 throw new \InvalidArgumentException("Face value must be positive.");
             }
@@ -184,6 +222,12 @@ class Product extends Model
     }
 
     // --- RELATIONSHIPS ---
+
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
+    }
+
     public function bulkPurchases(): HasMany { return $this->hasMany(BulkPurchase::class); }
     public function investments(): HasMany { return $this->hasMany(UserInvestment::class); }
     public function priceHistory(): HasMany { return $this->hasMany(ProductPriceHistory::class)->orderBy('recorded_at', 'asc'); }

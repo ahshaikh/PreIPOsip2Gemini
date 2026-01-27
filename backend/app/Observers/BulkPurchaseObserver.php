@@ -199,6 +199,17 @@ class BulkPurchaseObserver
                 'source_type' => $bulkPurchase->source_type,
             ],
         ]);
+
+        // STORY 2.2: Automatically lock the product once inventory exists
+        $product = $bulkPurchase->product;
+        if ($product && $product->status !== 'locked') {
+            $product->update(['status' => 'locked']);
+            Log::info('Product locked due to new bulk purchase.', [
+                'product_id' => $product->id,
+                'bulk_purchase_id' => $bulkPurchase->id,
+                'new_status' => 'locked',
+            ]);
+        }
     }
 
     /**

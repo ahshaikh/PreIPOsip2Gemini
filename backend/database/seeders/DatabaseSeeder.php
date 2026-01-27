@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
     {
         // 1. Core System Seeders (Roles, Settings)
         $this->call(RolesAndPermissionsSeeder::class);
+        $this->call(CompanyRoleSeeder::class); // Company-specific roles
         $this->call(PermissionsSeeder::class); // <-- Includes all permissions
         $this->call(SettingsSeeder::class);   // <-- Includes all settings
 
