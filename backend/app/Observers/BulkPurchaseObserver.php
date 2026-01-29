@@ -200,15 +200,28 @@ class BulkPurchaseObserver
             ],
         ]);
 
-        // STORY 2.2: Automatically lock the product once inventory exists
-        $product = $bulkPurchase->product;
-        if ($product && $product->status !== 'locked') {
-            $product->update(['status' => 'locked']);
-            Log::info('Product locked due to new bulk purchase.', [
-                'product_id' => $product->id,
-                'bulk_purchase_id' => $bulkPurchase->id,
-                'new_status' => 'locked',
-            ]);
+        // STORY 2.2: Automatically lock the product when the first inventory exists AND product is in 'approved' status
+        $product = $bulkPurchase->product()->first(); // Eager load the product if not already loaded
+
+        if ($product) {
+            // Race-safe check to confirm this is truly the first inventory item
+            $isFirstInventory = $product->bulkPurchases()
+                ->whereKeyNot($bulkPurchase->id)
+                ->doesntExist();
+
+            // Rule: If product status is approved AND this is the first inventory
+            if ($product->status === 'approved' && $isFirstInventory) {
+                $product->status = 'locked';
+                $product->save(); // This will trigger the Product model's booted() method for status transition
+
+                Log::info('Product automatically transitioned to LOCKED due to first inventory being added and prior APPROVED status.', [
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'bulk_purchase_id' => $bulkPurchase->id,
+                    'previous_status' => 'approved',
+                    'new_status' => 'locked',
+                ]);
+            }
         }
     }
 

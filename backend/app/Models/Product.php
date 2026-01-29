@@ -76,35 +76,33 @@ class Product extends Model
             $originalStatus = $product->getOriginal('status');
             $newStatus = $product->status;
 
-            if ($product->isDirty('status') && $originalStatus) {
+            // Rule 1: Prevent any field modification when original status is 'locked'
+            if ($originalStatus === 'locked') {
+                $dirty = array_keys($product->getDirty());
+
+                // Allow ONLY updated_at to change
+                $illegal = array_diff($dirty, ['updated_at']);
+
+                if (!empty($illegal)) {
+                    throw new \RuntimeException(
+                        'Cannot modify any field of a locked product. Locked products are immutable. ' .
+                        'Attempted to change: ' . implode(', ', $illegal)
+                    );
+                }
+            }
+
+            // Rule 2: Prevent illegal status transitions
+            if ($product->isDirty('status') && $originalStatus !== null) {
                 $allowedTransitions = [
                     'draft' => ['submitted'],
-                    'submitted' => ['approved', 'rejected', 'draft'], // Admin can approve/reject, company can withdraw
-                    'approved' => ['locked'], // Automatic transition
-                    'rejected' => ['draft'], // Company can resubmit
-                    'locked' => [], // Locked is a final state
+                    'submitted' => ['approved', 'rejected'], // Admins: submitted -> approved, submitted -> rejected
+                    'approved' => ['locked'], // System: approved -> locked
+                    'rejected' => ['draft'], // CompanyUsers: rejected -> draft
+                    'locked' => [], // Locked is a terminal state
                 ];
 
                 if (!in_array($newStatus, $allowedTransitions[$originalStatus] ?? [])) {
                     throw new \RuntimeException("Illegal state transition from '{$originalStatus}' to '{$newStatus}'.");
-                }
-            }
-
-            if ($originalStatus === 'locked' && $product->isDirty()) {
-                $coreFields = [
-                    'name', 'slug', 'sector', 'face_value_per_unit', 'min_investment',
-                    'expected_ipo_date', 'description', 'sebi_approval_number',
-                    'sebi_approval_date', 'compliance_notes', 'regulatory_warnings',
-                    'company_id',
-                ];
-
-                $changedCoreFields = array_intersect(array_keys($product->getDirty()), $coreFields);
-
-                if (!empty($changedCoreFields)) {
-                    throw new \RuntimeException(
-                        'Cannot modify core fields of a locked product. Fields like name, face_value, and sector are immutable once inventory exists. Attempted to change: ' .
-                        implode(', ', $changedCoreFields)
-                    );
                 }
             }
             
