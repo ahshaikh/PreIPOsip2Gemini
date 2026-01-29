@@ -8,7 +8,7 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "Story 2.4: Admin product approval queue with policy-based authorization and audit logging"
+$CommitMessage = "WIP: migration stabilization + disclosure_tier groundwork"
 #----------------------
 
 function Get-GitCredential {

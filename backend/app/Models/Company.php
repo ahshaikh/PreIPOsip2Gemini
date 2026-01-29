@@ -46,6 +46,7 @@ class Company extends Model
         'profile_completion_percentage',
         'max_users_quota', // [AUDIT FIX]: Track enterprise user limits
         'settings',        // [AUDIT FIX]: Store enterprise-specific UI/behavior configs
+        'disclosure_tier', // [STORY 3.1]
 
         // [PHASE 1]: Governance Protocol - Legal Identity & Registration
         'cin',
@@ -127,6 +128,13 @@ class Company extends Model
         });
 
         static::updating(function ($company) {
+            // STORY 3.1: Enforce disclosure_tier immutability
+            if ($company->isDirty('disclosure_tier') && $company->getOriginal('disclosure_tier') !== null) {
+                throw new \RuntimeException(
+                    "Direct modification of disclosure_tier is forbidden. Use promotion/demotion logic."
+                );
+            }
+
             // FIX 34: Enforce immutability after listing approval
             if ($company->hasApprovedListing()) {
                 $protectedFields = [

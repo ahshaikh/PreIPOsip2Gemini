@@ -6,6 +6,7 @@ use App\Models\Menu;
 use App\Models\MenuItem;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Menu Seeder
@@ -15,14 +16,21 @@ use Illuminate\Support\Facades\DB;
  * - Footer Menu (legal/help links)
  * - User Dashboard Menu (authenticated users)
  * - Admin Panel Menu (admin navigation)
+ *
+ * NOTE:
+ * This seeder is schema-aware. If the `menus.location` column
+ * no longer exists, menu seeding is safely skipped.
  */
 class MenuSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
+        // Schema guard: legacy menus.location column no longer exists
+        if (!Schema::hasColumn('menus', 'location')) {
+            $this->command->warn('⚠ Skipping MenuSeeder: menus.location column does not exist.');
+            return;
+        }
+
         DB::transaction(function () {
             $this->seedHeaderMenu();
             $this->seedFooterMenu();
@@ -49,12 +57,7 @@ class MenuSeeder extends Seeder
             ['title' => 'Contact', 'url' => '/contact', 'order' => 6],
         ];
 
-        foreach ($items as $item) {
-            MenuItem::updateOrCreate(
-                ['menu_id' => $menu->id, 'title' => $item['title']],
-                ['url' => $item['url'], 'order' => $item['order']]
-            );
-        }
+        $this->seedItems($menu->id, $items);
     }
 
     private function seedFooterMenu(): void
@@ -73,12 +76,7 @@ class MenuSeeder extends Seeder
             ['title' => 'SEBI Regulations', 'url' => '/sebi-regulations', 'order' => 6],
         ];
 
-        foreach ($items as $item) {
-            MenuItem::updateOrCreate(
-                ['menu_id' => $menu->id, 'title' => $item['title']],
-                ['url' => $item['url'], 'order' => $item['order']]
-            );
-        }
+        $this->seedItems($menu->id, $items);
     }
 
     private function seedUserDashboardMenu(): void
@@ -101,12 +99,7 @@ class MenuSeeder extends Seeder
             ['title' => 'Profile', 'url' => '/profile', 'order' => 10],
         ];
 
-        foreach ($items as $item) {
-            MenuItem::updateOrCreate(
-                ['menu_id' => $menu->id, 'title' => $item['title']],
-                ['url' => $item['url'], 'order' => $item['order']]
-            );
-        }
+        $this->seedItems($menu->id, $items);
     }
 
     private function seedAdminPanelMenu(): void
@@ -131,9 +124,14 @@ class MenuSeeder extends Seeder
             ['title' => 'Settings', 'url' => '/admin/settings', 'order' => 12],
         ];
 
+        $this->seedItems($menu->id, $items);
+    }
+
+    private function seedItems(int $menuId, array $items): void
+    {
         foreach ($items as $item) {
             MenuItem::updateOrCreate(
-                ['menu_id' => $menu->id, 'title' => $item['title']],
+                ['menu_id' => $menuId, 'title' => $item['title']],
                 ['url' => $item['url'], 'order' => $item['order']]
             );
         }

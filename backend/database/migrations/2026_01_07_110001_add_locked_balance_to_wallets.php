@@ -23,10 +23,16 @@ return new class extends Migration
         Schema::table('wallets', function (Blueprint $table) {
             // Add locked balance tracking only if columns don't exist
             if (!Schema::hasColumn('wallets', 'locked_balance_paise')) {
+            if (Schema::hasColumn('wallets', 'balance_paise')) {
                 $table->bigInteger('locked_balance_paise')->default(0)->after('balance_paise');
+            } else {
+                $table->bigInteger('locked_balance_paise')->default(0);
             }
+                }
             if (!Schema::hasColumn('wallets', 'locked_balance')) {
-                $table->decimal('locked_balance', 15, 2)->default(0)->after('balance');
+                if (Schema::hasColumn('wallets', 'balance')) {
+                    $table->decimal('locked_balance', 15, 2)->default(0)->after('balance');
+                }
             }
         });
 
@@ -121,12 +127,16 @@ return new class extends Migration
         Schema::dropIfExists('fund_locks');
 
         Schema::table('withdrawals', function (Blueprint $table) {
-            $table->dropIndex('idx_withdrawal_locked');
+            if ($this->indexExists('withdrawals', 'idx_withdrawal_locked')) {
+                $table->dropIndex('idx_withdrawal_locked');
+            }
             $table->dropColumn(['funds_locked', 'funds_locked_at', 'funds_unlocked_at']);
         });
 
         Schema::table('wallets', function (Blueprint $table) {
-            $table->dropIndex('idx_wallet_locked');
+            if ($this->indexExists('wallets', 'idx_wallet_locked')) {
+                $table->dropIndex('idx_wallet_locked');
+            }
             $table->dropColumn(['locked_balance_paise', 'locked_balance']);
         });
     }
