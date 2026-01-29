@@ -2,12 +2,14 @@
 
 namespace App\Services;
 
+use App\Events\DisclosureApproved;
 use App\Models\Company;
 use App\Models\CompanyDisclosure;
 use App\Models\DisclosureApproval;
 use App\Models\DisclosureClarification;
 use App\Models\DisclosureModule;
 use App\Models\DisclosureVersion;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -423,6 +425,10 @@ class DisclosureReviewService
                 'admin_id' => $adminId,
                 'version_number' => $disclosure->version_number,
             ]);
+
+            // STORY 3.2: Fire event for automatic tier promotion check
+            $approver = User::find($adminId);
+            DisclosureApproved::dispatch($disclosure, $approver);
 
             return $disclosure->currentVersion;
 

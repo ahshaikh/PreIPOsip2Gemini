@@ -20,6 +20,7 @@
 namespace App\Services;
 
 use App\Enums\DisclosureTier;
+use App\Enums\DisclosureTierRequirements;
 use App\Exceptions\DisclosureTierImmutabilityException;
 use App\Models\Company;
 use Illuminate\Support\Facades\DB;
@@ -301,62 +302,145 @@ class CompanyDisclosureTierService
     }
 
     /**
-     * Validate that a company meets requirements for promotion to a specific tier.
+     * STORY 3.2: Validate that a company meets requirements for promotion to a specific tier.
+     *
+     * Uses DisclosureTierRequirements as single source of truth.
      *
      * @param Company $company The company to validate
-     * @param DisclosureTier $targetTier The tier to validate against
+     * @param DisclosureTier|null $targetTier The tier to validate against (defaults to next tier)
      *
-     * @return array{valid: bool, errors: array<string>}
+     * @return array{valid: bool, missing: array, pending: array, approved: array, errors: array}
      */
-    public function validatePromotionRequirements(Company $company, DisclosureTier $targetTier): array
+    public function validatePromotionRequirements(Company $company, ?DisclosureTier $targetTier = null): array
     {
-        $errors = [];
-
-        // Check current tier allows promotion
         $currentTier = $this->getCurrentTier($company);
+        $targetTier = $targetTier ?? $currentTier->nextTier();
+
+        $errors = [];
+        $missing = [];
+        $pending = [];
+        $approved = [];
+
+        // No next tier available
+        if ($targetTier === null) {
+            return [
+                'valid' => false,
+                'missing' => [],
+                'pending' => [],
+                'approved' => [],
+                'errors' => ['Company is already at maximum tier.'],
+            ];
+        }
+
+        // Check tier progression is valid
         if (!$currentTier->canPromoteTo($targetTier)) {
             $errors[] = "Cannot promote from {$currentTier->label()} to {$targetTier->label()}. Must promote one tier at a time.";
         }
 
-        // Tier-specific requirements
+        // Check disclosure requirements from authoritative source
+        $eligibility = DisclosureTierRequirements::checkEligibility($company, $targetTier);
+        $missing = $eligibility['missing'];
+        $pending = $eligibility['pending'];
+        $approved = $eligibility['approved'];
+
+        if (!empty($missing)) {
+            $errors[] = 'Missing required disclosures: ' . implode(', ', $missing);
+        }
+
+        if (!empty($pending)) {
+            $pendingList = array_map(fn($p) => "{$p['code']} ({$p['status']})", $pending);
+            $errors[] = 'Disclosures not yet approved: ' . implode(', ', $pendingList);
+        }
+
+        // Tier-specific additional requirements
         switch ($targetTier) {
             case DisclosureTier::TIER_1_UPCOMING:
-                // Requires basic profile completion
                 if (!$company->profile_completed) {
-                    $errors[] = "Company profile must be complete before promotion to Upcoming.";
+                    $errors[] = 'Company profile must be complete.';
                 }
                 break;
 
             case DisclosureTier::TIER_2_LIVE:
-                // Requires approved disclosures
-                $approvedDisclosures = $company->disclosures()
-                    ->where('status', 'approved')
-                    ->count();
-
-                if ($approvedDisclosures === 0) {
-                    $errors[] = "Company must have at least one approved disclosure before going Live.";
-                }
-
-                // Requires verification
                 if (!$company->is_verified) {
-                    $errors[] = "Company must be verified before going Live.";
+                    $errors[] = 'Company must be verified.';
                 }
                 break;
 
             case DisclosureTier::TIER_3_FEATURED:
-                // Must already be live
-                if ($currentTier !== DisclosureTier::TIER_2_LIVE) {
-                    $errors[] = "Company must be Live before being Featured.";
-                }
-                break;
-
-            default:
+                // Editorial decision - no additional disclosure requirements
                 break;
         }
 
         return [
             'valid' => empty($errors),
+            'missing' => $missing,
+            'pending' => $pending,
+            'approved' => $approved,
             'errors' => $errors,
         ];
+    }
+
+    /**
+     * STORY 3.2: Attempt automatic promotion after disclosure approval.
+     *
+     * Called by event listener. Idempotent - does nothing if not eligible.
+     *
+     * @param Company $company
+     * @param mixed $actor The actor (usually system or admin who approved disclosure)
+     * @param int|null $sourceDisclosureId The disclosure that triggered this check
+     * @return bool Whether promotion occurred
+     */
+    public function tryAutomaticPromotion(Company $company, $actor = null, ?int $sourceDisclosureId = null): bool
+    {
+        $currentTier = $this->getCurrentTier($company);
+        $nextTier = $currentTier->nextTier();
+
+        // Already at max tier
+        if ($nextTier === null) {
+            return false;
+        }
+
+        // Check eligibility
+        $validation = $this->validatePromotionRequirements($company, $nextTier);
+
+        if (!$validation['valid']) {
+            Log::debug('Automatic promotion not eligible', [
+                'company_id' => $company->id,
+                'current_tier' => $currentTier->value,
+                'target_tier' => $nextTier->value,
+                'errors' => $validation['errors'],
+            ]);
+            return false;
+        }
+
+        // Perform promotion
+        try {
+            $this->promote(
+                $company,
+                $nextTier,
+                $actor,
+                'Automatic promotion: all required disclosures approved',
+                [
+                    'trigger' => 'disclosure_approval',
+                    'source_disclosure_id' => $sourceDisclosureId,
+                    'automatic' => true,
+                ]
+            );
+
+            Log::info('Automatic tier promotion completed', [
+                'company_id' => $company->id,
+                'from_tier' => $currentTier->value,
+                'to_tier' => $nextTier->value,
+                'source_disclosure_id' => $sourceDisclosureId,
+            ]);
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Automatic tier promotion failed', [
+                'company_id' => $company->id,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
     }
 }

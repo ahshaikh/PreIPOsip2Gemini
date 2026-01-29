@@ -8,43 +8,33 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "feat(compliance): enforce immutable company disclosure tiers and public visibility boundary
+$CommitMessage = "feat(epic-3): make disclosure tier the sole authority for promotion and public visibility
 
-EPIC 3 / STORY 3.1 — Restore Disclosure Authority
+EPIC 3 — Restore Disclosure Authority (COMPLIANCE)
 
-This commit establishes a hard compliance boundary governing company disclosure
-tiers and public visibility.
+STORY 3.2 — Authoritative Tier Promotion
+- Introduced DisclosureTierRequirements as single source of truth
+- Promotion allowed ONLY when all required disclosures for next tier are approved
+- No manual tier setting, no skipping, no downgrade
+- Automatic, idempotent promotion triggered via DisclosureApproved domain event
+- All promotions are transactional, deterministic, and auditable
 
-KEY INVARIANTS (NON-NEGOTIABLE):
-- Every company has exactly one disclosure_tier
-- disclosure_tier is IMMUTABLE except via explicit promotion authority
-- Public visibility is FORBIDDEN unless disclosure_tier >= tier_2_live
-- Products inherit visibility strictly from their company
+STORY 3.3 — Visibility Refactor
+- Removed deal-driven visibility logic (whereHas('deals', ...))
+- Public visibility now depends ONLY on companies.disclosure_tier >= tier_2_live
+- Creating or deleting a Deal no longer affects visibility
+- Controllers now delegate visibility enforcement to disclosure tier scopes
 
-ARCHITECTURAL ENFORCEMENT:
-- Introduced DisclosureTier enum as single source of truth
-- Added CompanyDisclosureTierService as the SOLE authority for tier promotion
-  (monotonic, no downgrade, no skipping)
-- Blocked all direct mutation paths (fill, update, save) at model level
-- Added explicit DisclosureTierImmutabilityException for violations
-- Enforced visibility at query layer via global scopes:
-  - Company: PublicVisibilityScope
-  - Product: ProductPublicVisibilityScope
-- Global scopes prevent accidental public exposure by default
+ARCHITECTURAL INVARIANTS FROZEN
+- Disclosure tier is the sole authority for:
+  - Public visibility
+  - Investability
+  - Tier progression
+- Deals never control visibility
+- Tier changes are monotonic, event-driven, and immutable outside services
 
-SAFETY & RELIABILITY:
-- Promotion uses raw DB updates to intentionally bypass model guards
-- Immutability violations are logged safely in HTTP, CLI, and job contexts
-- No schema, migration, or seeder changes
-
-TEST COVERAGE:
-- Promotion authority enforcement
-- Direct mutation rejection
-- Public visibility exclusion guarantees
-- Company ↔ Product visibility invariant consistency
-
-This commit freezes the disclosure authority boundary.
-Any future change to visibility or disclosure rules MUST build on this layer."
+BREAKING BY DESIGN:
+- Any code relying on deal existence for visibility is now invalid"
 #----------------------
 
 function Get-GitCredential {

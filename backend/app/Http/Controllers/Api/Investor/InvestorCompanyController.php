@@ -39,15 +39,12 @@ class InvestorCompanyController extends Controller
             ]
         );
 
-        // Get companies with active deals that are ready for investment
-        // Only show companies that have completed Tier 2 disclosures
+        // STORY 3.3: Use disclosure_tier as primary visibility filter
+        // Get companies that are publicly visible (tier_2_live or higher) and have live deals
         $companies = Company::where('status', 'active')
-            ->where('is_verified', true)
-            ->where('buying_enabled', true) // CRITICAL: Only show Tier 2 approved companies
-            ->whereIn('lifecycle_state', ['live_investable', 'live_fully_disclosed']) // Investable states only
+            ->publiclyVisible() // Enforces disclosure_tier >= tier_2_live
             ->with([
                 'deals' => function ($query) {
-                    // Use Deal's live() scope which validates dates
                     $query->live()
                         ->orderBy('is_featured', 'desc')
                         ->orderBy('deal_opens_at', 'desc');
@@ -55,8 +52,7 @@ class InvestorCompanyController extends Controller
                 'sector'
             ])
             ->whereHas('deals', function ($query) {
-                // Use Deal's live() scope which validates dates
-                $query->live();
+                $query->live(); // Must have at least one live deal to show on investor page
             })
             ->get();
 

@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Events\DisclosureApproved;
+use App\Listeners\CheckTierPromotionOnDisclosureApproval;
 use App\Models\{BulkPurchase, Company, CompanyDisclosure, DisclosureVersion, Withdrawal};
 use App\Observers\{BulkPurchaseObserver, CompanyObserver, CompanyDisclosureObserver, DisclosureVersionObserver, WithdrawalObserver};
 use Illuminate\Auth\Events\Registered;
@@ -19,6 +21,10 @@ class EventServiceProvider extends ServiceProvider
     protected $listen = [
         Registered::class => [
             SendEmailVerificationNotification::class,
+        ],
+        // STORY 3.2: Automatic tier promotion on disclosure approval
+        DisclosureApproved::class => [
+            CheckTierPromotionOnDisclosureApproval::class,
         ],
     ];
 
