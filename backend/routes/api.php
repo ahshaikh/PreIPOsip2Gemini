@@ -120,6 +120,7 @@ use App\Http\Controllers\Api\Company\CompanyWebinarController;
 use App\Http\Controllers\Api\Company\OnboardingWizardController;
 use App\Http\Controllers\Api\Company\ShareListingController;
 use App\Http\Controllers\Api\Company\UserManagementController;
+use App\Http\Controllers\Api\Company\ProductController as CompanyProductController;
 
 // Public Company Controllers
 use App\Http\Controllers\Api\Public\CompanyProfileController as PublicCompanyProfileController;
@@ -1467,6 +1468,13 @@ Route::prefix('v1')->group(function () {
                     Route::post('/complete-step', [OnboardingWizardController::class, 'completeStep']);
                     Route::post('/skip', [OnboardingWizardController::class, 'skipOnboarding']);
                     Route::get('/recommendations', [OnboardingWizardController::class, 'getRecommendations']);
+                });
+
+                // Product Authorship (STORY 2.3)
+                Route::prefix('products')->group(function () {
+                    Route::post('/', [CompanyProductController::class, 'store']);
+                    Route::put('/{product}', [CompanyProductController::class, 'update']);
+                    Route::post('/{product}/submit', [CompanyProductController::class, 'submit']);
                 });
 
                 // -------------------------------------------------------------

@@ -8,7 +8,12 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "EPIC-2: enforce product lifecycle immutability and inventory-driven locking"
+$CommitMessage = "feat(company): enforce product authorship APIs and policy guards
+
+- Add company-only product create/update/submit endpoints
+- Enforce ownership and company_admin submission via ProductPolicy
+- Align request validation with Product model fields
+- Remove role middleware in favor of policy-based authorization"
 #----------------------
 
 function Get-GitCredential {
