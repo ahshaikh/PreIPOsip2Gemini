@@ -1,5 +1,6 @@
 <?php
 // V-FINAL-1730-TEST-32
+// STORY 4.2: Added provenance enforcement tests
 
 namespace Tests\Unit;
 
@@ -7,6 +8,7 @@ use Tests\TestCase;
 use App\Models\User;
 use App\Models\Product;
 use App\Models\BulkPurchase;
+use App\Exceptions\BulkPurchaseProvenanceException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class BulkPurchaseTest extends TestCase
@@ -23,6 +25,10 @@ class BulkPurchaseTest extends TestCase
         $this->admin = User::factory()->create();
     }
 
+    /**
+     * Helper to create a bulk purchase with valid provenance.
+     * STORY 4.2: Updated to include mandatory provenance fields.
+     */
     private function createPurchase($overrides = [])
     {
         $defaults = [
@@ -32,8 +38,12 @@ class BulkPurchaseTest extends TestCase
             'actual_cost_paid' => 80000,
             'extra_allocation_percentage' => 25,
             'purchase_date' => now(),
+            // STORY 4.2: Provenance fields (required for compliance)
+            'source_type' => 'manual_entry',
+            'manual_entry_reason' => 'Test purchase for unit testing',
+            'source_documentation' => 'test-document-ref-001',
         ];
-        
+
         // This will trigger the 'creating' boot method
         return BulkPurchase::create(array_merge($defaults, $overrides));
     }
@@ -121,7 +131,152 @@ class BulkPurchaseTest extends TestCase
     {
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage("Face value must be positive");
-        
+
         $this->createPurchase(['face_value_purchased' => 0]);
+    }
+
+    // =========================================================================
+    // STORY 4.2: Provenance Enforcement Tests
+    // =========================================================================
+
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function test_bulk_purchase_requires_source_type()
+    {
+        $this->expectException(BulkPurchaseProvenanceException::class);
+        $this->expectExceptionMessage("'source_type' is required");
+
+        BulkPurchase::create([
+            'product_id' => $this->product->id,
+            'admin_id' => $this->admin->id,
+            'face_value_purchased' => 100000,
+            'actual_cost_paid' => 80000,
+            'extra_allocation_percentage' => 25,
+            'purchase_date' => now(),
+            // Missing source_type
+        ]);
+    }
+
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function test_manual_entry_requires_reason()
+    {
+        $this->expectException(BulkPurchaseProvenanceException::class);
+        $this->expectExceptionMessage("'manual_entry_reason' is required");
+
+        BulkPurchase::create([
+            'product_id' => $this->product->id,
+            'admin_id' => $this->admin->id,
+            'face_value_purchased' => 100000,
+            'actual_cost_paid' => 80000,
+            'extra_allocation_percentage' => 25,
+            'purchase_date' => now(),
+            'source_type' => 'manual_entry',
+            // Missing manual_entry_reason
+        ]);
+    }
+
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function test_manual_entry_requires_documentation()
+    {
+        $this->expectException(BulkPurchaseProvenanceException::class);
+        $this->expectExceptionMessage("'source_documentation' is required");
+
+        BulkPurchase::create([
+            'product_id' => $this->product->id,
+            'admin_id' => $this->admin->id,
+            'face_value_purchased' => 100000,
+            'actual_cost_paid' => 80000,
+            'extra_allocation_percentage' => 25,
+            'purchase_date' => now(),
+            'source_type' => 'manual_entry',
+            'manual_entry_reason' => 'Reason provided',
+            // Missing source_documentation
+        ]);
+    }
+
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function test_company_listing_source_requires_listing_id()
+    {
+        $this->expectException(BulkPurchaseProvenanceException::class);
+        $this->expectExceptionMessage("'company_share_listing_id' is required");
+
+        BulkPurchase::create([
+            'product_id' => $this->product->id,
+            'admin_id' => $this->admin->id,
+            'face_value_purchased' => 100000,
+            'actual_cost_paid' => 80000,
+            'extra_allocation_percentage' => 25,
+            'purchase_date' => now(),
+            'source_type' => 'company_listing',
+            // Missing company_share_listing_id
+        ]);
+    }
+
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function test_manual_entry_with_valid_provenance_succeeds()
+    {
+        $purchase = BulkPurchase::create([
+            'product_id' => $this->product->id,
+            'admin_id' => $this->admin->id,
+            'face_value_purchased' => 100000,
+            'actual_cost_paid' => 80000,
+            'extra_allocation_percentage' => 25,
+            'purchase_date' => now(),
+            'source_type' => 'manual_entry',
+            'manual_entry_reason' => 'Bulk inventory acquisition from secondary market',
+            'source_documentation' => 'invoice-2024-001.pdf',
+        ]);
+
+        $this->assertInstanceOf(BulkPurchase::class, $purchase);
+        $this->assertEquals('manual_entry', $purchase->source_type);
+        $this->assertNotNull($purchase->manual_entry_reason);
+        $this->assertNotNull($purchase->source_documentation);
+    }
+
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function test_company_listing_with_valid_listing_id_succeeds()
+    {
+        // Create a mock company share listing (using a valid ID)
+        $listingId = 1;
+
+        $purchase = BulkPurchase::create([
+            'product_id' => $this->product->id,
+            'admin_id' => $this->admin->id,
+            'face_value_purchased' => 100000,
+            'actual_cost_paid' => 80000,
+            'extra_allocation_percentage' => 25,
+            'purchase_date' => now(),
+            'source_type' => 'company_listing',
+            'company_share_listing_id' => $listingId,
+        ]);
+
+        $this->assertInstanceOf(BulkPurchase::class, $purchase);
+        $this->assertEquals('company_listing', $purchase->source_type);
+        $this->assertEquals($listingId, $purchase->company_share_listing_id);
+    }
+
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function test_provenance_exception_has_context()
+    {
+        try {
+            BulkPurchase::create([
+                'product_id' => $this->product->id,
+                'admin_id' => $this->admin->id,
+                'face_value_purchased' => 100000,
+                'actual_cost_paid' => 80000,
+                'extra_allocation_percentage' => 25,
+                'purchase_date' => now(),
+                'source_type' => 'manual_entry',
+                // Missing required provenance
+            ]);
+
+            $this->fail('Expected BulkPurchaseProvenanceException was not thrown');
+        } catch (BulkPurchaseProvenanceException $e) {
+            $context = $e->context();
+
+            $this->assertArrayHasKey('source_type', $context);
+            $this->assertArrayHasKey('missing_field', $context);
+            $this->assertEquals('manual_entry', $context['source_type']);
+            $this->assertEquals('manual_entry_reason', $context['missing_field']);
+        }
     }
 }

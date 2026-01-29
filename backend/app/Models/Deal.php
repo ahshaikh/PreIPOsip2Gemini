@@ -9,6 +9,8 @@
 
 namespace App\Models;
 
+use App\Enums\DisclosureTier;
+use App\Exceptions\DealTierGateException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -44,6 +46,7 @@ class Deal extends Model
      * When any deal is modified, we must clear the cached lists
      * to prevent investors from seeing outdated availability or pricing.
      * FIX 26: Added date overlap validation
+     * STORY 4.1: Added tier gate enforcement
      */
     protected static function booted()
     {
@@ -51,6 +54,47 @@ class Deal extends Model
             Cache::forget('deals_live_list');
             Cache::forget('deals_featured_list');
         };
+
+        // STORY 4.1: Enforce Tier Gates on Deal Operations
+        // INVARIANT: Deal operations require minimum disclosure tiers
+        // - Creation: tier_1_upcoming (company has submitted disclosures)
+        // - Activation: tier_2_live (company disclosures approved for investment)
+        // - Featured: tier_3_featured (company has premium visibility)
+        static::saving(function ($deal) {
+            // Skip tier gate check if no company_id (validation will fail elsewhere)
+            if (!$deal->company_id) {
+                return;
+            }
+
+            // Load company with disclosure_tier
+            // Use withoutGlobalScopes to ensure we can load any company
+            $company = \App\Models\Company::withoutGlobalScopes()
+                ->find($deal->company_id);
+
+            if (!$company) {
+                return; // Company validation handled by other saving hook
+            }
+
+            $tier = $company->disclosure_tier ?? DisclosureTier::TIER_0_PENDING;
+
+            // GATE 1: Deal creation requires tier_1_upcoming or higher
+            // If this is a new deal (not exists), check creation gate
+            if (!$deal->exists && $tier->rank() < DisclosureTier::TIER_1_UPCOMING->rank()) {
+                throw DealTierGateException::creationRequiresTier1($company->id, $tier);
+            }
+
+            // GATE 2: Deal activation requires tier_2_live or higher
+            // If status is being set to 'active', check activation gate
+            if ($deal->status === 'active' && $tier->rank() < DisclosureTier::TIER_2_LIVE->rank()) {
+                throw DealTierGateException::activationRequiresTier2($company->id, $tier);
+            }
+
+            // GATE 3: Deal featuring requires tier_3_featured
+            // If is_featured is being set to true, check featured gate
+            if ($deal->is_featured && $tier->rank() < DisclosureTier::TIER_3_FEATURED->rank()) {
+                throw DealTierGateException::featuredRequiresTier3($company->id, $tier);
+            }
+        });
 
         // FIX 41: Validate product-company relationship
         static::saving(function ($deal) {

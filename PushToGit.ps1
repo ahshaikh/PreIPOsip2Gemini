@@ -8,33 +8,43 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "feat(epic-3): make disclosure tier the sole authority for promotion and public visibility
+$CommitMessage = "feat(epic-4): lock commercial boundaries via disclosure tier gates & inventory provenance
 
-EPIC 3 — Restore Disclosure Authority (COMPLIANCE)
+EPIC 4 — Lock Commercial Boundaries (DEALS & INVENTORY)
 
-STORY 3.2 — Authoritative Tier Promotion
-- Introduced DisclosureTierRequirements as single source of truth
-- Promotion allowed ONLY when all required disclosures for next tier are approved
-- No manual tier setting, no skipping, no downgrade
-- Automatic, idempotent promotion triggered via DisclosureApproved domain event
-- All promotions are transactional, deterministic, and auditable
+STORY 4.1 — Enforce Tier Gates on Deal Operations
+- Enforced HARD tier gates on Deal lifecycle:
+  - Creation requires company.disclosure_tier ≥ tier_1_upcoming
+  - Activation requires company.disclosure_tier ≥ tier_2_live
+  - Featured promotion requires company.disclosure_tier ≥ tier_3_featured
+- Violations throw explicit DealTierGateException (no warnings, no fallbacks)
+- Gates enforced using company.disclosure_tier ONLY (deals do not control visibility)
 
-STORY 3.3 — Visibility Refactor
-- Removed deal-driven visibility logic (whereHas('deals', ...))
-- Public visibility now depends ONLY on companies.disclosure_tier >= tier_2_live
-- Creating or deleting a Deal no longer affects visibility
-- Controllers now delegate visibility enforcement to disclosure tier scopes
+NOTE (Conscious Boundary Decision):
+- Tier gates are enforced at the Model hook (Deal::saving) level.
+- This is a deliberate compliance-first choice to guarantee invariants on all write paths.
+- Future refactor MAY move enforcement to application services once workflows stabilize,
+  but bypassing model-level protection is explicitly forbidden.
 
-ARCHITECTURAL INVARIANTS FROZEN
-- Disclosure tier is the sole authority for:
-  - Public visibility
-  - Investability
-  - Tier progression
-- Deals never control visibility
-- Tier changes are monotonic, event-driven, and immutable outside services
+STORY 4.2 — Enforce Provenance on Manual Bulk Purchases
+- All inventory creation now requires verifiable provenance
+- Mandatory source_type for all BulkPurchase records
+- Manual entries require:
+  - manual_entry_reason (explicit justification)
+  - source_documentation (audit evidence)
+- Violations throw BulkPurchaseProvenanceException (hard failure)
+- Ensures every unit of inventory has an auditable origin
 
-BREAKING BY DESIGN:
-- Any code relying on deal existence for visibility is now invalid"
+STORY 4.3 — Platform Ledger Linkage
+- Explicitly deferred (optional)
+- No AllocationService refactor performed
+
+INVARIANTS FROZEN:
+- ❌ No deal exists outside compliance tiers
+- ❌ No inventory exists without audit provenance
+- ❌ Commercial actions cannot bypass disclosure authority
+
+This commit freezes EPIC 4 commercial compliance boundaries."
 #----------------------
 
 function Get-GitCredential {

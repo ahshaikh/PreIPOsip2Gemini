@@ -1,8 +1,10 @@
 <?php
 // V-PHASE2-1730-041 (Created) | V-FINAL-1730-349 (Financial Logic Added)
+// STORY 4.2: Added provenance enforcement
 
 namespace App\Models;
 
+use App\Exceptions\BulkPurchaseProvenanceException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -46,10 +48,16 @@ class BulkPurchase extends Model
 
     /**
      * Boot logic to auto-calculate fields on creation.
+     * STORY 4.2: Added provenance enforcement for audit compliance.
      */
     protected static function booted()
     {
         static::creating(function ($purchase) {
+            // STORY 4.2: Provenance Enforcement
+            // INVARIANT: All inventory must have verifiable provenance
+            // Manual entries require explicit justification and documentation
+            self::enforceProvenance($purchase);
+
             // Validation
             if ($purchase->face_value_purchased <= 0) {
                 throw new \InvalidArgumentException("Face value must be positive.");
@@ -57,14 +65,57 @@ class BulkPurchase extends Model
             if ($purchase->actual_cost_paid < 0) {
                 throw new \InvalidArgumentException("Actual cost cannot be negative.");
             }
-            
+
             // Auto-calculate
             $purchase->total_value_received = $purchase->face_value_purchased * (1 + ($purchase->extra_allocation_percentage / 100));
             $purchase->discount_percentage = (($purchase->face_value_purchased - $purchase->actual_cost_paid) / $purchase->face_value_purchased) * 100;
-            
+
             // On creation, remaining is the total received
             $purchase->value_remaining = $purchase->total_value_received;
         });
+    }
+
+    /**
+     * STORY 4.2: Enforce Provenance Requirements
+     *
+     * GOVERNANCE INVARIANT:
+     * - source_type is mandatory (either 'company_listing' or 'manual_entry')
+     * - company_listing source requires company_share_listing_id
+     * - manual_entry source requires:
+     *   - manual_entry_reason (why manual instead of listing)
+     *   - source_documentation (supporting documents)
+     *
+     * WHY: Audit trail for regulator/compliance review. Every unit of inventory
+     * must be traceable to either an approved company listing or have explicit
+     * justification for manual entry.
+     */
+    private static function enforceProvenance(BulkPurchase $purchase): void
+    {
+        // GATE 1: source_type is mandatory
+        if (empty($purchase->source_type)) {
+            throw BulkPurchaseProvenanceException::sourceTypeRequired();
+        }
+
+        // GATE 2: company_listing requires listing ID
+        if ($purchase->source_type === 'company_listing') {
+            if (empty($purchase->company_share_listing_id)) {
+                throw BulkPurchaseProvenanceException::listingSourceRequiresListingId();
+            }
+            // Listing-based entries have automatic provenance through the listing
+            return;
+        }
+
+        // GATE 3: manual_entry requires reason
+        if ($purchase->source_type === 'manual_entry') {
+            if (empty($purchase->manual_entry_reason)) {
+                throw BulkPurchaseProvenanceException::manualEntryRequiresReason();
+            }
+
+            // GATE 4: manual_entry requires documentation
+            if (empty($purchase->source_documentation)) {
+                throw BulkPurchaseProvenanceException::manualEntryRequiresDocumentation();
+            }
+        }
     }
 
     // --- RELATIONSHIPS ---
