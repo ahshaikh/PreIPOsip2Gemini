@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Models\ProductAudit;
 use App\Models\ProductPriceHistory;
 use App\Services\ProductService; // V-AUDIT-MODULE6-003: Service layer for business logic
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class ProductController extends Controller
 {
@@ -20,6 +22,64 @@ class ProductController extends Controller
     {
         $this->productService = $productService;
     }
+
+    /**
+     * STORY 2.4: Get all products with "submitted" status for the admin queue.
+     */
+    public function submitted()
+    {
+        $this->authorize('viewAny', Product::class);
+        $submittedProducts = Product::where('status', 'submitted')->latest()->get();
+        return response()->json($submittedProducts);
+    }
+
+    /**
+     * STORY 2.4: Approve a submitted product.
+     */
+    public function approve(Request $request, Product $product)
+    {
+        $this->authorize('approve', $product);
+
+        $product->status = 'approved';
+        $product->save();
+
+        ProductAudit::log(
+            $product,
+            'approved',
+            ['status'],
+            ['status' => 'submitted'],
+            ['status' => 'approved']
+        );
+
+        return response()->json($product);
+    }
+
+    /**
+     * STORY 2.4: Reject a submitted product.
+     */
+    public function reject(Request $request, Product $product)
+    {
+        $this->authorize('reject', $product);
+
+        $validated = $request->validate([
+            'reason' => 'required|string|min:10|max:1000',
+        ]);
+
+        $product->status = 'rejected';
+        $product->save();
+
+        ProductAudit::log(
+            $product,
+            'rejected',
+            ['status'],
+            ['status' => 'submitted'],
+            ['status' => 'rejected'],
+            $validated['reason']
+        );
+
+        return response()->json($product);
+    }
+
     public function index(Request $request)
     {
         $query = Product::query();

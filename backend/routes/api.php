@@ -789,6 +789,13 @@ Route::prefix('v1')->group(function () {
 
             Route::apiResource('/products', ProductController::class)->middleware('permission:products.edit');
 
+            // STORY 2.4: Admin Product Approval Queue
+            Route::prefix('products')->group(function () {
+                Route::get('/submitted', [ProductController::class, 'submitted']);
+                Route::post('/{product}/approve', [ProductController::class, 'approve']);
+                Route::post('/{product}/reject', [ProductController::class, 'reject']);
+            });
+
             // Campaign Management
             Route::prefix('campaigns')->middleware('permission:plans.edit')->group(function () {
                 Route::get('/', [CampaignController::class, 'index']);
