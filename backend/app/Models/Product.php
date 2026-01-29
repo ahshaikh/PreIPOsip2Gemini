@@ -12,6 +12,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use App\Traits\HasDeletionProtection;
 use App\Traits\HasWorkflowActions;
+use App\Enums\DisclosureTier;
+use App\Scopes\ProductPublicVisibilityScope;
 
 class Product extends Model
 {
@@ -71,6 +73,9 @@ class Product extends Model
      */
     protected static function booted()
     {
+        // STORY 3.1 GAP 2: Register global scope for public visibility enforcement
+        static::addGlobalScope(new ProductPublicVisibilityScope());
+
         static::saving(function ($product) {
             // STORY 2.2: Enforce lifecycle state machine and write guards
             $originalStatus = $product->getOriginal('status');
@@ -416,5 +421,138 @@ class Product extends Model
         }
 
         return $issues;
+    }
+
+    // --- STORY 3.1: DISCLOSURE TIER VISIBILITY SCOPES ---
+
+    /**
+     * GOVERNANCE INVARIANT: Public-facing queries MUST use this scope.
+     *
+     * Filters products to only those belonging to companies with
+     * disclosure_tier >= tier_2_live.
+     *
+     * This is CRITICAL for compliance - products CANNOT be publicly
+     * visible unless their company has passed disclosure review.
+     *
+     * Use this scope on ALL public-facing endpoints:
+     * - Public product listings
+     * - Public product detail pages
+     * - Public search results
+     * - Public API endpoints
+     *
+     * @param Builder $query
+     * @return Builder
+     */
+    public function scopePubliclyVisible(Builder $query): Builder
+    {
+        return $query->whereHas('company', function (Builder $companyQuery) {
+            $companyQuery->whereIn('disclosure_tier', [
+                DisclosureTier::TIER_2_LIVE->value,
+                DisclosureTier::TIER_3_FEATURED->value,
+            ]);
+        });
+    }
+
+    /**
+     * Filter products by company's disclosure tier.
+     *
+     * @param Builder $query
+     * @param DisclosureTier|string $tier
+     * @return Builder
+     */
+    public function scopeByCompanyDisclosureTier(Builder $query, DisclosureTier|string $tier): Builder
+    {
+        $value = $tier instanceof DisclosureTier ? $tier->value : $tier;
+
+        return $query->whereHas('company', function (Builder $companyQuery) use ($value) {
+            $companyQuery->where('disclosure_tier', $value);
+        });
+    }
+
+    /**
+     * Filter products from companies at or above a specific tier.
+     *
+     * @param Builder $query
+     * @param DisclosureTier $minimumTier
+     * @return Builder
+     */
+    public function scopeFromCompaniesAtOrAboveTier(Builder $query, DisclosureTier $minimumTier): Builder
+    {
+        $validTiers = array_filter(
+            DisclosureTier::cases(),
+            fn(DisclosureTier $tier) => $tier->rank() >= $minimumTier->rank()
+        );
+
+        return $query->whereHas('company', function (Builder $companyQuery) use ($validTiers) {
+            $companyQuery->whereIn('disclosure_tier', array_map(fn($t) => $t->value, $validTiers));
+        });
+    }
+
+    /**
+     * Filter products that are investable (company tier_2_live or higher).
+     *
+     * @param Builder $query
+     * @return Builder
+     */
+    public function scopeInvestable(Builder $query): Builder
+    {
+        return $this->scopePubliclyVisible($query);
+    }
+
+    /**
+     * Check if this product is publicly visible based on company's disclosure tier.
+     *
+     * GOVERNANCE INVARIANT: Product visibility depends on company tier.
+     *
+     * @return bool
+     */
+    public function isPubliclyVisibleByCompanyTier(): bool
+    {
+        $company = $this->company;
+
+        if (!$company) {
+            return false;
+        }
+
+        return $company->isPubliclyVisibleByTier();
+    }
+
+    /**
+     * Check if this product is investable based on company's disclosure tier.
+     *
+     * @return bool
+     */
+    public function isInvestableByCompanyTier(): bool
+    {
+        $company = $this->company;
+
+        if (!$company) {
+            return false;
+        }
+
+        return $company->isInvestableByTier();
+    }
+
+    /**
+     * Get product visibility status for API responses.
+     *
+     * @return array
+     */
+    public function getVisibilityStatus(): array
+    {
+        $company = $this->company;
+        $companyTier = $company?->getDisclosureTierEnum() ?? DisclosureTier::TIER_0_PENDING;
+
+        return [
+            'company_id' => $company?->id,
+            'company_name' => $company?->name,
+            'company_disclosure_tier' => $companyTier->value,
+            'company_disclosure_tier_label' => $companyTier->label(),
+            'is_publicly_visible' => $companyTier->isPubliclyVisible(),
+            'is_investable' => $companyTier->isInvestable(),
+            'visibility_reason' => $companyTier->isPubliclyVisible()
+                ? 'Company has approved disclosures'
+                : 'Company disclosure tier below minimum required for public visibility',
+        ];
     }
 }

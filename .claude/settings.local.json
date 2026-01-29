@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(php -l:*)",
+      "Bash(php:*)"
     ]
   }
 }

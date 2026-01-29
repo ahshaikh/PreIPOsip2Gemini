@@ -8,7 +8,43 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "WIP: migration stabilization + disclosure_tier groundwork"
+$CommitMessage = "feat(compliance): enforce immutable company disclosure tiers and public visibility boundary
+
+EPIC 3 / STORY 3.1 — Restore Disclosure Authority
+
+This commit establishes a hard compliance boundary governing company disclosure
+tiers and public visibility.
+
+KEY INVARIANTS (NON-NEGOTIABLE):
+- Every company has exactly one disclosure_tier
+- disclosure_tier is IMMUTABLE except via explicit promotion authority
+- Public visibility is FORBIDDEN unless disclosure_tier >= tier_2_live
+- Products inherit visibility strictly from their company
+
+ARCHITECTURAL ENFORCEMENT:
+- Introduced DisclosureTier enum as single source of truth
+- Added CompanyDisclosureTierService as the SOLE authority for tier promotion
+  (monotonic, no downgrade, no skipping)
+- Blocked all direct mutation paths (fill, update, save) at model level
+- Added explicit DisclosureTierImmutabilityException for violations
+- Enforced visibility at query layer via global scopes:
+  - Company: PublicVisibilityScope
+  - Product: ProductPublicVisibilityScope
+- Global scopes prevent accidental public exposure by default
+
+SAFETY & RELIABILITY:
+- Promotion uses raw DB updates to intentionally bypass model guards
+- Immutability violations are logged safely in HTTP, CLI, and job contexts
+- No schema, migration, or seeder changes
+
+TEST COVERAGE:
+- Promotion authority enforcement
+- Direct mutation rejection
+- Public visibility exclusion guarantees
+- Company ↔ Product visibility invariant consistency
+
+This commit freezes the disclosure authority boundary.
+Any future change to visibility or disclosure rules MUST build on this layer."
 #----------------------
 
 function Get-GitCredential {

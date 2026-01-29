@@ -1,8 +1,10 @@
 <?php
 // V-FACTORY (Created for comprehensive test coverage)
+// STORY 3.1: Updated to support company_id for disclosure tier tests
 
 namespace Database\Factories;
 
+use App\Models\Company;
 use App\Models\Product;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -17,6 +19,7 @@ class ProductFactory extends Factory
         $slug = \Illuminate\Support\Str::slug($company);
 
         return [
+            'company_id' => Company::factory(),
             'name' => $company,
             'slug' => $slug,
             'sector' => $this->faker->randomElement(['Technology', 'Healthcare', 'Finance', 'Education', 'Energy', 'E-commerce', 'Fintech']),

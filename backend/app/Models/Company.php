@@ -13,9 +13,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use App\Traits\HasDeletionProtection;
 use App\Traits\HasWorkflowActions;
+use App\Enums\DisclosureTier;
+use App\Exceptions\DisclosureTierImmutabilityException;
+use App\Scopes\PublicVisibilityScope;
 
 class Company extends Model
 {
@@ -46,7 +50,7 @@ class Company extends Model
         'profile_completion_percentage',
         'max_users_quota', // [AUDIT FIX]: Track enterprise user limits
         'settings',        // [AUDIT FIX]: Store enterprise-specific UI/behavior configs
-        'disclosure_tier', // [STORY 3.1]
+        // STORY 3.1: disclosure_tier is REMOVED from fillable - immutable except via CompanyDisclosureTierService
 
         // [PHASE 1]: Governance Protocol - Legal Identity & Registration
         'cin',
@@ -91,6 +95,9 @@ class Company extends Model
         'is_verified' => 'boolean',
         'profile_completed' => 'boolean',
 
+        // [STORY 3.1]: Disclosure Tier - cast to enum for type safety
+        'disclosure_tier' => DisclosureTier::class,
+
         // [PHASE 1]: Governance Protocol Type Casts
         'incorporation_date' => 'date',
         'board_size' => 'integer',
@@ -121,6 +128,9 @@ class Company extends Model
      */
     protected static function booted()
     {
+        // STORY 3.1 GAP 2: Register global scope for public visibility enforcement
+        static::addGlobalScope(new PublicVisibilityScope());
+
         static::creating(function ($company) {
             if (empty($company->slug)) {
                 $company->slug = static::generateUniqueSlug($company->name);
@@ -128,10 +138,52 @@ class Company extends Model
         });
 
         static::updating(function ($company) {
-            // STORY 3.1: Enforce disclosure_tier immutability
-            if ($company->isDirty('disclosure_tier') && $company->getOriginal('disclosure_tier') !== null) {
-                throw new \RuntimeException(
-                    "Direct modification of disclosure_tier is forbidden. Use promotion/demotion logic."
+            // STORY 3.1: Enforce disclosure_tier ABSOLUTE IMMUTABILITY
+            // This guard catches ALL modification attempts: fill(), update(), save(), etc.
+            // The ONLY authorized path is CompanyDisclosureTierService::promote() which uses raw DB query.
+            if ($company->isDirty('disclosure_tier')) {
+                $originalTier = $company->getOriginal('disclosure_tier');
+                $attemptedTier = $company->disclosure_tier;
+
+                // Convert enum to string for exception
+                $originalValue = $originalTier instanceof DisclosureTier ? $originalTier->value : $originalTier;
+                $attemptedValue = $attemptedTier instanceof DisclosureTier ? $attemptedTier->value : $attemptedTier;
+
+                // STORY 3.1 GAP 3: Context-safe logging (never throws in CLI/jobs)
+                $logContext = [
+                    'company_id' => $company->id,
+                    'company_name' => $company->name,
+                    'original_tier' => $originalValue,
+                    'attempted_tier' => $attemptedValue,
+                ];
+
+                // Safely add HTTP context if available
+                try {
+                    if (function_exists('auth') && auth()->check()) {
+                        $logContext['user_id'] = auth()->id();
+                    }
+                } catch (\Throwable $e) {
+                    $logContext['user_id'] = null;
+                }
+
+                try {
+                    if (function_exists('request') && request()) {
+                        $logContext['ip_address'] = request()->ip();
+                        $logContext['user_agent'] = request()->userAgent();
+                    }
+                } catch (\Throwable $e) {
+                    $logContext['ip_address'] = null;
+                    $logContext['user_agent'] = null;
+                }
+
+                $logContext['context'] = app()->runningInConsole() ? 'cli' : 'http';
+
+                \Log::warning('DISCLOSURE_TIER_IMMUTABILITY_VIOLATION: Direct modification blocked', $logContext);
+
+                throw DisclosureTierImmutabilityException::directModification(
+                    (string) $company->id,
+                    $originalValue,
+                    $attemptedValue
                 );
             }
 
@@ -414,6 +466,202 @@ class Company extends Model
     public function scopeVerified($query)
     {
         return $query->where('is_verified', true);
+    }
+
+    // --- STORY 3.1: DISCLOSURE TIER VISIBILITY SCOPES ---
+
+    /**
+     * GOVERNANCE INVARIANT: Public-facing queries MUST use this scope.
+     *
+     * Filters companies to only those with disclosure_tier >= tier_2_live.
+     * This is the PRIMARY enforcement mechanism for public visibility.
+     *
+     * Use this scope on ALL public-facing endpoints:
+     * - Public company listings
+     * - Public company detail pages
+     * - Public search results
+     * - Public API endpoints
+     *
+     * @param Builder $query
+     * @return Builder
+     */
+    public function scopePubliclyVisible(Builder $query): Builder
+    {
+        return $query->whereIn('disclosure_tier', [
+            DisclosureTier::TIER_2_LIVE->value,
+            DisclosureTier::TIER_3_FEATURED->value,
+        ]);
+    }
+
+    /**
+     * Filter companies by specific disclosure tier.
+     *
+     * @param Builder $query
+     * @param DisclosureTier|string $tier
+     * @return Builder
+     */
+    public function scopeByDisclosureTier(Builder $query, DisclosureTier|string $tier): Builder
+    {
+        $value = $tier instanceof DisclosureTier ? $tier->value : $tier;
+        return $query->where('disclosure_tier', $value);
+    }
+
+    /**
+     * Filter companies at or above a specific tier.
+     *
+     * @param Builder $query
+     * @param DisclosureTier $minimumTier
+     * @return Builder
+     */
+    public function scopeAtOrAboveTier(Builder $query, DisclosureTier $minimumTier): Builder
+    {
+        $validTiers = array_filter(
+            DisclosureTier::cases(),
+            fn(DisclosureTier $tier) => $tier->rank() >= $minimumTier->rank()
+        );
+
+        return $query->whereIn('disclosure_tier', array_map(fn($t) => $t->value, $validTiers));
+    }
+
+    /**
+     * Filter companies that are investable (tier_2_live or higher).
+     *
+     * @param Builder $query
+     * @return Builder
+     */
+    public function scopeInvestable(Builder $query): Builder
+    {
+        return $this->scopePubliclyVisible($query);
+    }
+
+    /**
+     * Filter companies pending review (tier_0_pending or tier_1_upcoming).
+     *
+     * @param Builder $query
+     * @return Builder
+     */
+    public function scopePendingReview(Builder $query): Builder
+    {
+        return $query->whereIn('disclosure_tier', [
+            DisclosureTier::TIER_0_PENDING->value,
+            DisclosureTier::TIER_1_UPCOMING->value,
+        ]);
+    }
+
+    /**
+     * Filter companies that are upcoming (tier_1_upcoming).
+     *
+     * @param Builder $query
+     * @return Builder
+     */
+    public function scopeUpcoming(Builder $query): Builder
+    {
+        return $query->where('disclosure_tier', DisclosureTier::TIER_1_UPCOMING->value);
+    }
+
+    /**
+     * Filter companies that are live (tier_2_live specifically).
+     *
+     * @param Builder $query
+     * @return Builder
+     */
+    public function scopeLive(Builder $query): Builder
+    {
+        return $query->where('disclosure_tier', DisclosureTier::TIER_2_LIVE->value);
+    }
+
+    /**
+     * Filter companies that are featured (tier_3_featured).
+     *
+     * @param Builder $query
+     * @return Builder
+     */
+    public function scopeFeaturedTier(Builder $query): Builder
+    {
+        return $query->where('disclosure_tier', DisclosureTier::TIER_3_FEATURED->value);
+    }
+
+    // --- STORY 3.1: DISCLOSURE TIER HELPER METHODS ---
+
+    /**
+     * Get the disclosure tier as an enum (with fallback to TIER_0_PENDING).
+     *
+     * @return DisclosureTier
+     */
+    public function getDisclosureTierEnum(): DisclosureTier
+    {
+        if ($this->disclosure_tier instanceof DisclosureTier) {
+            return $this->disclosure_tier;
+        }
+
+        $tier = DisclosureTier::tryFrom($this->disclosure_tier ?? '');
+        return $tier ?? DisclosureTier::TIER_0_PENDING;
+    }
+
+    /**
+     * Check if this company is publicly visible based on disclosure tier.
+     *
+     * GOVERNANCE INVARIANT: Only tier_2_live and tier_3_featured are visible.
+     *
+     * @return bool
+     */
+    public function isPubliclyVisibleByTier(): bool
+    {
+        return $this->getDisclosureTierEnum()->isPubliclyVisible();
+    }
+
+    /**
+     * Check if this company is investable based on disclosure tier.
+     *
+     * @return bool
+     */
+    public function isInvestableByTier(): bool
+    {
+        return $this->getDisclosureTierEnum()->isInvestable();
+    }
+
+    /**
+     * Get the next available tier for this company.
+     *
+     * @return DisclosureTier|null
+     */
+    public function getNextTier(): ?DisclosureTier
+    {
+        return $this->getDisclosureTierEnum()->nextTier();
+    }
+
+    /**
+     * Check if this company can be promoted to a specific tier.
+     *
+     * @param DisclosureTier $targetTier
+     * @return bool
+     */
+    public function canPromoteTo(DisclosureTier $targetTier): bool
+    {
+        return $this->getDisclosureTierEnum()->canPromoteTo($targetTier);
+    }
+
+    /**
+     * Get disclosure tier metadata for API responses.
+     *
+     * @return array
+     */
+    public function getDisclosureTierInfo(): array
+    {
+        $tier = $this->getDisclosureTierEnum();
+        $nextTier = $tier->nextTier();
+
+        return [
+            'current_tier' => $tier->value,
+            'current_tier_label' => $tier->label(),
+            'current_tier_description' => $tier->description(),
+            'current_tier_rank' => $tier->rank(),
+            'is_publicly_visible' => $tier->isPubliclyVisible(),
+            'is_investable' => $tier->isInvestable(),
+            'next_tier' => $nextTier?->value,
+            'next_tier_label' => $nextTier?->label(),
+            'can_be_promoted' => $nextTier !== null,
+        ];
     }
 
     // --- WORKFLOW ACTIONS ---
