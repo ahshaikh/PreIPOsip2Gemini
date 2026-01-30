@@ -8,23 +8,7 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "feat(audit): declare system audit-complete with regulator-grade immutable views
-
-- Finalize EPIC 6 Audit & Regulator Views
-- Add read-only audit primitives (authority, actor, reason, timestamp, snapshot hash)
-- Introduce Global Audit Dashboard and reconstruction anchor views
-- Isolate audit surface under admin navigation (Audit & Compliance)
-- Enforce explicit authority labeling and snapshot immutability
-- Confirm end-to-end reconstructability of investor decisions
-
-SYSTEM STATE:
-- Backend governance invariants enforced (Epics 1–4)
-- Frontend authority reflection complete (Epic 5)
-- Regulator-grade audit surface complete (Epic 6)
-
-This commit declares the company module AUDIT-COMPLETE.
-Historical records are immutable and regulator-defensible.
-Future changes must be introduced under new epics only."
+$CommitMessage = "Updated README.md file"
 #----------------------
 
 function Get-GitCredential {
