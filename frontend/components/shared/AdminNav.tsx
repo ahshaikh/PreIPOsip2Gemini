@@ -39,7 +39,8 @@ import {
   GitCommit,
   FileSearch,
   CheckSquare,
-  Eye
+  Eye,
+  Scale, // EPIC 6: Audit & Compliance icon
 } from 'lucide-react';
 
 const navItems = [
@@ -72,6 +73,18 @@ const auditDashboardNav = [
     { href: '/admin/product-audits', label: 'Product Audit Trail', icon: FileSearch },
     { href: '/admin/deal-approvals', label: 'Deal Approvals', icon: CheckSquare },
     { href: '/admin/sagas', label: 'Payment Sagas', icon: Activity },
+];
+
+/**
+ * EPIC 6 - Audit & Regulator Views
+ * Regulator-grade read-only audit surface
+ */
+const auditComplianceNav = [
+    { href: '/admin/audit', label: 'Audit Dashboard', icon: Scale },
+    { href: '/admin/audit/investments', label: 'Investment Records', icon: FileSearch },
+    { href: '/admin/audit/investors', label: 'Investor Timelines', icon: Users },
+    { href: '/admin/audit/companies', label: 'Company Governance', icon: Building2 },
+    { href: '/admin/audit/actions', label: 'Admin Actions', icon: Activity },
 ];
 
 const contentManagementNav = [
@@ -133,6 +146,9 @@ export function AdminNav() {
 
       <h4 className="px-3 pt-4 pb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Audit Dashboard</h4>
       {auditDashboardNav.map(renderLink)}
+
+      <h4 className="px-3 pt-4 pb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Audit & Compliance</h4>
+      {auditComplianceNav.map(renderLink)}
 
       <h4 className="px-3 pt-4 pb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Content Management</h4>
       {contentManagementNav.map(renderLink)}

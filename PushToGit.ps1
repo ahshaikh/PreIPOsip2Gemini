@@ -8,16 +8,23 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "EPIC-5.4: Admin frontend reflection of platform authority and snapshot immutability
+$CommitMessage = "feat(audit): declare system audit-complete with regulator-grade immutable views
 
-- Make admin actions explicitly labeled as platform decisions
-- Add investor impact awareness before governance actions
-- Surface frozen investor snapshots with immutability guarantees
-- Distinguish future-only effects from historical snapshots
-- Mark all governance controls as ADMIN-ONLY with audit intent
+- Finalize EPIC 6 Audit & Regulator Views
+- Add read-only audit primitives (authority, actor, reason, timestamp, snapshot hash)
+- Introduce Global Audit Dashboard and reconstruction anchor views
+- Isolate audit surface under admin navigation (Audit & Compliance)
+- Enforce explicit authority labeling and snapshot immutability
+- Confirm end-to-end reconstructability of investor decisions
 
-Frontend reflects platform authority only.
-No silent historical mutation. No ambiguous governance."
+SYSTEM STATE:
+- Backend governance invariants enforced (Epics 1–4)
+- Frontend authority reflection complete (Epic 5)
+- Regulator-grade audit surface complete (Epic 6)
+
+This commit declares the company module AUDIT-COMPLETE.
+Historical records are immutable and regulator-defensible.
+Future changes must be introduced under new epics only."
 #----------------------
 
 function Get-GitCredential {
