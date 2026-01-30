@@ -1,20 +1,32 @@
 /**
- * PHASE 5 - Subscriber/Investor Frontend: Company Detail with Investment Flow
+ * EPIC 5 Story 5.2 - Investor Frontend: Company Detail with Investment Flow
  *
  * PURPOSE:
- * - Show complete investor view of company
- * - Wallet allocation input
- * - Risk acknowledgements enforcement
- * - Pre-buy validation with BuyEnablementGuardService
- * - Investment review and confirmation
- * - Snapshot binding via InvestmentSnapshotService
+ * - Show complete investor view of company with approved disclosures
+ * - Wallet allocation input with balance validation
+ * - Risk acknowledgements enforcement (non-skippable)
+ * - Pre-buy validation with BuyEnablementGuardService (backend)
+ * - Investment review and confirmation with snapshot binding
+ *
+ * STORY 5.2 INVARIANTS:
+ * - ❌ Frontend must NEVER infer eligibility
+ * - ❌ Frontend must NEVER compute disclosure tier gates
+ * - ✅ Buy/Blocked state rendered ONLY from backend response (buy_eligibility)
+ * - ✅ All risk/disclosure/eligibility comes from backend API
+ * - ✅ Only approved disclosures are displayed
+ *
+ * DISPLAY LAYERS (Strict Separation):
+ * - Layer 1 (Disclosures): Issuer-provided, platform-approved content
+ * - Layer 2 (Risk Indicators): Platform-generated, non-editable assessments
+ * - Layer 3 (Material Changes): Time-bound alerts with timestamps
  *
  * DEFENSIVE PRINCIPLES:
  * - Show ALL platform warnings and restrictions
- * - Require explicit risk acknowledgements
- * - Prevent over-allocation
+ * - Require explicit risk acknowledgements (no bypass)
+ * - Prevent over-allocation via wallet validation
  * - Complete review before submission
- * - Surface all blockers explicitly
+ * - Surface all blockers explicitly (no hidden blocking)
+ * - Snapshot binding guarantees immutable audit trail
  */
 
 "use client";
@@ -63,6 +75,14 @@ import {
   InvestorCompanyDetail,
   WalletBalance,
 } from "@/lib/investorCompanyApi";
+import { InvestorPlatformBanner } from "@/components/investor/InvestorPlatformBanner";
+import {
+  filterApprovedDisclosures,
+  isDisclosureVisible,
+  getDisclosurePlaceholder,
+  getSnapshotGuaranteeMessage,
+  Disclosure,
+} from "@/lib/investorDisclosureGuard";
 
 export default function InvestorCompanyDetailPage() {
   const { id } = useParams();
@@ -385,6 +405,9 @@ export default function InvestorCompanyDetailPage() {
         Back to All Deals
       </Link>
 
+      {/* STORY 5.2: Investor Platform Banner - Non-dismissible, shows investment requirements */}
+      <InvestorPlatformBanner variant="compact" className="mb-6" />
+
       {/* Comprehensive View Callout */}
       <Alert className="mb-6 border-2 border-purple-200 bg-purple-50 dark:bg-purple-950/30">
         <Info className="h-5 w-5 text-purple-600" />
@@ -425,7 +448,13 @@ export default function InvestorCompanyDetailPage() {
             </Badge>
           )}
 
-          {/* Buy Eligibility Badge */}
+          {/*
+           * STORY 5.2 INVARIANT: Buy Eligibility Badge
+           *
+           * This badge renders ONLY from backend-provided buy_eligibility state.
+           * Frontend NEVER infers or computes eligibility.
+           * Backend BuyEnablementGuardService is the sole authority.
+           */}
           {company.buy_eligibility.allowed ? (
             <Badge className="bg-green-100 text-green-700 border-green-300">
               <CheckCircle2 className="w-4 h-4 mr-1" />
@@ -440,7 +469,13 @@ export default function InvestorCompanyDetailPage() {
         </div>
       </div>
 
-      {/* Critical Warnings */}
+      {/*
+       * STORY 5.2: DISPLAY LAYER 3 - Material Change Notices (Time-Bound Alerts)
+       *
+       * These are time-bound alerts requiring investor attention.
+       * Shows timestamp of detection and specific changes.
+       * Investor must review changes before investing.
+       */}
       {company.has_material_changes && (
         <Alert variant="destructive" className="mb-6">
           <AlertTriangle className="h-5 w-5" />
@@ -502,7 +537,13 @@ export default function InvestorCompanyDetailPage() {
         </Alert>
       )}
 
-      {/* Show Blockers if not eligible */}
+      {/*
+       * STORY 5.2: Blockers Display
+       *
+       * Blockers are backend-provided via buy_eligibility.blockers.
+       * Frontend NEVER computes blockers - only renders what API returns.
+       * This ensures "no hidden blocking" - all blockers shown explicitly.
+       */}
       {!company.buy_eligibility.allowed && company.buy_eligibility.blockers.length > 0 && (
         <Alert variant="destructive" className="mb-6">
           <XCircle className="h-5 w-5" />
@@ -537,12 +578,26 @@ export default function InvestorCompanyDetailPage() {
             </Card>
           )}
 
-          {/* Platform Context */}
+          {/*
+           * STORY 5.2: DISPLAY LAYER 2 - Platform Context (Platform-Generated)
+           *
+           * This section shows platform-governed state and risk assessment.
+           * Content is NOT issuer-editable - strictly platform-controlled.
+           *
+           * Includes:
+           * - Lifecycle state (platform-determined)
+           * - Tier approvals (platform-determined)
+           * - Active restrictions (platform-enforced)
+           * - Risk flags with rationale (platform-assessed)
+           */}
           <Card>
             <CardHeader>
-              <CardTitle>Platform Context</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <ShieldAlert className="w-5 h-5" />
+                Platform Context
+              </CardTitle>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Platform-governed company state
+                Platform-governed company state (non-editable by issuer)
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -677,30 +732,48 @@ export default function InvestorCompanyDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Approved Disclosures */}
+          {/*
+           * STORY 5.2: DISPLAY LAYER 1 - Company Disclosures (Issuer Content)
+           *
+           * This section shows ONLY approved disclosures filtered via investorDisclosureGuard.
+           * Non-approved disclosures are filtered out with defense-in-depth at frontend.
+           * Backend is source of truth, but frontend applies additional visibility guard.
+           *
+           * INVARIANT: Only status='approved' disclosures are rendered to investors.
+           */}
           {company.disclosures && company.disclosures.length > 0 && (
-            <Card>
+            <Card id="company-disclosures">
               <CardHeader>
-                <CardTitle>Company Disclosures</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  Company Disclosures
+                </CardTitle>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Platform-approved information
+                  Issuer-provided information approved by platform review
                 </p>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {company.disclosures.map((disclosure, i) => (
+                  {/* STORY 5.2: Apply disclosure guard - only show approved disclosures */}
+                  {filterApprovedDisclosures(company.disclosures as Disclosure[]).map((disclosure, i) => (
                     <div key={i} className="border-b border-gray-200 dark:border-slate-800 last:border-0 pb-4 last:pb-0">
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="font-semibold">{disclosure.module_name}</h4>
                         <Badge variant="outline" className="text-green-600 border-green-600">
-                          Approved v{disclosure.version_number}
+                          Approved v{disclosure.version || 1}
                         </Badge>
                       </div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Approved on: {new Date(disclosure.approved_at).toLocaleDateString()}
+                        Approved on: {disclosure.approved_at ? new Date(disclosure.approved_at).toLocaleDateString() : 'N/A'}
                       </p>
                     </div>
                   ))}
+                  {/* Show message if no approved disclosures */}
+                  {filterApprovedDisclosures(company.disclosures as Disclosure[]).length === 0 && (
+                    <p className="text-sm text-gray-500 italic">
+                      No approved disclosures available for this company yet.
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -769,17 +842,35 @@ export default function InvestorCompanyDetailPage() {
             </Card>
           )}
 
-          {/* Platform Notice */}
-          {company.buy_eligibility.allowed && (
-            <Alert className="border-blue-300 bg-blue-50 dark:bg-blue-950/30">
-              <Info className="h-4 w-4 text-blue-600" />
-              <AlertTitle className="text-sm">Snapshot Guarantee</AlertTitle>
-              <AlertDescription className="text-xs">
-                Your investment will be bound to an immutable snapshot of all information you see
-                here, including platform context and acknowledgements.
-              </AlertDescription>
-            </Alert>
-          )}
+          {/*
+           * STORY 5.2: Snapshot Guarantee Messaging
+           *
+           * This provides explicit guarantee about what is captured
+           * and the immutability of the investment audit trail.
+           * Uses frontend-owned copy from getSnapshotGuaranteeMessage().
+           */}
+          {company.buy_eligibility.allowed && (() => {
+            const snapshotGuarantee = getSnapshotGuaranteeMessage();
+            return (
+              <Alert className="border-indigo-300 bg-indigo-50 dark:bg-indigo-950/30">
+                <Info className="h-5 w-5 text-indigo-600" />
+                <AlertTitle className="text-indigo-900 dark:text-indigo-100 font-semibold">
+                  {snapshotGuarantee.title}
+                </AlertTitle>
+                <AlertDescription className="text-sm text-indigo-800 dark:text-indigo-200">
+                  <p className="mb-2">{snapshotGuarantee.description}</p>
+                  <ul className="list-disc list-inside space-y-1 text-xs">
+                    {snapshotGuarantee.items.map((item, i) => (
+                      <li key={i}>{item}</li>
+                    ))}
+                  </ul>
+                  <p className="mt-3 text-xs font-medium text-indigo-700 dark:text-indigo-300 border-t border-indigo-200 dark:border-indigo-700 pt-2">
+                    {snapshotGuarantee.footer}
+                  </p>
+                </AlertDescription>
+              </Alert>
+            );
+          })()}
         </div>
       </div>
 
@@ -839,18 +930,36 @@ export default function InvestorCompanyDetailPage() {
               </CardContent>
             </Card>
 
-            {/* Final Confirmation */}
-            <Alert>
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Final Confirmation</AlertTitle>
-              <AlertDescription className="text-sm">
-                By confirming, you acknowledge that:
-                <ul className="list-disc list-inside mt-2 space-y-1">
-                  <li>You have reviewed all company information and platform warnings</li>
+            {/*
+             * STORY 5.2: Final Confirmation with Enhanced Snapshot Guarantee
+             *
+             * Explicitly states what the investment snapshot captures
+             * and the regulatory-grade audit trail guarantee.
+             */}
+            <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/30">
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              <AlertTitle className="text-amber-900 dark:text-amber-100 font-semibold">
+                Final Confirmation & Snapshot Binding
+              </AlertTitle>
+              <AlertDescription className="text-sm text-amber-800 dark:text-amber-200">
+                <p className="mb-3">By confirming, you acknowledge that:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>You have reviewed all company disclosures and platform context</li>
                   <li>You understand and accept all disclosed risks</li>
-                  <li>An immutable snapshot will be created capturing your investment context</li>
+                  <li>You have completed all required risk acknowledgements</li>
                   <li>This investment decision is final and cannot be reversed</li>
                 </ul>
+                <div className="mt-4 p-3 bg-amber-100/50 dark:bg-amber-900/30 rounded-lg border border-amber-200 dark:border-amber-800">
+                  <p className="font-semibold text-xs uppercase tracking-wide mb-1">
+                    Immutable Snapshot Guarantee
+                  </p>
+                  <p className="text-xs">
+                    Your investment will be bound to an immutable snapshot capturing:
+                    all visible disclosures, platform context, risk assessment, your
+                    acknowledged risks, and the exact timestamp. This snapshot cannot
+                    be altered and serves as your audit trail for regulatory purposes.
+                  </p>
+                </div>
               </AlertDescription>
             </Alert>
           </div>

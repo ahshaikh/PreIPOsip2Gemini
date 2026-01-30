@@ -3,7 +3,8 @@
     "allow": [
       "Bash(powershell:*)",
       "Bash(php -l:*)",
-      "Bash(php:*)"
+      "Bash(php:*)",
+      "Bash(find:*)"
     ]
   }
 }

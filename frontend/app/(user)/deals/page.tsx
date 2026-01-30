@@ -1,21 +1,30 @@
 /**
- * PHASE 5 - Subscriber/Investor Frontend: Deals Listing with Wallet Allocation
+ * EPIC 5 Story 5.2 - Investor Frontend: Deals Listing
  *
  * PURPOSE:
- * - Browse invest-able companies
+ * - Browse investable companies (primary investor surface)
  * - Surface platform context, risk flags, buy eligibility
  * - Wallet-based allocation system
  * - Pre-buy validation with guards
  * - Risk acknowledgements enforcement
- * - Investment review and confirmation with snapshot binding
+ *
+ * STORY 5.2 INVARIANTS:
+ * - ❌ Frontend must NEVER infer eligibility
+ * - ❌ Frontend must NEVER compute disclosure tier gates
+ * - ✅ Buy/Blocked state rendered ONLY from backend response (buy_eligibility)
+ * - ✅ All risk/disclosure/eligibility comes from backend API
+ *
+ * DISPLAY LAYERS (Strict Separation):
+ * - Company Info: issuer-provided content
+ * - Risk Indicators: platform-generated risk_flags
+ * - Material Changes: time-bound alerts with timestamps
  *
  * DEFENSIVE PRINCIPLES:
  * - No hidden blocking - all blockers shown explicitly
- * - Buy eligibility checked via BuyEnablementGuardService
+ * - Buy eligibility from BuyEnablementGuardService (backend)
  * - Material changes prominently surfaced
  * - Risk acknowledgements required and explicit
  * - Wallet over-allocation prevented
- * - Complete investment review before confirmation
  */
 
 "use client";
@@ -46,6 +55,7 @@ import {
   InvestorCompany,
   WalletBalance,
 } from "@/lib/investorCompanyApi";
+import { InvestorPlatformBanner } from "@/components/investor/InvestorPlatformBanner";
 
 export default function DealsPage() {
   const router = useRouter();
@@ -87,8 +97,15 @@ export default function DealsPage() {
     }).format(amount);
   };
 
-  // Get buy eligibility badge
+  /**
+   * STORY 5.2 INVARIANT: Buy eligibility badge
+   *
+   * This badge renders ONLY from backend-provided buy_eligibility state.
+   * Frontend NEVER infers or computes eligibility.
+   * Backend BuyEnablementGuardService is the sole authority.
+   */
   const getBuyEligibilityBadge = (company: InvestorCompany) => {
+    // STORY 5.2: Eligibility state comes directly from API response
     if (company.buy_eligibility.allowed) {
       return (
         <Badge className="bg-green-100 text-green-700 border-green-300">
@@ -98,6 +115,7 @@ export default function DealsPage() {
       );
     }
 
+    // STORY 5.2: Blockers are backend-provided, not frontend-computed
     const criticalBlockers = company.buy_eligibility.blockers.filter(
       (b) => b.severity === "critical"
     );
@@ -224,21 +242,8 @@ export default function DealsPage() {
         </div>
       </div>
 
-      {/* Platform Notice */}
-      <Alert className="mb-8 border-blue-300 bg-blue-50 dark:bg-blue-950/30">
-        <Info className="h-5 w-5 text-blue-600" />
-        <AlertTitle className="text-blue-900 dark:text-blue-200">
-          How Investment Works
-        </AlertTitle>
-        <AlertDescription className="text-sm text-blue-800 dark:text-blue-300">
-          <ul className="list-disc list-inside space-y-1 mt-2">
-            <li>Browse companies and check eligibility status</li>
-            <li>Allocate funds from your wallet to one or more companies</li>
-            <li>Review and acknowledge all required risks</li>
-            <li>Confirm investment - your view will be captured in an immutable snapshot</li>
-          </ul>
-        </AlertDescription>
-      </Alert>
+      {/* STORY 5.2: Investor Platform Banner - Non-dismissible, shows investment requirements */}
+      <InvestorPlatformBanner variant="full" showLayerExplanation className="mb-8" />
 
       {/* Companies Grid */}
       {companies.length > 0 ? (
@@ -311,8 +316,15 @@ export default function DealsPage() {
                   </p>
                 )}
 
-                {/* Platform Context Summary */}
-                <div className="space-y-2 mb-4 text-xs">
+                {/*
+                 * STORY 5.2: Platform Risk Indicators (Display Layer 2)
+                 * These are platform-generated, non-editable assessments
+                 * Visually separated from company-provided content
+                 */}
+                <div className="space-y-2 mb-4 text-xs p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-800">
+                  <p className="font-semibold text-slate-600 dark:text-slate-400 mb-2">
+                    Platform Assessment
+                  </p>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-500">Lifecycle:</span>
                     <Badge variant="outline" className="text-xs capitalize">

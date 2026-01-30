@@ -8,16 +8,17 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "EPIC-5.1: Project backend disclosure authority into public frontend (read-only)
+$CommitMessage = "EPIC-5.2: Investor frontend reflection with audit-grade snapshot binding
 
-- Implement frontend-only projection layer for public company data
-- Whitelist public-safe fields and drop investor-only data at render time
-- Add disclosure tier ≥ Tier 2 render gate (404 for non-public entities)
-- Introduce non-dismissible 'Listed for informational purposes only' banner
-- Remove all investment semantics and CTAs from public pages
-- Detect and log backend invariant breaches without mutating backend behavior
+- Render buy/blocked state strictly from backend buy_eligibility
+- Enforce non-skippable risk acknowledgements tied to allocation intent
+- Separate display layers: issuer disclosures, platform risk, material changes
+- Render only backend-approved disclosures (projection guard)
+- Add non-dismissible investor platform relationship banner
+- Strengthen investment review and immutable snapshot guarantee messaging
 
-No backend changes. Frontend reflects authority, does not reinterpret it."
+Frontend reflects backend authority only.
+No eligibility inference. No tier computation."
 #----------------------
 
 function Get-GitCredential {
