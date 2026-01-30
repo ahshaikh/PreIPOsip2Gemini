@@ -8,17 +8,16 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "EPIC-5.2: Investor frontend reflection with audit-grade snapshot binding
+$CommitMessage = "EPIC-5.3: Issuer frontend reflection of platform-governed disclosure state
 
-- Render buy/blocked state strictly from backend buy_eligibility
-- Enforce non-skippable risk acknowledgements tied to allocation intent
-- Separate display layers: issuer disclosures, platform risk, material changes
-- Render only backend-approved disclosures (projection guard)
-- Add non-dismissible investor platform relationship banner
-- Strengthen investment review and immutable snapshot guarantee messaging
+- Add platform status banner reflecting suspension/freeze/investigation
+- Enforce review-state-driven editability via read-only rendering
+- Prevent issuer mutation of locked disclosures
+- Add read-only investor impact awareness (aggregate only)
+- Integrate clarification response panel with platform-controlled timelines
 
-Frontend reflects backend authority only.
-No eligibility inference. No tier computation."
+Frontend reflects platform authority only.
+No issuer-side override of investor-facing state."
 #----------------------
 
 function Get-GitCredential {

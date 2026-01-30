@@ -1,12 +1,26 @@
 /**
- * PHASE 5 - Company/Issuer Frontend: Disclosure Management Dashboard
+ * EPIC 5 Story 5.3 - Company/Issuer Frontend: Disclosure Management Dashboard
  *
  * PURPOSE:
- * - Show issuer's disclosure submission status
- * - Enforce platform state supremacy (UI reflects platform restrictions)
- * - Review-state-driven editability
- * - Investor impact awareness (aggregate only)
- * - Clarification management with deadlines
+ * - Transform issuer UI from "form editor" into constrained interface to platform governance
+ * - Allow issuers to submit and correct information
+ * - Enforce platform governance
+ * - Prevent accidental investor impact
+ *
+ * STORY 5.3 RULES:
+ * - Platform State Supremacy: If frozen/suspended/investigated, disable edits immediately
+ * - Review-State-Driven Editability:
+ *   - Draft: editable
+ *   - Under Review: conditionally editable or read-only
+ *   - Approved: locked (unless reopened by platform)
+ *   - Rejected: show reason + corrective guidance
+ * - Investor Impact Awareness: Show aggregate metrics (read-only)
+ * - Clarification Management: Respond but cannot close/extend
+ *
+ * HARD INVARIANTS:
+ * - ❌ Issuer UI must NEVER allow mutation of locked fields in client state
+ * - ❌ No hidden or disabled-but-bound inputs for locked disclosures
+ * - ✅ Locked disclosures are rendered as READ-ONLY VIEWS, not disabled forms
  *
  * DEFENSIVE PRINCIPLES:
  * - Platform restrictions disable UI immediately
@@ -14,6 +28,8 @@
  * - Cannot override platform timelines
  * - Investor awareness is aggregate only (NO personal data)
  * - Explicit platform override messages
+ * - All locks visible before submit
+ * - Rejections always show reason and next steps
  */
 
 "use client";
@@ -44,6 +60,12 @@ import {
   fetchIssuerCompany,
   IssuerCompanyData,
 } from "@/lib/issuerCompanyApi";
+import {
+  PlatformStatusBanner,
+  hasPlatformRestriction,
+} from "@/components/issuer/PlatformStatusBanner";
+import { IssuerInvestorImpactPanel } from "@/components/issuer/IssuerInvestorImpactPanel";
+import { ClarificationResponsePanel } from "@/components/issuer/ClarificationResponsePanel";
 
 export default function IssuerDisclosuresPage() {
   const [company, setCompany] = useState<IssuerCompanyData | null>(null);
@@ -149,95 +171,21 @@ export default function IssuerDisclosuresPage() {
         </p>
       </div>
 
-      {/* PHASE 5: Platform Supremacy - Show Platform Restrictions First */}
-      {(company.platform_context.is_suspended ||
-        company.platform_context.is_frozen ||
-        company.platform_context.is_under_investigation ||
-        company.platform_overrides.length > 0) && (
-        <Alert variant="destructive" className="mb-6">
-          <ShieldAlert className="h-5 w-5" />
-          <AlertTitle>Platform Restrictions Active</AlertTitle>
-          <AlertDescription>
-            <p className="mb-2">
-              The platform has imposed restrictions on your account. Your ability to edit and
-              submit disclosures is limited.
-            </p>
-            <ul className="list-disc list-inside space-y-1">
-              {company.platform_context.is_suspended && (
-                <li className="font-semibold">Company Suspended - All edits blocked</li>
-              )}
-              {company.platform_context.is_frozen && (
-                <li className="font-semibold">Disclosures Frozen - Cannot edit or submit</li>
-              )}
-              {company.platform_context.is_under_investigation && (
-                <li className="font-semibold">Under Investigation - Limited access</li>
-              )}
-              {company.platform_overrides.map((msg, i) => (
-                <li key={i}>{msg}</li>
-              ))}
-            </ul>
-            {company.platform_context.buying_pause_reason && (
-              <p className="mt-2 text-sm">
-                <strong>Buying Pause Reason:</strong> {company.platform_context.buying_pause_reason}
-              </p>
-            )}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Platform Context Summary */}
-      <Card className="mb-6 border-purple-200 dark:border-purple-800">
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Building2 className="w-5 h-5 mr-2" />
-            Platform Status
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-            <div>
-              <span className="text-gray-500">Lifecycle State</span>
-              <p className="font-semibold capitalize">
-                {company.platform_context.lifecycle_state.replace("_", " ")}
-              </p>
-            </div>
-            <div>
-              <span className="text-gray-500">Buying Status</span>
-              <p
-                className={`font-semibold ${
-                  company.platform_context.buying_enabled ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                {company.platform_context.buying_enabled ? "Enabled" : "Disabled"}
-              </p>
-            </div>
-            <div>
-              <span className="text-gray-500">Tier 2 Approval</span>
-              <p
-                className={`font-semibold ${
-                  company.platform_context.tier_status.tier_2_approved
-                    ? "text-green-600"
-                    : "text-amber-600"
-                }`}
-              >
-                {company.platform_context.tier_status.tier_2_approved ? "Approved" : "Pending"}
-              </p>
-            </div>
-            <div>
-              <span className="text-gray-500">Edit Permissions</span>
-              <p
-                className={`font-semibold ${
-                  company.effective_permissions.can_edit_disclosures
-                    ? "text-green-600"
-                    : "text-red-600"
-                }`}
-              >
-                {company.effective_permissions.can_edit_disclosures ? "Allowed" : "Blocked"}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/*
+       * STORY 5.3: Platform State Supremacy
+       *
+       * The PlatformStatusBanner component enforces platform governance:
+       * - If frozen/suspended/investigated, edits are disabled immediately
+       * - Clear explanations are shown
+       * - UI does not allow submit-and-fail behavior
+       */}
+      <PlatformStatusBanner
+        platformContext={company.platform_context}
+        effectivePermissions={company.effective_permissions}
+        platformOverrides={company.platform_overrides}
+        variant="full"
+        className="mb-6"
+      />
 
       {/* Completion Progress */}
       <Card className="mb-6">
@@ -259,60 +207,40 @@ export default function IssuerDisclosuresPage() {
         </CardContent>
       </Card>
 
-      {/* Investor Snapshot Awareness (Aggregate) */}
+      {/*
+       * STORY 5.3: Investor Impact Awareness (READ-ONLY)
+       *
+       * Shows aggregate investor metrics without exposing personal data.
+       * Issuer can see what version investors have but CANNOT change it.
+       * This panel is strictly informational.
+       */}
       {company.investor_snapshot_awareness && company.investor_snapshot_awareness.total_investors > 0 && (
-        <Card className="mb-6 border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20">
-          <CardHeader>
-            <CardTitle className="flex items-center text-blue-900 dark:text-blue-200">
-              <Eye className="w-5 h-5 mr-2" />
-              Investor Snapshot Awareness
-            </CardTitle>
-            <p className="text-sm text-blue-700 dark:text-blue-300">
-              {company.investor_snapshot_awareness.privacy_note}
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-blue-700 dark:text-blue-300">Total Investors</span>
-                <Badge className="bg-blue-600 text-white">
-                  {company.investor_snapshot_awareness.total_investors}
-                </Badge>
-              </div>
-
-              {company.investor_snapshot_awareness.version_distribution.length > 0 && (
-                <div>
-                  <p className="text-sm font-semibold text-blue-900 dark:text-blue-200 mb-2">
-                    Version Distribution
-                  </p>
-                  <div className="space-y-2">
-                    {company.investor_snapshot_awareness.version_distribution.map((dist) => (
-                      <div key={dist.version_number} className="flex justify-between items-center text-sm">
-                        <span className="text-blue-700 dark:text-blue-300">
-                          Version {dist.version_number}
-                        </span>
-                        <span className="text-blue-900 dark:text-blue-100">
-                          {dist.investor_count} investors ({dist.percentage.toFixed(1)}%)
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <Alert className="border-blue-300 bg-blue-100 dark:bg-blue-950/50">
-                <AlertDescription className="text-xs text-blue-800 dark:text-blue-200">
-                  <strong>Important:</strong> If you update and resubmit disclosures, existing
-                  investors will continue to see the version they invested based on. Only new
-                  investors will see updated versions. Individual investor identities are never exposed.
-                </AlertDescription>
-              </Alert>
-            </div>
-          </CardContent>
-        </Card>
+        <IssuerInvestorImpactPanel
+          investorAwareness={{
+            total_investors: company.investor_snapshot_awareness.total_investors,
+            version_distribution: company.investor_snapshot_awareness.version_distribution.map((dist) => ({
+              version: dist.version_number,
+              investor_count: dist.investor_count,
+              percentage: dist.percentage,
+              is_current: dist.is_current || false,
+            })),
+          }}
+          className="mb-6"
+        />
       )}
 
-      {/* Disclosures List */}
+      {/*
+       * STORY 5.3: Disclosures List with Review-State-Driven Editability
+       *
+       * C2 Acceptance Criteria:
+       * - Draft sections are editable
+       * - Under-review sections are conditionally editable or read-only
+       * - Approved sections are locked
+       * - Rejected sections show rejection reason + corrective guidance
+       *
+       * HARD INVARIANT: Locked disclosures render as read-only views.
+       * Edit buttons are hidden (not disabled) for locked disclosures.
+       */}
       <div className="space-y-4">
         <h2 className="text-2xl font-bold">Disclosure Modules</h2>
 
@@ -409,10 +337,20 @@ export default function IssuerDisclosuresPage() {
         ))}
       </div>
 
-      {/* Clarifications Section */}
+      {/*
+       * STORY 5.3: Clarifications Section
+       *
+       * C4 Acceptance Criteria:
+       * - Issuer CAN respond to clarifications
+       * - Issuer CANNOT close or extend clarifications
+       * - Platform timelines and escalation are visible (read-only)
+       */}
       {company.clarifications && company.clarifications.length > 0 && (
         <div className="mt-8">
           <h2 className="text-2xl font-bold mb-4">Platform Clarifications</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            You can respond to clarifications but cannot close or extend deadlines. Platform timelines are final.
+          </p>
           <div className="space-y-4">
             {company.clarifications.map((clarification) => (
               <Card
