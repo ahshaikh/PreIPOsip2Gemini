@@ -8,16 +8,16 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "EPIC-5.3: Issuer frontend reflection of platform-governed disclosure state
+$CommitMessage = "EPIC-5.4: Admin frontend reflection of platform authority and snapshot immutability
 
-- Add platform status banner reflecting suspension/freeze/investigation
-- Enforce review-state-driven editability via read-only rendering
-- Prevent issuer mutation of locked disclosures
-- Add read-only investor impact awareness (aggregate only)
-- Integrate clarification response panel with platform-controlled timelines
+- Make admin actions explicitly labeled as platform decisions
+- Add investor impact awareness before governance actions
+- Surface frozen investor snapshots with immutability guarantees
+- Distinguish future-only effects from historical snapshots
+- Mark all governance controls as ADMIN-ONLY with audit intent
 
 Frontend reflects platform authority only.
-No issuer-side override of investor-facing state."
+No silent historical mutation. No ambiguous governance."
 #----------------------
 
 function Get-GitCredential {

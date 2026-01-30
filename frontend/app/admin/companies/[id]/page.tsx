@@ -1,17 +1,38 @@
 /**
- * PHASE 5 - Admin/Platform Frontend: Company Management with Visibility Controls
+ * EPIC 5 Story 5.4 - Admin/Platform Frontend: Company Management
  *
  * PURPOSE:
+ * Make platform authority explicit, intentional, and snapshot-safe.
  * - Exercise platform authority over companies
- * - CRITICAL: Independent visibility controls (public/subscriber)
- * - Platform context management
- * - Risk flag management
- * - Tier approval
- * - Governance actions (suspend, freeze, investigate)
+ * - Independent visibility controls (public/subscriber)
+ * - Platform context management (suspend, freeze, investigate)
+ * - Risk flag management (admin-only)
+ * - Tier approval (admin-only)
+ *
+ * STORY 5.4 REQUIREMENTS:
+ * D1. Platform Authority Visibility:
+ *     - Admin actions are explicitly labeled as platform decisions
+ *     - No admin action is visually conflated with issuer data
+ * D2. Investor Impact Awareness:
+ *     - Before actions, admin sees: affected investors, buy impact, re-acknowledgement
+ * D3. Platform Context Control:
+ *     - Risk flags, tier status, valuation context, warnings are admin-only
+ *     - Issuer UI cannot edit any of the above
+ * D4. Snapshot Awareness:
+ *     - Admin can see frozen investor snapshots
+ *     - Admin UI clearly marks irreversible actions
+ *     - Admin can distinguish future-only vs past-snapshot effects
+ *
+ * INVARIANTS (Hard):
+ * - ❌ No silent historical mutation
+ * - ❌ No ambiguous authority (platform vs issuer)
+ * - ✅ Past investor snapshots are visibly immutable
+ * - ✅ Admin understands consequences before acting
+ * - ✅ Platform judgments are clearly labeled as such
  *
  * DEFENSIVE PRINCIPLES:
  * - Visibility changes show impact preview BEFORE applying
- * - All actions require explicit reason
+ * - All actions require explicit reason (audit trail)
  * - Platform authority clearly marked
  * - Snapshot awareness enforced (historical immutability noted)
  * - Audit trail visibility
@@ -64,6 +85,8 @@ import {
   VisibilityChangeImpact,
   PlatformContextChangeImpact,
 } from "@/lib/adminCompanyApi";
+import { AdminPlatformAuthorityBanner } from "@/components/admin/AdminPlatformAuthorityBanner";
+import { AdminSnapshotAwarenessPanel } from "@/components/admin/AdminSnapshotAwarenessPanel";
 
 export default function AdminCompanyManagementPage() {
   const { id } = useParams();
@@ -332,7 +355,23 @@ export default function AdminCompanyManagementPage() {
         </div>
       </div>
 
-      {/* CRITICAL: Visibility Controls */}
+      {/*
+       * STORY 5.4: Platform Authority Banner
+       * Explicitly labels all admin actions as platform decisions.
+       * Clarifies that these controls are NOT issuer data.
+       */}
+      <AdminPlatformAuthorityBanner
+        actionType="general"
+        companyId={company.id}
+        contextMessage="All controls on this page exercise platform authority over company governance. Changes are logged to the audit trail."
+        variant="full"
+        className="mb-6"
+      />
+
+      {/*
+       * STORY 5.4: D1 - Visibility Controls (Platform Authority)
+       * Admin actions explicitly labeled as platform decisions.
+       */}
       <Card className="mb-6 border-red-300 dark:border-red-800 bg-red-50/30 dark:bg-red-950/20">
         <CardHeader>
           <CardTitle className="text-red-900 dark:text-red-200 flex items-center">
@@ -431,13 +470,25 @@ export default function AdminCompanyManagementPage() {
         </CardContent>
       </Card>
 
-      {/* Platform Governance Controls */}
-      <Card className="mb-6">
+      {/*
+       * STORY 5.4: D3 - Platform Context Control
+       * These controls are admin-only. Issuer UI cannot edit:
+       * - Suspension status
+       * - Disclosure freeze
+       * - Buying enabled/disabled
+       * - Risk flags (not shown here, but admin-only)
+       * - Tier status (admin-only)
+       */}
+      <Card className="mb-6 border-orange-200 dark:border-orange-800">
         <CardHeader>
-          <CardTitle className="flex items-center">
+          <CardTitle className="flex items-center text-orange-900 dark:text-orange-200">
             <ShieldAlert className="w-5 h-5 mr-2" />
             Platform Governance Controls
+            <Badge className="ml-2 bg-orange-600 text-white text-xs">ADMIN-ONLY</Badge>
           </CardTitle>
+          <p className="text-sm text-orange-700 dark:text-orange-300">
+            Issuers cannot view or modify these settings. Changes affect company operations immediately.
+          </p>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Suspension */}
@@ -488,10 +539,20 @@ export default function AdminCompanyManagementPage() {
         </CardContent>
       </Card>
 
-      {/* Tier Status */}
+      {/*
+       * STORY 5.4: D3 - Tier Status (Admin-Only Editable)
+       * Tier approvals determine disclosure visibility levels.
+       * This is a platform governance decision that affects investor access.
+       */}
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Tier Approval Status</CardTitle>
+          <CardTitle className="flex items-center">
+            Tier Approval Status
+            <Badge className="ml-2 bg-purple-600 text-white text-xs">ADMIN-ONLY</Badge>
+          </CardTitle>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Tier status is controlled by platform. Issuer cannot modify.
+          </p>
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-3 gap-4">
@@ -517,47 +578,25 @@ export default function AdminCompanyManagementPage() {
         </CardContent>
       </Card>
 
-      {/* Investor Snapshots (Read-only) */}
-      <Card className="mb-6 border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/20">
-        <CardHeader>
-          <CardTitle className="text-blue-900 dark:text-blue-200">
-            Investor Snapshots (Immutable)
-          </CardTitle>
-          <p className="text-sm text-blue-700 dark:text-blue-300">
-            Historical snapshots are permanently frozen and cannot be modified by platform actions.
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="grid md:grid-cols-4 gap-4 text-center">
-            <div>
-              <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                {company.investor_snapshots?.total_investors ?? 0}
-              </p>
-              <p className="text-sm text-blue-700 dark:text-blue-300">Total Investors</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                {company.investor_snapshots?.total_investments ?? 0}
-              </p>
-              <p className="text-sm text-blue-700 dark:text-blue-300">Total Investments</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                {company.investor_snapshots?.snapshot_count ?? 0}
-              </p>
-              <p className="text-sm text-blue-700 dark:text-blue-300">Snapshots Created</p>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
-                {company.investor_snapshots?.latest_snapshot_at
-                  ? new Date(company.investor_snapshots.latest_snapshot_at).toLocaleDateString()
-                  : "N/A"}
-              </p>
-              <p className="text-sm text-blue-700 dark:text-blue-300">Latest Snapshot</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/*
+       * STORY 5.4: D4 - Snapshot Awareness Panel
+       * Shows frozen investor snapshots with immutability emphasis.
+       * Admin can see historical records but CANNOT alter them.
+       */}
+      <AdminSnapshotAwarenessPanel
+        awareness={{
+          total_investors: company.investor_snapshots?.total_investors ?? 0,
+          total_investments: company.investor_snapshots?.total_investments ?? 0,
+          total_snapshots: company.investor_snapshots?.snapshot_count ?? 0,
+          latest_snapshot_at: company.investor_snapshots?.latest_snapshot_at,
+          earliest_snapshot_at: company.investor_snapshots?.earliest_snapshot_at,
+          snapshots_by_version: company.investor_snapshots?.snapshots_by_version ?? [],
+        }}
+        companyId={company.id}
+        companyName={company.name}
+        showRecentSnapshots={false}
+        className="mb-6"
+      />
 
       {/* Impact Preview Dialog */}
       <Dialog open={showImpactPreview} onOpenChange={setShowImpactPreview}>
