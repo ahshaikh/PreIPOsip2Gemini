@@ -8,43 +8,16 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "feat(epic-4): lock commercial boundaries via disclosure tier gates & inventory provenance
+$CommitMessage = "EPIC-5.1: Project backend disclosure authority into public frontend (read-only)
 
-EPIC 4 — Lock Commercial Boundaries (DEALS & INVENTORY)
+- Implement frontend-only projection layer for public company data
+- Whitelist public-safe fields and drop investor-only data at render time
+- Add disclosure tier ≥ Tier 2 render gate (404 for non-public entities)
+- Introduce non-dismissible 'Listed for informational purposes only' banner
+- Remove all investment semantics and CTAs from public pages
+- Detect and log backend invariant breaches without mutating backend behavior
 
-STORY 4.1 — Enforce Tier Gates on Deal Operations
-- Enforced HARD tier gates on Deal lifecycle:
-  - Creation requires company.disclosure_tier ≥ tier_1_upcoming
-  - Activation requires company.disclosure_tier ≥ tier_2_live
-  - Featured promotion requires company.disclosure_tier ≥ tier_3_featured
-- Violations throw explicit DealTierGateException (no warnings, no fallbacks)
-- Gates enforced using company.disclosure_tier ONLY (deals do not control visibility)
-
-NOTE (Conscious Boundary Decision):
-- Tier gates are enforced at the Model hook (Deal::saving) level.
-- This is a deliberate compliance-first choice to guarantee invariants on all write paths.
-- Future refactor MAY move enforcement to application services once workflows stabilize,
-  but bypassing model-level protection is explicitly forbidden.
-
-STORY 4.2 — Enforce Provenance on Manual Bulk Purchases
-- All inventory creation now requires verifiable provenance
-- Mandatory source_type for all BulkPurchase records
-- Manual entries require:
-  - manual_entry_reason (explicit justification)
-  - source_documentation (audit evidence)
-- Violations throw BulkPurchaseProvenanceException (hard failure)
-- Ensures every unit of inventory has an auditable origin
-
-STORY 4.3 — Platform Ledger Linkage
-- Explicitly deferred (optional)
-- No AllocationService refactor performed
-
-INVARIANTS FROZEN:
-- ❌ No deal exists outside compliance tiers
-- ❌ No inventory exists without audit provenance
-- ❌ Commercial actions cannot bypass disclosure authority
-
-This commit freezes EPIC 4 commercial compliance boundaries."
+No backend changes. Frontend reflects authority, does not reinterpret it."
 #----------------------
 
 function Get-GitCredential {

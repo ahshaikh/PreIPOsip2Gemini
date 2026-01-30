@@ -1,5 +1,5 @@
 /**
- * PHASE 5 - Public Frontend: Company Profile (Detail Page)
+ * EPIC 5 Story 5.1 - Public Frontend: Company Detail Page
  *
  * PURPOSE:
  * - Show company information to unauthenticated users
@@ -11,17 +11,26 @@
  * - NO financial data, pricing, or valuations
  * - NO buy signals or "invest now" buttons
  * - Show ONLY: identity, branding, sector, description, headquarters, website
- * - Mandatory disclaimer banner
+ * - Mandatory disclaimer and platform relationship banners
  *
  * VISIBILITY RULES:
- * - Shows only companies marked visible_on_public by platform
+ * - Shows only companies with disclosure_tier >= tier_2_live
+ * - Data sanitized via publicDataSanitizer at API boundary
  * - Returns 404 if company not found or not publicly visible
+ *
+ * STORY 5.1 COMPLIANCE:
+ * - A1: Read-only, no backend investor/admin services
+ * - A2: Only display whitelisted fields (name, logo, sector, description, etc.)
+ * - A3: PlatformRelationshipBanner shows "Listed for informational purposes"
+ * - A4: No financial data, no disclosures, no tier status, no buy CTAs
+ * - A5: Links to sign-up/learn-more only
+ * - A6: 404 for non-public tier companies (enforced at API layer)
  */
 
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -38,6 +47,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PublicDisclaimerBanner } from "@/components/public/PublicDisclaimerBanner";
+import { PlatformRelationshipBanner } from "@/components/public/PlatformRelationshipBanner";
 import {
   fetchPublicCompanyDetail,
   PublicCompanyDetail,
@@ -45,13 +55,12 @@ import {
 
 export default function ProductDetailPage() {
   const { slug } = useParams();
-  const router = useRouter();
 
   const [company, setCompany] = useState<PublicCompanyDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch company detail from backend
+  // Fetch company detail from backend (sanitized at API layer)
   useEffect(() => {
     async function loadCompany() {
       if (!slug || typeof slug !== "string") {
@@ -64,10 +73,14 @@ export default function ProductDetailPage() {
       setError(null);
 
       try {
+        // fetchPublicCompanyDetail applies sanitization and tier gate
+        // Returns null if company is not publicly visible (tier < 2)
         const result = await fetchPublicCompanyDetail(slug);
 
         if (!result) {
-          setError("Company not found or not publicly visible");
+          // Company not found or not publicly visible
+          // This triggers 404 display per Story 5.1 A6
+          setError("Company not found or not publicly available");
           setLoading(false);
           return;
         }
@@ -102,6 +115,7 @@ export default function ProductDetailPage() {
   }
 
   // Error state (404 or not visible)
+  // Per Story 5.1 A6: Companies below tier_2_live show 404
   if (error || !company) {
     return (
       <div className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center">
@@ -139,7 +153,7 @@ export default function ProductDetailPage() {
           </Link>
 
           <div className="flex flex-col md:flex-row items-start gap-8">
-            {/* Company Logo */}
+            {/* Company Logo - ALLOWED per Story 5.1 A2 */}
             {company.logo_url && (
               <div className="relative w-32 h-32 rounded-2xl overflow-hidden bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 flex-shrink-0 shadow-lg">
                 <Image
@@ -151,33 +165,37 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            {/* Company Header Info */}
+            {/* Company Header Info - ALLOWED fields only */}
             <div className="flex-1">
+              {/* Company Name - ALLOWED */}
               <h1 className="text-4xl lg:text-5xl font-black text-gray-900 dark:text-white mb-4">
                 {company.name}
               </h1>
 
-              {/* Sector Badge */}
+              {/* Sector Badge - ALLOWED */}
               {company.sector && (
                 <Badge className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-base px-4 py-2 mb-4">
-                  {typeof company.sector === 'string' ? company.sector : company.sector.name}
+                  {company.sector}
                 </Badge>
               )}
 
-              {/* Company Meta Info */}
+              {/* Company Meta Info - ALLOWED fields only */}
               <div className="flex flex-wrap gap-6 text-sm text-gray-600 dark:text-gray-400 mt-4">
+                {/* Headquarters - ALLOWED */}
                 {company.headquarters && (
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4" />
                     <span>{company.headquarters}</span>
                   </div>
                 )}
+                {/* Founded Year - ALLOWED */}
                 {company.founded_year && (
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
                     <span>Founded {company.founded_year}</span>
                   </div>
                 )}
+                {/* Website URL - ALLOWED */}
                 {company.website_url && (
                   <a
                     href={company.website_url}
@@ -196,7 +214,7 @@ export default function ProductDetailPage() {
         </div>
       </section>
 
-      {/* Disclaimer Banner */}
+      {/* Disclaimer Banner - REQUIRED per Story 5.1 */}
       <section className="py-8 bg-amber-50 dark:bg-amber-950/20 border-y border-amber-200 dark:border-amber-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <PublicDisclaimerBanner variant="prominent" />
@@ -209,7 +227,7 @@ export default function ProductDetailPage() {
           <div className="grid md:grid-cols-3 gap-8">
             {/* Main Content */}
             <div className="md:col-span-2 space-y-8">
-              {/* About Section */}
+              {/* About Section - ALLOWED (description is whitelisted) */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-2xl">About {company.name}</CardTitle>
@@ -233,137 +251,49 @@ export default function ProductDetailPage() {
                 </CardContent>
               </Card>
 
-              {/* PHASE 5: Show only approved disclosures (informational only) */}
-              {company.disclosures && company.disclosures.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-2xl">Company Information</CardTitle>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Platform-reviewed information (informational purposes only)
-                    </p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {company.disclosures.map((disclosure, index) => (
-                        <div
-                          key={index}
-                          className="border-b border-gray-200 dark:border-slate-800 last:border-0 pb-4 last:pb-0"
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <h4 className="font-semibold text-gray-900 dark:text-white">
-                              {disclosure.module_name}
-                            </h4>
-                            {disclosure.status === "approved" ? (
-                              <Badge variant="outline" className="text-green-600 border-green-600">
-                                Platform Reviewed
-                              </Badge>
-                            ) : disclosure.status === "under_review" ? (
-                              <Badge variant="outline" className="text-amber-600 border-amber-600">
-                                Under Review
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-gray-500 border-gray-500">
-                                Not Available
-                              </Badge>
-                            )}
-                          </div>
-
-                          {disclosure.status === "approved" && disclosure.data ? (
-                            <div className="text-sm text-gray-700 dark:text-gray-300">
-                              {/* Show sanitized disclosure data */}
-                              <p className="text-gray-600 dark:text-gray-400 italic">
-                                Detailed information available to subscribers
-                              </p>
-                            </div>
-                          ) : (
-                            <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-                              {disclosure.message || "This information is not yet available"}
-                            </p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+              {/*
+               * STORY 5.1 COMPLIANCE: Disclosures section REMOVED
+               *
+               * Per Story 5.1 "Must NEVER Display":
+               * - Risk flags, disclosure completeness
+               *
+               * Disclosures are investor-only content and must not appear
+               * on public pages. The API layer now drops this data, but
+               * even if it were present, we do not render it here.
+               */}
             </div>
 
             {/* Sidebar */}
             <div className="space-y-6">
-              {/* PHASE 5: No investment details, just platform info */}
-              <Card className="border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/20">
-                <CardHeader>
-                  <CardTitle className="text-lg">Platform Status</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                  {company.platform_context?.lifecycle_state && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600 dark:text-gray-400">Lifecycle State:</span>
-                      <Badge variant="outline" className="capitalize">
-                        {company.platform_context.lifecycle_state.replace("_", " ")}
-                      </Badge>
-                    </div>
-                  )}
+              {/*
+               * STORY 5.1 COMPLIANCE: Platform Status card REPLACED
+               *
+               * Per Story 5.1 requirements:
+               * - Must display "Listed for informational purposes"
+               * - Must NOT display tier_status, lifecycle_state (investor-only)
+               *
+               * PlatformRelationshipBanner provides the required statement
+               * without investor-oriented tier information.
+               */}
+              <PlatformRelationshipBanner variant="prominent" />
 
-                  {company.platform_context?.tier_status && (
-                    <>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600 dark:text-gray-400">Tier 1:</span>
-                        <span
-                          className={
-                            company.platform_context.tier_status.tier_1_approved
-                              ? "text-green-600 dark:text-green-400"
-                              : "text-gray-400"
-                          }
-                        >
-                          {company.platform_context.tier_status.tier_1_approved
-                            ? "✓ Approved"
-                            : "Pending"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600 dark:text-gray-400">Tier 2:</span>
-                        <span
-                          className={
-                            company.platform_context.tier_status.tier_2_approved
-                              ? "text-green-600 dark:text-green-400"
-                              : "text-gray-400"
-                          }
-                        >
-                          {company.platform_context.tier_status.tier_2_approved
-                            ? "✓ Approved"
-                            : "Pending"}
-                        </span>
-                      </div>
-                    </>
-                  )}
-
-                  <div className="pt-3 border-t border-purple-200 dark:border-purple-800">
-                    <p className="text-xs text-gray-600 dark:text-gray-400">
-                      Platform status is informational only and does not constitute investment advice
-                      or recommendation.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* CTA Card */}
+              {/* CTA Card - Updated for Story 5.1 (no investment solicitation) */}
               <Card>
                 <CardContent className="pt-6">
                   <h3 className="font-bold text-lg mb-3 text-gray-900 dark:text-white">
-                    Interested in Investing?
+                    Want to Learn More?
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    Create an account to access detailed information and investment opportunities
+                    Create an account to access detailed company information and platform features
                   </p>
                   <Link href="/signup">
                     <Button className="w-full" size="lg">
-                      Create Account
+                      Sign Up to Learn More
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
                   </Link>
                   <p className="text-xs text-gray-500 dark:text-gray-500 mt-3 text-center">
-                    Requires platform verification
+                    Requires platform verification for full access
                   </p>
                 </CardContent>
               </Card>

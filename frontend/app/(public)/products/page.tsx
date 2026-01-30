@@ -1,11 +1,10 @@
 /**
- * PHASE 5 - Public Frontend: Company Listings
+ * EPIC 5 Story 5.1 - Public Frontend: Company Listings
  *
  * PURPOSE:
- * - Establish platform legitimacy
- * - Educate users about available companies
- * - Feed the subscription funnel
- * - Avoid investment solicitation or implied advice
+ * - Establish platform legitimacy and education
+ * - Show companies listed for informational purposes only
+ * - Feed the subscription funnel (NOT investment solicitation)
  *
  * DEFENSIVE PRINCIPLES:
  * - NO hardcoded company data
@@ -16,9 +15,15 @@
  * - Dynamic, platform-driven filtering
  *
  * VISIBILITY RULES:
- * - Shows only companies marked visible_on_public by admin
- * - Automatically updates when visibility changes
- * - No manual page updates required
+ * - Shows only companies with disclosure_tier >= tier_2_live
+ * - Data sanitized via publicDataSanitizer at API boundary
+ * - Prohibited fields dropped before render
+ *
+ * STORY 5.1 COMPLIANCE:
+ * - A1: Read-only, no backend investor/admin services
+ * - A2: Only display whitelisted fields
+ * - A4: No financial data, no buy CTAs
+ * - A5: Links to sign-up/learn-more only
  */
 
 "use client";
@@ -33,7 +38,7 @@ import { Button } from "@/components/ui/button";
 import { PublicDisclaimerBanner } from "@/components/public/PublicDisclaimerBanner";
 import {
   fetchPublicCompanies,
-  PublicCompany,
+  PublicSafeCompany,
 } from "@/lib/publicCompanyApi";
 
 export default function ProductsPage() {
@@ -42,7 +47,7 @@ export default function ProductsPage() {
   const sector = searchParams.get("sector");
   const view = searchParams.get("view");
 
-  const [companies, setCompanies] = useState<PublicCompany[]>([]);
+  const [companies, setCompanies] = useState<PublicSafeCompany[]>([]);
   const [sectors, setSectors] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,10 +83,10 @@ export default function ProductsPage() {
 
   if (filter === "live") {
     pageTitle = "Live Pre-IPO Companies";
-    pageDescription = "Active pre-IPO companies currently available";
+    pageDescription = "Active pre-IPO companies listed on the platform";
   } else if (filter === "upcoming") {
     pageTitle = "Upcoming Pre-IPO Companies";
-    pageDescription = "Pre-IPO companies coming soon";
+    pageDescription = "Pre-IPO companies expected to be listed soon";
   } else if (view === "sectors") {
     pageTitle = "Browse by Sector";
     pageDescription = "Explore companies by industry sector";
@@ -291,22 +296,22 @@ export default function ProductsPage() {
         </div>
       </section>
 
-      {/* PHASE 5: CTA Section - Emphasizes subscription, NOT direct investment */}
+      {/* EPIC 5 Story 5.1: CTA Section - Emphasizes learning, NOT investment */}
       <section className="py-20 bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-700 dark:to-blue-700">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl font-bold text-white mb-6">Interested in Pre-IPO Investing?</h2>
+          <h2 className="text-4xl font-bold text-white mb-6">Want to Learn More?</h2>
           <p className="text-xl text-purple-100 mb-8">
-            Create an account to access detailed information and investment opportunities
+            Create an account to access detailed company information and platform features
           </p>
           <Link
             href="/signup"
             className="inline-flex items-center justify-center px-10 py-5 text-lg font-bold text-purple-600 bg-white rounded-xl hover:bg-gray-100 transition-colors shadow-xl"
           >
-            Create Free Account
+            Sign Up to Learn More
             <ArrowRight className="ml-2 w-5 h-5" />
           </Link>
           <p className="mt-6 text-sm text-purple-200">
-            Account creation does not constitute investment. Platform verification and risk acknowledgements required.
+            Account creation is informational only. Platform verification and risk acknowledgements required for any further engagement.
           </p>
         </div>
       </section>

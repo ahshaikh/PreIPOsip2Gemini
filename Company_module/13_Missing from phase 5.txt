@@ -1,240 +1,151 @@
 Critical Issues in Phase 5 (Risky / Incomplete / Missing)
 1. Phase 5 Has No Investor UI Surface (Major Gap)
-
 There are zero TSX files for:
-
-Public company page
-
-Investor risk acknowledgement UI
-
-Buy-blocked explanations
-
-Snapshot-aware confirmation screen
-
-This is not optional.
+- Public company page
+- Investor risk acknowledgement UI
+- Buy-blocked explanations
+- Snapshot-aware confirmation screen
+- This is not optional.
 
 Why this is serious
-
-Phase 5 is explicitly Investor Decision & Buy Controls
-
-Decisions are made in UI, not in services
+- Phase 5 is explicitly Investor Decision & Buy Controls
+- Decisions are made in UI, not in services
 
 Without frontend:
-
-acknowledgements cannot be meaningfully enforced
-
-blockers cannot be transparently explained
-
-regulators cannot see “what the investor saw”
-
-Right now, Phase 5 is headless.
+- acknowledgements cannot be meaningfully enforced
+- blockers cannot be transparently explained
+- regulators cannot see “what the investor saw”
+- Right now, Phase 5 is headless.
 
 2. PublicCompanyPageService Is Acting as a “Virtual UI”
-
 This is subtle but important.
-
 Claude has effectively built:
-
-a backend-rendered conceptual UI
-
-returning large composite payloads
-
-assuming a future frontend will “just consume it”
+- a backend-rendered conceptual UI
+- returning large composite payloads
+- assuming a future frontend will “just consume it”
 
 Risk
-
-Frontend contracts are undefined
+- Frontend contracts are undefined
 
 No guarantee that:
-
-warnings are prominently displayed
-
-ordering of risks is preserved
-
-required acknowledgements are actually visible before buy
-
-UI may accidentally under-surface critical warnings
-
-In regulated flows, visibility is as important as enforcement.
+- warnings are prominently displayed
+- ordering of risks is preserved
+- required acknowledgements are actually visible before buy
+- UI may accidentally under-surface critical warnings
+- In regulated flows, visibility is as important as enforcement.
 
 3. No Explicit Investor Journey State Machine (Hidden Assumption)
-
 Backend enforces:
-
-must acknowledge A, B, C
-
-must match snapshot
-
-must not have material changes
+- must acknowledge A, B, C
+- must match snapshot
+- must not have material changes
 
 But no explicit investor journey model exists:
-
 Missing:
-
-“Viewing”
-
-“Acknowledging”
-
-“Reviewing snapshot”
-
-“Confirming buy”
-
-“Blocked (with reason)”
+- “Viewing”
+- “Acknowledging”
+- “Reviewing snapshot”
+- “Confirming buy”
+- “Blocked (with reason)”
 
 Risk
-
-Frontend engineers may improvise flows
-
-Different entry points may bypass intended order
-
-Harder to prove “investor had a fair opportunity to understand risk”
+- Frontend engineers may improvise flows
+- Different entry points may bypass intended order
+- Harder to prove “investor had a fair opportunity to understand risk”
 
 4. Risk Acknowledgements Have No UX Guarantees
-
 Backend tracks:
-
-acknowledgement types
-
-expiry
-
-audit logs
+- acknowledgement types
+- expiry
+- audit logs
 
 Missing:
-
 guarantees that acknowledgements are:
-
-presented verbatim
-
-non-dismissable
-
-time-sequenced
-
-tied to the exact investment intent
+- presented verbatim
+- non-dismissable
+- time-sequenced
+- tied to the exact investment intent
 
 Without TSX:
-
-acknowledgements could be modal, checkbox, scroll-past, etc.
-
-compliance depends on UI discipline, not system guarantees
+- acknowledgements could be modal, checkbox, scroll-past, etc.
+- compliance depends on UI discipline, not system guarantees
 
 This is a compliance exposure.
 
 5. Investor Snapshot Is Captured — But Not Shown Back
-
 You capture:
-
-public_page_view_snapshot
-
-governance_snapshot
-
-acknowledgement snapshot
+- public_page_view_snapshot
+- governance_snapshot
+- acknowledgement snapshot
 
 But:
-
-there is no investor-facing “review snapshot” screen
-
-investor never explicitly confirms:
-
-“Yes, this is what I am investing based on”
+- there is no investor-facing “review snapshot” screen
+- investor never explicitly confirms:
+- “Yes, this is what I am investing based on”
 
 Risk
-
-Snapshot exists, but consent is implicit
+- Snapshot exists, but consent is implicit
 
 In disputes, investor can claim:
-
-“I never saw that version in a single place”
-
-This is a classic fintech pitfall.
+- “I never saw that version in a single place”
+- This is a classic fintech pitfall.
 
 6. “Production Ready” Claim Is Incorrect
-
 This is important.
 
 The statement:
-
-“Phase 5 … is production-ready”
+- “Phase 5 … is production-ready”
 
 is false in platform terms, because:
-
-No frontend enforcement
-
-No UX guarantees
-
-No journey constraints
-
-No investor comprehension proof
+- No frontend enforcement
+- No UX guarantees
+- No journey constraints
+- No investor comprehension proof
 
 What you do have is:
-
-“Backend governance primitives ready to be consumed by a compliant UI.”
-
-That distinction matters.
+- “Backend governance primitives ready to be consumed by a compliant UI.”
+- That distinction matters.
 
 What Phase 5 Is Actually Missing (Concrete List)
 Missing Artifacts (Non-Negotiable)
 
 At minimum, Phase 5 should include:
-
-PublicCompanyPage.tsx
-
-consumes PublicCompanyPageService
-
-enforces warning prominence
-
-shows platform context clearly
-
-blocks buy CTA visibly
-
-InvestorRiskAcknowledgement.tsx
-
-forces explicit acknowledgements
-
-cannot be skipped or backgrounded
-
-shows expiry rules
-
-InvestmentReviewSnapshot.tsx
+- PublicCompanyPage.tsx
+- consumes PublicCompanyPageService
+- enforces warning prominence
+- shows platform context clearly
+- blocks buy CTA visibly
+- InvestorRiskAcknowledgement.tsx
+- forces explicit acknowledgements
+- cannot be skipped or backgrounded
+- shows expiry rules
+- InvestmentReviewSnapshot.tsx
 
 single screen showing:
-
-company snapshot
-
-risks
-
-platform restrictions
-
-acknowledgement summary
+- company snapshot
+- risks
+- platform restrictions
+- acknowledgement summary
 
 explicit confirmation step
-
-BuyBlockedState.tsx
-
-deterministic rendering of blocker reasons
-
-no silent failures
+- BuyBlockedState.tsx
+- deterministic rendering of blocker reasons
+- no silent failures
 
 Frontend Contract Definition
-
-what fields are mandatory to render
-
-what must be above the fold
-
-what cannot be hidden
+- what fields are mandatory to render
+- what must be above the fold
+- what cannot be hidden
 
 The Core Problem (Blunt Truth)
-
 Claude optimized for backend completeness
 but Phase 5 is about human decision integrity.
 
 Without TSX:
-
-the system is safe in theory
-
-but not defensible in practice
+- the system is safe in theory
+- but not defensible in practice
 
 What You Should Tell Claude Next (Short Prompt)
-
 Since you’re disciplined about prompts, here is a tight one:
 
 Claude Prompt — Phase 5 Frontend Completion (No Backend Changes)
