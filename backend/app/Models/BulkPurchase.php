@@ -21,6 +21,7 @@ class BulkPurchase extends Model
         'company_share_listing_id', // PROVENANCE: Source listing (if from listing)
         'source_type', // PROVENANCE: 'company_listing' or 'manual_entry'
         'approved_by_admin_id', // PROVENANCE: Admin who approved manual entry
+        'platform_ledger_entry_id', // GAP 1 FIX: Link to platform ledger debit proving capital movement
         'manual_entry_reason', // PROVENANCE: Why manual entry was needed
         'source_documentation', // PROVENANCE: Supporting documents
         'verified_at', // PROVENANCE: When provenance was verified
@@ -163,6 +164,29 @@ class BulkPurchase extends Model
     public function approvedByAdmin(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by_admin_id');
+    }
+
+    /**
+     * GAP 1 FIX: Link to platform ledger entry that proves capital movement.
+     *
+     * INVARIANT: Inventory existence === proven platform capital movement.
+     * This relationship enables audit verification that every BulkPurchase
+     * has a corresponding ledger debit proving capital was expended.
+     */
+    public function platformLedgerEntry(): BelongsTo
+    {
+        return $this->belongsTo(PlatformLedgerEntry::class);
+    }
+
+    /**
+     * GAP 1 FIX: Check if this inventory has proven capital movement.
+     *
+     * AUDIT HELPER: Returns true if this BulkPurchase has a linked
+     * platform ledger entry, proving the invariant holds.
+     */
+    public function hasProvenCapitalMovement(): bool
+    {
+        return $this->platform_ledger_entry_id !== null;
     }
 
     // --- ACCESSORS (CALCULATIONS) ---

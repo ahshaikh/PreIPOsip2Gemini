@@ -57,7 +57,15 @@ class DealController extends Controller
 
     /**
      * Store a newly created deal
+     *
      * FIX 7 (P1): Uses StoreDealRequest for cross-entity validation
+     * GAP 3 FIX: Inventory sufficiency is now enforced at Deal model level
+     *
+     * NOTE: The Deal model's saving hook will throw DomainException if:
+     * - No inventory exists for the product
+     * - max_investment exceeds available inventory (on activation)
+     *
+     * This ensures the invariant holds regardless of entry path.
      */
     public function store(StoreDealRequest $request)
     {
@@ -69,18 +77,15 @@ class DealController extends Controller
             $data['days_remaining'] = now()->diffInDays($data['deal_closes_at'], false);
         }
 
-        // Validate inventory exists for this product
-        $product = \App\Models\Product::findOrFail($data['product_id']);
-        $availableInventory = $product->bulkPurchases()->sum('value_remaining');
-
-        if ($availableInventory <= 0) {
-            return response()->json([
-                'errors' => ['product_id' => ['No inventory available for this product. Create BulkPurchase first.']]
-            ], 422);
-        }
+        // GAP 3: Inventory check moved to Deal model saving hook
+        // The model will throw DomainException if inventory is insufficient
 
         $deal = Deal::create($data);
         $deal->load(['product', 'company']);
+
+        // Calculate inventory info for response
+        $product = $deal->product;
+        $availableInventory = $product->bulkPurchases()->sum('value_remaining');
 
         // Append calculated inventory for response
         $deal->calculated_total_shares = $deal->total_shares;
@@ -91,7 +96,7 @@ class DealController extends Controller
             'deal' => $deal,
             'inventory_info' => [
                 'available_value' => $availableInventory,
-                'available_shares' => floor($availableInventory / $data['share_price'])
+                'available_shares' => $data['share_price'] > 0 ? floor($availableInventory / $data['share_price']) : 0
             ]
         ], 201);
     }
@@ -191,6 +196,14 @@ class DealController extends Controller
     /**
      * FIX 6 (P1): Approve a draft deal
      * POST /api/v1/admin/deals/{id}/approve
+     *
+     * GAP 3 FIX: Inventory sufficiency is now enforced at Deal model level
+     *
+     * NOTE: The Deal model's saving hook will throw DomainException if:
+     * - No inventory exists for the product (when setting status='active')
+     * - max_investment exceeds available inventory
+     *
+     * This ensures the invariant holds regardless of entry path.
      */
     public function approve(Request $request, $id)
     {
@@ -202,25 +215,17 @@ class DealController extends Controller
             ], 422);
         }
 
-        // Validate product has inventory
+        // GAP 3: Inventory checks moved to Deal model saving hook
+        // The model will throw DomainException if:
+        // - No inventory available (cannot activate)
+        // - max_investment exceeds available inventory
+
+        // Calculate available inventory for audit log
         $availableValue = BulkPurchase::where('product_id', $deal->product_id)
             ->where('value_remaining', '>', 0)
             ->sum('value_remaining');
 
-        if ($availableValue <= 0) {
-            return response()->json([
-                'error' => 'Product has no available inventory. Cannot activate deal.'
-            ], 422);
-        }
-
-        // Validate max_investment doesn't exceed available inventory
-        if ($deal->max_investment && $deal->max_investment > $availableValue) {
-            return response()->json([
-                'error' => "Deal max investment (₹{$deal->max_investment}) exceeds available inventory (₹{$availableValue})"
-            ], 422);
-        }
-
-        // Approve deal
+        // Approve deal - model hooks will enforce inventory invariant
         $deal->update([
             'status' => 'active',
             'approved_by_admin_id' => auth()->id(),

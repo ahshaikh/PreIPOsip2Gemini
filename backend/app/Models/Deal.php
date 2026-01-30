@@ -183,6 +183,78 @@ class Deal extends Model
             }
         });
 
+        // EPIC 4 - GAP 3 FIX: Inventory Sufficiency Enforcement at Model Level
+        //
+        // INVARIANT: No Deal can be created or activated if inventory is insufficient.
+        // This MUST be enforced at the model level, not controller level.
+        //
+        // WHY: Controller-only enforcement means:
+        // - Direct DB inserts bypass the check
+        // - Console commands bypass the check
+        // - Other code paths bypass the check
+        //
+        // Model-level enforcement ensures the invariant holds regardless of entry path.
+        static::saving(function ($deal) {
+            // Skip if no product_id (validation will fail elsewhere)
+            if (!$deal->product_id) {
+                return;
+            }
+
+            // Load product to check inventory
+            $product = \App\Models\Product::find($deal->product_id);
+            if (!$product) {
+                return; // Product validation handled elsewhere
+            }
+
+            // Calculate available inventory value from BulkPurchases
+            $availableInventory = $product->bulkPurchases()
+                ->where('value_remaining', '>', 0)
+                ->sum('value_remaining');
+
+            // GATE 1: New deal creation requires inventory to exist
+            // This prevents deals from being created without backing inventory
+            if (!$deal->exists) {
+                if ($availableInventory <= 0) {
+                    throw new \DomainException(
+                        "Cannot create deal: No inventory available for product '{$product->name}' (ID: {$product->id}). " .
+                        "Create a BulkPurchase with inventory first. " .
+                        "INVARIANT: Deals must have backing inventory."
+                    );
+                }
+            }
+
+            // GATE 2: Deal activation requires sufficient inventory
+            // This prevents deals from going active without sufficient inventory
+            if ($deal->status === 'active') {
+                if ($availableInventory <= 0) {
+                    throw new \DomainException(
+                        "Cannot activate deal: No inventory available for product '{$product->name}' (ID: {$product->id}). " .
+                        "Available: ₹0.00. " .
+                        "INVARIANT: Active deals must have available inventory."
+                    );
+                }
+
+                // GATE 2a: If max_investment is set, it cannot exceed available inventory
+                if ($deal->max_investment && $deal->max_investment > $availableInventory) {
+                    throw new \DomainException(
+                        "Cannot activate deal: max_investment (₹" . number_format($deal->max_investment, 2) . ") " .
+                        "exceeds available inventory (₹" . number_format($availableInventory, 2) . "). " .
+                        "Either reduce max_investment or add more inventory. " .
+                        "INVARIANT: Deal cannot promise more than inventory can fulfill."
+                    );
+                }
+            }
+
+            // Log inventory check for audit trail
+            \Illuminate\Support\Facades\Log::debug('Deal inventory sufficiency check passed', [
+                'deal_id' => $deal->id ?? 'new',
+                'product_id' => $deal->product_id,
+                'status' => $deal->status,
+                'available_inventory' => $availableInventory,
+                'max_investment' => $deal->max_investment,
+            ]);
+        });
+
         static::saved($clearCache);
         static::deleted($clearCache);
     }

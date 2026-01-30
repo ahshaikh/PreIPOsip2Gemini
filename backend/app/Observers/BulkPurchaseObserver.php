@@ -20,6 +20,7 @@
  * - value_remaining (decremented by AllocationService)
  * - notes (admin can add notes)
  * - admin_id (admin who last modified)
+ * - platform_ledger_entry_id (set after creation to link ledger proof - GAP 1 FIX)
  *
  * Deletion Protection:
  * - CANNOT delete if has active allocations (allocated_amount > 0)

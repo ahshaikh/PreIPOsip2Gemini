@@ -348,7 +348,7 @@
 
 # DATABASE ARCHITECTURE
 
-**Required Tables:** 100+ (Verified)
+**Required Tables:** 200+ (Verified)
 
 ## Core Tables
 

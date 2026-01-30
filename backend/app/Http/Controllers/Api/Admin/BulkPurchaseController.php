@@ -6,10 +6,12 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\BulkPurchase;
+use App\Models\PlatformLedgerEntry;
 use App\Models\UserInvestment;
 use App\Models\User;
 use App\Models\Product;
 use App\Models\Setting;
+use App\Services\PlatformLedgerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -93,8 +95,24 @@ class BulkPurchaseController extends Controller
 
     /**
      * Create a new bulk purchase
+     *
+     * EPIC 4 - GAP 1 FIX: Inventory Creation With Financial Atomicity
+     *
+     * INVARIANT: No inventory may exist without a corresponding platform ledger debit.
+     *
+     * PROTOCOL:
+     * 1. Wrap entire creation in DB transaction
+     * 2. Create BulkPurchase record
+     * 3. Create platform ledger debit atomically
+     * 4. Link BulkPurchase to ledger entry
+     * 5. If ANY step fails, entire transaction rolls back
+     *
+     * FAILURE SEMANTICS:
+     * - Hard failure if ledger debit cannot be recorded
+     * - No orphaned inventory (BulkPurchase without ledger proof)
+     * - Rollback guarantees: either BOTH exist or NEITHER exists
      */
-    public function store(Request $request)
+    public function store(Request $request, PlatformLedgerService $ledgerService)
     {
         $validated = $request->validate([
             'product_id' => 'required|exists:products,id',
@@ -104,24 +122,70 @@ class BulkPurchaseController extends Controller
             'seller_name' => 'nullable|string|max:255',
             'purchase_date' => 'required|date',
             'notes' => 'nullable|string|max:1000',
+            // PROVENANCE: Required for audit compliance
+            'company_id' => 'required|exists:companies,id',
+            'source_type' => 'required|in:company_listing,manual_entry',
+            'company_share_listing_id' => 'required_if:source_type,company_listing|nullable|exists:company_share_listings,id',
+            'manual_entry_reason' => 'required_if:source_type,manual_entry|nullable|string|min:50',
+            'source_documentation' => 'required_if:source_type,manual_entry|nullable|string',
         ]);
 
         $discount = ($validated['face_value_purchased'] - $validated['actual_cost_paid']) / $validated['face_value_purchased'];
         $totalValue = $validated['face_value_purchased'] * (1 + ($validated['extra_allocation_percentage'] / 100));
 
-        $purchase = BulkPurchase::create($validated + [
-            'admin_id' => $request->user()->id,
-            'discount_percentage' => $discount * 100,
-            'total_value_received' => $totalValue,
-            'value_remaining' => $totalValue,
-        ]);
+        // GAP 1 FIX: Atomic transaction ensures inventory + ledger are created together
+        $purchase = DB::transaction(function () use ($validated, $request, $totalValue, $discount, $ledgerService) {
 
-        Log::info('Bulk purchase created', [
-            'purchase_id' => $purchase->id,
-            'product_id' => $purchase->product_id,
-            'total_value' => $totalValue,
-            'admin_id' => $request->user()->id,
-        ]);
+            // STEP 1: Create BulkPurchase record (without ledger link initially)
+            $purchase = BulkPurchase::create($validated + [
+                'admin_id' => $request->user()->id,
+                'approved_by_admin_id' => $validated['source_type'] === 'manual_entry' ? $request->user()->id : null,
+                'verified_at' => now(),
+                'discount_percentage' => $discount * 100,
+                'total_value_received' => $totalValue,
+                'value_remaining' => $totalValue,
+            ]);
+
+            // STEP 2: Create platform ledger debit to prove capital movement
+            // Convert to paise (smallest currency unit) for precision
+            $amountPaise = (int) round($validated['actual_cost_paid'] * 100);
+
+            $ledgerEntry = $ledgerService->debit(
+                PlatformLedgerEntry::SOURCE_BULK_PURCHASE,
+                $purchase->id,
+                $amountPaise,
+                "Inventory purchase: Product #{$purchase->product_id}, BulkPurchase #{$purchase->id}, " .
+                "Face Value: ₹" . number_format($validated['face_value_purchased'], 2) . ", " .
+                "Cost Paid: ₹" . number_format($validated['actual_cost_paid'], 2),
+                'INR',
+                [
+                    'product_id' => $purchase->product_id,
+                    'company_id' => $validated['company_id'],
+                    'source_type' => $validated['source_type'],
+                    'face_value_purchased' => $validated['face_value_purchased'],
+                    'actual_cost_paid' => $validated['actual_cost_paid'],
+                    'total_value_received' => $totalValue,
+                    'admin_id' => $request->user()->id,
+                ]
+            );
+
+            // STEP 3: Link BulkPurchase to ledger entry (proving the invariant)
+            // This update is allowed because platform_ledger_entry_id is mutable
+            // (it's set after creation, not a financial field)
+            $purchase->platform_ledger_entry_id = $ledgerEntry->id;
+            $purchase->saveQuietly(); // Skip observer to avoid validation loops
+
+            Log::info('Bulk purchase created with ledger atomicity', [
+                'purchase_id' => $purchase->id,
+                'product_id' => $purchase->product_id,
+                'total_value' => $totalValue,
+                'actual_cost_paid' => $validated['actual_cost_paid'],
+                'ledger_entry_id' => $ledgerEntry->id,
+                'admin_id' => $request->user()->id,
+            ]);
+
+            return $purchase;
+        });
 
         return response()->json($purchase->load('product'), 201);
     }

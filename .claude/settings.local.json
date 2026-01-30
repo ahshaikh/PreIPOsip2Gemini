@@ -4,7 +4,8 @@
       "Bash(powershell:*)",
       "Bash(php -l:*)",
       "Bash(php:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(findstr:*)"
     ]
   }
 }

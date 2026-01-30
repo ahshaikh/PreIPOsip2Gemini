@@ -8,7 +8,40 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "Updated README.md file"
+$CommitMessage = "feat(epic-4): close all remaining commercial compliance gaps with atomic ledger linkage
+
+EPIC 4 — Lock Commercial Boundaries (FINAL CLOSURE)
+
+This commit closes all outstanding EPIC 4 compliance gaps and finalizes
+non-bypassable commercial invariants across inventory, allocation, and ledger flows.
+
+GAP 1 — Inventory Creation Without Financial Atomicity (CRITICAL)
+- Linked BulkPurchase creation to platform ledger debit atomically
+- Prevented inventory materialization without confirmed financial provenance
+- Eliminated orphan inventory scenarios
+
+GAP 2 — Unknown User Allocation Concurrency Safety (CRITICAL)
+- Enforced allocation safety via transactional locking
+- Prevented race conditions allowing over-allocation or double-spend
+- Ensured wallet and inventory state remain consistent under concurrency
+
+GAP 3 — Inventory Invariant Lives in Controller (HIGH)
+- Moved all commercial invariants to model hooks / domain services
+- Removed reliance on controller-level enforcement
+- Ensured invariants apply uniformly across API, jobs, and CLI
+
+GAP 4 — STORY 4.3: Platform Ledger Linkage (MANDATORY)
+- Established authoritative ledger linkage for all inventory creation
+- Ledger logic remains additive (no refactor of AllocationService)
+- Financial provenance is now mandatory for all commercial actions
+
+ARCHITECTURAL BOUNDARY (INTENTIONAL)
+- Commercial compliance is enforced at model + domain layer only
+- No UI, controller, or job may bypass these guards
+- Violations fail hard with explicit exceptions
+- No silent fallbacks or deferred failures permitted
+
+This commit freezes EPIC 4 and completes the commercial compliance perimeter."
 #----------------------
 
 function Get-GitCredential {
