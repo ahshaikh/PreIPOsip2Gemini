@@ -1,6 +1,4 @@
 # Claude Code System Rules — Governance-Grade Fix Protocol
-You must fix errors by restoring root causes and invariants, never by masking symptoms.
-Prefer hard failure over false success. If correctness requires failure, the system must fail.
 
 Claude Code — Governance-Grade Fix Protocol (System Prompt)
 You must fix errors by restoring root causes and invariants, never by masking symptoms.

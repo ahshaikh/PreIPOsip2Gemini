@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\HasVisibilityScope;
+use App\Exceptions\DisclosureAuthorityViolationException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -505,5 +506,99 @@ class CompanyDisclosure extends Model
     public function getIsEditableAttribute(): bool
     {
         return !$this->is_locked && in_array($this->status, ['draft', 'rejected']);
+    }
+
+    // =========================================================================
+    // PHASE 1 AUDIT FIX: Investor-Visible Data Accessor
+    // =========================================================================
+
+    /**
+     * Get the investor-visible disclosure data
+     *
+     * PHASE 1 AUDIT INVARIANT:
+     * When disclosure is approved, investors MUST see the IMMUTABLE version data,
+     * NOT the mutable disclosure_data field.
+     *
+     * WHY:
+     * - disclosure_data on CompanyDisclosure can be modified for next version
+     * - DisclosureVersion.disclosure_data is observer-locked and immutable
+     * - Investors must see exactly what was approved, not work-in-progress edits
+     *
+     * @return array|null The immutable disclosure data for investors
+     * @throws DisclosureAuthorityViolationException If approved disclosure lacks a valid version
+     */
+    public function getInvestorVisibleDataAttribute(): ?array
+    {
+        // Non-approved disclosures should not be shown to investors
+        if ($this->status !== 'approved') {
+            return null;
+        }
+
+        // INVARIANT: Approved disclosure MUST have a current version
+        if (!$this->current_version_id) {
+            throw DisclosureAuthorityViolationException::missingVersion(
+                $this->id,
+                $this->company_id
+            );
+        }
+
+        $version = $this->currentVersion;
+
+        // INVARIANT: Version record MUST exist
+        if (!$version) {
+            throw DisclosureAuthorityViolationException::versionNotFound(
+                $this->id,
+                $this->current_version_id,
+                $this->company_id
+            );
+        }
+
+        // INVARIANT: Version MUST be locked
+        if (!$version->is_locked) {
+            throw DisclosureAuthorityViolationException::unlockedVersion(
+                $this->id,
+                $version->id,
+                $this->company_id
+            );
+        }
+
+        // Return IMMUTABLE version data
+        return $version->disclosure_data;
+    }
+
+    /**
+     * Get the investor-visible disclosure with full metadata
+     *
+     * @return array|null Full disclosure data with version metadata
+     */
+    public function getInvestorVisibleRecordAttribute(): ?array
+    {
+        if ($this->status !== 'approved') {
+            return null;
+        }
+
+        $data = $this->investor_visible_data;  // Uses accessor above with invariant checks
+
+        return [
+            'disclosure_id' => $this->id,
+            'module_id' => $this->disclosure_module_id,
+            'status' => 'approved',
+            'visibility' => $this->visibility,
+            'is_visible' => $this->is_visible,
+
+            // IMMUTABLE version data
+            'data' => $data,
+            'attachments' => $this->currentVersion->attachments,
+
+            // Version metadata
+            'version_id' => $this->current_version_id,
+            'version_number' => $this->currentVersion->version_number,
+            'version_hash' => $this->currentVersion->version_hash,
+            'approved_at' => $this->currentVersion->approved_at?->toIso8601String(),
+
+            // Immutability guarantee
+            'is_immutable' => true,
+            'locked_at' => $this->currentVersion->locked_at?->toIso8601String(),
+        ];
     }
 }

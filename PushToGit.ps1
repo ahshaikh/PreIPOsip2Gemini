@@ -8,40 +8,27 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "feat(epic-4): close all remaining commercial compliance gaps with atomic ledger linkage
+$CommitMessage = "# PreIPOsip Database Audit Line
 
-EPIC 4 — Lock Commercial Boundaries (FINAL CLOSURE)
+Effective Date: **1 February 2026**
 
-This commit closes all outstanding EPIC 4 compliance gaps and finalizes
-non-bypassable commercial invariants across inventory, allocation, and ledger flows.
+From this date onward, all database schema changes, migrations, and financial
+data structures in PreIPOsip MUST enforce regulator-grade guarantees at the
+database level.
 
-GAP 1 — Inventory Creation Without Financial Atomicity (CRITICAL)
-- Linked BulkPurchase creation to platform ledger debit atomically
-- Prevented inventory materialization without confirmed financial provenance
-- Eliminated orphan inventory scenarios
+This includes (but is not limited to):
+- Deterministic migrations
+- Non-polymorphic ownership
+- Integer-based monetary representation
+- Enforced referential integrity
+- Immutable financial history
+- Mandatory audit timestamps
 
-GAP 2 — Unknown User Allocation Concurrency Safety (CRITICAL)
-- Enforced allocation safety via transactional locking
-- Prevented race conditions allowing over-allocation or double-spend
-- Ensured wallet and inventory state remain consistent under concurrency
+All migrations prior to this audit line are considered **legacy**.
+They are frozen and will not be retroactively modified.
 
-GAP 3 — Inventory Invariant Lives in Controller (HIGH)
-- Moved all commercial invariants to model hooks / domain services
-- Removed reliance on controller-level enforcement
-- Ensured invariants apply uniformly across API, jobs, and CLI
-
-GAP 4 — STORY 4.3: Platform Ledger Linkage (MANDATORY)
-- Established authoritative ledger linkage for all inventory creation
-- Ledger logic remains additive (no refactor of AllocationService)
-- Financial provenance is now mandatory for all commercial actions
-
-ARCHITECTURAL BOUNDARY (INTENTIONAL)
-- Commercial compliance is enforced at model + domain layer only
-- No UI, controller, or job may bypass these guards
-- Violations fail hard with explicit exceptions
-- No silent fallbacks or deferred failures permitted
-
-This commit freezes EPIC 4 and completes the commercial compliance perimeter."
+This audit line establishes a clear compliance boundary between
+legacy schema and hardened schema going forward."
 #----------------------
 
 function Get-GitCredential {

@@ -122,6 +122,124 @@ class DisclosureVersion extends Model
      */
     public $timestamps = true;
 
+    /**
+     * Fields that contain the actual disclosure content - STRICTLY IMMUTABLE
+     * These fields MUST NEVER be modified after creation.
+     */
+    protected const IMMUTABLE_DATA_FIELDS = [
+        'disclosure_data',
+        'attachments',
+        'version_hash',
+        'version_number',
+        'company_disclosure_id',
+        'company_id',
+        'disclosure_module_id',
+        'approved_at',
+        'approved_by',
+        'approval_notes',
+        'is_locked',
+        'locked_at',
+        'changes_summary',
+        'change_reason',
+        'created_by_type',
+        'created_by_id',
+        'created_by_ip',
+        'created_by_user_agent',
+        'sebi_filing_reference',
+        'sebi_filed_at',
+        'certification',
+    ];
+
+    /**
+     * Fields that can be updated post-creation (tracking/metadata only)
+     * These do NOT affect what investors see - they track view metrics.
+     */
+    protected const ALLOWED_METADATA_FIELDS = [
+        'was_investor_visible',
+        'first_investor_view_at',
+        'investor_view_count',
+        'linked_transactions',
+    ];
+
+    /**
+     * PHASE 1 AUDIT FIX: Boot method for defense-in-depth immutability
+     *
+     * CRITICAL INVARIANT:
+     * The disclosure_data and related content fields are PERMANENTLY IMMUTABLE.
+     * Only tracking metadata (view counts, linked transactions) can be updated.
+     * Deletes are NEVER allowed.
+     */
+    protected static function booted(): void
+    {
+        // DEFENSE-IN-DEPTH: Block updates to immutable fields at model level
+        static::updating(function (DisclosureVersion $version) {
+            $dirty = $version->getDirty();
+            $attemptedFields = array_keys($dirty);
+
+            // Check if any immutable data field is being modified
+            $immutableViolations = array_intersect($attemptedFields, self::IMMUTABLE_DATA_FIELDS);
+
+            if (!empty($immutableViolations)) {
+                \Illuminate\Support\Facades\Log::critical(
+                    'PHASE 1 AUDIT: DisclosureVersion IMMUTABLE field update blocked',
+                    [
+                        'version_id' => $version->id,
+                        'company_id' => $version->company_id,
+                        'disclosure_id' => $version->company_disclosure_id,
+                        'violated_fields' => $immutableViolations,
+                        'all_attempted_changes' => $attemptedFields,
+                        'actor_id' => auth()->id(),
+                        'severity' => 'CRITICAL',
+                    ]
+                );
+
+                // Block the update
+                return false;
+            }
+
+            // Check if only allowed metadata fields are being updated
+            $disallowedUpdates = array_diff($attemptedFields, self::ALLOWED_METADATA_FIELDS);
+            if (!empty($disallowedUpdates)) {
+                \Illuminate\Support\Facades\Log::warning(
+                    'PHASE 1 AUDIT: DisclosureVersion unknown field update blocked',
+                    [
+                        'version_id' => $version->id,
+                        'disallowed_fields' => $disallowedUpdates,
+                    ]
+                );
+
+                return false;
+            }
+
+            // Only allowed metadata fields are being updated - permit
+            \Illuminate\Support\Facades\Log::debug(
+                'DisclosureVersion metadata update permitted',
+                [
+                    'version_id' => $version->id,
+                    'updated_fields' => $attemptedFields,
+                ]
+            );
+
+            return true;
+        });
+
+        // DEFENSE-IN-DEPTH: Block ALL deletes at model level
+        static::deleting(function (DisclosureVersion $version) {
+            \Illuminate\Support\Facades\Log::critical(
+                'PHASE 1 AUDIT: DisclosureVersion delete blocked at model level',
+                [
+                    'version_id' => $version->id,
+                    'company_id' => $version->company_id,
+                    'disclosure_id' => $version->company_disclosure_id,
+                    'actor_id' => auth()->id(),
+                ]
+            );
+
+            // Deletes are NEVER allowed
+            return false;
+        });
+    }
+
     // =========================================================================
     // RELATIONSHIPS
     // =========================================================================

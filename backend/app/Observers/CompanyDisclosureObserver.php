@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Models\CompanyDisclosure;
+use App\Models\AuditLog;
 use App\Services\CompanyMetricsService;
 use App\Services\RiskFlaggingService;
 use App\Services\ChangeTrackingService;
@@ -10,14 +11,25 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * PHASE 4 - OBSERVER: CompanyDisclosureObserver
+ * PHASE 1 AUDIT FIX: Added immutability enforcement for approved disclosures
  *
  * PURPOSE:
- * Auto-trigger platform analysis when disclosures are approved/updated.
+ * 1. Auto-trigger platform analysis when disclosures are approved/updated
+ * 2. ENFORCE IMMUTABILITY: Block unauthorized modifications to approved disclosures
  *
  * TRIGGERS:
  * - When disclosure is approved → Recalculate company metrics and risk flags
  * - When disclosure is updated → Log change for "what's new" feature
  * - When disclosure is submitted → Log submission
+ *
+ * IMMUTABILITY ENFORCEMENT (Phase 1 Audit Fix):
+ * - Block ALL updates to disclosures with status='approved' or is_locked=true
+ * - Exception: Only status transition TO 'approved' is allowed (via approve() method)
+ * - Exception: Allowed fields that don't affect disclosure data (view counts, etc.)
+ *
+ * INVARIANT:
+ * Once a disclosure is approved, its disclosure_data MUST NOT change.
+ * Any modification requires the error reporting flow which creates a NEW version.
  *
  * PERFORMANCE:
  * - Dispatches jobs to queue (doesn't block HTTP request)
@@ -25,6 +37,29 @@ use Illuminate\Support\Facades\Log;
  */
 class CompanyDisclosureObserver
 {
+    /**
+     * Fields that CAN be updated on approved disclosures (non-data fields)
+     * These do NOT affect what investors see.
+     */
+    protected const ALLOWED_UPDATES_ON_APPROVED = [
+        'internal_notes',           // Admin notes (never shown to investors)
+        'current_version_id',       // Set when creating new version
+        'version_number',           // Incremented for new version
+        'is_locked',                // Locking mechanism
+    ];
+
+    /**
+     * Fields that trigger immutability violation if changed on approved disclosure
+     */
+    protected const IMMUTABLE_FIELDS = [
+        'disclosure_data',          // CRITICAL: The actual disclosure content
+        'attachments',              // Supporting documents
+        'status',                   // Cannot change from approved (except via formal process)
+        'visibility',               // Visibility level
+        'is_visible',               // Master visibility toggle
+        'completion_percentage',    // Calculated from disclosure_data
+    ];
+
     protected CompanyMetricsService $metricsService;
     protected RiskFlaggingService $riskFlaggingService;
     protected ChangeTrackingService $changeTrackingService;
@@ -37,6 +72,117 @@ class CompanyDisclosureObserver
         $this->metricsService = $metricsService;
         $this->riskFlaggingService = $riskFlaggingService;
         $this->changeTrackingService = $changeTrackingService;
+    }
+
+    /**
+     * PHASE 1 AUDIT FIX: Block updates to approved/locked disclosures
+     *
+     * INVARIANT:
+     * Approved disclosures are immutable. Any attempt to modify disclosure_data
+     * or status on an approved disclosure MUST fail hard.
+     *
+     * EXCEPTION:
+     * The ONLY allowed transition is FROM non-approved TO approved (handled specially).
+     *
+     * @param CompanyDisclosure $disclosure
+     * @return bool False to abort the update
+     */
+    public function updating(CompanyDisclosure $disclosure): bool
+    {
+        $dirty = $disclosure->getDirty();
+        $original = $disclosure->getOriginal();
+
+        // Case 1: Disclosure is being approved (transition TO approved)
+        // This is the ONLY allowed path - handled by approve() method
+        if (isset($dirty['status']) && $dirty['status'] === 'approved' && $original['status'] !== 'approved') {
+            // Allow the approval to proceed
+            return true;
+        }
+
+        // Case 2: Already approved disclosure - enforce immutability
+        if ($original['status'] === 'approved' || $original['is_locked']) {
+            return $this->enforceImmutability($disclosure, $dirty, $original);
+        }
+
+        // Case 3: Non-approved disclosure - allow updates
+        return true;
+    }
+
+    /**
+     * Enforce immutability on approved/locked disclosures
+     *
+     * @param CompanyDisclosure $disclosure
+     * @param array $dirty Changed fields
+     * @param array $original Original values
+     * @return bool False to block update
+     */
+    protected function enforceImmutability(CompanyDisclosure $disclosure, array $dirty, array $original): bool
+    {
+        // Check if any immutable field is being modified
+        $immutableViolations = array_intersect(array_keys($dirty), self::IMMUTABLE_FIELDS);
+
+        if (!empty($immutableViolations)) {
+            // CRITICAL: Block this update
+            $this->logImmutabilityViolation($disclosure, $dirty, $original, $immutableViolations);
+            return false;
+        }
+
+        // Check if ONLY allowed fields are being modified
+        $disallowedChanges = array_diff(array_keys($dirty), self::ALLOWED_UPDATES_ON_APPROVED);
+
+        if (!empty($disallowedChanges)) {
+            // Fields being changed are not in the allowed list
+            $this->logImmutabilityViolation($disclosure, $dirty, $original, $disallowedChanges);
+            return false;
+        }
+
+        // Only allowed fields are being updated - permit
+        return true;
+    }
+
+    /**
+     * Log immutability violation with full audit trail
+     */
+    protected function logImmutabilityViolation(
+        CompanyDisclosure $disclosure,
+        array $dirty,
+        array $original,
+        array $violatedFields
+    ): void {
+        Log::critical('PHASE 1 AUDIT: IMMUTABILITY VIOLATION on approved disclosure', [
+            'disclosure_id' => $disclosure->id,
+            'company_id' => $disclosure->company_id,
+            'module_id' => $disclosure->disclosure_module_id,
+            'original_status' => $original['status'],
+            'is_locked' => $original['is_locked'],
+            'violated_fields' => $violatedFields,
+            'attempted_changes' => array_keys($dirty),
+            'old_values' => array_intersect_key($original, array_flip(array_keys($dirty))),
+            'new_values' => $dirty,
+            'attempted_by' => auth()->id() ?? 'unauthenticated',
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+            'stack_trace' => collect(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 10))
+                ->map(fn($frame) => ($frame['class'] ?? '') . '::' . ($frame['function'] ?? ''))
+                ->filter()
+                ->values()
+                ->toArray(),
+        ]);
+
+        // Create audit log entry
+        AuditLog::create([
+            'action' => 'disclosure.immutability_violation',
+            'actor_id' => auth()->id(),
+            'description' => 'BLOCKED: Attempted to modify approved/locked disclosure',
+            'metadata' => [
+                'disclosure_id' => $disclosure->id,
+                'company_id' => $disclosure->company_id,
+                'violated_fields' => $violatedFields,
+                'attempted_changes' => array_keys($dirty),
+                'severity' => 'critical',
+                'audit_phase' => 'phase_1',
+            ],
+        ]);
     }
 
     /**

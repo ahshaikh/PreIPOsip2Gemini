@@ -3,11 +3,13 @@
 namespace Database\Seeders;
 
 use App\Models\Company;
+use App\Models\Product;
 use App\Models\CompanyUser;
 use App\Models\DisclosureModule;
 use App\Models\CompanyDisclosure;
 use App\Models\DisclosureVersion;
 use App\Models\DisclosureClarification;
+use App\Enums\DisclosureTier;
 use App\Models\PlatformCompanyMetric;
 use App\Models\PlatformRiskFlag;
 use App\Models\PlatformValuationContext;
@@ -18,6 +20,8 @@ use App\Models\Wallet;
 use App\Models\InvestorRiskAcknowledgement;
 use App\Models\Investment;
 use App\Models\InvestmentDisclosureSnapshot;
+use App\Models\BulkPurchase;
+use App\Models\CompanyShareListing;
 use App\Models\Sector;
 use App\Models\Deal;
 use App\Models\Plan;
@@ -302,6 +306,7 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 'company_secretary' => 'Priya Sharma, FCS',
                 'sebi_registered' => false,
                 'disclosure_stage' => 'draft',
+                'disclosure_tier' => 'tier_0_pending',
                 'state_key' => 'draft',
             ],
 
@@ -349,6 +354,7 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 'disclosure_submitted_at' => Carbon::now()->subMonths(2),
                 'disclosure_approved_at' => Carbon::now()->subMonth(),
                 'disclosure_approved_by' => $this->admin->id,
+                'disclosure_tier' => 'tier_1_upcoming',
                 'state_key' => 'live_limited',
             ],
 
@@ -401,6 +407,7 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 'disclosure_submitted_at' => Carbon::now()->subMonths(4),
                 'disclosure_approved_at' => Carbon::now()->subMonths(2),
                 'disclosure_approved_by' => $this->admin->id,
+                'disclosure_tier' => 'tier_2_live',
                 'state_key' => 'live_investable',
             ],
 
@@ -454,6 +461,7 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 'disclosure_submitted_at' => Carbon::now()->subMonths(6),
                 'disclosure_approved_at' => Carbon::now()->subMonths(4),
                 'disclosure_approved_by' => $this->admin->id,
+                'disclosure_tier' => 'tier_3_featured',
                 'state_key' => 'live_full',
             ],
 
@@ -1527,62 +1535,167 @@ class CompanyDisclosureSystemSeeder extends Seeder
      * ARCHITECTURAL RULE: Every investment MUST belong to a subscription.
      * Even "one-time" investments are modeled as subscriptions at the data level.
      */
-    private function seedTransactionsAndSnapshots(array $companies): void
-    {
-        $investableCompany = $companies['live_investable'];
+private function seedTransactionsAndSnapshots(array $companies): void
+{
+    // $admin = User::where('is_admin', true)->firstOrFail();
+    $admin = User::where('email', 'superadmin@preiposip.com')->firstOrFail();
 
-        // Skip if no investors created
-        if (empty($this->investors)) {
-            $this->command->warn("  ⚠️  No investors found. Skipping Phase 7.");
-            return;
-        }
+    // $admin = User::where('role', 'admin')->firstOrFail();
+    $investableCompany = $companies['live_investable'];
 
-        // 1. Create or find a Plan for one-time investments
-        $plan = Plan::firstOrCreate(
-            ['slug' => 'one-time-investment'],
+    // Skip if no investors created
+    if (empty($this->investors)) {
+        $this->command->warn("  ⚠️  No investors found. Skipping Phase 7.");
+        return;
+    }
+
+    // 1. Create or find a Plan for one-time investments
+    $plan = Plan::firstOrCreate(
+        ['slug' => 'one-time-investment'],
+        [
+            'name' => 'One-Time Investment',
+            'monthly_amount' => 0.00,
+            'duration_months' => 1,
+            'description' => 'One-time lump sum investment (not a recurring SIP)',
+            'is_active' => true,
+            'is_featured' => false,
+            'display_order' => 999,
+            'max_subscriptions_per_user' => 999,
+            'allow_pause' => false,
+            'max_pause_count' => 0,
+            'max_pause_duration_months' => 0,
+        ]
+    );
+
+    /* ✅ HARD REQUIREMENT: Promote company BEFORE featuring deal */
+    Company::where('id', $investableCompany->id)->update([
+        'disclosure_tier' => DisclosureTier::TIER_3_FEATURED,
+    ]);
+
+    /* ✅ CRITICAL: Reload the company model */
+    $investableCompany = Company::findOrFail($investableCompany->id);
+
+    /* ✅ Resolve a REAL product (never hard-code IDs) */
+    /* ✅ Ensure Product exists for the company */
+        $product = Product::firstOrCreate(
+            ['slug' => 'finsecure-equity'],
             [
-                'name' => 'One-Time Investment',
-                'monthly_amount' => 0.00, // No recurring amount
-                'duration_months' => 1,
-                'description' => 'One-time lump sum investment (not a recurring SIP)',
-                'is_active' => true,
-                'is_featured' => false,
-                'display_order' => 999,
-                'max_subscriptions_per_user' => 999, // Allow multiple one-time investments
-                'allow_pause' => false, // No pausing for one-time investments
-                'max_pause_count' => 0,
-                'max_pause_duration_months' => 0,
+                'company_id' => $investableCompany->id,
+                'name' => 'FinSecure Equity Shares',
+                'sector' => 'Financial Services',
+                'face_value_per_unit' => 10.00,
+                'min_investment' => 50000.00,
+                'status' => 'draft',
+                'eligibility_mode' => 'all_plans',
+                'description' => 'Equity shares of FinSecure Digital Lending Pvt Ltd',
             ]
         );
 
-        // 2. Create a Deal for the investable company
-        $deal = Deal::updateOrCreate(
-            [
-                'slug' => 'finsecure-series-d',
-            ],
-            [
-            'product_id' => 1, // or a valid product ID from your system
+        /* ✅ Resolve a company user for submission */
+            $companyUser = CompanyUser::firstOrCreate(
+                [
+                    'company_id' => $investableCompany->id,
+                    'email' => 'founder@finsecure.com', // any deterministic seed email
+                ],
+                [   'password' => bcrypt('password'), // seed-safe
+                    'contact_person_name' => 'Founding Director',
+                    'contact_person_designation' => 'Founder & CEO',
+                    'phone' => '9999999999',
+                    'status' => 'active',
+                    'is_verified' => true,
+                    'email_verified_at' => now(),
+                ]                
+            );
+
+
+        $companyShareListing = CompanyShareListing::create([
+            'company_id' => $investableCompany->id,
+            'submitted_by' => $companyUser->id,
+
+            'listing_title' => $investableCompany->name . ' – Primary Share Listing',
+            'description' =>
+                'Approved primary share listing for ' . $investableCompany->name .
+                ' created to support regulated pre-IPO inventory and investment deals.',
+
+            'total_shares_offered' => 250000,
+            'face_value_per_share' => 10.00,
+            'asking_price_per_share' => 50.00,
+
+            'total_value' => 12500000.00,
+            'minimum_purchase_value' => 50000.00,
+            'current_company_valuation' => 5000000000.00,
+            'valuation_currency' => 'INR',
+            'percentage_of_company' => 0.50,
+
+            'terms_and_conditions' =>
+                'Shares are subject to lock-in, regulatory approvals, and SEBI compliance requirements.',
+
+            'offer_valid_until' => now()->addMonths(6),
+            'status' => 'approved',
+        ]);
+
+
+
+        /* ✅ REQUIRED: Seed backing inventory before deal creation */
+        BulkPurchase::create([
+            'product_id' => $product->id,
+            'company_id' => $investableCompany->id,
+            'company_share_listing_id' => $companyShareListing->id,
+
+            'source_type' => 'company_listing',
+            'admin_id' => $admin->id,
+
+            'face_value_purchased' => 10000000.00,
+            'actual_cost_paid' => 8500000.00,
+
+            'discount_percentage' => 15,
+            'extra_allocation_percentage' => 25,
+
+            'total_value_received' => 12500000.00,
+            'value_remaining' => 12500000.00,
+
+            'purchase_date' => now()->toDateString(),
+        ]);
+
+            $product->refresh();
+
+            // draft → submitted
+            $product->update([
+                'status' => 'submitted',
+            ]);
+
+            // submitted → approved  ✅ THIS IS THE FINAL “LIVE” STATE
+            $product->update([
+                'status' => 'approved',
+            ]);
+
+
+
+    // 2. Create the Deal
+    $deal = Deal::updateOrCreate(
+        [
+            'slug' => 'finsecure-series-d',
+        ],
+        [
+            'product_id' => $product->id,
             'company_id' => $investableCompany->id,
             'title' => 'FinSecure Series D Investment Round',
             'description' => 'Series D funding round for FinSecure Digital Lending with pre-money valuation of ₹500 Cr',
             'sector' => $investableCompany->sector ?? 'Financial Services',
 
-            // Schema enums: live | upcoming | closed
+            // live | upcoming | closed
             'deal_type' => 'live',
 
-            // Monetary fields (DECIMAL, not paise)
-            'min_investment' => 50000.00,      // ₹50,000
-            'max_investment' => 500000.00,     // ₹5,00,000
-            'valuation' => 5000000000.00,      // ₹500 Cr
+            'min_investment' => 50000.00,
+            'max_investment' => 500000.00,
+            'valuation' => 5000000000.00,
             'valuation_currency' => 'INR',
-            'share_price' => 5000.00,           // ₹5,000 per share
+            'share_price' => 5000.00,
 
-            // Timing
             'deal_opens_at' => Carbon::now()->subMonths(3),
             'deal_closes_at' => Carbon::now()->addMonths(3),
             'days_remaining' => 90,
 
-            // Optional marketing fields
             'highlights' => [
                 'RBI-approved NBFC',
                 'Net NPA ratio of 1.8%',
@@ -1594,11 +1707,11 @@ class CompanyDisclosureSystemSeeder extends Seeder
                 ['type' => 'pitch_deck', 'path' => 'deals/finsecure/series_d_pitch_deck.pdf'],
             ],
 
-            // Lifecycle
             'status' => 'active',
             'is_featured' => true,
             'sort_order' => 1,
-        ]);
+        ]
+    );
 
         // 3. Create subscription for first investor
         // ARCHITECTURAL: Every investment MUST have a subscription (NOT NULL constraint)

@@ -5,15 +5,23 @@ namespace App\Services;
 use App\Models\Company;
 use App\Models\User;
 use App\Models\InvestmentDisclosureSnapshot;
+use App\Repositories\ApprovedDisclosureRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
  * PHASE 1 STABILIZATION - Issue 5: Investment Snapshot Service
+ * PHASE 1 AUDIT FIX: Now uses ApprovedDisclosureRepository for authority-enforced data
  *
  * PURPOSE:
  * Captures immutable snapshot of all disclosures at investment purchase.
  * Proves exactly what investor saw when they made decision.
+ *
+ * PHASE 1 AUDIT REQUIREMENTS:
+ * 1. ONLY capture approved disclosures (not draft, submitted, rejected, etc.)
+ * 2. Use IMMUTABLE version data from DisclosureVersion, NOT mutable CompanyDisclosure
+ * 3. HARD FAIL if approved disclosure lacks a valid version (invariant violation)
+ * 4. Prevent mixed-version reads or fallback to draft/previous disclosures
  *
  * USAGE:
  * Call captureAtPurchase() when investment is created.
@@ -21,6 +29,13 @@ use Illuminate\Support\Facades\Log;
  */
 class InvestmentSnapshotService
 {
+    protected ApprovedDisclosureRepository $disclosureRepository;
+
+    public function __construct(?ApprovedDisclosureRepository $disclosureRepository = null)
+    {
+        $this->disclosureRepository = $disclosureRepository ?? new ApprovedDisclosureRepository();
+    }
+
     /**
      * Capture snapshot at investment purchase
      *
@@ -73,40 +88,46 @@ class InvestmentSnapshotService
                 $company->id,
                 true // Include material changes
             );
-            // 1. Gather all company disclosures
-            $disclosures = DB::table('company_disclosures')
-                ->where('company_id', $company->id)
-                ->get();
+            // =================================================================
+            // PHASE 1 AUDIT FIX: Use ApprovedDisclosureRepository
+            // =================================================================
+            // CRITICAL: Only capture APPROVED disclosures with IMMUTABLE version data
+            // This ensures:
+            // 1. Draft/submitted/rejected disclosures are NEVER included
+            // 2. Disclosure data comes from locked DisclosureVersion (immutable)
+            // 3. Hard failure if approved disclosure lacks a valid version
+            // =================================================================
+
+            $approvedDisclosures = $this->disclosureRepository->getApprovedDisclosuresForInvestor($company->id);
 
             $disclosureSnapshot = [];
             $versionMap = [];
-            $wasUnderReview = false;
+            $wasUnderReview = false;  // Always false now - we only capture approved
 
-            foreach ($disclosures as $disclosure) {
-                // Get latest version for each disclosure
-                $latestVersion = DB::table('disclosure_versions')
-                    ->where('company_disclosure_id', $disclosure->id)
-                    ->where('approved_at', '<=', now())
-                    ->orderBy('version_number', 'desc')
-                    ->first();
-
-                $disclosureSnapshot[$disclosure->id] = [
-                    'module_id' => $disclosure->disclosure_module_id,
-                    'module_name' => $this->getModuleName($disclosure->disclosure_module_id),
-                    'status' => $disclosure->status,
-                    'data' => json_decode($disclosure->disclosure_data ?? '{}', true),
-                    'version_id' => $latestVersion->id ?? null,
-                    'version_number' => $latestVersion->version_number ?? null,
+            foreach ($approvedDisclosures as $disclosureId => $disclosureData) {
+                $disclosureSnapshot[$disclosureId] = [
+                    'module_id' => $disclosureData['module_id'],
+                    'module_name' => $disclosureData['module_name'],
+                    'module_code' => $disclosureData['module_code'],
+                    'status' => 'approved',  // GUARANTEED by repository
+                    // CRITICAL: This is IMMUTABLE version data, NOT mutable disclosure data
+                    'data' => $disclosureData['data'],
+                    'version_id' => $disclosureData['version_id'],
+                    'version_number' => $disclosureData['version_number'],
+                    'version_hash' => $disclosureData['version_hash'],
+                    'approved_at' => $disclosureData['approved_at'],
+                    'is_immutable' => true,  // Flag for audit trail
                 ];
 
-                if ($latestVersion) {
-                    $versionMap[$disclosure->id] = $latestVersion->id;
-                }
-
-                if ($disclosure->status === 'under_review') {
-                    $wasUnderReview = true;
-                }
+                $versionMap[$disclosureId] = $disclosureData['version_id'];
             }
+
+            Log::info('PHASE 1 AUDIT: Captured approved-only disclosures for snapshot', [
+                'investment_id' => $investmentId,
+                'company_id' => $company->id,
+                'approved_count' => count($approvedDisclosures),
+                'version_map' => $versionMap,
+            ]);
 
             // 2. Gather platform metrics
             $metrics = DB::table('platform_company_metrics')

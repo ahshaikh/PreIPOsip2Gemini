@@ -70,13 +70,88 @@ class Product extends Model
      * Boot logic to enforce validation.
      * FIX 20: Added inventory validation before activation
      * FIX 48: Added comprehensive audit trail
+     * PHASE 1 AUDIT: Added company ownership enforcement
      */
     protected static function booted()
     {
         // STORY 3.1 GAP 2: Register global scope for public visibility enforcement
         static::addGlobalScope(new ProductPublicVisibilityScope());
 
+        // =========================================================================
+        // PHASE 1 AUDIT: FAIL-FAST OWNERSHIP ENFORCEMENT
+        // =========================================================================
+        static::creating(function ($product) {
+            // INVARIANT: Products MUST have company_id at creation
+            if (empty($product->company_id)) {
+                \Log::critical('PHASE 1 AUDIT: Attempt to create product without company_id', [
+                    'product_name' => $product->name,
+                    'attempted_by' => auth()->id(),
+                    'auth_guard' => auth()->getDefaultDriver(),
+                ]);
+
+                throw new \RuntimeException(
+                    'PRODUCT OWNERSHIP VIOLATION: Cannot create product without company_id. ' .
+                    'Products must be created through the Company Portal.'
+                );
+            }
+
+            // Verify company exists
+            $company = \App\Models\Company::find($product->company_id);
+            if (!$company) {
+                throw new \RuntimeException(
+                    "PRODUCT OWNERSHIP VIOLATION: Company ID {$product->company_id} does not exist."
+                );
+            }
+
+            // Set default status to 'draft' for new products
+            if (empty($product->status)) {
+                $product->status = 'draft';
+            }
+
+            // INVARIANT: New products must start as draft
+            if ($product->status !== 'draft') {
+                \Log::warning('PHASE 1 AUDIT: Attempt to create product with non-draft status', [
+                    'product_name' => $product->name,
+                    'attempted_status' => $product->status,
+                    'company_id' => $product->company_id,
+                ]);
+
+                throw new \RuntimeException(
+                    "LIFECYCLE VIOLATION: New products must start with 'draft' status. " .
+                    "Attempted status: {$product->status}"
+                );
+            }
+        });
+
         static::saving(function ($product) {
+            // PHASE 1 AUDIT: Prevent orphaning of products
+            if ($product->exists && $product->isDirty('company_id')) {
+                $oldCompanyId = $product->getOriginal('company_id');
+                $newCompanyId = $product->company_id;
+
+                // Block company_id changes on existing products
+                if ($oldCompanyId !== null && $newCompanyId !== $oldCompanyId) {
+                    \Log::critical('PHASE 1 AUDIT: Attempt to change product company_id', [
+                        'product_id' => $product->id,
+                        'old_company_id' => $oldCompanyId,
+                        'new_company_id' => $newCompanyId,
+                        'attempted_by' => auth()->id(),
+                    ]);
+
+                    throw new \RuntimeException(
+                        'PRODUCT OWNERSHIP VIOLATION: Cannot change product ownership. ' .
+                        'Products are permanently bound to their creating company.'
+                    );
+                }
+
+                // Block setting company_id to null
+                if (empty($newCompanyId)) {
+                    throw new \RuntimeException(
+                        'PRODUCT OWNERSHIP VIOLATION: Cannot remove company ownership from product.'
+                    );
+                }
+            }
+
             // STORY 2.2: Enforce lifecycle state machine and write guards
             $originalStatus = $product->getOriginal('status');
             $newStatus = $product->status;

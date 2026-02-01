@@ -787,13 +787,34 @@ Route::prefix('v1')->group(function () {
                 Route::get('/statistics', [OfferCampaignController::class, 'statistics']);
             });
 
-            Route::apiResource('/products', ProductController::class)->middleware('permission:products.edit');
-
-            // STORY 2.4: Admin Product Approval Queue
-            Route::prefix('products')->group(function () {
+            // =========================================================================
+            // PHASE 1 AUDIT: Admin Product Routes (Restricted)
+            // =========================================================================
+            // INVARIANT: Admins CANNOT create products via POST /products
+            // Product creation is ONLY via Company Portal (/company/products)
+            // =========================================================================
+            Route::prefix('products')->middleware('permission:products.edit')->group(function () {
+                // READ operations
+                Route::get('/', [ProductController::class, 'index']);
                 Route::get('/submitted', [ProductController::class, 'submitted']);
+                Route::get('/{product}', [ProductController::class, 'show']);
+
+                // APPROVAL operations (admin-only, status-gated)
                 Route::post('/{product}/approve', [ProductController::class, 'approve']);
                 Route::post('/{product}/reject', [ProductController::class, 'reject']);
+
+                // PHASE 1 AUDIT: Audited override for typo corrections
+                Route::post('/{product}/override', [ProductController::class, 'performOverride']);
+
+                // LIMITED UPDATE (only admin-authored fields: regulatory_warnings, compliance_notes)
+                Route::put('/{product}', [ProductController::class, 'update']);
+
+                // DELETE (restricted by policy)
+                Route::delete('/{product}', [ProductController::class, 'destroy']);
+
+                // BLOCKED: POST /products (create) - Returns 403 with guidance
+                // This route is intentionally defined to return a clear error message
+                Route::post('/', [ProductController::class, 'store']);
             });
 
             // Campaign Management

@@ -36,50 +36,115 @@ class DisclosureVersionObserver
     }
 
     /**
+     * Fields that contain the actual disclosure content - STRICTLY IMMUTABLE
+     * These fields MUST NEVER be modified after creation.
+     */
+    protected const IMMUTABLE_DATA_FIELDS = [
+        'disclosure_data',
+        'attachments',
+        'version_hash',
+        'version_number',
+        'company_disclosure_id',
+        'company_id',
+        'disclosure_module_id',
+        'approved_at',
+        'approved_by',
+        'approval_notes',
+        'is_locked',
+        'locked_at',
+        'changes_summary',
+        'change_reason',
+        'created_by_type',
+        'created_by_id',
+        'created_by_ip',
+        'created_by_user_agent',
+        'sebi_filing_reference',
+        'sebi_filed_at',
+        'certification',
+    ];
+
+    /**
+     * Fields that can be updated post-creation (tracking/metadata only)
+     * These do NOT affect what investors see - they track view metrics.
+     */
+    protected const ALLOWED_METADATA_FIELDS = [
+        'was_investor_visible',
+        'first_investor_view_at',
+        'investor_view_count',
+        'linked_transactions',
+    ];
+
+    /**
      * Handle the DisclosureVersion "updating" event.
-     * BLOCK all update attempts for immutability.
+     * BLOCK updates to immutable data fields.
+     * ALLOW updates to tracking metadata fields only.
+     *
+     * PHASE 1 AUDIT FIX: Refined immutability that allows view tracking
+     * while protecting disclosure content.
      */
     public function updating(DisclosureVersion $version): bool
     {
-        // Get attempted changes
         $dirty = $version->getDirty();
+        $attemptedFields = array_keys($dirty);
 
-        // Log critical security violation
-        Log::critical('IMMUTABILITY VIOLATION: Attempted to modify locked disclosure version', [
-            'version_id' => $version->id,
-            'company_id' => $version->company_id,
-            'disclosure_id' => $version->company_disclosure_id,
-            'version_number' => $version->version_number,
-            'version_hash' => $version->version_hash,
-            'is_locked' => $version->is_locked,
-            'locked_at' => $version->locked_at,
-            'approved_at' => $version->approved_at,
-            'approved_by' => $version->approved_by,
-            'attempted_changes' => array_keys($dirty),
-            'old_values' => array_intersect_key($version->getOriginal(), array_flip(array_keys($dirty))),
-            'new_values' => $dirty,
-            'attempted_by' => auth()->id() ?? 'unauthenticated',
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->userAgent(),
-            'stack_trace' => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 5),
-        ]);
+        // Check if any immutable data field is being modified
+        $immutableViolations = array_intersect($attemptedFields, self::IMMUTABLE_DATA_FIELDS);
 
-        // Create audit log entry
-        \App\Models\AuditLog::create([
-            'action' => 'disclosure_version.immutability_violation',
-            'actor_id' => auth()->id(),
-            'description' => 'BLOCKED: Attempted to modify immutable disclosure version',
-            'metadata' => [
+        if (!empty($immutableViolations)) {
+            // CRITICAL: Immutable data field modification attempted
+            Log::critical('PHASE 1 AUDIT: Attempted to modify immutable disclosure version data', [
                 'version_id' => $version->id,
                 'company_id' => $version->company_id,
+                'disclosure_id' => $version->company_disclosure_id,
                 'version_number' => $version->version_number,
-                'attempted_changes' => array_keys($dirty),
-                'severity' => 'critical',
-            ],
+                'version_hash' => $version->version_hash,
+                'violated_fields' => $immutableViolations,
+                'all_attempted_changes' => $attemptedFields,
+                'old_values' => array_intersect_key($version->getOriginal(), array_flip($immutableViolations)),
+                'new_values' => array_intersect_key($dirty, array_flip($immutableViolations)),
+                'attempted_by' => auth()->id() ?? 'unauthenticated',
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+                'stack_trace' => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 5),
+            ]);
+
+            // Create audit log entry
+            \App\Models\AuditLog::create([
+                'action' => 'disclosure_version.immutability_violation',
+                'actor_id' => auth()->id(),
+                'description' => 'BLOCKED: Attempted to modify immutable disclosure version data',
+                'metadata' => [
+                    'version_id' => $version->id,
+                    'company_id' => $version->company_id,
+                    'version_number' => $version->version_number,
+                    'violated_fields' => $immutableViolations,
+                    'severity' => 'critical',
+                    'audit_phase' => 'phase_1',
+                ],
+            ]);
+
+            // BLOCK the update
+            return false;
+        }
+
+        // Check if only allowed metadata fields are being updated
+        $disallowedUpdates = array_diff($attemptedFields, self::ALLOWED_METADATA_FIELDS);
+        if (!empty($disallowedUpdates)) {
+            Log::warning('PHASE 1 AUDIT: Unknown field update on DisclosureVersion blocked', [
+                'version_id' => $version->id,
+                'disallowed_fields' => $disallowedUpdates,
+            ]);
+
+            return false;
+        }
+
+        // Only allowed metadata fields - permit update
+        Log::debug('DisclosureVersion metadata update permitted by observer', [
+            'version_id' => $version->id,
+            'updated_fields' => $attemptedFields,
         ]);
 
-        // BLOCK the update by returning false
-        return false;
+        return true;
     }
 
     /**
