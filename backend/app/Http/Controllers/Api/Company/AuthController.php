@@ -139,6 +139,9 @@ class AuthController extends Controller
         // Create token
         $token = $companyUser->createToken('company-auth-token')->plainTextToken;
 
+        // Load roles for RBAC visibility in frontend
+        $companyUser->load('roles');
+
         return response()->json([
             'success' => true,
             'message' => 'Login successful',
@@ -149,8 +152,15 @@ class AuthController extends Controller
                 'company_id' => $companyUser->company_id,
                 'company_name' => $companyUser->company->name ?? '',
                 'contact_person_name' => $companyUser->contact_person_name,
+                'contact_person_designation' => $companyUser->contact_person_designation,
                 'status' => $companyUser->status,
                 'is_verified' => $companyUser->is_verified,
+                // Include roles for frontend RBAC visibility
+                'roles' => $companyUser->roles->map(fn($role) => [
+                    'id' => $role->id,
+                    'name' => $role->name,
+                ])->toArray(),
+                'is_admin' => $companyUser->hasRole('company_admin'),
             ],
         ], 200);
     }
@@ -161,6 +171,7 @@ class AuthController extends Controller
     public function profile(Request $request)
     {
         $companyUser = $request->user();
+        $companyUser->load('roles');
         $company = $companyUser->company;
 
         return response()->json([
@@ -173,6 +184,12 @@ class AuthController extends Controller
                 'phone' => $companyUser->phone,
                 'status' => $companyUser->status,
                 'is_verified' => $companyUser->is_verified,
+                // Include roles for frontend RBAC visibility
+                'roles' => $companyUser->roles->map(fn($role) => [
+                    'id' => $role->id,
+                    'name' => $role->name,
+                ])->toArray(),
+                'is_admin' => $companyUser->hasRole('company_admin'),
             ],
             'company' => $company ? [
                 'id' => $company->id,

@@ -8,27 +8,15 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "# PreIPOsip Database Audit Line
+$CommitMessage = "feat(company): implement full company user management with RBAC and portal UI
 
-Effective Date: **1 February 2026**
-
-From this date onward, all database schema changes, migrations, and financial
-data structures in PreIPOsip MUST enforce regulator-grade guarantees at the
-database level.
-
-This includes (but is not limited to):
-- Deterministic migrations
-- Non-polymorphic ownership
-- Integer-based monetary representation
-- Enforced referential integrity
-- Immutable financial history
-- Mandatory audit timestamps
-
-All migrations prior to this audit line are considered **legacy**.
-They are frozen and will not be retroactively modified.
-
-This audit line establishes a clear compliance boundary between
-legacy schema and hardened schema going forward."
+- Enable company admins to create, update, suspend, and reactivate company users
+- Enforce least-privilege defaults and prevent role over-provisioning
+- Add safeguards for self-admin removal and last-admin protection
+- Expose role, statistics, and reactivation APIs for company users
+- Include roles in company auth responses for frontend RBAC
+- Add company portal UI for user management with role-based navigation
+- Remove operational dependency on platform admins for company user ops"
 #----------------------
 
 function Get-GitCredential {

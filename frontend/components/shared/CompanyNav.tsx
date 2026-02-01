@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -12,12 +13,15 @@ import {
   Newspaper,
   LogOut,
   User,
-  Sparkles
+  Sparkles,
+  Shield,
+  UserCog,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import companyApi from '@/lib/companyApi';
 
+// Base navigation items visible to all company users
 const navItems = [
   { href: '/company/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/company/profile', label: 'Company Profile', icon: Building2 },
@@ -29,6 +33,11 @@ const navItems = [
   { href: '/company/updates', label: 'News & Updates', icon: Newspaper },
 ];
 
+// Admin-only navigation items
+const adminNavItems = [
+  { href: '/company/users', label: 'User Management', icon: UserCog },
+];
+
 const settingsNav = [
   { href: '/company/account', label: 'Account Settings', icon: User },
 ];
@@ -36,6 +45,26 @@ const settingsNav = [
 export default function CompanyNav() {
   const pathname = usePathname();
   const router = useRouter();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Check if current user has admin role
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const userData = localStorage.getItem('company_user');
+        if (userData) {
+          const user = JSON.parse(userData);
+          // Check if user has company_admin role in their roles array
+          const hasAdminRole = user.roles?.some(
+            (role: { name: string }) => role.name === 'company_admin'
+          );
+          setIsAdmin(hasAdminRole);
+        }
+      } catch (e) {
+        console.error('Error parsing company user data:', e);
+      }
+    }
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -87,6 +116,17 @@ export default function CompanyNav() {
         </h4>
         {navItems.map(renderLink)}
       </div>
+
+      {/* Admin-only navigation - only visible to company_admin users */}
+      {isAdmin && (
+        <div className="space-y-1 mb-6">
+          <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase px-4 mb-2 flex items-center gap-1">
+            <Shield className="h-3 w-3" />
+            Admin
+          </h4>
+          {adminNavItems.map(renderLink)}
+        </div>
+      )}
 
       <div className="space-y-1 mb-6">
         <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase px-4 mb-2">

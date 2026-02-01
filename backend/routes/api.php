@@ -1366,6 +1366,9 @@ Route::prefix('v1')->group(function () {
             Route::middleware('auth:sanctum')->group(function () {
                 // User management (for company admins)
                 Route::middleware('role:company_admin,company_api')->group(function () {
+                    Route::get('users/statistics', [UserManagementController::class, 'statistics']);
+                    Route::get('users/roles', [UserManagementController::class, 'roles']);
+                    Route::post('users/{userId}/reactivate', [UserManagementController::class, 'reactivate']);
                     Route::apiResource('users', UserManagementController::class);
                 });
 
