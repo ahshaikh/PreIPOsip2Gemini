@@ -112,7 +112,7 @@ use App\Http\Controllers\Api\Company\DocumentController as CompanyDocumentContro
 use App\Http\Controllers\Api\Company\TeamMemberController;
 use App\Http\Controllers\Api\Company\FundingRoundController;
 use App\Http\Controllers\Api\Company\CompanyUpdateController;
-use App\Http\Controllers\Api\Company\CompanyDealController;
+// REMOVED: CompanyDealController - Deal creation is admin-only (security fix)
 use App\Http\Controllers\Api\Company\CompanyAnalyticsController;
 use App\Http\Controllers\Api\Company\InvestorInterestController;
 use App\Http\Controllers\Api\Company\CompanyQnaController;
@@ -1436,16 +1436,11 @@ Route::prefix('v1')->group(function () {
                     Route::delete('/{id}', [CompanyUpdateController::class, 'destroy']);
                 });
 
-                // Company Deal Listings (Share Offerings)
-                Route::prefix('deals')->group(function () {
-                    Route::get('/products-for-deals', [CompanyDealController::class, 'getProductsForCompany']);
-                    Route::get('/', [CompanyDealController::class, 'index']);
-                    Route::post('/', [CompanyDealController::class, 'store']);
-                    Route::get('/statistics', [CompanyDealController::class, 'statistics']);
-                    Route::get('/{id}', [CompanyDealController::class, 'show']);
-                    Route::put('/{id}', [CompanyDealController::class, 'update']);
-                    Route::delete('/{id}', [CompanyDealController::class, 'destroy']);
-                });
+                // REMOVED: Company Deal Listings (Share Offerings)
+                // SECURITY FIX: Deal creation is restricted to platform admins only.
+                // Company users cannot create retail-facing deals - they can only
+                // submit share listings which admins review and convert to deals.
+                // See: Admin/DealController, Admin/AdminShareListingController
 
                 // Company Share Listings (Self-Service Share Upload)
                 Route::prefix('share-listings')->group(function () {

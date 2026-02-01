@@ -8,15 +8,12 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "feat(company): implement full company user management with RBAC and portal UI
+$CommitMessage = "feat(phase-4): complete deal formation & inventory ownership with double-entry ledger
 
-- Enable company admins to create, update, suspend, and reactivate company users
-- Enforce least-privilege defaults and prevent role over-provisioning
-- Add safeguards for self-admin removal and last-admin protection
-- Expose role, statistics, and reactivation APIs for company users
-- Include roles in company auth responses for frontend RBAC
-- Add company portal UI for user management with role-based navigation
-- Remove operational dependency on platform admins for company user ops"
+- Enforce platform-only deal creation and inventory ownership
+- Introduce bank-mirroring double-entry accounting ledger
+- Add atomic bulk purchase and allocation safeguards
+- Begin Phase-4.1 refactor toward expense-based accounting and legacy ledger deprecation"
 #----------------------
 
 function Get-GitCredential {

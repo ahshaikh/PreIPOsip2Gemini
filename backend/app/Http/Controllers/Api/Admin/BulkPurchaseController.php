@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Models\Product;
 use App\Models\Setting;
 use App\Services\PlatformLedgerService;
+use App\Services\DoubleEntryLedgerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -112,8 +113,11 @@ class BulkPurchaseController extends Controller
      * - No orphaned inventory (BulkPurchase without ledger proof)
      * - Rollback guarantees: either BOTH exist or NEITHER exists
      */
-    public function store(Request $request, PlatformLedgerService $ledgerService)
-    {
+    public function store(
+        Request $request,
+        PlatformLedgerService $ledgerService,
+        DoubleEntryLedgerService $doubleEntryLedger
+    ) {
         $validated = $request->validate([
             'product_id' => 'required|exists:products,id',
             'face_value_purchased' => 'required|numeric|min:0.01', // Changed from min:0 to prevent division by zero
@@ -134,7 +138,8 @@ class BulkPurchaseController extends Controller
         $totalValue = $validated['face_value_purchased'] * (1 + ($validated['extra_allocation_percentage'] / 100));
 
         // GAP 1 FIX: Atomic transaction ensures inventory + ledger are created together
-        $purchase = DB::transaction(function () use ($validated, $request, $totalValue, $discount, $ledgerService) {
+        // PHASE 4 FIX: Now uses DOUBLE-ENTRY LEDGER for bank-mirroring accounting
+        $purchase = DB::transaction(function () use ($validated, $request, $totalValue, $discount, $ledgerService, $doubleEntryLedger) {
 
             // STEP 1: Create BulkPurchase record (without ledger link initially)
             $purchase = BulkPurchase::create($validated + [
@@ -146,7 +151,7 @@ class BulkPurchaseController extends Controller
                 'value_remaining' => $totalValue,
             ]);
 
-            // STEP 2: Create platform ledger debit to prove capital movement
+            // STEP 2: Create platform ledger debit to prove capital movement (legacy)
             // Convert to paise (smallest currency unit) for precision
             $amountPaise = (int) round($validated['actual_cost_paid'] * 100);
 
@@ -169,19 +174,30 @@ class BulkPurchaseController extends Controller
                 ]
             );
 
-            // STEP 3: Link BulkPurchase to ledger entry (proving the invariant)
+            // STEP 3: DOUBLE-ENTRY LEDGER - Record inventory purchase
+            // This ensures the platform ledger mirrors the real bank account:
+            //   DEBIT  INVENTORY (asset increases - we now own shares)
+            //   CREDIT BANK      (asset decreases - cash paid out)
+            $doubleEntryLedger->recordInventoryPurchase(
+                $purchase,
+                (float) $validated['actual_cost_paid'],
+                $request->user()->id
+            );
+
+            // STEP 4: Link BulkPurchase to ledger entry (proving the invariant)
             // This update is allowed because platform_ledger_entry_id is mutable
             // (it's set after creation, not a financial field)
             $purchase->platform_ledger_entry_id = $ledgerEntry->id;
             $purchase->saveQuietly(); // Skip observer to avoid validation loops
 
-            Log::info('Bulk purchase created with ledger atomicity', [
+            Log::info('Bulk purchase created with double-entry ledger atomicity', [
                 'purchase_id' => $purchase->id,
                 'product_id' => $purchase->product_id,
                 'total_value' => $totalValue,
                 'actual_cost_paid' => $validated['actual_cost_paid'],
                 'ledger_entry_id' => $ledgerEntry->id,
                 'admin_id' => $request->user()->id,
+                'double_entry' => 'DEBIT INVENTORY, CREDIT BANK',
             ]);
 
             return $purchase;
