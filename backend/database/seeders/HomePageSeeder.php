@@ -16,11 +16,11 @@ class HomePageSeeder extends Seeder
                 'title_prefix' => "India's First",
                 'title_highlight' => '100% FREE',
                 'title_suffix' => 'Pre-IPO SIP Platform',
-                'description' => 'Invest in tomorrow\'s unicorns today! Get 10-20% guaranteed bonuses + portfolio gains. No platform fees. No exit fees. No hidden charges.',
+                'description' => 'Access curated pre-IPO investment opportunities with a SIP-based approach — built for long-term investors who value transparency and control. No platform fees. No exit fees. No hidden charges.',
                 'features' => [
-                    'Zero Platform Fees (Save ₹54,000)',
-                    'Zero Exit Fees (Save ₹6,000)',
-                    '10% Guaranteed Bonuses (Earn ₹36,000)'
+                    'Zero Platform Fees (Save up to ₹54,000 over time)',
+                    'Zero Exit Fees — invest with flexibility',
+                    'Transparent pricing with no hidden charges'
                 ],
                 'cta_primary' => 'Start Investing Free',
                 'cta_secondary' => 'Calculate Returns 📊'
@@ -43,19 +43,19 @@ class HomePageSeeder extends Seeder
                 ]
             ],
             'how_it_works' => [
-                'title' => 'Start Investing in 3 Simple Steps',
+                'title' => 'Get started in 3 simple steps',
                 'steps' => [
                     [
-                        'title' => '1. Sign Up & Complete KYC',
-                        'desc' => 'Create your free account and verify your identity in 5 minutes.'
+                        'title' => '1. Choose Your Plan',
+                        'desc' => 'Select a monthly SIP amount between ₹1,000 and ₹25,000. All plans offer access to curated pre-IPO opportunities with transparent, zero-fee pricing.'
                     ],
                     [
-                        'title' => '2. Choose Plan & Start SIP',
-                        'desc' => 'Select an investment plan that fits your goals, starting from ₹1,000/month.'
+                        'title' => '2. Complete KYC',
+                        'desc' => 'Complete a quick KYC using Aadhaar, PAN, and your Demat account. The process is secure and follows applicable SEBI guidelines.'
                     ],
                     [
-                        'title' => '3. Earn Bonuses & Track Growth',
-                        'desc' => 'Make monthly payments, earn bonuses, and watch your portfolio grow.'
+                        'title' => '3. Start Investing',
+                        'desc' => 'Invest regularly through a SIP-based approach and track your investments in selected pre-IPO opportunities from a single dashboard.'
                     ]
                 ],
                 'cta' => 'Get Started Free'

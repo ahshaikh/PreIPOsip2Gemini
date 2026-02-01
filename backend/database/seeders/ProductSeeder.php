@@ -19,8 +19,8 @@ class ProductSeeder extends Seeder
 
         $products = [
             [
-                'name' => 'Swiggy',
-                'slug' => 'swiggy',
+                'name' => 'AHShaikh',
+                'slug' => 'ahshaikh',
                 'sector' => 'Food Tech',
                 'face_value_per_unit' => 100,
                 'min_investment' => 5000,
@@ -29,8 +29,8 @@ class ProductSeeder extends Seeder
                 'description' => json_encode(['summary' => 'Leading food delivery platform in India.']),
             ],
             [
-                'name' => 'Ola Electric',
-                'slug' => 'ola-electric',
+                'name' => 'Samara Electric',
+                'slug' => 'samara-electric',
                 'sector' => 'EV',
                 'face_value_per_unit' => 75,
                 'min_investment' => 2500,
@@ -38,8 +38,8 @@ class ProductSeeder extends Seeder
                 'description' => json_encode(['summary' => 'Electric vehicle arm of Ola.']),
             ],
             [
-                'name' => 'PharmEasy',
-                'slug' => 'pharmeasy',
+                'name' => 'Izrein Pharma',
+                'slug' => 'izrein-pharma',
                 'sector' => 'Health Tech',
                 'face_value_per_unit' => 50,
                 'min_investment' => 1000,
@@ -67,7 +67,7 @@ class ProductSeeder extends Seeder
                     'extra_allocation_percentage' => $extraAlloc,
                     'total_value_received' => $totalValue,
                     'value_remaining' => $totalValue, // Full inventory
-                    'seller_name' => 'Dummy Seller Ventures',
+                    'seller_name' => 'Shaikh Seller Ventures',
                     'purchase_date' => now()->subMonth(),
                 ]);
             }

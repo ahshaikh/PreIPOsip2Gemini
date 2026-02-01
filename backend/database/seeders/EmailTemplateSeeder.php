@@ -42,7 +42,7 @@ class EmailTemplateSeeder extends Seeder
     <li>Transaction ID: {{transaction_id}}</li>
     <li>Date: {{date}}</li>
 </ul>
-<p>Your investment will be allocated shortly.</p>
+<p>If you have chopsen automated sip, your investment will be allocated shortly, otherwise please proceed to deals page and browse the available pre-ipo available.</p>
 <p>Thank you for investing with us!</p>',
                 'variables' => json_encode(['name', 'amount', 'plan_name', 'transaction_id', 'date']),
                 'is_active' => true,

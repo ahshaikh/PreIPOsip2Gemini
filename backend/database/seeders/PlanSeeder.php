@@ -69,9 +69,9 @@ class PlanSeeder extends Seeder
             ]);
             
             $plan->features()->createMany([
-                ['feature_text' => '10% Guaranteed Bonus'],
-                ['feature_text' => 'Zero Platform Fees'],
-                ['feature_text' => 'Zero Exit Fees'],
+                ['feature_text' => 'Maximum reward eligibility'],
+                ['feature_text' => 'Access to exclusive listings'],
+                ['feature_text' => 'Maximum participation in incentive programs'],
             ]);
 
             // --- THE FIX: Use json_encode() to store as JSON strings ---
