@@ -10,6 +10,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Models\UserProfitShare;
 use App\Services\WalletService;
+use App\Services\DoubleEntryLedgerService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Collection;
@@ -17,6 +18,7 @@ use Illuminate\Support\Collection;
 class ProfitShareService
 {
     protected $walletService;
+    protected DoubleEntryLedgerService $ledgerService;
 
     /**
      * V-AUDIT-MODULE10-003 (MEDIUM): BCMath precision scale
@@ -24,9 +26,12 @@ class ProfitShareService
      */
     private const BCMATH_SCALE = 4;
 
-    public function __construct(WalletService $walletService)
-    {
+    public function __construct(
+        WalletService $walletService,
+        DoubleEntryLedgerService $ledgerService
+    ) {
         $this->walletService = $walletService;
+        $this->ledgerService = $ledgerService;
     }
 
     /**
@@ -436,13 +441,26 @@ class ProfitShareService
                     'description' => "Profit Share: {$lockedPeriod->period_name}",
                 ]);
 
-                // 2. Credit Wallet
+                // 2. LEDGER INTEGRATION: Record profit share accrual with TDS separation
+                // Step 1: DEBIT MARKETING_EXPENSE (gross), CREDIT BONUS_LIABILITY (net), CREDIT TDS_PAYABLE (tds)
+                // This records the platform's expense and creates the user's entitlement
+                $this->ledgerService->recordProfitShareWithTds(
+                    $dist->id,
+                    $grossAmount,
+                    $tdsDeducted,
+                    $user->id
+                );
+
+                // 3. Credit Wallet - transfers from BONUS_LIABILITY to USER_WALLET_LIABILITY
+                // Step 2: WalletService::deposit triggers recordBonusToWallet() which:
+                //         DEBIT BONUS_LIABILITY, CREDIT USER_WALLET_LIABILITY
+                // This two-step flow matches the bonus accounting pattern
                 if ($netAmount > 0) {
                     $this->walletService->deposit(
                         $user,
-                        $netAmount, 
-                        'bonus_credit', 
-                        "Profit Share: {$lockedPeriod->period_name}", 
+                        $netAmount,
+                        'bonus_credit',
+                        "Profit Share: {$lockedPeriod->period_name}",
                         $bonus
                     );
                 }

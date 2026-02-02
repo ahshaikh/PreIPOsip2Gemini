@@ -8,12 +8,15 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "feat(phase-4): close phase with correct bonus usage accounting and ledger integrity
+$CommitMessage = "chore(phase-4): freeze accounting model, incentives, and subscription semantics
 
-- Fix bonus usage to recognize share cost via COST_OF_SHARES
-- Ensure bonus-funded allocations are never free in P&L
-- Extend ledger guards to permit cost only for purchases and bonus usage
-- Complete Phase-4 closure with all checklist sections passing"
+- Finalize double-entry ledger as single source of financial truth
+- Lock expense-based inventory and discount-based revenue recognition
+- Normalize all incentives (bonuses, profit share) under bonus + TDS invariant
+- Prevent double wallet credits via strict accrual → transfer separation
+- Define subscription as access entitlement with wallet-backed user funds
+- Ensure SUBSCRIPTION_PAYMENT never triggers income or investment accounting
+- Declare Phase-4 complete and freeze all accounting semantics"
 #----------------------
 
 function Get-GitCredential {

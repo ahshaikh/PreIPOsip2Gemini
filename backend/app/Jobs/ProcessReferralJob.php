@@ -1,5 +1,6 @@
 <?php
 // V-PHASE3-1730-085 (Created) | V-FINAL-1730-378 | V-FINAL-1730-483 (KYC Check)
+// V-PHASE4-LEDGER (Ledger Integration + TDS Compliance)
 
 namespace App\Jobs;
 
@@ -10,6 +11,8 @@ use App\Models\Transaction;
 use App\Models\ReferralCampaign;
 use App\Services\ReferralService;
 use App\Services\WalletService;
+use App\Services\TdsCalculationService;
+use App\Services\DoubleEntryLedgerService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -30,10 +33,17 @@ class ProcessReferralJob implements ShouldQueue
      * Execute the job.
      *
      * [G.22 FIX]: Added idempotency protection to prevent double referral bonuses
+     *
+     * PHASE 4 LEDGER INTEGRATION:
+     * Uses two-step flow for proper bonus accounting:
+     *   Step 1: recordBonusWithTds() - DEBIT MARKETING_EXPENSE, CREDIT BONUS_LIABILITY, CREDIT TDS_PAYABLE
+     *   Step 2: deposit('bonus_credit') - DEBIT BONUS_LIABILITY, CREDIT USER_WALLET_LIABILITY
      */
     public function handle(
         ReferralService $referralService,
         WalletService $walletService,
+        TdsCalculationService $tdsService,
+        DoubleEntryLedgerService $ledgerService,
         \App\Services\IdempotencyService $idempotency
     ): void {
         // Check if referral module is enabled
@@ -114,34 +124,52 @@ class ProcessReferralJob implements ShouldQueue
                 // V-AUDIT-MODULE9-005 (LOW): Delegate bonus calculation to ReferralService
                 // This improves testability and follows separation of concerns principle
                 $bonusData = $referralService->calculateReferralBonus($this->referredUser, $campaignToUse);
-                $finalBonus = $bonusData['amount'];
+                $grossBonus = $bonusData['amount'];
                 $description = $bonusData['description'];
 
-                // 3. Create Bonus Transaction
+                // 3. Calculate TDS on referral bonus
+                $tdsResult = $tdsService->calculate($grossBonus, 'referral');
+
+                // 4. Create Bonus Transaction (with TDS tracking)
                 $bonus = BonusTransaction::create([
                     'user_id' => $referrer->id,
                     'subscription_id' => $referrer->subscription->id,
                     'type' => 'referral',
-                    'amount' => $finalBonus,
+                    'amount' => $tdsResult->grossAmount,
+                    'tds_deducted' => $tdsResult->tdsAmount,
+                    'base_amount' => $grossBonus,
+                    'multiplier_applied' => 1.0,
                     'description' => $description,
                 ]);
 
-                // 4. Credit Wallet (Using Service)
+                // 5. PHASE 4: Record bonus accrual in ledger FIRST
+                // DEBIT MARKETING_EXPENSE (gross), CREDIT BONUS_LIABILITY (net), CREDIT TDS_PAYABLE (tds)
+                $ledgerService->recordBonusWithTds(
+                    $bonus,
+                    $tdsResult->grossAmount,
+                    $tdsResult->tdsAmount
+                );
+
+                // 6. Transfer to wallet
+                // This triggers recordBonusToWallet(): DEBIT BONUS_LIABILITY, CREDIT USER_WALLET_LIABILITY
                 $walletService->deposit(
                     $referrer,
-                    $finalBonus,
+                    $tdsResult->netAmount,
                     'bonus_credit',
-                    $description,
+                    $tdsResult->getDescription($description),
                     $bonus
                 );
 
-                // 5. Update Multiplier Tier (Using Service)
+                // 7. Update Multiplier Tier (Using Service)
                 $referralService->updateReferrerMultiplier($referrer);
 
-                Log::info("Referral processed successfully: Amount=₹{$finalBonus}", [
+                Log::info("Referral processed with TDS", [
                     'referrer_id' => $referrer->id,
                     'referred_id' => $this->referredUser->id,
-                    'campaign' => $campaignToUse?->name ?? 'None'
+                    'campaign' => $campaignToUse?->name ?? 'None',
+                    'gross_amount' => $tdsResult->grossAmount,
+                    'tds_amount' => $tdsResult->tdsAmount,
+                    'net_amount' => $tdsResult->netAmount,
                 ]);
             });
 

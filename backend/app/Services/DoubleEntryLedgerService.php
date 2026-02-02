@@ -619,7 +619,10 @@ class DoubleEntryLedgerService
     }
 
     /**
+     * @deprecated PHASE 4 SECTION 7.2: Use recordBonusToWallet(int, float, string) instead.
+     *
      * Record bonus conversion to wallet (when user receives bonus as cash).
+     * Legacy method kept for backward compatibility.
      *
      * ACCOUNTING:
      *   DEBIT  BONUS_LIABILITY         (decrease liability - bonus paid out)
@@ -630,7 +633,7 @@ class DoubleEntryLedgerService
      * @param float $amount Amount transferred
      * @return LedgerEntry
      */
-    public function recordBonusToWallet(
+    public function recordBonusToWalletLegacy(
         User $user,
         int $referenceId,
         float $amount
@@ -640,7 +643,7 @@ class DoubleEntryLedgerService
         $entry = $this->createEntry(
             LedgerEntry::REF_BONUS_CREDIT,
             $referenceId,
-            "Bonus to wallet: {$user->name} - ₹" . number_format($amount, 2)
+            "Bonus to wallet (legacy): {$user->name} - ₹" . number_format($amount, 2)
         );
 
         // DEBIT: Decrease bonus liability
@@ -797,6 +800,159 @@ class DoubleEntryLedgerService
 
         // CREDIT: Increase what we owe user
         $this->addLine($entry, LedgerAccount::CODE_USER_WALLET_LIABILITY, 'CREDIT', $amount);
+
+        $this->validateBalanced($entry);
+
+        return $entry;
+    }
+
+    // =========================================================================
+    // SUBSCRIPTION & PLATFORM OPERATIONS
+    // =========================================================================
+
+    /**
+     * Record subscription fee earned by platform.
+     *
+     * ACCOUNTING:
+     *   DEBIT  USER_WALLET_LIABILITY  (decrease liability - user paid fee)
+     *   CREDIT SUBSCRIPTION_INCOME    (recognize revenue)
+     *
+     * This records the platform's fee for subscription services.
+     *
+     * @param int $subscriptionId Subscription ID
+     * @param float $amount Fee amount (in rupees)
+     * @return LedgerEntry
+     */
+    public function recordSubscriptionIncome(
+        int $subscriptionId,
+        float $amount
+    ): LedgerEntry {
+        $this->validatePositiveAmount($amount);
+
+        $entry = $this->createEntry(
+            LedgerEntry::REF_SUBSCRIPTION_FEE,
+            $subscriptionId,
+            "Subscription fee: ₹" . number_format($amount, 2)
+        );
+
+        // DEBIT: Decrease User Wallet Liability (user paid fee)
+        $this->addLine($entry, LedgerAccount::CODE_USER_WALLET_LIABILITY, 'DEBIT', $amount);
+
+        // CREDIT: Recognize subscription income
+        $this->addLine($entry, LedgerAccount::CODE_SUBSCRIPTION_INCOME, 'CREDIT', $amount);
+
+        $this->validateBalanced($entry);
+
+        return $entry;
+    }
+
+    /**
+     * Record platform operating expense (rent, salaries, vendors, etc.)
+     *
+     * ACCOUNTING:
+     *   DEBIT  OPERATING_EXPENSES  (increase expense)
+     *   CREDIT BANK                (decrease asset - cash paid out)
+     *
+     * @param int $referenceId Expense record/invoice ID
+     * @param float $amount Expense amount (in rupees)
+     * @param string $description Description of expense
+     * @param int|null $adminId Admin recording this
+     * @return LedgerEntry
+     */
+    public function recordOperatingExpense(
+        int $referenceId,
+        float $amount,
+        string $description,
+        ?int $adminId = null
+    ): LedgerEntry {
+        $this->validatePositiveAmount($amount);
+
+        $entry = $this->createEntry(
+            LedgerEntry::REF_OPERATING_EXPENSE,
+            $referenceId,
+            "Operating expense: {$description} - ₹" . number_format($amount, 2),
+            $adminId
+        );
+
+        // DEBIT: Increase operating expense
+        $this->addLine($entry, LedgerAccount::CODE_OPERATING_EXPENSES, 'DEBIT', $amount);
+
+        // CREDIT: Decrease bank (cash paid out)
+        $this->addLine($entry, LedgerAccount::CODE_BANK, 'CREDIT', $amount);
+
+        $this->validateBalanced($entry);
+
+        return $entry;
+    }
+
+    /**
+     * Record profit share distribution with TDS.
+     *
+     * ACCOUNTING (3-way split like bonus):
+     *   DEBIT  MARKETING_EXPENSE  (gross distribution - platform expense)
+     *   CREDIT BONUS_LIABILITY    (net amount - user entitlement before wallet transfer)
+     *   CREDIT TDS_PAYABLE        (TDS amount owed to government)
+     *
+     * PHASE 4 FIX: Changed from USER_WALLET_LIABILITY to BONUS_LIABILITY.
+     * This follows the same two-step pattern as regular bonuses:
+     *   Step 1: Record profit share accrual (this method) - credits BONUS_LIABILITY
+     *   Step 2: Transfer to wallet (via WalletService::deposit with bonus_credit)
+     *           - triggers recordBonusToWallet() which debits BONUS_LIABILITY
+     *             and credits USER_WALLET_LIABILITY
+     *
+     * RATIONALE:
+     * - Profit share is functionally a bonus (incentive payment to users)
+     * - Using BONUS_LIABILITY allows consistent tracking with other bonus types
+     * - Prevents double-crediting USER_WALLET_LIABILITY
+     *
+     * NOTE: Profit share is treated as marketing expense (incentive to users).
+     * The TDS must be properly recorded as government liability.
+     *
+     * @param int $distributionId Profit share distribution ID
+     * @param float $grossAmount Gross distribution amount
+     * @param float $tdsAmount TDS deducted
+     * @param int $userId User receiving distribution
+     * @return LedgerEntry
+     */
+    public function recordProfitShareWithTds(
+        int $distributionId,
+        float $grossAmount,
+        float $tdsAmount,
+        int $userId
+    ): LedgerEntry {
+        $this->validatePositiveAmount($grossAmount);
+
+        $netAmount = $grossAmount - $tdsAmount;
+
+        // INVARIANT: Gross = Net + TDS (must reconcile)
+        if (abs($grossAmount - ($netAmount + $tdsAmount)) > 0.01) {
+            throw new \RuntimeException(
+                "PROFIT SHARE TDS RECONCILIATION FAILED: Gross (₹{$grossAmount}) != Net (₹{$netAmount}) + TDS (₹{$tdsAmount})"
+            );
+        }
+
+        $entry = $this->createEntry(
+            LedgerEntry::REF_PROFIT_SHARE,
+            $distributionId,
+            "Profit share: User #{$userId} - Gross ₹" . number_format($grossAmount, 2) .
+            ", TDS ₹" . number_format($tdsAmount, 2) .
+            ", Net ₹" . number_format($netAmount, 2)
+        );
+
+        // DEBIT: Marketing expense (gross - full platform cost)
+        $this->addLine($entry, LedgerAccount::CODE_MARKETING_EXPENSE, 'DEBIT', $grossAmount);
+
+        // CREDIT: Bonus liability (net - what user is entitled to)
+        // PHASE 4 FIX: Credit BONUS_LIABILITY, not USER_WALLET_LIABILITY
+        // Transfer to USER_WALLET_LIABILITY happens via WalletService::deposit
+        if ($netAmount > 0) {
+            $this->addLine($entry, LedgerAccount::CODE_BONUS_LIABILITY, 'CREDIT', $netAmount);
+        }
+
+        // CREDIT: TDS payable (government liability)
+        if ($tdsAmount > 0) {
+            $this->addLine($entry, LedgerAccount::CODE_TDS_PAYABLE, 'CREDIT', $tdsAmount);
+        }
 
         $this->validateBalanced($entry);
 

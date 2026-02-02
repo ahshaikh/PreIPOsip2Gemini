@@ -1,4 +1,5 @@
 <?php
+// V-PHASE4-LEDGER (Ledger Integration + TDS Compliance)
 
 namespace App\Http\Controllers\Api\Admin;
 
@@ -12,22 +13,30 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
-use App\Services\WalletService; // [ADDED] Required to actually credit the user's wallet
-use App\Services\Accounting\AdminLedger; // FIX 24: Admin ledger for bonus reversal tracking
+use App\Services\WalletService;
+use App\Services\TdsCalculationService;
+use App\Services\DoubleEntryLedgerService;
+use App\Services\Accounting\AdminLedger; // FIX 24: Admin ledger for bonus reversal tracking (DEPRECATED)
 
 class AdminBonusController extends Controller
 {
-    // [ADDED] Property for the WalletService
-    protected $walletService;
+    protected WalletService $walletService;
+    protected TdsCalculationService $tdsService;
+    protected DoubleEntryLedgerService $ledgerService;
 
-    // FIX 24: Property for AdminLedger
+    // FIX 24: Property for AdminLedger (DEPRECATED - use ledgerService instead)
     protected $adminLedger;
 
-    // [ADDED] Constructor to inject WalletService and AdminLedger
-    public function __construct(WalletService $walletService, AdminLedger $adminLedger)
-    {
+    public function __construct(
+        WalletService $walletService,
+        TdsCalculationService $tdsService,
+        DoubleEntryLedgerService $ledgerService,
+        AdminLedger $adminLedger
+    ) {
         $this->walletService = $walletService;
-        $this->adminLedger = $adminLedger; // FIX 24
+        $this->tdsService = $tdsService;
+        $this->ledgerService = $ledgerService;
+        $this->adminLedger = $adminLedger; // FIX 24 (DEPRECATED)
     }
 
     /**
@@ -264,6 +273,15 @@ class AdminBonusController extends Controller
      * Award a special bonus to a user (Admin only)
      *
      * POST /api/v1/admin/bonuses/award-special
+     *
+     * PHASE 4 LEDGER INTEGRATION:
+     * Uses two-step flow for proper bonus accounting:
+     *   Step 1: recordBonusWithTds() - DEBIT MARKETING_EXPENSE, CREDIT BONUS_LIABILITY, CREDIT TDS_PAYABLE
+     *   Step 2: deposit('bonus_credit') - DEBIT BONUS_LIABILITY, CREDIT USER_WALLET_LIABILITY
+     *
+     * TDS COMPLIANCE:
+     * - Special bonuses are taxable income
+     * - TDS is calculated and deducted before crediting to wallet
      */
     public function awardSpecialBonus(Request $request)
     {
@@ -274,46 +292,62 @@ class AdminBonusController extends Controller
         ]);
 
         $user = User::findOrFail($validated['user_id']);
-        $amount = (float) $validated['amount'];
+        $grossAmount = (float) $validated['amount'];
         $reason = $validated['reason'];
 
-        // [MODIFIED] Corrected try-catch block structure
         try {
-            $bonus = DB::transaction(function () use ($user, $amount, $reason) {
+            $bonus = DB::transaction(function () use ($user, $grossAmount, $reason) {
 
-                // 1. Create special bonus transaction record
+                // 1. Calculate TDS on the bonus amount
+                $tdsResult = $this->tdsService->calculate($grossAmount, 'special_bonus');
+
+                // 2. Create special bonus transaction record (with TDS tracking)
                 $bonusTransaction = BonusTransaction::create([
                     'user_id' => $user->id,
                     'subscription_id' => $user->subscriptions()->latest()->first()?->id,
                     'payment_id' => null, // No specific payment associated
                     'type' => 'special_bonus',
-                    'amount' => $amount,
+                    'amount' => $tdsResult->grossAmount, // Gross amount
+                    'tds_deducted' => $tdsResult->tdsAmount, // TDS for compliance
                     'multiplier_applied' => 1.0,
-                    'base_amount' => $amount,
+                    'base_amount' => $grossAmount,
                     'description' => "Special Bonus: {$reason}"
                 ]);
 
-                // 2. [ADDED] Call WalletService to credit the user's balance.
-                // This was missing in the previous version, meaning users got a record but no actual money.
+                // 3. PHASE 4: Record bonus accrual in ledger FIRST (Step 1)
+                // DEBIT MARKETING_EXPENSE (gross), CREDIT BONUS_LIABILITY (net), CREDIT TDS_PAYABLE (tds)
+                $this->ledgerService->recordBonusWithTds(
+                    $bonusTransaction,
+                    $tdsResult->grossAmount,
+                    $tdsResult->tdsAmount
+                );
+
+                // 4. Transfer to wallet (Step 2)
+                // This triggers recordBonusToWallet(): DEBIT BONUS_LIABILITY, CREDIT USER_WALLET_LIABILITY
                 $this->walletService->deposit(
                     $user,
-                    $amount,
+                    $tdsResult->netAmount, // Net amount after TDS
                     'bonus_credit',
-                    "Special Bonus: {$reason}",
-                    $bonusTransaction // Link the wallet ledger entry to this bonus transaction
+                    $tdsResult->getDescription("Special Bonus: {$reason}"),
+                    $bonusTransaction
                 );
 
                 return $bonusTransaction;
             });
 
-            // Send notification to user
-            $user->notify(new BonusCredited($amount, 'Special'));
+            // Send notification to user (gross amount shown, TDS info in details)
+            $user->notify(new BonusCredited($grossAmount, 'Special'));
 
-            Log::info("Admin awarded special bonus: ₹{$amount} to User {$user->id}. Reason: {$reason}");
+            Log::info("Admin awarded special bonus with TDS", [
+                'user_id' => $user->id,
+                'gross_amount' => $grossAmount,
+                'reason' => $reason,
+                'bonus_id' => $bonus->id,
+            ]);
 
             return response()->json([
                 'success' => true,
-                'message' => "Special bonus of ₹{$amount} awarded to {$user->username}",
+                'message' => "Special bonus of ₹{$grossAmount} awarded to {$user->username} (Net after TDS: ₹" . ($bonus->amount - $bonus->tds_deducted) . ")",
                 'bonus' => $bonus,
             ]);
 
@@ -429,32 +463,47 @@ class AdminBonusController extends Controller
                 }
 
                 try {
-                    // [MODIFIED] Added DB::transaction to ensure atomicity for CSV uploads
-                    DB::transaction(function () use ($user, $amount, $reason) {
-                        
-                        // 1. Create Record
+                    $grossAmount = (float) $amount;
+
+                    // PHASE 4: Added DB::transaction with TDS and ledger integration
+                    DB::transaction(function () use ($user, $grossAmount, $reason) {
+
+                        // 1. Calculate TDS on the bonus amount
+                        $tdsResult = $this->tdsService->calculate($grossAmount, 'special_bonus');
+
+                        // 2. Create Record (with TDS tracking)
                         $bonusTransaction = BonusTransaction::create([
                             'user_id' => $user->id,
                             'subscription_id' => $user->subscriptions()->latest()->first()?->id,
                             'payment_id' => null,
                             'type' => 'special_bonus',
-                            'amount' => (float) $amount,
+                            'amount' => $tdsResult->grossAmount,
+                            'tds_deducted' => $tdsResult->tdsAmount,
                             'multiplier_applied' => 1.0,
-                            'base_amount' => (float) $amount,
+                            'base_amount' => $grossAmount,
                             'description' => "Bulk Bonus (CSV): {$reason}"
                         ]);
 
-                        // 2. [ADDED] Call WalletService to credit the user's balance.
+                        // 3. PHASE 4: Record bonus accrual in ledger FIRST
+                        // DEBIT MARKETING_EXPENSE (gross), CREDIT BONUS_LIABILITY (net), CREDIT TDS_PAYABLE (tds)
+                        $this->ledgerService->recordBonusWithTds(
+                            $bonusTransaction,
+                            $tdsResult->grossAmount,
+                            $tdsResult->tdsAmount
+                        );
+
+                        // 4. Transfer to wallet
+                        // This triggers recordBonusToWallet(): DEBIT BONUS_LIABILITY, CREDIT USER_WALLET_LIABILITY
                         $this->walletService->deposit(
                             $user,
-                            (float) $amount,
+                            $tdsResult->netAmount,
                             'bonus_credit',
-                            "Bulk Bonus (CSV): {$reason}",
+                            $tdsResult->getDescription("Bulk Bonus (CSV): {$reason}"),
                             $bonusTransaction
                         );
                     });
 
-                    $user->notify(new BonusCredited((float) $amount, 'Special'));
+                    $user->notify(new BonusCredited($grossAmount, 'Special'));
                     $successCount++;
                 } catch (\Exception $e) {
                     $failedRows[] = [

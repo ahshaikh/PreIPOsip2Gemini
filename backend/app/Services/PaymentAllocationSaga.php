@@ -1,6 +1,7 @@
 <?php
 /**
  * FIX 4 (P0): Payment Allocation Saga
+ * V-PHASE4-LEDGER (Ledger Integration + TDS Compliance)
  *
  * CRITICAL: Provides crash-safe, rollback-capable payment processing
  * Ensures money is never lost even if allocation fails mid-process.
@@ -15,12 +16,17 @@
  * - Automatic compensation (rollback) in reverse order
  * - All steps tracked in SagaExecution for crash recovery
  * - Manual resolution dashboard for admin intervention
+ *
+ * PHASE 4 LEDGER INTEGRATION:
+ * Bonus processing uses two-step flow:
+ *   Step 1: recordBonusWithTds() - DEBIT MARKETING_EXPENSE, CREDIT BONUS_LIABILITY, CREDIT TDS_PAYABLE
+ *   Step 2: deposit('bonus_credit') - DEBIT BONUS_LIABILITY, CREDIT USER_WALLET_LIABILITY
  */
 
 namespace App\Services;
 
 use App\Models\{Payment, SagaExecution, Transaction, BonusTransaction, UserInvestment, Subscription};
-use App\Services\{WalletService, AllocationService};
+use App\Services\{WalletService, AllocationService, TdsCalculationService, DoubleEntryLedgerService};
 use Illuminate\Support\Facades\{DB, Log};
 use App\Enums\TransactionType;
 
@@ -28,13 +34,19 @@ class PaymentAllocationSaga
 {
     protected WalletService $walletService;
     protected AllocationService $allocationService;
+    protected TdsCalculationService $tdsService;
+    protected DoubleEntryLedgerService $ledgerService;
 
     public function __construct(
         WalletService $walletService,
-        AllocationService $allocationService
+        AllocationService $allocationService,
+        TdsCalculationService $tdsService,
+        DoubleEntryLedgerService $ledgerService
     ) {
         $this->walletService = $walletService;
         $this->allocationService = $allocationService;
+        $this->tdsService = $tdsService;
+        $this->ledgerService = $ledgerService;
     }
 
     /**
@@ -137,6 +149,11 @@ class PaymentAllocationSaga
 
     /**
      * Step 2: Calculate and credit bonus (if applicable)
+     *
+     * PHASE 4 LEDGER INTEGRATION:
+     * Uses two-step flow for proper bonus accounting:
+     *   Step 1: recordBonusWithTds() - DEBIT MARKETING_EXPENSE, CREDIT BONUS_LIABILITY, CREDIT TDS_PAYABLE
+     *   Step 2: deposit('bonus_credit') - DEBIT BONUS_LIABILITY, CREDIT USER_WALLET_LIABILITY
      */
     protected function processBonus(Payment $payment, SagaExecution $saga): ?BonusTransaction
     {
@@ -170,28 +187,47 @@ class PaymentAllocationSaga
             return null;
         }
 
-        // Create bonus transaction
+        // PHASE 4: Calculate TDS using centralized service
+        $tdsResult = $this->tdsService->calculate($bonusAmount, $bonusType);
+
+        // Create bonus transaction with TDS tracking
         $bonus = BonusTransaction::create([
             'user_id' => $payment->user_id,
             'subscription_id' => $subscription->id,
             'payment_id' => $payment->id,
             'type' => $bonusType,
-            'amount' => $bonusAmount,
+            'amount' => $tdsResult->grossAmount,
+            'tds_deducted' => $tdsResult->tdsAmount,
             'base_amount' => $payment->amount,
             'multiplier_applied' => 0.05,
-            'tds_deducted' => 0, // Would calculate TDS here
             'description' => "Progressive bonus for payment #{$payment->id}",
         ]);
 
-        // Credit bonus to wallet
+        // PHASE 4: Record bonus accrual in ledger FIRST
+        // DEBIT MARKETING_EXPENSE (gross), CREDIT BONUS_LIABILITY (net), CREDIT TDS_PAYABLE (tds)
+        $this->ledgerService->recordBonusWithTds(
+            $bonus,
+            $tdsResult->grossAmount,
+            $tdsResult->tdsAmount
+        );
+
+        // Transfer to wallet (net amount after TDS)
+        // This triggers recordBonusToWallet(): DEBIT BONUS_LIABILITY, CREDIT USER_WALLET_LIABILITY
         $this->walletService->deposit(
             user: $payment->user,
-            amount: bcmul($bonusAmount, 100),
-            type: TransactionType::BONUS,
-            description: "Bonus credited for payment #{$payment->id}",
+            amount: $tdsResult->netAmount, // Net amount (already in rupees from TdsResult)
+            type: TransactionType::BONUS_CREDIT,
+            description: $tdsResult->getDescription("Progressive bonus for payment #{$payment->id}"),
             reference: $bonus,
             bypassComplianceCheck: true
         );
+
+        Log::info('Saga bonus with ledger integration', [
+            'saga_id' => $saga->saga_id,
+            'gross' => $tdsResult->grossAmount,
+            'tds' => $tdsResult->tdsAmount,
+            'net' => $tdsResult->netAmount,
+        ]);
 
         return $bonus;
     }

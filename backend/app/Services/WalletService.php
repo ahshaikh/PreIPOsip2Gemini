@@ -313,6 +313,10 @@ class WalletService
             }
 
             // PHASE 4 SECTION 7.2: Record investment ledger entries
+            // Subscription grants entitlement (access rights of the PreIPOsip platform), 
+            // but subscription payments do not constitute platform revenue.
+            // All subscription funds remain user-owned capital until used for investments.
+            
             if ($type === TransactionType::INVESTMENT && $status === 'completed') {
                 $cashAmountPaise = $amountPaise - $bonusAmountPaise;
 

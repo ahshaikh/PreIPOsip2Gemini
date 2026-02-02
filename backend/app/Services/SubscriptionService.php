@@ -86,6 +86,10 @@ class SubscriptionService
             ]);
 
             // If wallet has sufficient funds, pay from wallet immediately
+            // Subscription grants entitlement (access rights of the PreIPOsip platform), 
+            // but subscription payments do not constitute platform revenue.
+            // All subscription funds remain user-owned capital until used for investments.
+            
             if ($hasWalletFunds) {
                 // Deduct from wallet and link to payment
                 $this->walletService->withdraw(

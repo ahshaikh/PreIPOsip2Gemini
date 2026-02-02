@@ -499,6 +499,15 @@ class BonusCalculatorService
             'description' => "Referral Bonus - {$referredUser->username} met completion criteria: {$criteria}"
         ]);
 
+        // PHASE 4 FIX: STEP 1 - Record bonus accrual in ledger FIRST
+        // This CREDITS BONUS_LIABILITY (the referrer's entitlement)
+        $this->ledgerService->recordBonusWithTds(
+            $bonusTxn,
+            $tdsResult->grossAmount,
+            $tdsResult->tdsAmount
+        );
+
+        // PHASE 4 FIX: STEP 2 - Transfer to wallet
         // [PROTOCOL 1 FIX]: depositTaxable() REQUIRES TdsResult (cannot bypass)
         $this->walletService->depositTaxable(
             $referrer,
@@ -524,22 +533,28 @@ class BonusCalculatorService
      * - System must deduct TDS before crediting wallet (legal requirement)
      * - TDS is stored in tds_deducted field for audit and tax reporting
      *
-     * PHASE 4.2 HARDENING: Proper legal separation of Bonus + TDS.
-     * The double-entry ledger now records THREE distinct truths:
-     * - DEBIT MARKETING_EXPENSE (GROSS - full platform expense)
-     * - CREDIT USER_WALLET_LIABILITY (NET - what user gets)
-     * - CREDIT TDS_PAYABLE (TDS - government liability)
+     * PHASE 4 FIX: Two-Step Ledger Flow for Proper Bonus Accounting.
+     *
+     * Step 1: Record bonus accrual with TDS (recordBonusWithTds)
+     *   - DEBIT MARKETING_EXPENSE (GROSS - full platform expense)
+     *   - CREDIT BONUS_LIABILITY (NET - user entitlement)
+     *   - CREDIT TDS_PAYABLE (TDS - government liability)
+     *
+     * Step 2: Transfer to wallet (WalletService::deposit triggers recordBonusToWallet)
+     *   - DEBIT BONUS_LIABILITY (decrease bonus entitlement)
+     *   - CREDIT USER_WALLET_LIABILITY (increase spendable wallet)
      *
      * This ensures:
      * - P&L correctly reflects gross marketing expense
-     * - User wallet is exactly the net amount
+     * - Bonus entitlement is tracked separately from wallet balance
      * - TDS is explicit and traceable for remittance
+     * - No double-crediting of USER_WALLET_LIABILITY
      *
      * Flow:
      * 1. Calculate TDS based on bonus_tds_percentage setting
      * 2. Store gross amount and TDS in BonusTransaction
-     * 3. Deposit only net_amount (amount - TDS) to wallet
-     * 4. Record three-way split in double-entry ledger
+     * 3. Record bonus accrual in ledger (credits BONUS_LIABILITY)
+     * 4. Transfer to wallet (debits BONUS_LIABILITY, credits USER_WALLET_LIABILITY)
      *
      * Example:
      * - Gross Bonus: ₹1000
@@ -563,8 +578,22 @@ class BonusCalculatorService
             'description' => $description
         ]);
 
+        // PHASE 4 FIX: STEP 1 - Record bonus accrual in ledger FIRST
+        // This CREDITS BONUS_LIABILITY (the user's entitlement)
+        // Single entry with three-way split:
+        // - DEBIT MARKETING_EXPENSE (gross - full platform cost)
+        // - CREDIT BONUS_LIABILITY (net - user entitlement)
+        // - CREDIT TDS_PAYABLE (tds - government liability)
+        $this->ledgerService->recordBonusWithTds(
+            $bonusTxn,
+            $tdsResult->grossAmount,
+            $tdsResult->tdsAmount
+        );
+
+        // PHASE 4 FIX: STEP 2 - Transfer to wallet
+        // depositTaxable() calls deposit('bonus_credit') which triggers recordBonusToWallet()
+        // This DEBITS BONUS_LIABILITY and CREDITS USER_WALLET_LIABILITY
         // [PROTOCOL 1 FIX]: depositTaxable() REQUIRES TdsResult (cannot bypass)
-        // This ensures legal compliance - TDS is withheld and will be remitted to tax authorities
         $this->walletService->depositTaxable(
             $payment->user,
             $tdsResult, // MUST provide TdsResult from TdsCalculationService
@@ -573,18 +602,7 @@ class BonusCalculatorService
             $bonusTxn
         );
 
-        // PHASE 4.2: Record in double-entry ledger with proper TDS separation
-        // Single entry with three-way split:
-        // - DEBIT MARKETING_EXPENSE (gross - full platform cost)
-        // - CREDIT USER_WALLET_LIABILITY (net - what user gets)
-        // - CREDIT TDS_PAYABLE (tds - government liability)
-        $this->ledgerService->recordBonusWithTds(
-            $bonusTxn,
-            $tdsResult->grossAmount,
-            $tdsResult->tdsAmount
-        );
-
-        Log::info("Bonus created with legally separated ledger entry", [
+        Log::info("Bonus created with two-step ledger flow", [
             'user_id' => $payment->user_id,
             'type' => $type,
             'bonus_id' => $bonusTxn->id,
@@ -592,7 +610,8 @@ class BonusCalculatorService
             'tds_amount' => $tdsResult->tdsAmount,
             'tds_rate' => $tdsResult->rateApplied . '%',
             'net_amount' => $tdsResult->netAmount,
-            'ledger' => 'DEBIT MARKETING_EXPENSE (gross), CREDIT USER_WALLET_LIABILITY (net), CREDIT TDS_PAYABLE (tds)',
+            'ledger_step1' => 'DEBIT MARKETING_EXPENSE (gross), CREDIT BONUS_LIABILITY (net), CREDIT TDS_PAYABLE (tds)',
+            'ledger_step2' => 'DEBIT BONUS_LIABILITY (net), CREDIT USER_WALLET_LIABILITY (net)',
         ]);
     }
 }

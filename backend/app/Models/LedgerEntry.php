@@ -60,6 +60,9 @@ class LedgerEntry extends Model
     public const REF_GATEWAY_FEE = 'gateway_fee';
     public const REF_MANUAL_ADJUSTMENT = 'manual_adjustment';
     public const REF_BONUS_USAGE = 'bonus_usage'; // PHASE 4 SECTION 7.2: Cost recognition for bonus-funded shares
+    public const REF_SUBSCRIPTION_FEE = 'subscription_fee'; // Subscription fee earned by platform
+    public const REF_OPERATING_EXPENSE = 'operating_expense'; // Platform operating expenses (rent, salaries, etc.)
+    public const REF_PROFIT_SHARE = 'profit_share'; // Profit share distribution to users
 
     protected $table = 'ledger_entries';
 

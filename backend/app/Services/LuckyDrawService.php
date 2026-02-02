@@ -1,5 +1,6 @@
 <?php
 // V-FINAL-1730-366 (Created) | V-FINAL-1730-459 (WalletService Refactor) | V-AUDIT-FIX-MODULE10 (Memory Leak Fix)
+// V-PHASE4-LEDGER (Ledger Integration + TDS Compliance)
 
 namespace App\Services;
 
@@ -10,11 +11,23 @@ use App\Models\Subscription;
 use App\Models\BonusTransaction;
 use App\Models\User;
 use App\Services\WalletService;
+use App\Services\TdsCalculationService;
+use App\Services\DoubleEntryLedgerService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class LuckyDrawService
 {
+    protected TdsCalculationService $tdsService;
+    protected DoubleEntryLedgerService $ledgerService;
+
+    public function __construct(
+        TdsCalculationService $tdsService,
+        DoubleEntryLedgerService $ledgerService
+    ) {
+        $this->tdsService = $tdsService;
+        $this->ledgerService = $ledgerService;
+    }
     /**
      * Create a new draw for the current month.
      */
@@ -166,16 +179,26 @@ class LuckyDrawService
     /**
      * Distribute prizes to winners' wallets.
      * Requires WalletService for safe, atomic deposits.
+     *
+     * PHASE 4 LEDGER INTEGRATION:
+     * Uses two-step flow for proper bonus accounting:
+     *   Step 1: recordBonusWithTds() - DEBIT MARKETING_EXPENSE, CREDIT BONUS_LIABILITY, CREDIT TDS_PAYABLE
+     *   Step 2: deposit('bonus_credit') - DEBIT BONUS_LIABILITY, CREDIT USER_WALLET_LIABILITY
+     *
+     * TDS COMPLIANCE:
+     * - Lucky draw winnings are taxable income
+     * - TDS is calculated and deducted before crediting to wallet
+     * - TDS amount is recorded for remittance to government
      */
     public function distributePrizes(LuckyDraw $draw, array $winnerUserIds, WalletService $walletService): void
     {
         $prizeIndex = 0;
 
         DB::transaction(function () use ($draw, $winnerUserIds, &$prizeIndex, $walletService) {
-            
+
             foreach ($draw->prize_structure as $tier) {
                 $rank = (int)$tier['rank'];
-                $amount = (float)$tier['amount'];
+                $grossAmount = (float)$tier['amount'];
                 $count = (int)$tier['count'];
 
                 for ($i = 0; $i < $count; $i++) {
@@ -183,10 +206,10 @@ class LuckyDrawService
                     if (!isset($winnerUserIds[$prizeIndex])) break;
 
                     $winnerId = $winnerUserIds[$prizeIndex];
-                    
+
                     // Find the winner's entry record
                     $entry = $draw->entries()->where('user_id', $winnerId)->with('user', 'payment.subscription')->first();
-                    
+
                     if (!$entry || !$entry->user) {
                         Log::error("LuckyDrawService: Winner User ID $winnerId not found or has no user record.");
                         $prizeIndex++;
@@ -194,15 +217,18 @@ class LuckyDrawService
                     }
 
                     $user = $entry->user;
-                    
+
                     // 1. Mark Entry as Winner
                     $entry->update([
                         'is_winner' => true,
                         'prize_rank' => $rank,
-                        'prize_amount' => $amount
+                        'prize_amount' => $grossAmount
                     ]);
 
-                    // 2. Create Bonus Transaction (Ledger)
+                    // 2. Calculate TDS (lucky draw winnings are taxable)
+                    $tdsResult = $this->tdsService->calculate($grossAmount, 'lucky_draw');
+
+                    // 3. Create Bonus Transaction (with TDS tracking)
                     // Ensure subscription_id exists, fall back to null if payment deleted
                     $subId = $entry->payment ? $entry->payment->subscription_id : null;
 
@@ -210,23 +236,44 @@ class LuckyDrawService
                         'user_id' => $winnerId,
                         'subscription_id' => $subId,
                         'type' => 'lucky_draw',
-                        'amount' => $amount,
+                        'amount' => $tdsResult->grossAmount, // Gross amount
+                        'tds_deducted' => $tdsResult->tdsAmount, // TDS for compliance
+                        'base_amount' => $grossAmount,
+                        'multiplier_applied' => 1.0,
                         'description' => "Lucky Draw Winner - Rank {$rank} ({$draw->name})",
                     ]);
 
-                    // 3. Credit Wallet (Safe Deposit)
+                    // 4. PHASE 4: Record bonus accrual in ledger FIRST (Step 1)
+                    // DEBIT MARKETING_EXPENSE (gross), CREDIT BONUS_LIABILITY (net), CREDIT TDS_PAYABLE (tds)
+                    $this->ledgerService->recordBonusWithTds(
+                        $bonus,
+                        $tdsResult->grossAmount,
+                        $tdsResult->tdsAmount
+                    );
+
+                    // 5. Transfer to wallet (Step 2)
+                    // This triggers recordBonusToWallet(): DEBIT BONUS_LIABILITY, CREDIT USER_WALLET_LIABILITY
                     $walletService->deposit(
                         $user,
-                        $amount,
-                        'bonus_credit', // Transaction type
-                        "Lucky Draw Prize (Rank {$rank})",
-                        $bonus // Link to the bonus transaction
+                        $tdsResult->netAmount, // Net amount after TDS
+                        'bonus_credit',
+                        $tdsResult->getDescription("Lucky Draw Prize (Rank {$rank})"),
+                        $bonus
                     );
-                    
+
+                    Log::info("Lucky draw prize distributed with TDS", [
+                        'user_id' => $winnerId,
+                        'rank' => $rank,
+                        'gross_amount' => $tdsResult->grossAmount,
+                        'tds_amount' => $tdsResult->tdsAmount,
+                        'net_amount' => $tdsResult->netAmount,
+                        'bonus_id' => $bonus->id,
+                    ]);
+
                     $prizeIndex++;
                 }
             }
-            
+
             $draw->update(['status' => 'completed']);
         });
     }

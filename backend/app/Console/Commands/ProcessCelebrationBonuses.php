@@ -1,5 +1,6 @@
 <?php
 // V-FINAL-1730-348 (Created) | V-FINAL-1730-457 (WalletService Refactor) | V-AUDIT-MODULE8-002 (Chunk Processing) | V-AUDIT-MODULE8-003 (Idempotency)
+// V-PHASE4-LEDGER (Ledger Integration + TDS Compliance)
 
 namespace App\Console\Commands;
 
@@ -9,7 +10,9 @@ use App\Models\UserProfile;
 use App\Models\Subscription;
 use App\Models\BonusTransaction;
 use App\Models\CelebrationEvent;
-use App\Services\WalletService; // <-- IMPORT
+use App\Services\WalletService;
+use App\Services\TdsCalculationService;
+use App\Services\DoubleEntryLedgerService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -18,6 +21,18 @@ class ProcessCelebrationBonuses extends Command
 {
     protected $signature = 'app:process-celebration-bonuses';
     protected $description = 'Awards birthday, anniversary, and festival bonuses.';
+
+    protected TdsCalculationService $tdsService;
+    protected DoubleEntryLedgerService $ledgerService;
+
+    public function __construct(
+        TdsCalculationService $tdsService,
+        DoubleEntryLedgerService $ledgerService
+    ) {
+        parent::__construct();
+        $this->tdsService = $tdsService;
+        $this->ledgerService = $ledgerService;
+    }
 
     public function handle(WalletService $walletService)
     {
@@ -150,39 +165,54 @@ class ProcessCelebrationBonuses extends Command
     /**
      * V-AUDIT-MODULE8-001: Award bonus with TDS deduction for tax compliance.
      *
-     * Applies TDS to celebration bonuses as well.
+     * PHASE 4 LEDGER INTEGRATION:
+     * Uses two-step flow for proper bonus accounting:
+     *   Step 1: recordBonusWithTds() - DEBIT MARKETING_EXPENSE, CREDIT BONUS_LIABILITY, CREDIT TDS_PAYABLE
+     *   Step 2: deposit('bonus_credit') - DEBIT BONUS_LIABILITY, CREDIT USER_WALLET_LIABILITY
      */
     private function awardBonus($user, $amount, $type, $msg, WalletService $walletService)
     {
         if (!$user || !$user->subscription || !$user->wallet) return;
 
         DB::transaction(function() use ($user, $amount, $type, $msg, $walletService) {
-            // V-AUDIT-MODULE8-001: Calculate TDS for celebration bonuses
-            $tdsPercentage = (float) setting('bonus_tds_percentage', 10.0);
-            $tdsAmount = round(($tdsPercentage / 100) * $amount, 2);
-            $netAmount = round($amount - $tdsAmount, 2);
+            // V-AUDIT-MODULE8-001: Calculate TDS using centralized service
+            $tdsResult = $this->tdsService->calculate($amount, 'celebration');
 
             $bonus = BonusTransaction::create([
                 'user_id' => $user->id,
                 'subscription_id' => $user->subscription->id,
                 'type' => $type,
-                'amount' => $amount, // Gross amount
-                'tds_deducted' => $tdsAmount, // V-AUDIT-MODULE8-001: TDS for compliance
+                'amount' => $tdsResult->grossAmount, // Gross amount
+                'tds_deducted' => $tdsResult->tdsAmount, // TDS for compliance
+                'base_amount' => $amount,
+                'multiplier_applied' => 1.0,
                 'description' => $msg,
             ]);
 
-            // V-AUDIT-MODULE8-001: Deposit only NET amount (after TDS)
+            // PHASE 4: Record bonus accrual in ledger FIRST
+            // DEBIT MARKETING_EXPENSE (gross), CREDIT BONUS_LIABILITY (net), CREDIT TDS_PAYABLE (tds)
+            $this->ledgerService->recordBonusWithTds(
+                $bonus,
+                $tdsResult->grossAmount,
+                $tdsResult->tdsAmount
+            );
+
+            // V-AUDIT-MODULE8-001: Transfer to wallet (net amount after TDS)
+            // This triggers recordBonusToWallet(): DEBIT BONUS_LIABILITY, CREDIT USER_WALLET_LIABILITY
             $walletService->deposit(
                 $user,
-                $netAmount,
+                $tdsResult->netAmount,
                 'bonus_credit',
-                $msg . ($tdsAmount > 0 ? " (TDS ₹{$tdsAmount} deducted)" : ""),
+                $tdsResult->getDescription($msg),
                 $bonus
             );
 
-            Log::info("Celebration bonus awarded: Gross=₹{$amount}, TDS=₹{$tdsAmount}, Net=₹{$netAmount}", [
+            Log::info("Celebration bonus with ledger integration", [
                 'user_id' => $user->id,
                 'type' => $type,
+                'gross' => $tdsResult->grossAmount,
+                'tds' => $tdsResult->tdsAmount,
+                'net' => $tdsResult->netAmount,
                 'bonus_id' => $bonus->id
             ]);
         });
