@@ -59,6 +59,7 @@ class LedgerEntry extends Model
     public const REF_TDS_REMITTANCE = 'tds_remittance'; // PHASE 4.2: TDS payment to government
     public const REF_GATEWAY_FEE = 'gateway_fee';
     public const REF_MANUAL_ADJUSTMENT = 'manual_adjustment';
+    public const REF_BONUS_USAGE = 'bonus_usage'; // PHASE 4 SECTION 7.2: Cost recognition for bonus-funded shares
 
     protected $table = 'ledger_entries';
 

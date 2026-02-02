@@ -145,6 +145,15 @@ class WalletService
                 $this->ledgerService->recordUserDeposit($user, $payment ?? $transaction->id, $amountRupees);
             }
 
+            // PHASE 4 SECTION 7.2: Step 7.2 - Bonus credit to wallet
+            // Transfer from BONUS_LIABILITY to USER_WALLET_LIABILITY
+            // recordBonusWithTds() has already credited BONUS_LIABILITY, now we transfer to wallet
+            if ($type === TransactionType::BONUS_CREDIT) {
+                $amountRupees = $amountPaise / 100;
+                $bonusType = 'bonus_credit'; // Generic type, actual type tracked in BonusTransaction
+                $this->ledgerService->recordBonusToWallet($transaction->id, $amountRupees, $bonusType);
+            }
+
             return $transaction;
         });
     }
@@ -209,6 +218,10 @@ class WalletService
     /**
      * Safely withdraw funds from a user's wallet.
      * [AUDIT FIX]: Added $allowOverdraft parameter to support Admin corrections/recoveries.
+     *
+     * PHASE 4 SECTION 7.2: Added $bonusAmountPaise parameter for bonus usage accounting.
+     * When shares are purchased using bonus funds, the caller must specify the bonus portion.
+     * This triggers the required ledger entry: DEBIT BONUS_LIABILITY, CREDIT COST_OF_SHARES.
      */
     public function withdraw(
         User $user,
@@ -217,7 +230,8 @@ class WalletService
         string $description,
         ?Model $reference = null,
         bool $lockBalance = false,
-        bool $allowOverdraft = false
+        bool $allowOverdraft = false,
+        int $bonusAmountPaise = 0 // PHASE 4 SECTION 7.2: Portion of withdrawal from bonus funds
     ): Transaction {
         $amountPaise = $this->normalizeAmount($amount);
 
@@ -229,6 +243,11 @@ class WalletService
             $type = TransactionType::from($type);
         }
 
+        // PHASE 4 SECTION 7.2: Validate bonus amount doesn't exceed total
+        if ($bonusAmountPaise > $amountPaise) {
+            throw new \InvalidArgumentException("Bonus amount cannot exceed withdrawal amount.");
+        }
+
         return DB::transaction(function () use (
             $user,
             $amountPaise,
@@ -236,7 +255,8 @@ class WalletService
             $description,
             $reference,
             $lockBalance,
-            $allowOverdraft
+            $allowOverdraft,
+            $bonusAmountPaise
         ) {
             $wallet = $user->wallet()
                 ->lockForUpdate()
@@ -290,6 +310,41 @@ class WalletService
                 if ($withdrawal) {
                     $this->ledgerService->recordWithdrawal($withdrawal, $amountRupees);
                 }
+            }
+
+            // PHASE 4 SECTION 7.2: Record investment ledger entries
+            if ($type === TransactionType::INVESTMENT && $status === 'completed') {
+                $cashAmountPaise = $amountPaise - $bonusAmountPaise;
+
+                // Record share sale income for cash portion
+                // DEBIT USER_WALLET_LIABILITY, CREDIT SHARE_SALE_INCOME
+                if ($cashAmountPaise > 0) {
+                    $cashAmountRupees = $cashAmountPaise / 100;
+                    $this->ledgerService->recordShareSaleFromWallet(
+                        $transaction->id,
+                        $cashAmountRupees
+                    );
+                }
+
+                // Step 7.3: Record bonus usage for bonus portion
+                // DEBIT BONUS_LIABILITY, CREDIT COST_OF_SHARES
+                // Note: Does NOT credit SHARE_SALE_INCOME (as per requirement)
+                if ($bonusAmountPaise > 0) {
+                    $bonusAmountRupees = $bonusAmountPaise / 100;
+                    $this->ledgerService->recordBonusUsage(
+                        $transaction->id,
+                        $bonusAmountRupees,
+                        'investment' // Bonus used for share purchase
+                    );
+                }
+
+                Log::info('PHASE 4 SECTION 7.2: Investment ledger entries recorded', [
+                    'user_id' => $user->id,
+                    'transaction_id' => $transaction->id,
+                    'total_amount_paise' => $amountPaise,
+                    'bonus_amount_paise' => $bonusAmountPaise,
+                    'cash_amount_paise' => $cashAmountPaise,
+                ]);
             }
 
             return $transaction;

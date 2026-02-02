@@ -8,14 +8,12 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "feat(phase-4.1,4.2): finalize expense-based ledger and harden accounting invariants
+$CommitMessage = "feat(phase-4): close phase with correct bonus usage accounting and ledger integrity
 
-- Migrate fully to expense-based share accounting model
-- Correct revenue recognition on discounted share sales
-- Deprecate and hard-disable legacy single-entry ledger
-- Enforce non-bypassable guards against allocation-time costing
-- Introduce explicit bonus and TDS liability separation
-- Add global runtime kill-switches for forbidden ledger paths"
+- Fix bonus usage to recognize share cost via COST_OF_SHARES
+- Ensure bonus-funded allocations are never free in P&L
+- Extend ledger guards to permit cost only for purchases and bonus usage
+- Complete Phase-4 closure with all checklist sections passing"
 #----------------------
 
 function Get-GitCredential {

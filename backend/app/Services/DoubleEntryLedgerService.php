@@ -74,6 +74,17 @@ class DoubleEntryLedgerService
      */
     private bool $inBulkPurchaseFlow = false;
 
+    /**
+     * PHASE 4 SECTION 7.2: Flow context flag for bonus usage.
+     *
+     * When true, COST_OF_SHARES credits are permitted.
+     * This is ONLY set during recordBonusUsage().
+     *
+     * Bonus usage requires CREDIT to COST_OF_SHARES to offset the expense
+     * (since the cost was covered by marketing expense, not cash payment).
+     */
+    private bool $inBonusUsageFlow = false;
+
     // =========================================================================
     // INVENTORY OPERATIONS
     // =========================================================================
@@ -283,6 +294,43 @@ class DoubleEntryLedgerService
         return $entry;
     }
 
+    /**
+     * PHASE 4 SECTION 7.2: Record share sale income from wallet.
+     *
+     * ACCOUNTING:
+     *   DEBIT  USER_WALLET_LIABILITY  (decrease what we owe user - they spent funds)
+     *   CREDIT SHARE_SALE_INCOME      (recognize revenue from share sale)
+     *
+     * This is the cash portion of a share purchase. The bonus portion is handled
+     * separately by recordBonusUsage() which does NOT credit SHARE_SALE_INCOME.
+     *
+     * @param int $transactionId The wallet transaction ID
+     * @param float $amount Cash amount used for share purchase (in rupees)
+     * @return LedgerEntry
+     */
+    public function recordShareSaleFromWallet(
+        int $transactionId,
+        float $amount
+    ): LedgerEntry {
+        $this->validatePositiveAmount($amount);
+
+        $entry = $this->createEntry(
+            LedgerEntry::REF_USER_INVESTMENT,
+            $transactionId,
+            "Share sale from wallet: ₹" . number_format($amount, 2)
+        );
+
+        // DEBIT: Decrease User Wallet Liability (user used their funds)
+        $this->addLine($entry, LedgerAccount::CODE_USER_WALLET_LIABILITY, 'DEBIT', $amount);
+
+        // CREDIT: Recognize share sale income
+        $this->addLine($entry, LedgerAccount::CODE_SHARE_SALE_INCOME, 'CREDIT', $amount);
+
+        $this->validateBalanced($entry);
+
+        return $entry;
+    }
+
     // =========================================================================
     // PHASE 4.2: recordShareAllocation() HAS BEEN PERMANENTLY DELETED
     // =========================================================================
@@ -367,9 +415,12 @@ class DoubleEntryLedgerService
         // DEBIT: Marketing expense (GROSS - full platform cost)
         $this->addLine($entry, LedgerAccount::CODE_MARKETING_EXPENSE, 'DEBIT', $grossAmount);
 
-        // CREDIT: User wallet liability (NET - what user gets)
+        // CREDIT: Bonus liability (NET - what user is entitled to)
+        // PHASE 4 SECTION 7.2: Credit BONUS_LIABILITY instead of USER_WALLET_LIABILITY
+        // This allows proper tracking of bonus usage when shares are purchased.
+        // The transfer to USER_WALLET_LIABILITY happens in WalletService::deposit.
         if ($netAmount > 0) {
-            $this->addLine($entry, LedgerAccount::CODE_USER_WALLET_LIABILITY, 'CREDIT', $netAmount);
+            $this->addLine($entry, LedgerAccount::CODE_BONUS_LIABILITY, 'CREDIT', $netAmount);
         }
 
         // CREDIT: TDS payable (government liability)
@@ -416,6 +467,115 @@ class DoubleEntryLedgerService
 
         // CREDIT: Decrease Bank (cash paid out)
         $this->addLine($entry, LedgerAccount::CODE_BANK, 'CREDIT', $amount);
+
+        $this->validateBalanced($entry);
+
+        return $entry;
+    }
+
+    /**
+     * PHASE 4 SECTION 7.2: Record bonus usage (redemption for shares).
+     *
+     * ACCOUNTING:
+     *   DEBIT  BONUS_LIABILITY   (decrease liability - user redeemed their bonus)
+     *   CREDIT COST_OF_SHARES    (offset expense - cost covered by marketing expense)
+     *
+     * RATIONALE:
+     * When a bonus is GRANTED, we record:
+     *   DEBIT MARKETING_EXPENSE, CREDIT BONUS_LIABILITY (+ TDS_PAYABLE)
+     *
+     * When the bonus is USED to acquire shares:
+     * - The liability to the user is fulfilled (they got their shares)
+     * - The cost of those shares was already covered by MARKETING_EXPENSE
+     * - We CREDIT COST_OF_SHARES to offset the expense that was recognized at bulk purchase
+     *
+     * This ensures:
+     * - Shares sold for CASH: Cost stays in COST_OF_SHARES (offset by SHARE_SALE_INCOME)
+     * - Shares given as BONUS: Cost is credited out of COST_OF_SHARES (offset by MARKETING_EXPENSE)
+     *
+     * APPLIES TO ALL 7 BONUS TYPES:
+     * - progressive, milestone, referral, celebration, birthday, anniversary, lucky_draw
+     *
+     * @param int $userInvestmentId The UserInvestment record ID
+     * @param float $amount Cost of shares allocated via bonus (in rupees)
+     * @param string $bonusType Type of bonus being used
+     * @param int|null $bonusTransactionId Optional link to original bonus transaction
+     * @return LedgerEntry
+     */
+    public function recordBonusUsage(
+        int $userInvestmentId,
+        float $amount,
+        string $bonusType,
+        ?int $bonusTransactionId = null
+    ): LedgerEntry {
+        $this->validatePositiveAmount($amount);
+
+        // PHASE 4 SECTION 7.2: Enable COST_OF_SHARES credit for bonus usage
+        $this->inBonusUsageFlow = true;
+
+        try {
+            $description = "Bonus usage: {$bonusType} - ₹" . number_format($amount, 2);
+            if ($bonusTransactionId) {
+                $description .= " (bonus #{$bonusTransactionId})";
+            }
+
+            $entry = $this->createEntry(
+                LedgerEntry::REF_BONUS_USAGE,
+                $userInvestmentId,
+                $description
+            );
+
+            // DEBIT: Decrease bonus liability (user redeemed their bonus)
+            $this->addLine($entry, LedgerAccount::CODE_BONUS_LIABILITY, 'DEBIT', $amount);
+
+            // CREDIT: Offset cost of shares (cost was covered by marketing expense at grant time)
+            $this->addLine($entry, LedgerAccount::CODE_COST_OF_SHARES, 'CREDIT', $amount);
+
+            $this->validateBalanced($entry);
+
+            return $entry;
+        } finally {
+            // PHASE 4 SECTION 7.2: Always reset flag, even on exception
+            $this->inBonusUsageFlow = false;
+        }
+    }
+
+    /**
+     * PHASE 4 SECTION 7.2: Transfer bonus from BONUS_LIABILITY to USER_WALLET_LIABILITY.
+     *
+     * STEP 7.2 ACCOUNTING:
+     *   DEBIT  BONUS_LIABILITY        (decrease bonus liability - bonus is being credited to wallet)
+     *   CREDIT USER_WALLET_LIABILITY  (increase wallet liability - we now owe user via wallet)
+     *
+     * This entry is made when bonus is credited to the user's wallet.
+     * At this point:
+     * - recordBonusWithTds() has already credited BONUS_LIABILITY
+     * - Now we transfer from BONUS_LIABILITY to USER_WALLET_LIABILITY
+     * - User's wallet balance goes up
+     *
+     * @param int $transactionId The wallet transaction ID
+     * @param float $amount Net bonus amount (after TDS) in rupees
+     * @param string $bonusType Type of bonus for description
+     * @return LedgerEntry
+     */
+    public function recordBonusToWallet(
+        int $transactionId,
+        float $amount,
+        string $bonusType
+    ): LedgerEntry {
+        $this->validatePositiveAmount($amount);
+
+        $entry = $this->createEntry(
+            LedgerEntry::REF_BONUS_CREDIT,
+            $transactionId,
+            "Bonus to wallet: {$bonusType} - ₹" . number_format($amount, 2)
+        );
+
+        // DEBIT: Decrease bonus liability (bonus transferred to wallet)
+        $this->addLine($entry, LedgerAccount::CODE_BONUS_LIABILITY, 'DEBIT', $amount);
+
+        // CREDIT: Increase wallet liability (user can now spend from wallet)
+        $this->addLine($entry, LedgerAccount::CODE_USER_WALLET_LIABILITY, 'CREDIT', $amount);
 
         $this->validateBalanced($entry);
 
@@ -887,20 +1047,30 @@ class DoubleEntryLedgerService
         //
         // INVARIANT: Cost is recognized at PURCHASE TIME ONLY.
         //
-        // COST_OF_SHARES may only be debited/credited during:
+        // COST_OF_SHARES may only be used during:
         // - recordInventoryPurchase() (DEBIT - recognize expense)
         // - recordInventoryPurchaseReversal() (CREDIT - reverse expense)
+        // - recordBonusUsage() (CREDIT - offset expense for bonus-funded shares)
+        //
+        // PHASE 4 SECTION 7.2: Bonus usage is a special case where we CREDIT
+        // COST_OF_SHARES to offset the expense because the cost was already
+        // covered by MARKETING_EXPENSE when the bonus was granted.
         //
         // Any other usage would cause expense double-counting.
         // This guard makes the violation IMPOSSIBLE, not just prohibited.
         // =========================================================================
-        if ($accountCode === LedgerAccount::CODE_COST_OF_SHARES && !$this->inBulkPurchaseFlow) {
-            throw new \RuntimeException(
-                "ACCOUNTING VIOLATION: COST_OF_SHARES may only be used in bulk purchase flow. " .
-                "Cost is recognized at PURCHASE TIME ONLY. " .
-                "Allocation must NEVER post cost entries. " .
-                "Attempted direction: {$direction}, amount: ₹{$amount}, entry: #{$entry->id}"
-            );
+        if ($accountCode === LedgerAccount::CODE_COST_OF_SHARES) {
+            $isAllowedDebit = $direction === 'DEBIT' && $this->inBulkPurchaseFlow;
+            $isAllowedCredit = $direction === 'CREDIT' && ($this->inBulkPurchaseFlow || $this->inBonusUsageFlow);
+
+            if (!$isAllowedDebit && !$isAllowedCredit) {
+                throw new \RuntimeException(
+                    "ACCOUNTING VIOLATION: COST_OF_SHARES may only be used in bulk purchase or bonus usage flow. " .
+                    "Cost is recognized at PURCHASE TIME ONLY. " .
+                    "Bonus usage CREDITS to offset expense (cost covered by marketing expense). " .
+                    "Attempted direction: {$direction}, amount: ₹{$amount}, entry: #{$entry->id}"
+                );
+            }
         }
 
         $account = $this->getAccount($accountCode);
