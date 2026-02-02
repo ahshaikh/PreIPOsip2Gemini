@@ -1,5 +1,6 @@
 <?php
 // V-PHASE2-1730-041 (Created) | V-FINAL-1730-349 (Financial Logic Added)
+// V-PHASE4.1: Added double-entry ledger support (expense-based model)
 // STORY 4.2: Added provenance enforcement
 
 namespace App\Models;
@@ -21,7 +22,8 @@ class BulkPurchase extends Model
         'company_share_listing_id', // PROVENANCE: Source listing (if from listing)
         'source_type', // PROVENANCE: 'company_listing' or 'manual_entry'
         'approved_by_admin_id', // PROVENANCE: Admin who approved manual entry
-        'platform_ledger_entry_id', // GAP 1 FIX: Link to platform ledger debit proving capital movement
+        'platform_ledger_entry_id', // DEPRECATED: Link to legacy platform_ledger_entries (Phase 4.0)
+        'ledger_entry_id', // PHASE 4.1: Link to double-entry ledger_entries table
         'manual_entry_reason', // PROVENANCE: Why manual entry was needed
         'source_documentation', // PROVENANCE: Supporting documents
         'verified_at', // PROVENANCE: When provenance was verified
@@ -167,7 +169,10 @@ class BulkPurchase extends Model
     }
 
     /**
+     * @deprecated PHASE 4.1: Use ledgerEntry() instead.
+     *
      * GAP 1 FIX: Link to platform ledger entry that proves capital movement.
+     * This references the LEGACY platform_ledger_entries table.
      *
      * INVARIANT: Inventory existence === proven platform capital movement.
      * This relationship enables audit verification that every BulkPurchase
@@ -179,13 +184,34 @@ class BulkPurchase extends Model
     }
 
     /**
+     * PHASE 4.1: Link to double-entry ledger entry (expense model).
+     *
+     * ACCOUNTING MODEL:
+     * - Inventory cost is expensed immediately (DEBIT COST_OF_SHARES, CREDIT BANK)
+     * - This entry proves capital movement and expense recognition
+     * - Replaces legacy platform_ledger_entry_id for new purchases
+     */
+    public function ledgerEntry(): BelongsTo
+    {
+        return $this->belongsTo(LedgerEntry::class);
+    }
+
+    /**
      * GAP 1 FIX: Check if this inventory has proven capital movement.
      *
-     * AUDIT HELPER: Returns true if this BulkPurchase has a linked
-     * platform ledger entry, proving the invariant holds.
+     * PHASE 4.1 UPDATE: Checks both legacy and new ledger systems.
+     * Returns true if EITHER ledger entry exists, proving the invariant holds.
+     *
+     * AUDIT HELPER: Use this to verify inventory has proper financial backing.
      */
     public function hasProvenCapitalMovement(): bool
     {
+        // Check new double-entry ledger first (Phase 4.1+)
+        if ($this->ledger_entry_id !== null) {
+            return true;
+        }
+
+        // Fall back to legacy platform ledger (Phase 4.0 and earlier)
         return $this->platform_ledger_entry_id !== null;
     }
 

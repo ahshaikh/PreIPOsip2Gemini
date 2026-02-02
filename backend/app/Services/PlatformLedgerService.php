@@ -1,6 +1,39 @@
 <?php
 
 /**
+ * @deprecated PHASE 4.1: This service is DEPRECATED. Use DoubleEntryLedgerService instead.
+ *
+ * ============================================================================
+ * PHASE 4.2 KILL SWITCH: ALL WRITE OPERATIONS ARE PERMANENTLY DISABLED
+ * ============================================================================
+ *
+ * This service's write methods (debit(), credit()) have been KILLED.
+ * Any attempt to call them will throw a RuntimeException.
+ *
+ * This is NOT a soft deprecation. It is a HARD KILL to prevent:
+ * - Accidental dual-ledger writes from cron jobs
+ * - Resurrection by well-meaning developers
+ * - Silent financial state corruption
+ *
+ * The only allowed operations are READ-ONLY queries on historical data.
+ *
+ * ============================================================================
+ *
+ * MIGRATION NOTICE:
+ * - This single-entry ledger has been replaced by true double-entry accounting
+ * - New code MUST use App\Services\DoubleEntryLedgerService
+ * - Historical data in platform_ledger_entries table is preserved for audit
+ * - This service remains for backward compatibility with existing records only
+ *
+ * REPLACEMENT MAPPING:
+ * - debit() -> DoubleEntryLedgerService::recordInventoryPurchase()
+ * - credit() -> DoubleEntryLedgerService::recordWithdrawal() or recordRefund()
+ * - getBalance() -> DoubleEntryLedgerService::getAccountBalance('BANK')
+ *
+ * ============================================================================
+ * LEGACY DOCUMENTATION (for historical context):
+ * ============================================================================
+ *
  * EPIC 4 - GAP 1 & GAP 4: Platform Ledger Service
  *
  * PROTOCOL:
@@ -34,21 +67,9 @@ use RuntimeException;
 class PlatformLedgerService
 {
     /**
-     * Record a debit (capital out) for inventory purchase.
+     * PHASE 4.2 KILL SWITCH: This method is PERMANENTLY DISABLED.
      *
-     * PROTOCOL:
-     * - MUST be called within the BulkPurchase creation transaction
-     * - MUST fail loudly if recording fails
-     * - Caller MUST rollback if this method throws
-     *
-     * @param string $sourceType Source type (e.g., 'bulk_purchase')
-     * @param int $sourceId Source ID (e.g., bulk_purchase.id)
-     * @param int $amountPaise Amount in paise (smallest currency unit)
-     * @param string $description Human-readable description
-     * @param string $currency Currency code (default: INR)
-     * @param array|null $metadata Additional audit metadata
-     * @return PlatformLedgerEntry The created ledger entry
-     * @throws RuntimeException If ledger recording fails
+     * @throws RuntimeException ALWAYS - legacy ledger writes are forbidden
      */
     public function debit(
         string $sourceType,
@@ -58,68 +79,34 @@ class PlatformLedgerService
         string $currency = 'INR',
         ?array $metadata = null
     ): PlatformLedgerEntry {
-        // VALIDATION: Amount must be positive
-        if ($amountPaise <= 0) {
-            throw new RuntimeException(
-                "Ledger debit amount must be positive. Received: {$amountPaise} paise. " .
-                "Source: {$sourceType}#{$sourceId}"
-            );
-        }
-
-        // Get current balance (last entry for this currency)
-        $currentBalancePaise = $this->getCurrentBalance($currency);
-
-        // Calculate new balance
-        $newBalancePaise = $currentBalancePaise - $amountPaise;
-
-        // Create the ledger entry
-        $entry = PlatformLedgerEntry::create([
-            'type' => PlatformLedgerEntry::TYPE_DEBIT,
-            'amount_paise' => $amountPaise,
-            'balance_before_paise' => $currentBalancePaise,
-            'balance_after_paise' => $newBalancePaise,
-            'currency' => $currency,
-            'source_type' => $sourceType,
-            'source_id' => $sourceId,
-            'description' => $description,
-            'actor_id' => auth()->id(),
-            'metadata' => $metadata ?? [
-                'ip_address' => request()->ip(),
-                'user_agent' => request()->userAgent(),
-                'timestamp' => now()->toIso8601String(),
-            ],
-        ]);
-
-        Log::info("PlatformLedger DEBIT recorded", [
-            'entry_id' => $entry->id,
+        // =========================================================================
+        // PHASE 4.2 KILL SWITCH - DO NOT REMOVE
+        // =========================================================================
+        // This legacy single-entry ledger has been replaced by double-entry.
+        // Writing to this ledger would create DUAL FINANCIAL TRUTH, which is fatal.
+        //
+        // Use DoubleEntryLedgerService::recordInventoryPurchase() instead.
+        // =========================================================================
+        Log::critical('LEGACY LEDGER KILL SWITCH TRIGGERED', [
+            'method' => 'debit',
             'source_type' => $sourceType,
             'source_id' => $sourceId,
             'amount_paise' => $amountPaise,
-            'amount_rupees' => $amountPaise / 100,
-            'balance_after_paise' => $newBalancePaise,
-            'actor_id' => auth()->id(),
+            'caller' => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3),
         ]);
 
-        return $entry;
+        throw new RuntimeException(
+            "LEGACY LEDGER KILLED (Phase 4.2): PlatformLedgerService::debit() is permanently disabled. " .
+            "Use DoubleEntryLedgerService::recordInventoryPurchase() instead. " .
+            "Attempted: {$sourceType}#{$sourceId} for {$amountPaise} paise. " .
+            "This error is intentional and cannot be bypassed."
+        );
     }
 
     /**
-     * Record a credit (capital in / reversal).
+     * PHASE 4.2 KILL SWITCH: This method is PERMANENTLY DISABLED.
      *
-     * PROTOCOL:
-     * - Used for reversals when BulkPurchase is deleted (if ever allowed)
-     * - MUST link to the original debit entry via entry_pair_id
-     * - MUST fail loudly if recording fails
-     *
-     * @param string $sourceType Source type (e.g., 'bulk_purchase_reversal')
-     * @param int $sourceId Source ID (e.g., bulk_purchase.id)
-     * @param int $amountPaise Amount in paise
-     * @param string $description Human-readable description
-     * @param int|null $originalEntryId ID of the entry being reversed
-     * @param string $currency Currency code (default: INR)
-     * @param array|null $metadata Additional audit metadata
-     * @return PlatformLedgerEntry The created ledger entry
-     * @throws RuntimeException If ledger recording fails
+     * @throws RuntimeException ALWAYS - legacy ledger writes are forbidden
      */
     public function credit(
         string $sourceType,
@@ -130,75 +117,29 @@ class PlatformLedgerService
         string $currency = 'INR',
         ?array $metadata = null
     ): PlatformLedgerEntry {
-        // VALIDATION: Amount must be positive
-        if ($amountPaise <= 0) {
-            throw new RuntimeException(
-                "Ledger credit amount must be positive. Received: {$amountPaise} paise. " .
-                "Source: {$sourceType}#{$sourceId}"
-            );
-        }
-
-        // If reversing an original entry, validate it exists and is a debit
-        if ($originalEntryId !== null) {
-            $originalEntry = PlatformLedgerEntry::find($originalEntryId);
-            if (!$originalEntry) {
-                throw new RuntimeException(
-                    "Original ledger entry #{$originalEntryId} not found for reversal. " .
-                    "Source: {$sourceType}#{$sourceId}"
-                );
-            }
-            if ($originalEntry->type !== PlatformLedgerEntry::TYPE_DEBIT) {
-                throw new RuntimeException(
-                    "Cannot reverse a credit entry. Original entry #{$originalEntryId} is a {$originalEntry->type}. " .
-                    "Source: {$sourceType}#{$sourceId}"
-                );
-            }
-            if ($originalEntry->isReversed()) {
-                throw new RuntimeException(
-                    "Original entry #{$originalEntryId} has already been reversed. " .
-                    "Double-reversal is not allowed. Source: {$sourceType}#{$sourceId}"
-                );
-            }
-        }
-
-        // Get current balance
-        $currentBalancePaise = $this->getCurrentBalance($currency);
-
-        // Calculate new balance (credit adds to balance)
-        $newBalancePaise = $currentBalancePaise + $amountPaise;
-
-        // Create the ledger entry
-        $entry = PlatformLedgerEntry::create([
-            'type' => PlatformLedgerEntry::TYPE_CREDIT,
-            'amount_paise' => $amountPaise,
-            'balance_before_paise' => $currentBalancePaise,
-            'balance_after_paise' => $newBalancePaise,
-            'currency' => $currency,
-            'source_type' => $sourceType,
-            'source_id' => $sourceId,
-            'description' => $description,
-            'entry_pair_id' => $originalEntryId,
-            'actor_id' => auth()->id(),
-            'metadata' => $metadata ?? [
-                'ip_address' => request()->ip(),
-                'user_agent' => request()->userAgent(),
-                'timestamp' => now()->toIso8601String(),
-                'reversal_of' => $originalEntryId,
-            ],
-        ]);
-
-        Log::info("PlatformLedger CREDIT recorded", [
-            'entry_id' => $entry->id,
+        // =========================================================================
+        // PHASE 4.2 KILL SWITCH - DO NOT REMOVE
+        // =========================================================================
+        // This legacy single-entry ledger has been replaced by double-entry.
+        // Writing to this ledger would create DUAL FINANCIAL TRUTH, which is fatal.
+        //
+        // Use DoubleEntryLedgerService::recordRefund() or similar instead.
+        // =========================================================================
+        Log::critical('LEGACY LEDGER KILL SWITCH TRIGGERED', [
+            'method' => 'credit',
             'source_type' => $sourceType,
             'source_id' => $sourceId,
             'amount_paise' => $amountPaise,
-            'amount_rupees' => $amountPaise / 100,
-            'balance_after_paise' => $newBalancePaise,
             'original_entry_id' => $originalEntryId,
-            'actor_id' => auth()->id(),
+            'caller' => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3),
         ]);
 
-        return $entry;
+        throw new RuntimeException(
+            "LEGACY LEDGER KILLED (Phase 4.2): PlatformLedgerService::credit() is permanently disabled. " .
+            "Use DoubleEntryLedgerService methods instead. " .
+            "Attempted: {$sourceType}#{$sourceId} for {$amountPaise} paise. " .
+            "This error is intentional and cannot be bypassed."
+        );
     }
 
     /**

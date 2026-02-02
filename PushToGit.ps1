@@ -8,12 +8,14 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "feat(phase-4): complete deal formation & inventory ownership with double-entry ledger
+$CommitMessage = "feat(phase-4.1,4.2): finalize expense-based ledger and harden accounting invariants
 
-- Enforce platform-only deal creation and inventory ownership
-- Introduce bank-mirroring double-entry accounting ledger
-- Add atomic bulk purchase and allocation safeguards
-- Begin Phase-4.1 refactor toward expense-based accounting and legacy ledger deprecation"
+- Migrate fully to expense-based share accounting model
+- Correct revenue recognition on discounted share sales
+- Deprecate and hard-disable legacy single-entry ledger
+- Enforce non-bypassable guards against allocation-time costing
+- Introduce explicit bonus and TDS liability separation
+- Add global runtime kill-switches for forbidden ledger paths"
 #----------------------
 
 function Get-GitCredential {

@@ -48,7 +48,7 @@ class LedgerEntry extends Model
     public const REF_BULK_PURCHASE_REVERSAL = 'bulk_purchase_reversal';
     public const REF_USER_DEPOSIT = 'user_deposit';
     public const REF_USER_INVESTMENT = 'user_investment';
-    public const REF_SHARE_ALLOCATION = 'share_allocation';
+    public const REF_SHARE_ALLOCATION = 'share_allocation'; // DEPRECATED: No longer used in expense model
     public const REF_BONUS_CREDIT = 'bonus_credit';
     public const REF_WITHDRAWAL = 'withdrawal';
     public const REF_WITHDRAWAL_REVERSAL = 'withdrawal_reversal';
@@ -56,6 +56,7 @@ class LedgerEntry extends Model
     public const REF_CAPITAL_INJECTION = 'capital_injection';
     public const REF_SHARE_SALE = 'share_sale';
     public const REF_TDS_DEDUCTION = 'tds_deduction';
+    public const REF_TDS_REMITTANCE = 'tds_remittance'; // PHASE 4.2: TDS payment to government
     public const REF_GATEWAY_FEE = 'gateway_fee';
     public const REF_MANUAL_ADJUSTMENT = 'manual_adjustment';
 

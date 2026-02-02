@@ -6,6 +6,21 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
+ * @deprecated PHASE 4.1: This model is DEPRECATED. Use LedgerEntry and LedgerLine instead.
+ *
+ * MIGRATION NOTICE:
+ * - New entries are stored in ledger_entries + ledger_lines tables (true double-entry)
+ * - This model remains ONLY for querying historical records
+ * - DO NOT create new AdminLedgerEntry records
+ * - Use App\Models\LedgerEntry and App\Models\LedgerLine for new entries
+ *
+ * DATA PRESERVATION:
+ * Historical admin_ledger_entries are preserved for audit compliance.
+ *
+ * ============================================================================
+ * LEGACY DOCUMENTATION (for historical context):
+ * ============================================================================
+ *
  * AdminLedgerEntry Model
  *
  * PROTOCOL:

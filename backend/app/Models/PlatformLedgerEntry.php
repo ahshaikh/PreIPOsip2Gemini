@@ -1,6 +1,22 @@
 <?php
 
 /**
+ * @deprecated PHASE 4.1: This model is DEPRECATED. Use LedgerEntry instead.
+ *
+ * MIGRATION NOTICE:
+ * - New entries are stored in ledger_entries table (double-entry system)
+ * - This model remains ONLY for querying historical records
+ * - DO NOT create new PlatformLedgerEntry records
+ * - Use App\Models\LedgerEntry for new entries
+ *
+ * DATA PRESERVATION:
+ * Historical platform_ledger_entries are preserved for audit compliance.
+ * New BulkPurchase records link to ledger_entries.ledger_entry_id instead.
+ *
+ * ============================================================================
+ * LEGACY DOCUMENTATION (for historical context):
+ * ============================================================================
+ *
  * EPIC 4 - GAP 4: Platform Ledger Entry Model
  *
  * PROTOCOL:

@@ -1,17 +1,17 @@
 <?php
 // V-PHASE2-1730-057 | V-BULK-PURCHASE-ENHANCEMENT-005 | V-FIX-UNITS-AND-N1 (Gemini)
+// V-PHASE4.1: Migrated to expense-based double-entry ledger (single source of truth)
 // Enhanced with full CRUD, allocation history, inventory dashboard, and low stock management
 
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\BulkPurchase;
-use App\Models\PlatformLedgerEntry;
+use App\Models\LedgerEntry;
 use App\Models\UserInvestment;
 use App\Models\User;
 use App\Models\Product;
 use App\Models\Setting;
-use App\Services\PlatformLedgerService;
 use App\Services\DoubleEntryLedgerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -97,26 +97,31 @@ class BulkPurchaseController extends Controller
     /**
      * Create a new bulk purchase
      *
-     * EPIC 4 - GAP 1 FIX: Inventory Creation With Financial Atomicity
+     * PHASE 4.1: EXPENSE-BASED DOUBLE-ENTRY LEDGER (SINGLE SOURCE OF TRUTH)
      *
-     * INVARIANT: No inventory may exist without a corresponding platform ledger debit.
+     * INVARIANT: No inventory may exist without a corresponding ledger expense entry.
+     *
+     * ACCOUNTING MODEL:
+     * - Inventory cost is EXPENSED IMMEDIATELY on purchase (not held as asset)
+     * - DEBIT COST_OF_SHARES (expense recognition)
+     * - CREDIT BANK (cash paid out)
+     * - Inventory quantity tracked OPERATIONALLY via bulk_purchases table
      *
      * PROTOCOL:
      * 1. Wrap entire creation in DB transaction
      * 2. Create BulkPurchase record
-     * 3. Create platform ledger debit atomically
+     * 3. Create double-entry ledger expense atomically
      * 4. Link BulkPurchase to ledger entry
      * 5. If ANY step fails, entire transaction rolls back
      *
      * FAILURE SEMANTICS:
-     * - Hard failure if ledger debit cannot be recorded
+     * - Hard failure if ledger entry cannot be recorded
      * - No orphaned inventory (BulkPurchase without ledger proof)
      * - Rollback guarantees: either BOTH exist or NEITHER exists
      */
     public function store(
         Request $request,
-        PlatformLedgerService $ledgerService,
-        DoubleEntryLedgerService $doubleEntryLedger
+        DoubleEntryLedgerService $ledgerService
     ) {
         $validated = $request->validate([
             'product_id' => 'required|exists:products,id',
@@ -137,9 +142,8 @@ class BulkPurchaseController extends Controller
         $discount = ($validated['face_value_purchased'] - $validated['actual_cost_paid']) / $validated['face_value_purchased'];
         $totalValue = $validated['face_value_purchased'] * (1 + ($validated['extra_allocation_percentage'] / 100));
 
-        // GAP 1 FIX: Atomic transaction ensures inventory + ledger are created together
-        // PHASE 4 FIX: Now uses DOUBLE-ENTRY LEDGER for bank-mirroring accounting
-        $purchase = DB::transaction(function () use ($validated, $request, $totalValue, $discount, $ledgerService, $doubleEntryLedger) {
+        // PHASE 4.1: Atomic transaction ensures inventory + ledger expense are created together
+        $purchase = DB::transaction(function () use ($validated, $request, $totalValue, $discount, $ledgerService) {
 
             // STEP 1: Create BulkPurchase record (without ledger link initially)
             $purchase = BulkPurchase::create($validated + [
@@ -151,53 +155,35 @@ class BulkPurchaseController extends Controller
                 'value_remaining' => $totalValue,
             ]);
 
-            // STEP 2: Create platform ledger debit to prove capital movement (legacy)
-            // Convert to paise (smallest currency unit) for precision
-            $amountPaise = (int) round($validated['actual_cost_paid'] * 100);
-
-            $ledgerEntry = $ledgerService->debit(
-                PlatformLedgerEntry::SOURCE_BULK_PURCHASE,
-                $purchase->id,
-                $amountPaise,
-                "Inventory purchase: Product #{$purchase->product_id}, BulkPurchase #{$purchase->id}, " .
-                "Face Value: ₹" . number_format($validated['face_value_purchased'], 2) . ", " .
-                "Cost Paid: ₹" . number_format($validated['actual_cost_paid'], 2),
-                'INR',
-                [
-                    'product_id' => $purchase->product_id,
-                    'company_id' => $validated['company_id'],
-                    'source_type' => $validated['source_type'],
-                    'face_value_purchased' => $validated['face_value_purchased'],
-                    'actual_cost_paid' => $validated['actual_cost_paid'],
-                    'total_value_received' => $totalValue,
-                    'admin_id' => $request->user()->id,
-                ]
-            );
-
-            // STEP 3: DOUBLE-ENTRY LEDGER - Record inventory purchase
-            // This ensures the platform ledger mirrors the real bank account:
-            //   DEBIT  INVENTORY (asset increases - we now own shares)
-            //   CREDIT BANK      (asset decreases - cash paid out)
-            $doubleEntryLedger->recordInventoryPurchase(
+            // STEP 2: DOUBLE-ENTRY LEDGER - Record inventory purchase as IMMEDIATE EXPENSE
+            // PHASE 4.1 ACCOUNTING:
+            //   DEBIT  COST_OF_SHARES (expense - cost recognized immediately)
+            //   CREDIT BANK           (asset decreases - cash paid out)
+            //
+            // NOTE: Inventory is NOT a balance sheet asset in this model.
+            // Quantity is tracked operationally via bulk_purchases.value_remaining
+            $ledgerEntry = $ledgerService->recordInventoryPurchase(
                 $purchase,
                 (float) $validated['actual_cost_paid'],
                 $request->user()->id
             );
 
-            // STEP 4: Link BulkPurchase to ledger entry (proving the invariant)
-            // This update is allowed because platform_ledger_entry_id is mutable
-            // (it's set after creation, not a financial field)
-            $purchase->platform_ledger_entry_id = $ledgerEntry->id;
+            // STEP 3: Link BulkPurchase to ledger entry (proving the invariant)
+            // Uses new ledger_entry_id column for double-entry ledger (Phase 4.1)
+            // Legacy platform_ledger_entry_id is preserved but deprecated
+            $purchase->ledger_entry_id = $ledgerEntry->id;
             $purchase->saveQuietly(); // Skip observer to avoid validation loops
 
-            Log::info('Bulk purchase created with double-entry ledger atomicity', [
+            Log::info('Bulk purchase created with expense-based ledger atomicity', [
                 'purchase_id' => $purchase->id,
                 'product_id' => $purchase->product_id,
-                'total_value' => $totalValue,
+                'face_value' => $validated['face_value_purchased'],
                 'actual_cost_paid' => $validated['actual_cost_paid'],
+                'total_value_for_allocation' => $totalValue,
+                'discount_percentage' => $discount * 100,
                 'ledger_entry_id' => $ledgerEntry->id,
                 'admin_id' => $request->user()->id,
-                'double_entry' => 'DEBIT INVENTORY, CREDIT BANK',
+                'accounting_model' => 'EXPENSE (DEBIT COST_OF_SHARES, CREDIT BANK)',
             ]);
 
             return $purchase;

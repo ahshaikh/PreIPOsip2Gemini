@@ -1,5 +1,6 @@
 <?php
 // V-PHASE3-1730-083 (Created) | V-FINAL-1730-343 (Advanced Progressive Logic) | V-FINAL-1730-496 | V-FINAL-1730-586 (Notifications Added) | V-FIX-PHANTOM-MONEY (Gemini)
+// V-PHASE4.1: Integrated double-entry ledger for bonus accounting
 
 namespace App\Services;
 
@@ -12,6 +13,8 @@ use Illuminate\Support\Facades\Log;
 use App\Services\WalletService;
 // [P1.3 FIX]: Import TDS service for centralized tax calculations
 use App\Services\TdsCalculationService;
+// PHASE 4.1: Double-entry ledger for platform accounting
+use App\Services\DoubleEntryLedgerService;
 
 /**
  * BonusCalculatorService
@@ -55,12 +58,17 @@ class BonusCalculatorService
 
     protected $walletService;
     protected $tdsService; // [P1.3 FIX]: TDS calculation service
+    protected $ledgerService; // PHASE 4.1: Double-entry ledger
 
-    // FIX: Inject WalletService and TdsCalculationService
-    public function __construct(WalletService $walletService, TdsCalculationService $tdsService)
-    {
+    // FIX: Inject WalletService, TdsCalculationService, and DoubleEntryLedgerService
+    public function __construct(
+        WalletService $walletService,
+        TdsCalculationService $tdsService,
+        DoubleEntryLedgerService $ledgerService
+    ) {
         $this->walletService = $walletService;
         $this->tdsService = $tdsService;
+        $this->ledgerService = $ledgerService;
     }
 
     /**
@@ -516,10 +524,22 @@ class BonusCalculatorService
      * - System must deduct TDS before crediting wallet (legal requirement)
      * - TDS is stored in tds_deducted field for audit and tax reporting
      *
+     * PHASE 4.2 HARDENING: Proper legal separation of Bonus + TDS.
+     * The double-entry ledger now records THREE distinct truths:
+     * - DEBIT MARKETING_EXPENSE (GROSS - full platform expense)
+     * - CREDIT USER_WALLET_LIABILITY (NET - what user gets)
+     * - CREDIT TDS_PAYABLE (TDS - government liability)
+     *
+     * This ensures:
+     * - P&L correctly reflects gross marketing expense
+     * - User wallet is exactly the net amount
+     * - TDS is explicit and traceable for remittance
+     *
      * Flow:
      * 1. Calculate TDS based on bonus_tds_percentage setting
      * 2. Store gross amount and TDS in BonusTransaction
      * 3. Deposit only net_amount (amount - TDS) to wallet
+     * 4. Record three-way split in double-entry ledger
      *
      * Example:
      * - Gross Bonus: ₹1000
@@ -553,10 +573,26 @@ class BonusCalculatorService
             $bonusTxn
         );
 
-        Log::info("Bonus created: Gross=₹{$tdsResult->grossAmount}, TDS=₹{$tdsResult->tdsAmount} ({$tdsResult->rateApplied}%), Net=₹{$tdsResult->netAmount}", [
+        // PHASE 4.2: Record in double-entry ledger with proper TDS separation
+        // Single entry with three-way split:
+        // - DEBIT MARKETING_EXPENSE (gross - full platform cost)
+        // - CREDIT USER_WALLET_LIABILITY (net - what user gets)
+        // - CREDIT TDS_PAYABLE (tds - government liability)
+        $this->ledgerService->recordBonusWithTds(
+            $bonusTxn,
+            $tdsResult->grossAmount,
+            $tdsResult->tdsAmount
+        );
+
+        Log::info("Bonus created with legally separated ledger entry", [
             'user_id' => $payment->user_id,
             'type' => $type,
-            'bonus_id' => $bonusTxn->id
+            'bonus_id' => $bonusTxn->id,
+            'gross_amount' => $tdsResult->grossAmount,
+            'tds_amount' => $tdsResult->tdsAmount,
+            'tds_rate' => $tdsResult->rateApplied . '%',
+            'net_amount' => $tdsResult->netAmount,
+            'ledger' => 'DEBIT MARKETING_EXPENSE (gross), CREDIT USER_WALLET_LIABILITY (net), CREDIT TDS_PAYABLE (tds)',
         ]);
     }
 }

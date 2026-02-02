@@ -13,6 +13,11 @@
  * - Ledger immutability enforced (amount_paise always positive)
  * - Runtime invariants added (negative balance impossible unless explicitly allowed)
  * - Backward compatibility retained for float/string inputs (logged)
+ *
+ * V-PHASE4.1 (2026-02):
+ * - Integrated double-entry ledger for platform-level accounting
+ * - Deposit: DEBIT BANK, CREDIT USER_WALLET_LIABILITY
+ * - Withdrawal: DEBIT USER_WALLET_LIABILITY, CREDIT BANK
  */
 
 namespace App\Services;
@@ -20,6 +25,8 @@ namespace App\Services;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Models\Transaction;
+use App\Models\Payment;
+use App\Models\Withdrawal;
 use Illuminate\Database\Eloquent\Model; // [AUDIT FIX]: Use Eloquent base model for broader compatibility
 use App\Enums\TransactionType; // [AUDIT FIX]: Use strict Enums
 use App\Exceptions\Financial\InsufficientBalanceException;
@@ -29,6 +36,19 @@ use Illuminate\Support\Facades\Log;
 
 class WalletService
 {
+    /**
+     * PHASE 4.1: Double-entry ledger service for platform accounting.
+     */
+    private DoubleEntryLedgerService $ledgerService;
+
+    /**
+     * Constructor with double-entry ledger injection.
+     */
+    public function __construct(DoubleEntryLedgerService $ledgerService)
+    {
+        $this->ledgerService = $ledgerService;
+    }
+
     /**
      * [PATCH]: Normalize mixed inputs to integer paise.
      * BACKWARD COMPATIBILITY:
@@ -103,8 +123,8 @@ class WalletService
                 throw new \RuntimeException('Invariant violation: negative balance after deposit');
             }
 
-            // 3. Create the immutable ledger entry
-            return $wallet->transactions()->create([
+            // 3. Create the immutable ledger entry (user wallet transaction)
+            $transaction = $wallet->transactions()->create([
                 'user_id' => $user->id,
                 'type' => $type->value,
                 'status' => 'completed',
@@ -115,6 +135,17 @@ class WalletService
                 'reference_type' => $reference ? get_class($reference) : null,
                 'reference_id' => $reference?->id,
             ]);
+
+            // PHASE 4.1: Record in double-entry ledger
+            // DEBIT BANK (cash received), CREDIT USER_WALLET_LIABILITY (we owe user)
+            // Only for actual deposits (not internal transfers like bonus conversions)
+            if ($type === TransactionType::DEPOSIT) {
+                $amountRupees = $amountPaise / 100;
+                $payment = $reference instanceof Payment ? $reference : null;
+                $this->ledgerService->recordUserDeposit($user, $payment ?? $transaction->id, $amountRupees);
+            }
+
+            return $transaction;
         });
     }
 
@@ -238,7 +269,7 @@ class WalletService
                 throw new \RuntimeException('Invariant violation: negative locked balance');
             }
 
-            return $wallet->transactions()->create([
+            $transaction = $wallet->transactions()->create([
                 'user_id' => $user->id,
                 'type' => $type->value,
                 'status' => $status,
@@ -249,6 +280,19 @@ class WalletService
                 'reference_type' => $reference ? get_class($reference) : null,
                 'reference_id' => $reference?->id,
             ]);
+
+            // PHASE 4.1: Record in double-entry ledger for completed withdrawals
+            // DEBIT USER_WALLET_LIABILITY (we owe less), CREDIT BANK (cash paid out)
+            // Only for actual withdrawals that are completed (not locked/pending)
+            if ($type === TransactionType::WITHDRAWAL && $status === 'completed') {
+                $amountRupees = $amountPaise / 100;
+                $withdrawal = $reference instanceof Withdrawal ? $reference : null;
+                if ($withdrawal) {
+                    $this->ledgerService->recordWithdrawal($withdrawal, $amountRupees);
+                }
+            }
+
+            return $transaction;
         });
     }
 
@@ -522,7 +566,7 @@ class WalletService
             }
 
             // Create immutable transaction
-            return $wallet->transactions()->create([
+            $transaction = $wallet->transactions()->create([
                 'user_id' => $user->id,
                 'type' => $type->value,
                 'status' => 'completed',
@@ -533,6 +577,18 @@ class WalletService
                 'reference_type' => $reference ? get_class($reference) : null,
                 'reference_id' => $reference?->id,
             ]);
+
+            // PHASE 4.1: Record in double-entry ledger for completed withdrawals
+            // DEBIT USER_WALLET_LIABILITY (we owe less), CREDIT BANK (cash paid out)
+            if ($type === TransactionType::WITHDRAWAL) {
+                $amountRupees = $amountPaise / 100;
+                $withdrawal = $reference instanceof Withdrawal ? $reference : null;
+                if ($withdrawal) {
+                    $this->ledgerService->recordWithdrawal($withdrawal, $amountRupees);
+                }
+            }
+
+            return $transaction;
         });
     }
 }

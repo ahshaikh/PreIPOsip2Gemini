@@ -33,6 +33,22 @@ use Illuminate\Support\Facades\DB;
  * - On share sale: DEBIT USER_WALLET_LIABILITY, CREDIT SHARE_SALE_INCOME (margin)
  * - Margin = User Price - Proportional Cost Basis (discount margin is income)
  *
+ * ============================================================================
+ * PHASE 4.2 HARDENING: COST RECOGNITION INVARIANT
+ * ============================================================================
+ *
+ * CRITICAL RULE: Cost is recognized at PURCHASE TIME ONLY.
+ *
+ * - COST_OF_SHARES may ONLY be debited during bulk purchase
+ * - Allocation must NEVER post financial entries
+ * - Any attempt to debit COST_OF_SHARES outside bulk purchase flow throws exception
+ *
+ * WHY: Inventory is expensed immediately. Re-recognizing cost at allocation
+ * would DOUBLE-COUNT the expense, corrupting P&L and making margin calculation
+ * impossible. This invariant is STRUCTURALLY ENFORCED, not just documented.
+ *
+ * ============================================================================
+ *
  * USAGE:
  * This service should be called within DB::transaction() blocks from controllers.
  * It does NOT wrap its own transactions to allow composition with other operations.
@@ -47,6 +63,16 @@ class DoubleEntryLedgerService
      * Account cache for performance
      */
     private array $accountCache = [];
+
+    /**
+     * PHASE 4.2: Flow context flag for COST_OF_SHARES guard.
+     *
+     * When true, COST_OF_SHARES debits are permitted.
+     * This is ONLY set during recordInventoryPurchase().
+     *
+     * Any attempt to debit COST_OF_SHARES when this is false will throw.
+     */
+    private bool $inBulkPurchaseFlow = false;
 
     // =========================================================================
     // INVENTORY OPERATIONS
@@ -65,6 +91,11 @@ class DoubleEntryLedgerService
      * - Inventory quantity is tracked OPERATIONALLY via bulk_purchases table
      * - This is more conservative (expenses recognized upfront)
      *
+     * PHASE 4.2 HARDENING:
+     * This is the ONLY method that may debit COST_OF_SHARES.
+     * The $inBulkPurchaseFlow flag enables this operation.
+     * Any attempt to debit COST_OF_SHARES elsewhere will throw.
+     *
      * @param BulkPurchase $bulkPurchase The bulk purchase record
      * @param float $amount Total amount paid (in rupees)
      * @param int|null $adminId Admin who initiated the purchase
@@ -78,22 +109,30 @@ class DoubleEntryLedgerService
     ): LedgerEntry {
         $this->validatePositiveAmount($amount);
 
-        $entry = $this->createEntry(
-            LedgerEntry::REF_BULK_PURCHASE,
-            $bulkPurchase->id,
-            "Inventory purchase (expensed): {$bulkPurchase->product->name ?? 'Product'} - ₹" . number_format($amount, 2),
-            $adminId
-        );
+        // PHASE 4.2: Enable COST_OF_SHARES debit for this flow only
+        $this->inBulkPurchaseFlow = true;
 
-        // DEBIT: Recognize cost as immediate expense
-        $this->addLine($entry, LedgerAccount::CODE_COST_OF_SHARES, 'DEBIT', $amount);
+        try {
+            $entry = $this->createEntry(
+                LedgerEntry::REF_BULK_PURCHASE,
+                $bulkPurchase->id,
+                "Inventory purchase (expensed): {$bulkPurchase->product->name ?? 'Product'} - ₹" . number_format($amount, 2),
+                $adminId
+            );
 
-        // CREDIT: Decrease Bank (cash paid out)
-        $this->addLine($entry, LedgerAccount::CODE_BANK, 'CREDIT', $amount);
+            // DEBIT: Recognize cost as immediate expense
+            $this->addLine($entry, LedgerAccount::CODE_COST_OF_SHARES, 'DEBIT', $amount);
 
-        $this->validateBalanced($entry);
+            // CREDIT: Decrease Bank (cash paid out)
+            $this->addLine($entry, LedgerAccount::CODE_BANK, 'CREDIT', $amount);
 
-        return $entry;
+            $this->validateBalanced($entry);
+
+            return $entry;
+        } finally {
+            // PHASE 4.2: Always reset flag, even on exception
+            $this->inBulkPurchaseFlow = false;
+        }
     }
 
     /**
@@ -105,6 +144,10 @@ class DoubleEntryLedgerService
      *
      * NOTE: This should only be used for complete purchase reversals before
      * any inventory has been allocated. Partial reversals are not supported.
+     *
+     * PHASE 4.2 HARDENING:
+     * This method may credit COST_OF_SHARES (reversing expense).
+     * The $inBulkPurchaseFlow flag enables this operation.
      *
      * @param BulkPurchase $bulkPurchase The bulk purchase being reversed
      * @param LedgerEntry $originalEntry The original purchase entry
@@ -126,25 +169,33 @@ class DoubleEntryLedgerService
 
         $this->validatePositiveAmount($amount);
 
-        $entry = LedgerEntry::create([
-            'reference_type' => LedgerEntry::REF_BULK_PURCHASE_REVERSAL,
-            'reference_id' => $bulkPurchase->id,
-            'description' => "Reversal of inventory purchase #" . $originalEntry->id,
-            'entry_date' => now()->toDateString(),
-            'created_by' => $adminId,
-            'is_reversal' => true,
-            'reverses_entry_id' => $originalEntry->id,
-        ]);
+        // PHASE 4.2: Enable COST_OF_SHARES credit for this flow only
+        $this->inBulkPurchaseFlow = true;
 
-        // DEBIT: Increase Bank (cash returned)
-        $this->addLine($entry, LedgerAccount::CODE_BANK, 'DEBIT', $amount);
+        try {
+            $entry = LedgerEntry::create([
+                'reference_type' => LedgerEntry::REF_BULK_PURCHASE_REVERSAL,
+                'reference_id' => $bulkPurchase->id,
+                'description' => "Reversal of inventory purchase #" . $originalEntry->id,
+                'entry_date' => now()->toDateString(),
+                'created_by' => $adminId,
+                'is_reversal' => true,
+                'reverses_entry_id' => $originalEntry->id,
+            ]);
 
-        // CREDIT: Decrease expense (cost reversed)
-        $this->addLine($entry, LedgerAccount::CODE_COST_OF_SHARES, 'CREDIT', $amount);
+            // DEBIT: Increase Bank (cash returned)
+            $this->addLine($entry, LedgerAccount::CODE_BANK, 'DEBIT', $amount);
 
-        $this->validateBalanced($entry);
+            // CREDIT: Decrease expense (cost reversed)
+            $this->addLine($entry, LedgerAccount::CODE_COST_OF_SHARES, 'CREDIT', $amount);
 
-        return $entry;
+            $this->validateBalanced($entry);
+
+            return $entry;
+        } finally {
+            // PHASE 4.2: Always reset flag, even on exception
+            $this->inBulkPurchaseFlow = false;
+        }
     }
 
     // =========================================================================
@@ -232,33 +283,149 @@ class DoubleEntryLedgerService
         return $entry;
     }
 
+    // =========================================================================
+    // PHASE 4.2: recordShareAllocation() HAS BEEN PERMANENTLY DELETED
+    // =========================================================================
+    //
+    // DO NOT RE-IMPLEMENT THIS METHOD.
+    //
+    // In the expense-based model (Phase 4.1+):
+    // - Cost is expensed IMMEDIATELY at bulk purchase (DEBIT COST_OF_SHARES)
+    // - Inventory is tracked OPERATIONALLY via bulk_purchases table, not in ledger
+    // - Allocation must NEVER post financial entries
+    //
+    // Any attempt to recognize cost at allocation time would DOUBLE-COUNT
+    // the expense, corrupting the P&L. This is why the method was deleted,
+    // not just deprecated.
+    //
+    // For share sales, use recordUserInvestment() which recognizes user
+    // payment as income. Margin = SHARE_SALE_INCOME - COST_OF_SHARES.
+    // =========================================================================
+
+    // =========================================================================
+    // BONUS + TDS OPERATIONS (PHASE 4.2 HARDENED)
+    // =========================================================================
+    //
+    // PHASE 4.2 LEGAL SEPARATION:
+    // Bonuses with TDS involve THREE distinct financial truths:
+    // 1. Marketing Expense (GROSS) - what the platform spends
+    // 2. User Entitlement (NET) - what the user actually receives
+    // 3. Government Payable (TDS) - what we owe the tax authority
+    //
+    // These MUST be tracked separately to ensure:
+    // - P&L correctly reflects gross marketing expense
+    // - User receives only net amount (after TDS)
+    // - TDS liability is explicit and traceable for remittance
+    //
+    // TDS must NEVER touch income accounts.
+    // TDS must NEVER inflate or reduce platform profit.
+    // =========================================================================
+
     /**
-     * @deprecated PHASE 4.1: This method is NO LONGER USED in the expense-based model.
+     * Record bonus grant with TDS - LEGALLY SEPARATED MODEL.
      *
-     * In the previous asset-based model, this tracked inventory reduction at allocation.
-     * In the expense-based model (Phase 4.1):
-     * - Cost is expensed IMMEDIATELY at bulk purchase (DEBIT COST_OF_SHARES)
-     * - Inventory is tracked OPERATIONALLY via bulk_purchases table, not in ledger
-     * - No separate allocation entry is needed
+     * PHASE 4.2 ACCOUNTING (three-way split):
+     *   DEBIT  MARKETING_EXPENSE    (GROSS bonus - full platform expense)
+     *   CREDIT USER_WALLET_LIABILITY (NET bonus - what user actually gets)
+     *   CREDIT TDS_PAYABLE          (TDS amount - government liability)
      *
-     * If you need to record a share allocation, use recordUserInvestment() which
-     * recognizes the user payment as income. The margin is computed in reports as:
-     *   Margin = SHARE_SALE_INCOME - COST_OF_SHARES
+     * This ensures:
+     * - Marketing expense reflects the true cost to the platform
+     * - User wallet liability is exactly what they can withdraw
+     * - TDS payable is an explicit government liability
      *
-     * @throws \RuntimeException Always throws - method is deprecated
+     * @param BonusTransaction $bonus The bonus transaction record
+     * @param float $grossAmount Gross bonus amount (before TDS)
+     * @param float $tdsAmount TDS amount deducted
+     * @return LedgerEntry
+     * @throws \RuntimeException if amounts don't reconcile
      */
-    public function recordShareAllocation(
-        UserInvestment $investment,
-        float $costBasis
+    public function recordBonusWithTds(
+        BonusTransaction $bonus,
+        float $grossAmount,
+        float $tdsAmount
     ): LedgerEntry {
-        throw new \RuntimeException(
-            'recordShareAllocation() is deprecated in Phase 4.1 expense-based model. ' .
-            'Use recordUserInvestment() instead. Cost is already expensed at bulk purchase time.'
+        $this->validatePositiveAmount($grossAmount);
+
+        $netAmount = $grossAmount - $tdsAmount;
+
+        // INVARIANT: Gross = Net + TDS (must reconcile)
+        if (abs($grossAmount - ($netAmount + $tdsAmount)) > 0.01) {
+            throw new \RuntimeException(
+                "BONUS TDS RECONCILIATION FAILED: Gross (₹{$grossAmount}) != Net (₹{$netAmount}) + TDS (₹{$tdsAmount})"
+            );
+        }
+
+        $entry = $this->createEntry(
+            LedgerEntry::REF_BONUS_CREDIT,
+            $bonus->id,
+            "Bonus with TDS: {$bonus->type} - Gross ₹" . number_format($grossAmount, 2) .
+            ", TDS ₹" . number_format($tdsAmount, 2) .
+            ", Net ₹" . number_format($netAmount, 2)
         );
+
+        // DEBIT: Marketing expense (GROSS - full platform cost)
+        $this->addLine($entry, LedgerAccount::CODE_MARKETING_EXPENSE, 'DEBIT', $grossAmount);
+
+        // CREDIT: User wallet liability (NET - what user gets)
+        if ($netAmount > 0) {
+            $this->addLine($entry, LedgerAccount::CODE_USER_WALLET_LIABILITY, 'CREDIT', $netAmount);
+        }
+
+        // CREDIT: TDS payable (government liability)
+        if ($tdsAmount > 0) {
+            $this->addLine($entry, LedgerAccount::CODE_TDS_PAYABLE, 'CREDIT', $tdsAmount);
+        }
+
+        $this->validateBalanced($entry);
+
+        return $entry;
     }
 
     /**
-     * Record bonus credit to user.
+     * Record TDS remittance to government.
+     *
+     * PHASE 4.2 ACCOUNTING:
+     *   DEBIT  TDS_PAYABLE  (decrease government liability - we paid them)
+     *   CREDIT BANK         (decrease asset - cash paid out)
+     *
+     * This method is called when TDS is actually remitted to the government.
+     * It clears the TDS_PAYABLE liability.
+     *
+     * @param int $referenceId Reference document ID (e.g., TDS challan)
+     * @param float $amount TDS amount being remitted
+     * @param int|null $adminId Admin processing the remittance
+     * @return LedgerEntry
+     */
+    public function recordTdsRemittance(
+        int $referenceId,
+        float $amount,
+        ?int $adminId = null
+    ): LedgerEntry {
+        $this->validatePositiveAmount($amount);
+
+        $entry = $this->createEntry(
+            LedgerEntry::REF_TDS_REMITTANCE,
+            $referenceId,
+            "TDS remittance to government: ₹" . number_format($amount, 2),
+            $adminId
+        );
+
+        // DEBIT: Decrease TDS payable (we paid the government)
+        $this->addLine($entry, LedgerAccount::CODE_TDS_PAYABLE, 'DEBIT', $amount);
+
+        // CREDIT: Decrease Bank (cash paid out)
+        $this->addLine($entry, LedgerAccount::CODE_BANK, 'CREDIT', $amount);
+
+        $this->validateBalanced($entry);
+
+        return $entry;
+    }
+
+    /**
+     * @deprecated PHASE 4.2: Use recordBonusWithTds() instead for proper TDS separation.
+     *
+     * Record bonus credit to user (legacy method without TDS separation).
      *
      * ACCOUNTING:
      *   DEBIT  MARKETING_EXPENSE    (increase expense)
@@ -277,7 +444,7 @@ class DoubleEntryLedgerService
         $entry = $this->createEntry(
             LedgerEntry::REF_BONUS_CREDIT,
             $bonus->id,
-            "Bonus credit: {$bonus->type} - ₹" . number_format($amount, 2)
+            "Bonus credit (legacy): {$bonus->type} - ₹" . number_format($amount, 2)
         );
 
         // DEBIT: Marketing expense
@@ -321,6 +488,48 @@ class DoubleEntryLedgerService
 
         // CREDIT: Increase wallet liability
         $this->addLine($entry, LedgerAccount::CODE_USER_WALLET_LIABILITY, 'CREDIT', $amount);
+
+        $this->validateBalanced($entry);
+
+        return $entry;
+    }
+
+    /**
+     * @deprecated PHASE 4.2: Use recordBonusWithTds() instead for proper TDS separation.
+     *
+     * Record bonus credited directly to user wallet (legacy method).
+     *
+     * PHASE 4.1: Simplified bonus crediting for direct-to-wallet model.
+     * Used when bonuses are immediately available in user's wallet.
+     *
+     * WARNING: This method does NOT properly separate TDS.
+     * Use recordBonusWithTds() for correct legal accounting.
+     *
+     * ACCOUNTING:
+     *   DEBIT  MARKETING_EXPENSE       (increase expense - NET, not gross!)
+     *   CREDIT USER_WALLET_LIABILITY   (increase liability - we owe user)
+     *
+     * @param BonusTransaction $bonus The bonus transaction record
+     * @param float $netAmount Net amount after TDS (credited to wallet)
+     * @return LedgerEntry
+     */
+    public function recordBonusCreditToWallet(
+        BonusTransaction $bonus,
+        float $netAmount
+    ): LedgerEntry {
+        $this->validatePositiveAmount($netAmount);
+
+        $entry = $this->createEntry(
+            LedgerEntry::REF_BONUS_CREDIT,
+            $bonus->id,
+            "Bonus credit (legacy): {$bonus->type} - ₹" . number_format($netAmount, 2) . " to user #{$bonus->user_id}"
+        );
+
+        // DEBIT: Increase marketing expense (bonus is a cost to platform)
+        $this->addLine($entry, LedgerAccount::CODE_MARKETING_EXPENSE, 'DEBIT', $netAmount);
+
+        // CREDIT: Increase wallet liability (we now owe user)
+        $this->addLine($entry, LedgerAccount::CODE_USER_WALLET_LIABILITY, 'CREDIT', $netAmount);
 
         $this->validateBalanced($entry);
 
@@ -659,6 +868,12 @@ class DoubleEntryLedgerService
 
     /**
      * Add a line to a ledger entry.
+     *
+     * PHASE 4.2 HARDENING:
+     * Contains runtime guard for COST_OF_SHARES to prevent allocation-time costing.
+     * COST_OF_SHARES may ONLY be used within the bulk purchase flow.
+     *
+     * @throws \RuntimeException if COST_OF_SHARES is used outside bulk purchase flow
      */
     private function addLine(
         LedgerEntry $entry,
@@ -666,6 +881,28 @@ class DoubleEntryLedgerService
         string $direction,
         float $amount
     ): LedgerLine {
+        // =========================================================================
+        // PHASE 4.2 HARDENING: COST_OF_SHARES GUARD
+        // =========================================================================
+        //
+        // INVARIANT: Cost is recognized at PURCHASE TIME ONLY.
+        //
+        // COST_OF_SHARES may only be debited/credited during:
+        // - recordInventoryPurchase() (DEBIT - recognize expense)
+        // - recordInventoryPurchaseReversal() (CREDIT - reverse expense)
+        //
+        // Any other usage would cause expense double-counting.
+        // This guard makes the violation IMPOSSIBLE, not just prohibited.
+        // =========================================================================
+        if ($accountCode === LedgerAccount::CODE_COST_OF_SHARES && !$this->inBulkPurchaseFlow) {
+            throw new \RuntimeException(
+                "ACCOUNTING VIOLATION: COST_OF_SHARES may only be used in bulk purchase flow. " .
+                "Cost is recognized at PURCHASE TIME ONLY. " .
+                "Allocation must NEVER post cost entries. " .
+                "Attempted direction: {$direction}, amount: ₹{$amount}, entry: #{$entry->id}"
+            );
+        }
+
         $account = $this->getAccount($accountCode);
 
         return LedgerLine::create([

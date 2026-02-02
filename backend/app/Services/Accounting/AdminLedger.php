@@ -7,6 +7,40 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
+ * @deprecated PHASE 4.1: This service is DEPRECATED. Use DoubleEntryLedgerService instead.
+ *
+ * ============================================================================
+ * PHASE 4.2 KILL SWITCH: ALL WRITE OPERATIONS ARE PERMANENTLY DISABLED
+ * ============================================================================
+ *
+ * This service's write methods have been KILLED.
+ * Any attempt to call them will throw a RuntimeException.
+ *
+ * This is NOT a soft deprecation. It is a HARD KILL to prevent:
+ * - Accidental dual-ledger writes from cron jobs
+ * - Resurrection by well-meaning developers
+ * - Silent financial state corruption
+ *
+ * The only allowed operations are READ-ONLY queries on historical data.
+ *
+ * ============================================================================
+ *
+ * MIGRATION NOTICE:
+ * - This admin-specific ledger has been replaced by unified double-entry accounting
+ * - New code MUST use App\Services\DoubleEntryLedgerService
+ * - Historical data in admin_ledger_entries table is preserved for audit
+ * - This service remains for backward compatibility with existing records only
+ *
+ * REPLACEMENT MAPPING:
+ * - recordPaymentReceived() -> DoubleEntryLedgerService::recordUserDeposit()
+ * - recordBulkPurchase() -> DoubleEntryLedgerService::recordInventoryPurchase()
+ * - recordBonusPaid() -> DoubleEntryLedgerService::recordBonusWithTds()
+ * - recordWithdrawalProcessed() -> DoubleEntryLedgerService::recordWithdrawal()
+ *
+ * ============================================================================
+ * LEGACY DOCUMENTATION (for historical context):
+ * ============================================================================
+ *
  * AdminLedger - Single Authoritative Accounting Boundary
  *
  * PROTOCOL:
@@ -305,14 +339,12 @@ class AdminLedger
     }
 
     /**
-     * Create Double-Entry Transaction (ATOMIC)
+     * PHASE 4.2 KILL SWITCH: This method is PERMANENTLY DISABLED.
      *
-     * PROTOCOL:
-     * - Both entries created in single DB transaction
-     * - Balances calculated automatically
-     * - Entries are immutable after creation
+     * All write operations on AdminLedger have been killed.
+     * Use DoubleEntryLedgerService for all new accounting operations.
      *
-     * @return array [debit_entry, credit_entry]
+     * @throws \RuntimeException ALWAYS - legacy ledger writes are forbidden
      */
     private function createDoubleEntry(
         string $debitAccount,
@@ -322,58 +354,35 @@ class AdminLedger
         int $referenceId,
         string $description
     ): array {
-        return DB::transaction(function () use (
-            $debitAccount,
-            $creditAccount,
-            $amount,
-            $referenceType,
-            $referenceId,
-            $description
-        ) {
-            // Convert to paise (integer math)
-            $amountPaise = (int) round($amount * 100);
+        // =========================================================================
+        // PHASE 4.2 KILL SWITCH - DO NOT REMOVE
+        // =========================================================================
+        // This legacy admin ledger has been replaced by DoubleEntryLedgerService.
+        // Writing to this ledger would create DUAL FINANCIAL TRUTH, which is fatal.
+        //
+        // Use DoubleEntryLedgerService methods instead:
+        // - recordPaymentReceived() -> recordUserDeposit()
+        // - recordInventoryPurchase() -> recordInventoryPurchase()
+        // - recordBonusPayout() -> recordBonusWithTds()
+        // - recordWithdrawal() -> recordWithdrawal()
+        // =========================================================================
+        Log::critical('ADMIN LEDGER KILL SWITCH TRIGGERED', [
+            'method' => 'createDoubleEntry',
+            'debit_account' => $debitAccount,
+            'credit_account' => $creditAccount,
+            'amount' => $amount,
+            'reference_type' => $referenceType,
+            'reference_id' => $referenceId,
+            'description' => $description,
+            'caller' => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 5),
+        ]);
 
-            // Get current balances (locking to prevent race conditions)
-            $debitBalance = $this->getAccountBalance($debitAccount, true); // true = lock
-            $creditBalance = $this->getAccountBalance($creditAccount, true);
-
-            // Create debit entry
-            $debitEntry = AdminLedgerEntry::create([
-                'account' => $debitAccount,
-                'type' => 'debit',
-                'amount_paise' => $amountPaise,
-                'balance_before_paise' => $debitBalance,
-                'balance_after_paise' => $debitBalance + $amountPaise,
-                'reference_type' => $referenceType,
-                'reference_id' => $referenceId,
-                'description' => $description,
-                'entry_pair_id' => null, // Will be set after credit entry created
-            ]);
-
-            // Create credit entry
-            $creditEntry = AdminLedgerEntry::create([
-                'account' => $creditAccount,
-                'type' => 'credit',
-                'amount_paise' => $amountPaise,
-                'balance_before_paise' => $creditBalance,
-                'balance_after_paise' => $creditBalance - $amountPaise,
-                'reference_type' => $referenceType,
-                'reference_id' => $referenceId,
-                'description' => $description,
-                'entry_pair_id' => $debitEntry->id,
-            ]);
-
-            // Link debit entry to credit entry
-            $debitEntry->update(['entry_pair_id' => $creditEntry->id]);
-
-            Log::info("ADMIN_LEDGER: Double-entry created", [
-                'debit' => "{$debitAccount} +₹{$amount}",
-                'credit' => "{$creditAccount} -₹{$amount}",
-                'reference' => "{$referenceType}#{$referenceId}",
-            ]);
-
-            return [$debitEntry, $creditEntry];
-        });
+        throw new \RuntimeException(
+            "LEGACY ADMIN LEDGER KILLED (Phase 4.2): AdminLedger::createDoubleEntry() is permanently disabled. " .
+            "Use DoubleEntryLedgerService methods instead. " .
+            "Attempted: {$debitAccount}/{$creditAccount} for ₹{$amount} ({$referenceType}#{$referenceId}). " .
+            "This error is intentional and cannot be bypassed."
+        );
     }
 
     /**
