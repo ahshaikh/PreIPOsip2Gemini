@@ -528,7 +528,7 @@ Route::prefix('v1')->group(function () {
     // === ADMIN ROUTES ===
     // V-SECURITY-FIX: IP whitelist MUST be checked BEFORE role check
     // FIX: Correct middleware order: auth first, then IP check, then role check
-    Route::prefix('admin')->middleware(['auth:sanctum', 'admin.ip', 'role:admin|super-admin'])->group(function () {
+    Route::prefix('admin')->as('admin.')->middleware(['auth:sanctum', 'admin.ip', 'role:admin|super-admin'])->group(function () {
             Route::get('/dashboard', [AdminDashboardController::class, 'index']);
 
             // Unified Dashboard (NEW: Comprehensive module consolidation)
@@ -1183,12 +1183,14 @@ Route::prefix('v1')->group(function () {
             // Audit Logs & Change History
             Route::prefix('audit-logs')->middleware('permission:system.view_logs')->group(function () {
                 Route::get('/', [App\Http\Controllers\Api\Admin\AuditLogController::class, 'index']);
-                Route::get('/{log}', [App\Http\Controllers\Api\Admin\AuditLogController::class, 'show']);
-                Route::get('/history/{type}/{id}', [App\Http\Controllers\Api\Admin\AuditLogController::class, 'getHistory']);
-                Route::get('/timeline', [App\Http\Controllers\Api\Admin\AuditLogController::class, 'getTimeline']);
+                // Specific routes MUST come before parameterized routes
                 Route::get('/stats', [App\Http\Controllers\Api\Admin\AuditLogController::class, 'getStats']);
-                Route::get('/{log}/compare', [App\Http\Controllers\Api\Admin\AuditLogController::class, 'compareChanges']);
+                Route::get('/timeline', [App\Http\Controllers\Api\Admin\AuditLogController::class, 'getTimeline']);
                 Route::get('/export', [App\Http\Controllers\Api\Admin\AuditLogController::class, 'export']);
+                Route::get('/history/{type}/{id}', [App\Http\Controllers\Api\Admin\AuditLogController::class, 'getHistory']);
+                // Parameterized routes MUST come last
+                Route::get('/{log}', [App\Http\Controllers\Api\Admin\AuditLogController::class, 'show']);
+                Route::get('/{log}/compare', [App\Http\Controllers\Api\Admin\AuditLogController::class, 'compareChanges']);
             });
 
             // -------------------------------------------------------------
@@ -1352,18 +1354,31 @@ Route::prefix('v1')->group(function () {
         });
 
         // ========================================================================
+        // AUDIT DASHBOARD ROUTES (Admin-authenticated)
+        // ========================================================================
+        Route::prefix('audit')->middleware(['auth:sanctum', 'role:admin|super-admin'])->group(function () {
+            Route::get('/investments', [App\Http\Controllers\Api\Admin\AuditDashboardController::class, 'listInvestments']);
+            Route::get('/investors', [App\Http\Controllers\Api\Admin\AuditDashboardController::class, 'listInvestors']);
+            Route::get('/companies', [App\Http\Controllers\Api\Admin\AuditDashboardController::class, 'listCompanies']);
+            Route::get('/companies/{company}', [App\Http\Controllers\Api\Admin\AuditDashboardController::class, 'showCompany']);
+            Route::get('/actions', [App\Http\Controllers\Api\Admin\AuditDashboardController::class, 'listActions']);
+            Route::get('/actions/{action}', [App\Http\Controllers\Api\Admin\AuditDashboardController::class, 'showAction']);
+        });
+
+        // ========================================================================
         // COMPANY USER ROUTES
         // ========================================================================
         // Public Company Registration & Login
         // [FIX 16 (P3)]: Apply same rate limiting to company auth endpoints
-        Route::prefix('company')->group(function () {
+        Route::prefix('company')->as('company.')->group(function () {
             Route::middleware('throttle.public')->group(function () {
                 Route::post('/register', [CompanyAuthController::class, 'register']);
                 Route::post('/login', [CompanyAuthController::class, 'login']);
             });
 
             // Authenticated Company User Routes
-            Route::middleware('auth:sanctum')->group(function () {
+            // FIX: Use company_api guard to ensure $request->user() returns CompanyUser
+            Route::middleware('auth:company_api')->group(function () {
                 // User management (for company admins)
                 Route::middleware('role:company_admin,company_api')->group(function () {
                     Route::get('users/statistics', [UserManagementController::class, 'statistics']);

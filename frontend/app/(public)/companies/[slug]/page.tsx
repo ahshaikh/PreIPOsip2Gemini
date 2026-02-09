@@ -41,7 +41,7 @@ interface Company {
   slug: string;
   logo?: string;
   description: string;
-  sector: string;
+  sector: string | { name: string };
   founded_year?: number;
   website?: string;
   email?: string;
@@ -180,7 +180,7 @@ export default function PublicCompanyProfile() {
             {company.logo && (
               <div className="bg-white p-4 rounded-lg shadow-lg dark:bg-gray-900">
                 <Image
-                  src={`${BACKEND_URL}/storage/${company.logo}`}
+                  src={`/api/storage/${company.logo}`}
                   alt={company.name}
                   width={120}
                   height={120}

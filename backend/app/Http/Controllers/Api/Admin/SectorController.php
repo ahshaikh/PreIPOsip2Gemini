@@ -21,7 +21,7 @@ class SectorController extends Controller
             $query->where('is_active', $request->is_active);
         }
 
-        $sectors = $query->withCount(['companies', 'deals', 'products'])
+        $sectors = $query->withCount(['companies'])
                          ->orderBy('sort_order')
                          ->paginate(20);
 

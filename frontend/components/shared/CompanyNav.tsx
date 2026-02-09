@@ -16,6 +16,11 @@ import {
   Sparkles,
   Shield,
   UserCog,
+  ShieldCheck,
+  BarChart3,
+  Heart,
+  MessageCircleQuestion,
+  Video,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -26,17 +31,24 @@ const navItems = [
   { href: '/company/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/company/profile', label: 'Company Profile', icon: Building2 },
   { href: '/company/deals', label: 'Share Offerings', icon: Sparkles },
+  { href: '/company/disclosures', label: 'Disclosures', icon: ShieldCheck },
   { href: '/company/financial-reports', label: 'Financial Reports', icon: FileText },
   { href: '/company/documents', label: 'Documents', icon: FolderOpen },
   { href: '/company/team', label: 'Team Members', icon: Users },
   { href: '/company/funding', label: 'Funding Rounds', icon: TrendingUp },
-  { href: '/company/updates', label: 'News & Updates', icon: Newspaper },
 ];
 
-// Admin-only navigation items
-const adminNavItems = [
-  { href: '/company/users', label: 'User Management', icon: UserCog },
+// Engagement & communication items
+const engagementItems = [
+  { href: '/company/updates', label: 'News & Updates', icon: Newspaper },
+  { href: '/company/investor-interests', label: 'Investor Interests', icon: Heart },
+  { href: '/company/qna', label: 'Q&A', icon: MessageCircleQuestion },
+  { href: '/company/webinars', label: 'Webinars', icon: Video },
+  { href: '/company/analytics', label: 'Analytics', icon: BarChart3 },
 ];
+
+// Admin-only navigation item - shown prominently after Dashboard
+const teamSetupNavItem = { href: '/company/users', label: 'Team Setup', icon: UserCog, adminOnly: true };
 
 const settingsNav = [
   { href: '/company/account', label: 'Account Settings', icon: User },
@@ -114,19 +126,27 @@ export default function CompanyNav() {
         <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase px-4 mb-2">
           Main
         </h4>
-        {navItems.map(renderLink)}
+        {/* Dashboard */}
+        {renderLink(navItems[0])}
+
+        {/* Team Setup - Admin only, prominently placed after Dashboard */}
+        {isAdmin && (
+          <div className="relative">
+            {renderLink(teamSetupNavItem)}
+            <Shield className="absolute right-3 top-1/2 -translate-y-1/2 h-3 w-3 text-purple-500" />
+          </div>
+        )}
+
+        {/* Rest of nav items */}
+        {navItems.slice(1).map(renderLink)}
       </div>
 
-      {/* Admin-only navigation - only visible to company_admin users */}
-      {isAdmin && (
-        <div className="space-y-1 mb-6">
-          <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase px-4 mb-2 flex items-center gap-1">
-            <Shield className="h-3 w-3" />
-            Admin
-          </h4>
-          {adminNavItems.map(renderLink)}
-        </div>
-      )}
+      <div className="space-y-1 mb-6">
+        <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase px-4 mb-2">
+          Engagement
+        </h4>
+        {engagementItems.map(renderLink)}
+      </div>
 
       <div className="space-y-1 mb-6">
         <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase px-4 mb-2">

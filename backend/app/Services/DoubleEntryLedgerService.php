@@ -124,10 +124,11 @@ class DoubleEntryLedgerService
         $this->inBulkPurchaseFlow = true;
 
         try {
+            $productName = $bulkPurchase->product->name ?? 'Product';
             $entry = $this->createEntry(
                 LedgerEntry::REF_BULK_PURCHASE,
                 $bulkPurchase->id,
-                "Inventory purchase (expensed): {$bulkPurchase->product->name ?? 'Product'} - ₹" . number_format($amount, 2),
+                "Inventory purchase (expensed): {$productName} - ₹" . number_format($amount, 2),
                 $adminId
             );
 

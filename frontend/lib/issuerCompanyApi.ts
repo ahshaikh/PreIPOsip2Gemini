@@ -13,7 +13,7 @@
  * - PHASE SEPARATION: Issuer has ZERO visibility into investor metrics
  */
 
-import api from './api';
+import companyApi from './companyApi';
 
 export interface IssuerCompanyData {
   id: number;
@@ -43,19 +43,41 @@ export interface IssuerCompanyData {
   };
 
   // Platform Overrides (Messages explaining restrictions)
-  platform_overrides: string[];
+  platform_overrides: Array<{
+    type: string;
+    severity: string;
+    message: string;
+    reason?: string;
+    blocks_editing?: boolean;
+    blocks_submission?: boolean;
+    adds_review_delay?: boolean;
+    affects_go_live?: boolean;
+  }>;
 
-  // Disclosures with edit state
+  // Disclosure Requirements (contract-complete with backend taxonomy)
+  // Backend provides ALL requirements including not-started ones
   disclosures: Array<{
-    id: number;
+    id: number | null; // null when status is "not_started"
     module_id: number;
+    module_code: string;
     module_name: string;
-    status: string;
+    // BACKEND-PROVIDED TAXONOMY (no frontend inference)
+    category: 'governance' | 'financial' | 'legal' | 'operational';
+    tier: number; // Minimum tier requirement (1-3)
+    is_required: boolean;
+    required_for_tier: number; // Same as tier
+    // STATUS & PERMISSIONS
+    status: string; // Backend normalizes to "not_started" when no thread exists
+    completion_percentage: number;
     can_edit: boolean;
     can_submit: boolean;
+    // REJECTION INFO
     rejection_reason?: string;
     corrective_guidance?: string;
-    data: any;
+    // VERSION INFO
+    version_number: number;
+    submitted_at?: string;
+    approved_at?: string;
   }>;
 
   // Clarifications (with deadlines)
@@ -80,11 +102,14 @@ export interface DisclosureEditPermissions {
 /**
  * Fetch issuer's own company data with platform context
  *
- * Backend endpoint: GET /issuer/company
- * Uses CompanyDisclosureService.getDashboardSummary() with platform context injection
+ * Backend endpoint: GET /api/company/disclosures
+ * Returns contract-complete structure with:
+ * - All disclosure requirements (including not_started)
+ * - Backend-provided category and tier taxonomy
+ * - Platform context and effective permissions
  */
 export async function fetchIssuerCompany(): Promise<IssuerCompanyData> {
-  const response = await api.get('/issuer/company');
+  const response = await companyApi.get('/disclosures');
   return response.data.data;
 }
 
@@ -97,7 +122,7 @@ export async function fetchIssuerCompany(): Promise<IssuerCompanyData> {
 export async function checkDisclosureEditPermissions(
   disclosureId: number
 ): Promise<DisclosureEditPermissions> {
-  const response = await api.get(`/issuer/disclosures/${disclosureId}/edit-permissions`);
+  const response = await companyApi.get(`/disclosures/${disclosureId}`);
   return response.data.data;
 }
 
@@ -111,7 +136,7 @@ export async function updateDisclosure(
   disclosureId: number,
   data: any
 ): Promise<{ success: boolean; message: string }> {
-  const response = await api.put(`/issuer/disclosures/${disclosureId}`, { data });
+  const response = await companyApi.post(`/disclosures/${disclosureId}/submit`, { data });
   return response.data;
 }
 
@@ -124,7 +149,7 @@ export async function updateDisclosure(
 export async function submitDisclosureForReview(
   disclosureId: number
 ): Promise<{ success: boolean; message: string }> {
-  const response = await api.post(`/issuer/disclosures/${disclosureId}/submit`);
+  const response = await companyApi.post(`/disclosures/${disclosureId}/submit`);
   return response.data;
 }
 
@@ -139,7 +164,7 @@ export async function answerClarification(
   clarificationId: number,
   answer: string
 ): Promise<{ success: boolean; message: string }> {
-  const response = await api.post(`/issuer/clarifications/${clarificationId}/answer`, {
+  const response = await companyApi.post(`/clarifications/${clarificationId}/answer`, {
     answer,
   });
   return response.data;

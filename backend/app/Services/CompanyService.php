@@ -20,7 +20,8 @@ class CompanyService
      */
     public function registerCompany(array $data)
     {
-        return DB::transaction(function () use ($data) {
+        // Database operations in transaction
+        $result = DB::transaction(function () use ($data) {
             // 1. Create Company
             // Note: Slug generation is handled by Company::booted()
             $company = Company::create([
@@ -45,17 +46,29 @@ class CompanyService
                 'is_verified' => false,
             ]);
 
-            // FIX 19: Send email verification notification
-            event(new Registered($companyUser));
-
-            \Log::info('Company registered - verification email sent', [
-                'company_id' => $company->id,
-                'company_user_id' => $companyUser->id,
-                'email' => $companyUser->email,
-            ]);
-
             return ['company' => $company, 'user' => $companyUser];
         });
+
+        // FIX: Send email verification OUTSIDE transaction
+        // Email failures should not rollback registration
+        try {
+            event(new Registered($result['user']));
+            \Log::info('Company registered - verification email sent', [
+                'company_id' => $result['company']->id,
+                'company_user_id' => $result['user']->id,
+                'email' => $result['user']->email,
+            ]);
+        } catch (\Exception $e) {
+            // Log email failure but don't fail registration
+            \Log::warning('Company registered but verification email failed', [
+                'company_id' => $result['company']->id,
+                'company_user_id' => $result['user']->id,
+                'email' => $result['user']->email,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $result;
     }
 
     /**

@@ -137,6 +137,25 @@ class CompanyUser extends Authenticatable implements MustVerifyEmail
             'rejection_reason' => null,
         ]);
 
+        // Assign company_admin role to the first user of the company
+        // This is the registering user who becomes the initial admin
+        if (!$this->hasRole('company_admin')) {
+            // Check if this is the first/only user for this company
+            $companyUserCount = static::where('company_id', $this->company_id)
+                ->where('status', 'active')
+                ->count();
+
+            // If this is the first active user, make them admin
+            if ($companyUserCount <= 1) {
+                $this->assignRole('company_admin');
+                \Log::info('Assigned company_admin role to first company user', [
+                    'company_user_id' => $this->id,
+                    'email' => $this->email,
+                    'company_id' => $this->company_id,
+                ]);
+            }
+        }
+
         \Log::info('Company user approved', [
             'company_user_id' => $this->id,
             'email' => $this->email,

@@ -15,6 +15,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Models\User;
 
 class ProductAudit extends Model
 {
@@ -60,7 +61,7 @@ class ProductAudit extends Model
 
     public function performedBy(): BelongsTo
     {
-        return $this->morphTo('performed_by');
+        return $this->belongsTo(User::class, 'performed_by');
     }
 
     // --- HELPERS ---

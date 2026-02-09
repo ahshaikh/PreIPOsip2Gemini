@@ -24,12 +24,29 @@ class CompanyProfileController extends Controller
     public function update(Request $request)
     {
         $companyUser = $request->user();
+
+        // Validate user type
+        if (!$companyUser || !($companyUser instanceof \App\Models\CompanyUser)) {
+            \Log::error('[COMPANY-PROFILE-UPDATE] Wrong user type', [
+                'expected' => 'App\Models\CompanyUser',
+                'got' => $companyUser ? get_class($companyUser) : 'null',
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Authentication error - please re-login to company portal',
+            ], 401);
+        }
+
         $company = $companyUser->company;
 
         if (!$company) {
+            \Log::error('[COMPANY-PROFILE-UPDATE] Company not found', [
+                'company_user_id' => $companyUser->id,
+                'company_id_on_user' => $companyUser->company_id,
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'Company not found',
+                'message' => 'Company not found for your account',
             ], 404);
         }
 
@@ -148,12 +165,46 @@ class CompanyProfileController extends Controller
     public function dashboard(Request $request)
     {
         $companyUser = $request->user();
+
+        // DEBUG: Log what user type we're getting
+        \Log::info('[DASHBOARD DEBUG]', [
+            'user_class' => $companyUser ? get_class($companyUser) : 'null',
+            'user_id' => $companyUser?->id,
+            'user_email' => $companyUser?->email,
+            'has_company_id' => isset($companyUser->company_id),
+            'company_id' => $companyUser?->company_id ?? 'not set',
+        ]);
+
+        // If user is null or wrong type, return helpful error
+        if (!$companyUser) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Authentication failed - no user found',
+            ], 401);
+        }
+
+        // Check if this is the correct user model type
+        if (!($companyUser instanceof \App\Models\CompanyUser)) {
+            \Log::error('[DASHBOARD] Wrong user type', [
+                'expected' => 'App\Models\CompanyUser',
+                'got' => get_class($companyUser),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Authentication error - wrong user type. Expected CompanyUser.',
+            ], 401);
+        }
+
         $company = $companyUser->company;
 
         if (!$company) {
+            \Log::error('[DASHBOARD] Company not found', [
+                'company_user_id' => $companyUser->id,
+                'company_id_on_user' => $companyUser->company_id,
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'Company not found',
+                'message' => 'Company not found for user. company_id=' . $companyUser->company_id,
             ], 404);
         }
 
@@ -169,10 +220,15 @@ class CompanyProfileController extends Controller
             'status' => $company->status,
         ];
 
+        // ROOT CAUSE FIX: Return complete, contract-compliant structure
+        // Use CompanyDisclosureService to get guaranteed structure
+        $disclosureService = app(\App\Services\CompanyDisclosureService::class);
+        $companyData = $disclosureService->getIssuerCompanyData($company);
+
         return response()->json([
             'success' => true,
             'stats' => $stats,
-            'company' => $company,
+            'company' => $companyData, // Guaranteed complete structure
         ], 200);
     }
 }

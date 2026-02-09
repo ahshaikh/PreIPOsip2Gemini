@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from "react";
-import api from "@/lib/api";
+import companyApi from "@/lib/companyApi";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -87,7 +87,7 @@ export default function CompanyWebinarsPage() {
   const { data: statsData } = useQuery({
     queryKey: ['webinarStats'],
     queryFn: async () => {
-      const { data } = await api.get('/company/webinars/statistics');
+      const { data } = await companyApi.get('/webinars/statistics');
       return data;
     },
   });
@@ -106,7 +106,7 @@ export default function CompanyWebinarsPage() {
       const params = new URLSearchParams({
         ...(statusFilter && { status: statusFilter }),
       });
-      const { data } = await api.get(`/company/webinars?${params}`);
+      const { data } = await companyApi.get(`/webinars?${params}`);
       return data;
     },
   });
@@ -116,7 +116,7 @@ export default function CompanyWebinarsPage() {
   // Create webinar mutation
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await api.post('/company/webinars', data);
+      const response = await companyApi.post('/webinars', data);
       return response.data;
     },
     onSuccess: () => {
@@ -134,7 +134,7 @@ export default function CompanyWebinarsPage() {
   // Update webinar mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      const response = await api.put(`/company/webinars/${id}`, data);
+      const response = await companyApi.put(`/webinars/${id}`, data);
       return response.data;
     },
     onSuccess: () => {
@@ -152,7 +152,7 @@ export default function CompanyWebinarsPage() {
   // Upload recording mutation
   const uploadRecordingMutation = useMutation({
     mutationFn: async ({ id, url }: { id: number; url: string }) => {
-      const response = await api.post(`/company/webinars/${id}/recording`, {
+      const response = await companyApi.post(`/webinars/${id}/recording`, {
         recording_url: url,
       });
       return response.data;
@@ -172,7 +172,7 @@ export default function CompanyWebinarsPage() {
   // Delete webinar mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await api.delete(`/company/webinars/${id}`);
+      const response = await companyApi.delete(`/webinars/${id}`);
       return response.data;
     },
     onSuccess: () => {

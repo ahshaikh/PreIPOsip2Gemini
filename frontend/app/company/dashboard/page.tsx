@@ -22,6 +22,15 @@ export default function CompanyDashboardPage() {
   const stats = dashboardData?.stats;
   const company = dashboardData?.company;
 
+  let logoSrc = '';
+  if (company?.logo) {
+    if (company.logo.startsWith('http')) {
+      logoSrc = company.logo;
+    } else {
+      logoSrc = `/api/storage/${company.logo}`;
+    }
+  }
+
   const statsCards = [
     {
       title: 'Financial Reports',
@@ -74,10 +83,10 @@ export default function CompanyDashboardPage() {
       <div className="flex items-center gap-4">
         {/* Company Logo */}
         <div className="flex-shrink-0">
-          {company?.logo ? (
+          {logoSrc ? (
             <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
               <Image
-                src={`/api/storage/${company.logo}`}
+                src={logoSrc}
                 alt={company.name || 'Company logo'}
                 width={64}
                 height={64}
@@ -98,7 +107,7 @@ export default function CompanyDashboardPage() {
         {/* Welcome Text */}
         <div className="flex-1">
           <h1 className="text-3xl font-bold">
-            {company?.name ? `Welcome, ${company.name}` : 'Welcome to Your Company Dashboard'}
+            {company?.name ? `${company.name} Dashboard` : 'Company Dashboard'}
           </h1>
           <p className="text-muted-foreground mt-2">
             Manage your company profile and engage with potential investors

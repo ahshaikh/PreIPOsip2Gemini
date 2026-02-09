@@ -1,7 +1,11 @@
 // V-PHASE4-1730-108 (Created) | V-FINAL-1730-314 (Dynamic - Theme Aware)
 import Link from "next/link";
 
-export default function HowItWorks() {
+type HowItWorksProps = {
+  data?: any;
+};
+
+export default function HowItWorks({ data }: HowItWorksProps) {
   const steps = [
     {
       number: "1",

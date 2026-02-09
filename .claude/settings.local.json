@@ -5,7 +5,22 @@
       "Bash(php -l:*)",
       "Bash(php:*)",
       "Bash(find:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(more:*)",
+      "Bash(dir /b \"C:\\\\PreIPO\\\\backend\\\\app\\\\Http\\\\Controllers\\\\Api\\\\Investor\"\")",
+      "Bash(dir:*)",
+      "Bash(curl:*)",
+      "Bash(netstat:*)",
+      "Bash(tasklist:*)",
+      "Bash(timeout:*)",
+      "Bash(ping:*)",
+      "Bash(where:*)",
+      "Bash(C:\\\\xampp\\\\php\\\\php.exe:*)",
+      "Bash(bash -c \"cd /c/PreIPO/backend && php test_request.php\")",
+      "Bash(echo:*)",
+      "Bash(taskkill:*)",
+      "Bash(claude config get:*)",
+      "Bash(grep:*)"
     ]
   }
 }

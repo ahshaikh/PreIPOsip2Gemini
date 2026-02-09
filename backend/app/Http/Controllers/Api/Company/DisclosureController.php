@@ -87,9 +87,15 @@ class DisclosureController extends Controller
     }
 
     /**
-     * List all disclosures for company
+     * List all disclosures for company (contract-complete)
      *
      * GET /api/company/disclosures
+     *
+     * Returns complete company data with disclosure requirements taxonomy:
+     * - All disclosure requirements (started and not-started)
+     * - Authoritative category and tier from backend
+     * - Platform context and effective permissions
+     * - Contract-complete structure (no undefined fields)
      */
     public function index(): JsonResponse
     {
@@ -104,33 +110,8 @@ class DisclosureController extends Controller
                 ], 403);
             }
 
-            $disclosures = CompanyDisclosure::where('company_id', $company->id)
-                ->with(['module', 'clarifications'])
-                ->orderBy('created_at', 'desc')
-                ->get();
-
-            $data = $disclosures->map(function ($disclosure) {
-                return [
-                    'id' => $disclosure->id,
-                    'module' => [
-                        'id' => $disclosure->module->id,
-                        'code' => $disclosure->module->code,
-                        'name' => $disclosure->module->name,
-                        'tier' => $disclosure->module->tier,
-                    ],
-                    'status' => $disclosure->status,
-                    'completion_percentage' => $disclosure->completion_percentage,
-                    'version_number' => $disclosure->version_number,
-                    'submitted_at' => $disclosure->submitted_at,
-                    'approved_at' => $disclosure->approved_at,
-                    'rejected_at' => $disclosure->rejected_at,
-                    'rejection_reason' => $disclosure->rejection_reason,
-                    'is_locked' => $disclosure->is_locked,
-                    'open_clarifications' => $disclosure->clarifications()
-                        ->whereIn('status', ['open', 'disputed'])
-                        ->count(),
-                ];
-            });
+            // Get contract-complete company data with disclosure requirements
+            $data = $this->disclosureService->getIssuerCompanyData($company);
 
             return response()->json([
                 'status' => 'success',
@@ -152,70 +133,42 @@ class DisclosureController extends Controller
     }
 
     /**
-     * Get disclosure details
+     * Get disclosure thread with full timeline (GitHub PR style)
      *
      * GET /api/company/disclosures/{id}
+     *
+     * Returns:
+     * - Disclosure details with module taxonomy
+     * - Complete timeline of events (submissions, clarifications, approvals)
+     * - Attached documents for each event
+     * - Clarifications with responses
      */
     public function show(int $id): JsonResponse
     {
         try {
-            $disclosure = CompanyDisclosure::with(['module', 'clarifications', 'currentVersion'])
+            $disclosure = CompanyDisclosure::with(['module'])
                 ->findOrFail($id);
 
             $this->authorize('view', $disclosure);
 
+            // Get complete disclosure thread with timeline
+            $thread = $this->disclosureService->getDisclosureThread($disclosure);
+
+            // Add permissions
+            $thread['permissions'] = [
+                'can_edit' => auth()->user()->can('update', $disclosure),
+                'can_submit' => auth()->user()->can('submit', $disclosure),
+                'can_respond' => true, // Can always respond (add timeline comments)
+                'can_report_error' => auth()->user()->can('reportError', $disclosure),
+            ];
+
             return response()->json([
                 'status' => 'success',
-                'data' => [
-                    'disclosure' => [
-                        'id' => $disclosure->id,
-                        'status' => $disclosure->status,
-                        'completion_percentage' => $disclosure->completion_percentage,
-                        'disclosure_data' => $disclosure->disclosure_data,
-                        'attachments' => $disclosure->attachments,
-                        'version_number' => $disclosure->version_number,
-                        'is_locked' => $disclosure->is_locked,
-                        'submitted_at' => $disclosure->submitted_at,
-                        'approved_at' => $disclosure->approved_at,
-                        'rejected_at' => $disclosure->rejected_at,
-                        'rejection_reason' => $disclosure->rejection_reason,
-                        'submission_notes' => $disclosure->submission_notes,
-                        'draft_edit_history' => $disclosure->draft_edit_history,
-                    ],
-                    'module' => [
-                        'id' => $disclosure->module->id,
-                        'code' => $disclosure->module->code,
-                        'name' => $disclosure->module->name,
-                        'tier' => $disclosure->module->tier,
-                        'json_schema' => $disclosure->module->json_schema,
-                        'description' => $disclosure->module->description,
-                    ],
-                    'clarifications' => $disclosure->clarifications->map(fn($c) => [
-                        'id' => $c->id,
-                        'question_subject' => $c->question_subject,
-                        'question_body' => $c->question_body,
-                        'question_type' => $c->question_type,
-                        'asked_at' => $c->asked_at,
-                        'field_path' => $c->field_path,
-                        'status' => $c->status,
-                        'priority' => $c->priority,
-                        'is_blocking' => $c->is_blocking,
-                        'due_date' => $c->due_date,
-                        'answer_body' => $c->answer_body,
-                        'answered_at' => $c->answered_at,
-                        'resolution_notes' => $c->resolution_notes,
-                    ]),
-                    'permissions' => [
-                        'can_edit' => auth()->user()->can('update', $disclosure),
-                        'can_submit' => auth()->user()->can('submit', $disclosure),
-                        'can_report_error' => auth()->user()->can('reportError', $disclosure),
-                        'can_attach_documents' => auth()->user()->can('attachDocuments', $disclosure),
-                    ],
-                ],
+                'data' => $thread,
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Failed to fetch disclosure details', [
+            \Log::error('Failed to fetch disclosure thread', [
                 'disclosure_id' => $id,
                 'user_id' => auth()->id(),
                 'error' => $e->getMessage(),
@@ -522,6 +475,104 @@ class DisclosureController extends Controller
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to answer clarification',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Add response to disclosure thread (timeline entry)
+     *
+     * POST /api/company/disclosures/{id}/respond
+     *
+     * Body:
+     * {
+     *   "message": "Updated the financial projections as requested",
+     *   "documents": [...] // Optional file uploads
+     * }
+     *
+     * Creates a "response" timeline event with optional document attachments.
+     * This is for communication/updates that aren't full submissions.
+     */
+    public function respond(Request $request, int $id): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'message' => 'required|string|max:2000',
+            'documents' => 'nullable|array',
+            'documents.*' => 'file|max:10240', // 10MB max per file
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $disclosure = CompanyDisclosure::findOrFail($id);
+            $this->authorize('view', $disclosure);
+
+            $user = auth()->user();
+
+            // Create response timeline event
+            $event = \App\Models\DisclosureEvent::create([
+                'company_disclosure_id' => $disclosure->id,
+                'event_type' => 'response',
+                'actor_type' => get_class($user),
+                'actor_id' => $user->id,
+                'actor_name' => $user->name ?? $user->full_name ?? 'Company User',
+                'message' => $request->message,
+                'metadata' => [],
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+
+            // Handle file uploads
+            if ($request->hasFile('documents')) {
+                foreach ($request->file('documents') as $file) {
+                    $storagePath = $file->store('disclosure-documents', 'public');
+
+                    \App\Models\DisclosureDocument::create([
+                        'disclosure_event_id' => $event->id,
+                        'company_disclosure_id' => $disclosure->id,
+                        'file_name' => $file->getClientOriginalName(),
+                        'storage_path' => $storagePath,
+                        'mime_type' => $file->getMimeType(),
+                        'file_size' => $file->getSize(),
+                        'file_hash' => hash_file('sha256', $file->getRealPath()),
+                        'uploaded_by_type' => get_class($user),
+                        'uploaded_by_id' => $user->id,
+                        'uploaded_by_name' => $user->name ?? $user->full_name ?? 'Company User',
+                        'is_public' => false,
+                        'visibility' => 'admin',
+                        'uploaded_from_ip' => $request->ip(),
+                    ]);
+                }
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Response posted successfully',
+                'data' => [
+                    'event_id' => $event->id,
+                    'event_type' => $event->event_type,
+                    'created_at' => $event->created_at->toIso8601String(),
+                    'document_count' => $request->hasFile('documents') ? count($request->file('documents')) : 0,
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to post response', [
+                'disclosure_id' => $id,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to post response',
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }

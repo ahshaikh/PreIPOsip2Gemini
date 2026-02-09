@@ -16,7 +16,7 @@ class AuditLogController extends Controller
      */
     public function index(Request $request)
     {
-        $query = AuditLog::with('admin:id,username,email')
+        $query = AuditLog::query()
             ->orderBy('created_at', 'desc');
 
         // Filter by admin
@@ -111,14 +111,13 @@ class AuditLogController extends Controller
     {
         $logs = AuditLog::where('target_type', $type)
             ->where('target_id', $id)
-            ->with('admin:id,username,email')
-            ->orderBy('created_at', 'desc')
+                        ->orderBy('created_at', 'desc')
             ->get();
 
         $formatted = $logs->map(function ($log) {
             return [
                 'id' => $log->id,
-                'admin' => $log->admin->username ?? 'Unknown',
+                'admin' => $log->actor_name ?? 'Unknown',
                 'admin_id' => $log->admin_id,
                 'action' => $log->action,
                 'description' => $log->description,
@@ -145,13 +144,12 @@ class AuditLogController extends Controller
 
         // Get audit logs (admin actions)
         $auditLogs = AuditLog::where('created_at', '>=', now()->subHours($hours))
-            ->with('admin:id,username,email')
-            ->get()
+                        ->get()
             ->map(function ($log) {
                 return [
                     'type' => 'admin_action',
                     'timestamp' => $log->created_at,
-                    'actor' => $log->admin->username ?? 'Unknown',
+                    'actor' => $log->actor_name ?? 'Unknown',
                     'actor_type' => 'admin',
                     'action' => $log->action,
                     'module' => $log->module,
@@ -190,59 +188,55 @@ class AuditLogController extends Controller
     }
 
     /**
-     * Get admin action statistics
+     * Get audit dashboard statistics
      * GET /api/v1/admin/audit-logs/stats
+     *
+     * Returns stats in format expected by frontend AuditDashboardStats interface
      */
     public function getStats(Request $request)
     {
-        $days = $request->input('days', 30);
+        // Investment stats
+        $investmentModel = \App\Models\UserInvestment::class;
+        $investmentStats = [
+            'total_count' => $investmentModel::count(),
+            'total_amount' => number_format($investmentModel::sum('value_allocated') ?? 0, 2),
+            'today_count' => $investmentModel::whereDate('created_at', today())->count(),
+            'today_amount' => number_format($investmentModel::whereDate('created_at', today())->sum('value_allocated') ?? 0, 2),
+        ];
 
-        $stats = [
-            'total_actions' => AuditLog::where('created_at', '>=', now()->subDays($days))->count(),
+        // Governance stats (company status)
+        $companyModel = \App\Models\Company::class;
+        $governanceStats = [
+            'companies_active' => $companyModel::where('status', 'active')->count(),
+            'companies_suspended' => $companyModel::where('status', 'suspended')->count(),
+            'companies_frozen' => $companyModel::where('status', 'frozen')->count(),
+            'pending_disclosures' => \App\Models\CompanyDisclosure::where('status', 'pending')->count(),
+        ];
 
-            'by_admin' => AuditLog::where('created_at', '>=', now()->subDays($days))
-                ->select('admin_id', DB::raw('count(*) as count'))
-                ->with('admin:id,username')
-                ->groupBy('admin_id')
-                ->orderBy('count', 'desc')
-                ->limit(10)
-                ->get()
-                ->map(function ($item) {
-                    return [
-                        'admin' => $item->admin->username ?? 'Unknown',
-                        'count' => $item->count,
-                    ];
-                }),
+        // Admin action stats
+        $adminStats = [
+            'today_count' => AuditLog::whereDate('created_at', today())->count(),
+            'week_count' => AuditLog::where('created_at', '>=', now()->subWeek())->count(),
+            'month_count' => AuditLog::where('created_at', '>=', now()->subMonth())->count(),
+        ];
 
-            'by_module' => AuditLog::where('created_at', '>=', now()->subDays($days))
-                ->select('module', DB::raw('count(*) as count'))
-                ->groupBy('module')
-                ->orderBy('count', 'desc')
-                ->get(),
-
-            'by_action' => AuditLog::where('created_at', '>=', now()->subDays($days))
-                ->select('action', DB::raw('count(*) as count'))
-                ->groupBy('action')
-                ->orderBy('count', 'desc')
-                ->limit(15)
-                ->get(),
-
-            'daily_trend' => AuditLog::where('created_at', '>=', now()->subDays($days))
-                ->select(DB::raw('DATE(created_at) as date'), DB::raw('count(*) as count'))
-                ->groupBy('date')
-                ->orderBy('date', 'asc')
-                ->get(),
-
-            'hourly_distribution' => AuditLog::where('created_at', '>=', now()->subDays($days))
-                ->select(DB::raw('HOUR(created_at) as hour'), DB::raw('count(*) as count'))
-                ->groupBy('hour')
-                ->orderBy('hour', 'asc')
-                ->get(),
+        // Snapshot stats (investment disclosure snapshots)
+        $snapshotModel = \App\Models\InvestmentDisclosureSnapshot::class;
+        $oldestSnapshot = $snapshotModel::orderBy('created_at', 'asc')->first();
+        $newestSnapshot = $snapshotModel::orderBy('created_at', 'desc')->first();
+        $snapshotStats = [
+            'total_count' => $snapshotModel::count(),
+            'oldest_snapshot_date' => $oldestSnapshot?->created_at?->toIso8601String() ?? now()->toIso8601String(),
+            'newest_snapshot_date' => $newestSnapshot?->created_at?->toIso8601String() ?? now()->toIso8601String(),
         ];
 
         return response()->json([
-            'stats' => $stats,
-            'period_days' => $days,
+            'data' => [
+                'investments' => $investmentStats,
+                'governance' => $governanceStats,
+                'admin_actions' => $adminStats,
+                'snapshots' => $snapshotStats,
+            ],
         ]);
     }
 
@@ -264,7 +258,7 @@ class AuditLogController extends Controller
             'log_id' => $log->id,
             'action' => $log->action,
             'module' => $log->module,
-            'admin' => $log->admin->username ?? 'Unknown',
+            'admin' => $log->actor_name ?? 'Unknown',
             'timestamp' => $log->created_at,
             'changes' => $changes,
         ]);
@@ -294,7 +288,7 @@ class AuditLogController extends Controller
     public function export(Request $request)
     {
         // V-AUDIT-MODULE19-HIGH: Build query but DON'T execute yet (no get() call)
-        $query = AuditLog::with('admin:id,username,email')
+        $query = AuditLog::query()
             ->orderBy('created_at', 'desc');
 
         if ($request->has('date_from')) {
@@ -331,7 +325,7 @@ class AuditLogController extends Controller
                 fputcsv($handle, [
                     $log->id,
                     $log->created_at->toDateTimeString(),
-                    $log->admin->username ?? 'Unknown',
+                    $log->actor_name ?? 'Unknown',
                     $log->action,
                     $log->module,
                     $log->target_type ? "{$log->target_type}:{$log->target_id}" : 'N/A',

@@ -4,7 +4,11 @@
 
 import Link from "next/link";
 
-export default function HeroSection() {
+type HeroSectionProps = {
+  data?: any;
+};
+
+export default function HeroSection({ data }: HeroSectionProps) {
   return (
     <section id="hero" className="pt-32 pb-20 px-4 relative overflow-hidden dark:bg-slate-900">
       <div className="absolute inset-0 bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-slate-800 dark:via-slate-900 dark:to-slate-800 opacity-50" />

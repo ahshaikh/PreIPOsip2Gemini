@@ -1,12 +1,12 @@
 // V-PHASE4-1730-105 (Created) | V-FINAL-1730-315 (Connected to CMS)
 'use client';
 
-import { HeroSection } from '@/components/features/HeroSection';
-import { PlanOverview } from '@/components/features/PlanOverview';
-import { HowItWorks } from '@/components/features/HowItWorks';
-import { ComparisonSection } from '@/components/features/ComparisonSection';
-import { BonusFeatures } from '@/components/features/BonusFeatures';
-import { Testimonials } from '@/components/features/Testimonials';
+import HeroSection from '@/components/features/HeroSection';
+import PlanOverview from '@/components/features/PlanOverview';
+import HowItWorks from '@/components/features/HowItWorks';
+import ComparisonSection from '@/components/features/ComparisonSection';
+import BonusFeatures from '@/components/features/BonusFeatures';
+import Testimonials from '@/components/features/Testimonials';
 import { ValueProps } from '@/components/features/ValueProps';   // FIXED: moved to top
 
 import Link from 'next/link';

@@ -524,7 +524,7 @@
 ## TECHNICAL STACK
 
 ### Backend:
-- **Framework:** Laravel 12 (PHP 8.2+)
+- **Framework:** Laravel 11 (PHP 8.2+) > Note: Laravel 12 migration is deferred pending ecosystem compatibility validation.
 - **Database:** MySQL 8.0+
 - **Cache:** Redis 6.0+ (also supports database cache)
 - **Queue:** Laravel Queue (configured with Redis driver for production, database for development)

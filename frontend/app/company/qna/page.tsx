@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from "react";
-import api from "@/lib/api";
+import companyApi from "@/lib/companyApi";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -65,7 +65,7 @@ export default function CompanyQnaPage() {
   const { data: statsData } = useQuery({
     queryKey: ['qnaStats'],
     queryFn: async () => {
-      const { data } = await api.get('/company/qna/statistics');
+      const { data } = await companyApi.get('/qna/statistics');
       return data;
     },
   });
@@ -86,7 +86,7 @@ export default function CompanyQnaPage() {
         page: currentPage.toString(),
         ...(statusFilter && { status: statusFilter }),
       });
-      const { data } = await api.get(`/company/qna?${params}`);
+      const { data } = await companyApi.get(`/qna?${params}`);
       return data;
     },
     keepPreviousData: true,
@@ -103,7 +103,7 @@ export default function CompanyQnaPage() {
   // Answer Q&A mutation
   const answerMutation = useMutation({
     mutationFn: async ({ id, answer, isPublic }: { id: number; answer: string; isPublic: boolean }) => {
-      const { data } = await api.post(`/company/qna/${id}/answer`, {
+      const { data } = await companyApi.post(`/qna/${id}/answer`, {
         answer,
         is_public: isPublic,
       });
@@ -126,7 +126,7 @@ export default function CompanyQnaPage() {
   // Update Q&A mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: number; updates: any }) => {
-      const { data } = await api.put(`/company/qna/${id}`, updates);
+      const { data } = await companyApi.put(`/qna/${id}`, updates);
       return data;
     },
     onSuccess: () => {
@@ -142,7 +142,7 @@ export default function CompanyQnaPage() {
   // Delete Q&A mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const { data } = await api.delete(`/company/qna/${id}`);
+      const { data } = await companyApi.delete(`/qna/${id}`);
       return data;
     },
     onSuccess: () => {

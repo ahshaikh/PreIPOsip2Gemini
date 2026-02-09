@@ -217,6 +217,24 @@ class CompanyDisclosure extends Model
     }
 
     /**
+     * Timeline events for this disclosure thread (immutable audit trail)
+     */
+    public function events()
+    {
+        return $this->hasMany(DisclosureEvent::class, 'company_disclosure_id')
+            ->orderBy('created_at', 'asc');
+    }
+
+    /**
+     * All documents attached to this disclosure across all events
+     */
+    public function documents()
+    {
+        return $this->hasMany(DisclosureDocument::class, 'company_disclosure_id')
+            ->orderBy('created_at', 'desc');
+    }
+
+    /**
      * Approval workflow records
      */
     public function approvals()
@@ -392,6 +410,23 @@ class CompanyDisclosure extends Model
             'review_completed_at' => now(),
             'disclosure_version_id' => $version->id,
         ]);
+
+        // Create timeline event
+        $admin = User::find($adminId);
+        DisclosureEvent::create([
+            'company_disclosure_id' => $this->id,
+            'event_type' => 'approval',
+            'actor_type' => 'App\\Models\\User',
+            'actor_id' => $adminId,
+            'actor_name' => $admin?->name ?? 'Admin',
+            'message' => $notes ?? 'Disclosure approved',
+            'metadata' => [
+                'version_id' => $version->id,
+                'version_number' => $version->version_number,
+            ],
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
     }
 
     /**
@@ -415,6 +450,20 @@ class CompanyDisclosure extends Model
             'reviewed_by' => $adminId,
             'review_completed_at' => now(),
             'decision_notes' => $reason,
+        ]);
+
+        // Create timeline event
+        $admin = User::find($adminId);
+        DisclosureEvent::create([
+            'company_disclosure_id' => $this->id,
+            'event_type' => 'rejection',
+            'actor_type' => 'App\\Models\\User',
+            'actor_id' => $adminId,
+            'actor_name' => $admin?->name ?? 'Admin',
+            'message' => $reason,
+            'metadata' => [],
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
         ]);
     }
 

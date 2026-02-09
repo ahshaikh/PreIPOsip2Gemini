@@ -357,7 +357,7 @@ export interface AuditListItem {
  * Fetch global audit dashboard statistics
  */
 export async function fetchAuditDashboardStats(): Promise<AuditDashboardStats> {
-  const response = await api.get<{ data: AuditDashboardStats }>("/audit/dashboard");
+  const response = await api.get<{ data: AuditDashboardStats }>("/admin/audit-logs/stats");
   return response.data.data;
 }
 

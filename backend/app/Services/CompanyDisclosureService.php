@@ -6,8 +6,11 @@ use App\Models\Company;
 use App\Models\CompanyDisclosure;
 use App\Models\DisclosureClarification;
 use App\Models\DisclosureModule;
+use App\Models\DisclosureEvent;
+use App\Models\DisclosureDocument;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Http\UploadedFile;
 
 /**
  * PHASE 3 - SERVICE: CompanyDisclosureService
@@ -295,16 +298,19 @@ class CompanyDisclosureService
      *
      * SAFEGUARD: Must be 100% complete
      * TRANSPARENCY: Creates approval record with submission context
+     * TIMELINE: Creates submission event in audit trail
      *
      * @param CompanyDisclosure $disclosure
      * @param int $userId
      * @param string|null $submissionNotes Optional notes for reviewer
+     * @param array $documents Optional supporting documents
      * @return void
      */
     public function submitForReview(
         CompanyDisclosure $disclosure,
         int $userId,
-        ?string $submissionNotes = null
+        ?string $submissionNotes = null,
+        array $documents = []
     ): void {
         DB::beginTransaction();
 
@@ -318,6 +324,9 @@ class CompanyDisclosureService
                 );
             }
 
+            // Get actor (CompanyUser)
+            $actor = \App\Models\CompanyUser::find($userId);
+
             // Use model method (Phase 1)
             $disclosure->submit($userId);
 
@@ -327,6 +336,19 @@ class CompanyDisclosureService
                 $disclosure->save();
             }
 
+            // Create timeline event
+            $this->createTimelineEvent(
+                $disclosure,
+                'submission',
+                $actor,
+                $submissionNotes ?? 'Disclosure submitted for admin review',
+                [
+                    'completion_percentage' => $disclosure->completion_percentage,
+                    'version_number' => $disclosure->version_number,
+                ],
+                $documents
+            );
+
             DB::commit();
 
             Log::info('Disclosure submitted for review', [
@@ -335,6 +357,7 @@ class CompanyDisclosureService
                 'module_code' => $disclosure->module->code,
                 'user_id' => $userId,
                 'has_notes' => !empty($submissionNotes),
+                'has_documents' => !empty($documents),
             ]);
 
         } catch (\Exception $e) {
@@ -841,6 +864,331 @@ class CompanyDisclosureService
             'platform_message' => $hasActiveRestrictions
                 ? 'Platform has restricted some actions for this company. See platform_overrides for details.'
                 : 'No active platform restrictions. Normal issuer permissions apply.',
+        ];
+    }
+
+    /**
+     * Get complete issuer company data for frontend
+     *
+     * GUARANTEES:
+     * - Always returns complete structure (no undefined fields)
+     * - Matches IssuerCompanyData TypeScript interface
+     * - Platform context always included
+     * - Effective permissions always calculated
+     *
+     * @param Company $company
+     * @return array Complete company data with all required fields
+     */
+    public function getIssuerCompanyData(Company $company): array
+    {
+        // Get platform context (includes effective_permissions)
+        $platformContextData = $this->getPlatformContextForIssuer($company);
+
+        // Get all disclosure modules (requirements)
+        $modules = DisclosureModule::where('is_active', true)
+            ->orderBy('tier', 'asc')
+            ->orderBy('display_order', 'asc')
+            ->get();
+
+        // Get company disclosures with full requirement taxonomy
+        $disclosures = [];
+        foreach ($modules as $module) {
+            $disclosure = $company->disclosures()
+                ->where('disclosure_module_id', $module->id)
+                ->first();
+
+            if ($disclosure) {
+                $disclosures[] = [
+                    'id' => $disclosure->id,
+                    'module_id' => $module->id,
+                    'module_code' => $module->code,
+                    'module_name' => $module->name,
+                    // REQUIREMENT TAXONOMY (authoritative from backend)
+                    'category' => $module->category,
+                    'tier' => $module->tier,
+                    'is_required' => $module->is_required,
+                    'required_for_tier' => $module->tier,
+                    // STATUS & PERMISSIONS
+                    'status' => $disclosure->status,
+                    'completion_percentage' => $disclosure->completion_percentage,
+                    'can_edit' => $platformContextData['effective_permissions']['can_edit_disclosures']
+                        && in_array($disclosure->status, ['draft', 'rejected', 'clarification_required']),
+                    'can_submit' => $platformContextData['effective_permissions']['can_submit_disclosures']
+                        && $disclosure->status === 'draft'
+                        && $disclosure->completion_percentage === 100,
+                    // REJECTION INFO
+                    'rejection_reason' => $disclosure->rejection_reason,
+                    'corrective_guidance' => $disclosure->corrective_guidance ?? null,
+                    // VERSION INFO
+                    'version_number' => $disclosure->version_number,
+                    'submitted_at' => $disclosure->submitted_at?->toIso8601String(),
+                    'approved_at' => $disclosure->approved_at?->toIso8601String(),
+                ];
+            } else {
+                // Module not started yet
+                $disclosures[] = [
+                    'id' => null,
+                    'module_id' => $module->id,
+                    'module_code' => $module->code,
+                    'module_name' => $module->name,
+                    // REQUIREMENT TAXONOMY (authoritative from backend)
+                    'category' => $module->category,
+                    'tier' => $module->tier,
+                    'is_required' => $module->is_required,
+                    'required_for_tier' => $module->tier,
+                    // STATUS & PERMISSIONS
+                    'status' => 'not_started',
+                    'completion_percentage' => 0,
+                    'can_edit' => $platformContextData['effective_permissions']['can_edit_disclosures'],
+                    'can_submit' => false,
+                    // EMPTY FIELDS
+                    'rejection_reason' => null,
+                    'corrective_guidance' => null,
+                    'version_number' => 0,
+                    'submitted_at' => null,
+                    'approved_at' => null,
+                ];
+            }
+        }
+
+        // Get clarifications
+        $clarifications = $company->disclosures()
+            ->with('clarifications')
+            ->get()
+            ->pluck('clarifications')
+            ->flatten()
+            ->map(function ($clarification) use ($platformContextData) {
+                return [
+                    'id' => $clarification->id,
+                    'question' => $clarification->question,
+                    'status' => $clarification->status,
+                    'issuer_response_due_at' => $clarification->issuer_response_due_at,
+                    'issuer_response_overdue' => $clarification->issuer_response_due_at
+                        && now()->greaterThan($clarification->issuer_response_due_at),
+                    'is_escalated' => $clarification->is_escalated ?? false,
+                    'is_expired' => $clarification->is_expired ?? false,
+                ];
+            })
+            ->toArray();
+
+        // Return complete structure matching IssuerCompanyData interface
+        return [
+            'id' => $company->id,
+            'name' => $company->name,
+            'slug' => $company->slug,
+
+            // Platform Context (guaranteed structure)
+            'platform_context' => [
+                'lifecycle_state' => $platformContextData['governance_state']['lifecycle_state'] ?? 'unknown',
+                'is_suspended' => $platformContextData['platform_restrictions']['is_suspended'] ?? false,
+                'is_frozen' => $platformContextData['platform_restrictions']['is_frozen'] ?? false,
+                'is_under_investigation' => $platformContextData['platform_restrictions']['is_under_investigation'] ?? false,
+                'buying_enabled' => !($platformContextData['platform_restrictions']['buying_paused'] ?? true),
+                'buying_pause_reason' => $company->buying_pause_reason,
+                'tier_status' => [
+                    'tier_1_approved' => $platformContextData['tier_approvals']['tier_1_approved'] ?? false,
+                    'tier_2_approved' => $platformContextData['tier_approvals']['tier_2_approved'] ?? false,
+                    'tier_3_approved' => $platformContextData['tier_approvals']['tier_3_approved'] ?? false,
+                ],
+            ],
+
+            // Effective Permissions (guaranteed structure)
+            'effective_permissions' => [
+                'can_edit_disclosures' => $platformContextData['effective_permissions']['can_edit_disclosures'] ?? false,
+                'can_submit_disclosures' => $platformContextData['effective_permissions']['can_submit_disclosures'] ?? false,
+                'can_answer_clarifications' => $platformContextData['effective_permissions']['can_answer_clarifications'] ?? false,
+            ],
+
+            // Platform Overrides (guaranteed array)
+            'platform_overrides' => $platformContextData['platform_overrides'] ?? [],
+
+            // Disclosures (guaranteed array)
+            'disclosures' => $disclosures,
+
+            // Clarifications (guaranteed array)
+            'clarifications' => $clarifications,
+        ];
+    }
+
+    // =========================================================================
+    // TIMELINE EVENT METHODS
+    // =========================================================================
+
+    /**
+     * Create timeline event for disclosure action
+     *
+     * @param CompanyDisclosure $disclosure
+     * @param string $eventType submission|clarification|response|approval|status_change|rejection
+     * @param mixed $actor User or CompanyUser model
+     * @param string|null $message Event message
+     * @param array $metadata Additional event data
+     * @param array $documents Uploaded files to attach
+     * @return DisclosureEvent
+     */
+    protected function createTimelineEvent(
+        CompanyDisclosure $disclosure,
+        string $eventType,
+        $actor,
+        ?string $message = null,
+        array $metadata = [],
+        array $documents = []
+    ): DisclosureEvent {
+        // Create event
+        $event = DisclosureEvent::create([
+            'company_disclosure_id' => $disclosure->id,
+            'event_type' => $eventType,
+            'actor_type' => $actor ? get_class($actor) : null,
+            'actor_id' => $actor?->id,
+            'actor_name' => $actor ? ($actor->name ?? $actor->full_name ?? 'Unknown') : 'System',
+            'message' => $message,
+            'metadata' => $metadata,
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
+
+        // Attach documents if provided
+        if (!empty($documents)) {
+            $this->attachDocumentsToEvent($event, $disclosure, $documents, $actor);
+        }
+
+        return $event;
+    }
+
+    /**
+     * Attach documents to timeline event
+     *
+     * @param DisclosureEvent $event
+     * @param CompanyDisclosure $disclosure
+     * @param array $documents Array of UploadedFile or file data
+     * @param mixed $uploader User or CompanyUser
+     * @return void
+     */
+    protected function attachDocumentsToEvent(
+        DisclosureEvent $event,
+        CompanyDisclosure $disclosure,
+        array $documents,
+        $uploader
+    ): void {
+        foreach ($documents as $file) {
+            // If it's an UploadedFile, store it
+            if ($file instanceof UploadedFile) {
+                $storagePath = $file->store('disclosure-documents', 'public');
+                $fileName = $file->getClientOriginalName();
+                $mimeType = $file->getMimeType();
+                $fileSize = $file->getSize();
+                $fileHash = hash_file('sha256', $file->getRealPath());
+            } else {
+                // Already stored file data
+                $storagePath = $file['storage_path'] ?? $file['file_path'];
+                $fileName = $file['file_name'];
+                $mimeType = $file['mime_type'] ?? null;
+                $fileSize = $file['file_size'] ?? null;
+                $fileHash = $file['file_hash'] ?? null;
+            }
+
+            DisclosureDocument::create([
+                'disclosure_event_id' => $event->id,
+                'company_disclosure_id' => $disclosure->id,
+                'file_name' => $fileName,
+                'storage_path' => $storagePath,
+                'mime_type' => $mimeType,
+                'file_size' => $fileSize,
+                'file_hash' => $fileHash,
+                'document_type' => $file['document_type'] ?? null,
+                'description' => $file['description'] ?? null,
+                'uploaded_by_type' => $uploader ? get_class($uploader) : null,
+                'uploaded_by_id' => $uploader?->id,
+                'uploaded_by_name' => $uploader ? ($uploader->name ?? $uploader->full_name ?? 'Unknown') : 'System',
+                'is_public' => false,
+                'visibility' => 'admin',
+                'uploaded_from_ip' => request()->ip(),
+            ]);
+        }
+    }
+
+    /**
+     * Get disclosure thread with full timeline (for detail view)
+     *
+     * @param CompanyDisclosure $disclosure
+     * @return array Complete disclosure thread with events and documents
+     */
+    public function getDisclosureThread(CompanyDisclosure $disclosure): array
+    {
+        $module = $disclosure->disclosureModule;
+
+        // Get all timeline events with documents
+        $events = $disclosure->events()
+            ->with(['actor', 'documents'])
+            ->orderBy('created_at', 'asc')
+            ->get()
+            ->map(function ($event) {
+                return [
+                    'id' => $event->id,
+                    'event_type' => $event->event_type,
+                    'actor_name' => $event->actor_name,
+                    'actor_type' => $event->actor_type ? class_basename($event->actor_type) : null,
+                    'message' => $event->message,
+                    'metadata' => $event->metadata,
+                    'created_at' => $event->created_at->toIso8601String(),
+                    'documents' => $event->documents->map(function ($doc) {
+                        return [
+                            'id' => $doc->id,
+                            'file_name' => $doc->file_name,
+                            'file_size' => $doc->file_size,
+                            'formatted_size' => $doc->formatted_size,
+                            'mime_type' => $doc->mime_type,
+                            'url' => $doc->url,
+                            'uploaded_by_name' => $doc->uploaded_by_name,
+                        ];
+                    })->toArray(),
+                ];
+            })
+            ->toArray();
+
+        // Get clarifications
+        $clarifications = $disclosure->clarifications()
+            ->with(['askedBy', 'answeredBy'])
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($clarification) {
+                return [
+                    'id' => $clarification->id,
+                    'question' => $clarification->question,
+                    'answer' => $clarification->answer,
+                    'status' => $clarification->status,
+                    'asked_by' => $clarification->askedBy?->name,
+                    'asked_at' => $clarification->asked_at?->toIso8601String(),
+                    'answered_by' => $clarification->answeredBy?->name,
+                    'answered_at' => $clarification->answered_at?->toIso8601String(),
+                ];
+            })
+            ->toArray();
+
+        return [
+            'disclosure' => [
+                'id' => $disclosure->id,
+                'status' => $disclosure->status,
+                'status_label' => $disclosure->status_label,
+                'completion_percentage' => $disclosure->completion_percentage,
+                'is_locked' => $disclosure->is_locked,
+                'is_editable' => $disclosure->is_editable,
+                'version_number' => $disclosure->version_number,
+                'submitted_at' => $disclosure->submitted_at?->toIso8601String(),
+                'approved_at' => $disclosure->approved_at?->toIso8601String(),
+                'rejected_at' => $disclosure->rejected_at?->toIso8601String(),
+                'rejection_reason' => $disclosure->rejection_reason,
+            ],
+            'module' => [
+                'id' => $module->id,
+                'code' => $module->code,
+                'name' => $module->name,
+                'description' => $module->description,
+                'category' => $module->category,
+                'tier' => $module->tier,
+                'is_required' => $module->is_required,
+            ],
+            'timeline' => $events,
+            'clarifications' => $clarifications,
         ];
     }
 }

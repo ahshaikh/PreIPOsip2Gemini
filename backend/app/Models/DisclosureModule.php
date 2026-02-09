@@ -63,6 +63,8 @@ class DisclosureModule extends Model
         'name',
         'description',
         'help_text',
+        'category',        // NEW: governance, financial, legal, operational
+        'tier',            // NEW: minimum tier requirement (1-3)
         'is_required',
         'is_active',
         'display_order',
@@ -83,6 +85,7 @@ class DisclosureModule extends Model
      * The attributes that should be cast.
      */
     protected $casts = [
+        'tier' => 'integer',
         'is_required' => 'boolean',
         'is_active' => 'boolean',
         'display_order' => 'integer',

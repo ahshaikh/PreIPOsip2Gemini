@@ -19,6 +19,7 @@
  */
 
 import { logBackendBreach } from './backendBreachLogger';
+import { transformStorageUrl } from './storageUrlHelper';
 
 // ============================================================================
 // PUBLIC-SAFE COMPANY INTERFACE
@@ -177,8 +178,9 @@ export function sanitizePublicCompany(raw: any): PublicSafeCompany | null {
   };
 
   // Optional fields - only include if present
-  if (raw.logo_url) sanitized.logo_url = raw.logo_url;
-  else if (raw.logo) sanitized.logo_url = raw.logo;
+  // Transform storage URLs to use Next.js proxy
+  if (raw.logo_url) sanitized.logo_url = transformStorageUrl(raw.logo_url);
+  else if (raw.logo) sanitized.logo_url = transformStorageUrl(raw.logo);
 
   if (raw.sector) {
     // Sector might be a string or an object with name

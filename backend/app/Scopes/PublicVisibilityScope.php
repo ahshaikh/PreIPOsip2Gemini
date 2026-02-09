@@ -72,18 +72,18 @@ class PublicVisibilityScope implements Scope
 
         $path = $request->path();
 
-        // Admin routes: bypass
-        if (str_starts_with($path, 'api/admin') || str_starts_with($path, 'admin')) {
+        // Admin routes: bypass (matches api/admin and api/v1/admin, etc.)
+        if (preg_match('#^api/(v\d+/)?admin#', $path) || str_starts_with($path, 'admin')) {
             return false;
         }
 
-        // Company portal routes: bypass
-        if (str_starts_with($path, 'api/company') || str_starts_with($path, 'company')) {
+        // Company portal routes: bypass (matches api/company and api/v1/company, etc.)
+        if (preg_match('#^api/(v\d+/)?company#', $path) || str_starts_with($path, 'company')) {
             return false;
         }
 
         // Internal API routes (non-public): bypass
-        if (str_starts_with($path, 'api/internal')) {
+        if (preg_match('#^api/(v\d+/)?internal#', $path) || str_starts_with($path, 'api/internal')) {
             return false;
         }
 

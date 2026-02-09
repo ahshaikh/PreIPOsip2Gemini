@@ -41,7 +41,9 @@ class InvestorCompanyController extends Controller
 
         // STORY 3.3: Use disclosure_tier as primary visibility filter
         // Get companies that are publicly visible (tier_2_live or higher) and have live deals
+        // FIX: Added is_verified check to match show() method - prevents listing companies that 404 on detail
         $companies = Company::where('status', 'active')
+            ->where('is_verified', true)
             ->publiclyVisible() // Enforces disclosure_tier >= tier_2_live
             ->with([
                 'deals' => function ($query) {

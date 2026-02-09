@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from "react";
-import api from "@/lib/api";
+import companyApi from "@/lib/companyApi";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,7 +49,7 @@ export default function CompanyAnalyticsPage() {
         start_date: dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : '',
         end_date: dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : '',
       });
-      const { data } = await api.get(`/company/analytics/dashboard?${params}`);
+      const { data } = await companyApi.get(`/analytics/dashboard?${params}`);
       return data;
     },
     enabled: !!dateRange?.from && !!dateRange?.to,
@@ -119,7 +119,7 @@ export default function CompanyAnalyticsPage() {
         end_date: dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : '',
       });
 
-      const response = await api.get(`/company/analytics/export?${params}`, {
+      const response = await companyApi.get(`/analytics/export?${params}`, {
         responseType: 'blob',
       });
 

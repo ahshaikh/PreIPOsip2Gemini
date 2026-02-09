@@ -52,10 +52,21 @@ export interface EffectivePermissions {
   submit_blocked_reason?: string;
 }
 
+interface PlatformOverride {
+  type: string;
+  severity: string;
+  message: string;
+  reason?: string;
+  blocks_editing?: boolean;
+  blocks_submission?: boolean;
+  adds_review_delay?: boolean;
+  affects_go_live?: boolean;
+}
+
 interface PlatformStatusBannerProps {
   platformContext: PlatformContext;
   effectivePermissions: EffectivePermissions;
-  platformOverrides?: string[];
+  platformOverrides?: PlatformOverride[];
   variant?: "full" | "compact" | "critical-only";
   className?: string;
 }
@@ -186,9 +197,16 @@ export function PlatformStatusBanner({
           <Info className="h-5 w-5 text-purple-600" />
           <AlertTitle className="font-bold text-purple-900 dark:text-purple-100">Platform Override Active</AlertTitle>
           <AlertDescription className="text-purple-800 dark:text-purple-200">
-            <ul className="list-disc list-inside space-y-1 mt-2">
+            <ul className="list-disc list-inside space-y-2 mt-2">
               {platformOverrides.map((override, i) => (
-                <li key={i}>{override}</li>
+                <li key={i} className="text-sm">
+                  <strong>{override.message}</strong>
+                  {override.reason && (
+                    <span className="block ml-5 mt-1 text-purple-700 dark:text-purple-300">
+                      {override.reason}
+                    </span>
+                  )}
+                </li>
               ))}
             </ul>
           </AlertDescription>

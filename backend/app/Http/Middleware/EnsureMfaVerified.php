@@ -16,9 +16,14 @@ class EnsureMfaVerified
     {
         $user = $request->user();
 
+        // If no authenticated user, let the auth middleware handle it
+        if (!$user) {
+            return $next($request);
+        }
+
         // 1. Check if user has MFA enabled but session is unverified
         // We track 'mfa_verified_at' in the session during the 2FA login flow
-        if ($user->two_factor_enabled && !$request->session()->has('mfa_verified_at')) {
+        if ($user->two_factor_enabled && $request->hasSession() && !$request->session()->has('mfa_verified_at')) {
             return response()->json([
                 'message' => 'Additional verification required.',
                 'requires_mfa' => true

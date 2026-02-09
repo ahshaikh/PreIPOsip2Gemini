@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from "react";
-import api from "@/lib/api";
+import companyApi from "@/lib/companyApi";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -69,7 +69,7 @@ export default function InvestorInterestsPage() {
   const { data: statsData } = useQuery({
     queryKey: ['investorInterestStats'],
     queryFn: async () => {
-      const { data } = await api.get('/company/investor-interests/statistics');
+      const { data } = await companyApi.get('/investor-interests/statistics');
       return data;
     },
   });
@@ -91,7 +91,7 @@ export default function InvestorInterestsPage() {
         ...(statusFilter && { status: statusFilter }),
         ...(interestFilter && { interest_level: interestFilter }),
       });
-      const { data } = await api.get(`/company/investor-interests?${params}`);
+      const { data } = await companyApi.get(`/investor-interests?${params}`);
       return data;
     },
     keepPreviousData: true,
@@ -108,7 +108,7 @@ export default function InvestorInterestsPage() {
   // Update status mutation
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status, notes }: { id: number; status: string; notes: string }) => {
-      const { data } = await api.put(`/company/investor-interests/${id}/status`, {
+      const { data } = await companyApi.put(`/investor-interests/${id}/status`, {
         status,
         admin_notes: notes,
       });

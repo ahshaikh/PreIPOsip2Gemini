@@ -39,6 +39,32 @@ class UserManagementController extends Controller
     private const DEFAULT_ROLE = 'company_viewer';
 
     /**
+     * Get company from authenticated user with validation.
+     * Returns [CompanyUser, Company] or JsonResponse on error.
+     */
+    private function getAuthenticatedCompany(Request $request): array|JsonResponse
+    {
+        $companyUser = $request->user();
+
+        if (!$companyUser || !($companyUser instanceof \App\Models\CompanyUser)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Authentication error - please re-login to company portal',
+            ], 401);
+        }
+
+        $company = $companyUser->company;
+        if (!$company) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Company not found for your account',
+            ], 404);
+        }
+
+        return [$companyUser, $company];
+    }
+
+    /**
      * List all users in the authenticated user's company.
      *
      * @param Request $request
@@ -46,7 +72,11 @@ class UserManagementController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $company = $request->user()->company;
+        $result = $this->getAuthenticatedCompany($request);
+        if ($result instanceof JsonResponse) {
+            return $result;
+        }
+        [$companyUser, $company] = $result;
 
         $query = $company->companyUsers()->with('roles');
 
@@ -68,9 +98,9 @@ class UserManagementController extends Controller
         $users = $query->orderBy('created_at', 'desc')->get();
 
         // Add computed fields for each user
-        $users = $users->map(function ($user) use ($request) {
+        $users = $users->map(function ($user) use ($companyUser) {
             $userData = $user->toArray();
-            $userData['is_current_user'] = $user->id === $request->user()->id;
+            $userData['is_current_user'] = $user->id === $companyUser->id;
             $userData['is_admin'] = $user->hasRole('company_admin');
             $userData['role_name'] = $user->roles->first()?->name ?? self::DEFAULT_ROLE;
             return $userData;
@@ -90,7 +120,12 @@ class UserManagementController extends Controller
      */
     public function statistics(Request $request): JsonResponse
     {
-        $company = $request->user()->company;
+        $result = $this->getAuthenticatedCompany($request);
+        if ($result instanceof JsonResponse) {
+            return $result;
+        }
+        [$companyUser, $company] = $result;
+
         $users = $company->companyUsers();
 
         $stats = [
@@ -101,7 +136,7 @@ class UserManagementController extends Controller
             'admin_users' => $company->companyUsers()
                 ->whereHas('roles', fn($q) => $q->where('name', 'company_admin'))
                 ->count(),
-            'quota_limit' => $company->max_users_quota,
+            'quota_limit' => $company->max_users_quota ?? null,
             'quota_used' => $users->count(),
         ];
 
@@ -176,10 +211,29 @@ class UserManagementController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        $company = $request->user()->company;
+        $companyUser = $request->user();
 
-        // Check user quota
-        if ($company->max_users_quota && $company->companyUsers()->count() >= $company->max_users_quota) {
+        // Validate user type
+        if (!$companyUser || !($companyUser instanceof \App\Models\CompanyUser)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Authentication error - please re-login to company portal',
+            ], 401);
+        }
+
+        $company = $companyUser->company;
+
+        // Validate company exists
+        if (!$company) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Company not found for your account',
+            ], 404);
+        }
+
+        // Check user quota (with null-safe check)
+        $maxQuota = $company->max_users_quota ?? null;
+        if ($maxQuota && $company->companyUsers()->count() >= $maxQuota) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'User quota for your organization has been exceeded.',
@@ -268,13 +322,18 @@ class UserManagementController extends Controller
      */
     public function show(Request $request, $userId): JsonResponse
     {
-        $company = $request->user()->company;
+        $result = $this->getAuthenticatedCompany($request);
+        if ($result instanceof JsonResponse) {
+            return $result;
+        }
+        [$companyUser, $company] = $result;
+
         $user = $company->companyUsers()->with('roles')->findOrFail($userId);
 
         return response()->json([
             'status' => 'success',
             'data' => array_merge($user->toArray(), [
-                'is_current_user' => $user->id === $request->user()->id,
+                'is_current_user' => $user->id === $companyUser->id,
                 'is_admin' => $user->hasRole('company_admin'),
                 'role_name' => $user->roles->first()?->name ?? self::DEFAULT_ROLE,
             ]),
@@ -295,9 +354,13 @@ class UserManagementController extends Controller
      */
     public function update(Request $request, $userId): JsonResponse
     {
-        $company = $request->user()->company;
+        $result = $this->getAuthenticatedCompany($request);
+        if ($result instanceof JsonResponse) {
+            return $result;
+        }
+        [$currentUser, $company] = $result;
+
         $user = $company->companyUsers()->findOrFail($userId);
-        $currentUser = $request->user();
 
         // SAFEGUARD 1: Prevent company admin from downgrading themselves
         if (
@@ -425,8 +488,11 @@ class UserManagementController extends Controller
      */
     public function destroy(Request $request, $userId): JsonResponse
     {
-        $company = $request->user()->company;
-        $currentUser = $request->user();
+        $result = $this->getAuthenticatedCompany($request);
+        if ($result instanceof JsonResponse) {
+            return $result;
+        }
+        [$currentUser, $company] = $result;
 
         // SAFEGUARD 1: Cannot suspend yourself
         if ($currentUser->id == $userId) {
@@ -499,8 +565,11 @@ class UserManagementController extends Controller
      */
     public function reactivate(Request $request, $userId): JsonResponse
     {
-        $company = $request->user()->company;
-        $currentUser = $request->user();
+        $result = $this->getAuthenticatedCompany($request);
+        if ($result instanceof JsonResponse) {
+            return $result;
+        }
+        [$currentUser, $company] = $result;
 
         $user = $company->companyUsers()->findOrFail($userId);
 

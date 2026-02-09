@@ -33,7 +33,7 @@ interface Company {
   slug: string;
   logo?: string;
   description: string;
-  sector: string;
+  sector: string | { name: string };
   city?: string;
   state?: string;
   latest_valuation?: number;
@@ -213,7 +213,7 @@ export default function CompaniesPage() {
                         {company.logo ? (
                           <div className="border rounded-lg p-2 bg-white dark:bg-gray-900">
                             <Image
-                              src={`${BACKEND_URL}/storage/${company.logo}`}
+                              src={`/api/storage/${company.logo}`}
                               alt={company.name}
                               width={60}
                               height={60}

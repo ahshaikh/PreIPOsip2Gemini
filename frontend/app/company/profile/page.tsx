@@ -315,25 +315,18 @@ export default function CompanyProfilePage() {
             <div className="w-24 h-24 border-2 border-dashed rounded-lg flex items-center justify-center bg-gray-50 dark:bg-gray-900 overflow-hidden">
               {logoPreview ? (
                 <Image src={logoPreview} alt="Logo preview" width={80} height={80} className="object-contain" />
-              ) : company?.logo ? (
-                <Image src={`${process.env.NEXT_PUBLIC_API_URL}/storage/${company.logo}`}
-                  alt="Company logo"
-                  width={80}
-                  height={80}
-                  className="object-contain"
-                />
-              ) : company?.logo && !imageError ? (
-                // FIX: Construct proper URL for existing logo
+              ) : (company?.logo && !imageError) ? (
+                // Use Next.js storage proxy for backend images
                 // Backend stores path as "company-logos/filename.png"
-                // Storage is accessible at "{BACKEND_URL}/storage/company-logos/filename.png"
+                // Proxy at "/api/storage/company-logos/filename.png"
                 <Image
-                  src={`${BACKEND_URL}/storage/${company.logo}`}
+                  src={company.logo.startsWith('http') ? company.logo : `/api/storage/${company.logo}`}
                   alt="Company logo"
                   width={80}
                   height={80}
                   className="object-contain"
                   onError={() => {
-                    console.error('Failed to load logo:', `${BACKEND_URL}/storage/${company.logo}`);
+                    console.error('Failed to load logo:', company.logo.startsWith('http') ? company.logo : `/api/storage/${company.logo}`);
                     setImageError(true);
                   }}
                 />
