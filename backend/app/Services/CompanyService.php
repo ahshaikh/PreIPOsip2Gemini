@@ -46,6 +46,21 @@ class CompanyService
                 'is_verified' => false,
             ]);
 
+            // 3. Assign founder role to the company creator
+            \App\Models\CompanyUserRole::create([
+                'user_id' => $companyUser->id,
+                'company_id' => $company->id,
+                'role' => 'founder',
+                'is_active' => true,
+                'assigned_by' => null, // System-assigned during registration
+                'assigned_at' => now(),
+            ]);
+
+            \Log::info('Founder role assigned during company registration', [
+                'company_id' => $company->id,
+                'company_user_id' => $companyUser->id,
+            ]);
+
             return ['company' => $company, 'user' => $companyUser];
         });
 

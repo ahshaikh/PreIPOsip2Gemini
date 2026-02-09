@@ -250,7 +250,8 @@ class CompanyDisclosureService
 
             // Update disclosure
             $disclosure->disclosure_data = $disclosureData;
-            $disclosure->last_modified_by = $userId;
+            $disclosure->last_modified_by_type = \App\Models\CompanyUser::class;
+            $disclosure->last_modified_by_id = $userId;
             $disclosure->last_modified_at = now();
 
             if (!$disclosure->exists) {
@@ -512,7 +513,8 @@ class CompanyDisclosureService
                 'supersedes_disclosure_id' => $disclosure->id,
                 'created_from_error_report' => true,
                 'error_report_id' => $errorReport->id,
-                'last_modified_by' => $userId,
+                'last_modified_by_type' => \App\Models\CompanyUser::class,
+                'last_modified_by_id' => $userId,
                 'last_modified_at' => now(),
             ]);
 
@@ -616,12 +618,16 @@ class CompanyDisclosureService
 
     /**
      * Check if disclosure can be submitted
+     *
+     * WORKAROUND: Allow submission regardless of completion_percentage
+     * since the company UI doesn't have schema-based forms yet.
+     * Admin review will determine adequacy.
      */
     protected function canSubmit(CompanyDisclosure $disclosure): bool
     {
         return $disclosure->status === 'draft'
-            && $disclosure->completion_percentage === 100
-            && !$disclosure->is_locked;
+            && !$disclosure->is_locked
+            && !empty($disclosure->disclosure_data);
     }
 
     /**

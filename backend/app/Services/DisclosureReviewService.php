@@ -515,16 +515,8 @@ class DisclosureReviewService
             'review_started_at' => $disclosure->review_started_at,
             'completion_percentage' => $disclosure->completion_percentage,
 
-            // Simplified clarifications summary (no relationship)
-            'clarifications' => [
-                'total' => 0,
-                'open' => 0,
-                'answered' => 0,
-                'accepted' => 0,
-                'disputed' => 0,
-                'blocking' => 0,
-                'overdue' => 0,
-            ],
+            // Clarifications summary
+            'clarifications' => $this->getClarificationsSummary($disclosure),
 
             // Edit tracking
             'edits_during_review' => [
@@ -533,10 +525,15 @@ class DisclosureReviewService
                 'history' => $disclosure->edits_during_review ?? [],
             ],
 
-            // Review readiness - simplified
-            'can_approve' => in_array($disclosure->status, ['submitted', 'resubmitted', 'under_review']),
-            'can_reject' => in_array($disclosure->status, ['submitted', 'resubmitted', 'under_review']),
-            'pending_clarifications' => false,
+            // Backend-authoritative permission flags (sole authority for frontend action rendering)
+            'can_start_review' => in_array($disclosure->status, ['submitted', 'resubmitted']),
+            'can_approve' => $disclosure->status === 'under_review' && !$disclosure->hasPendingClarifications(),
+            'can_reject' => $disclosure->status === 'under_review',
+            'can_request_clarification' => $disclosure->status === 'under_review',
+            'audit_window_breached' => $this->isAuditWindowBreached($disclosure),
+
+            // Terminal state flag
+            'is_terminal' => in_array($disclosure->status, ['approved', 'rejected']),
         ];
     }
 
@@ -571,5 +568,55 @@ class DisclosureReviewService
 
         // Sort by priority: blocking clarifications first, then overdue, then oldest
         return $query->orderBy('submitted_at', 'asc')->get();
+    }
+
+    /**
+     * Get clarifications summary counts for a disclosure
+     */
+    protected function getClarificationsSummary(CompanyDisclosure $disclosure): array
+    {
+        $clarifications = $disclosure->clarifications;
+
+        if ($clarifications->isEmpty()) {
+            return [
+                'total' => 0,
+                'open' => 0,
+                'answered' => 0,
+                'accepted' => 0,
+                'disputed' => 0,
+                'blocking' => 0,
+                'overdue' => 0,
+            ];
+        }
+
+        return [
+            'total' => $clarifications->count(),
+            'open' => $clarifications->where('status', 'open')->count(),
+            'answered' => $clarifications->where('status', 'answered')->count(),
+            'accepted' => $clarifications->where('status', 'accepted')->count(),
+            'disputed' => $clarifications->where('status', 'disputed')->count(),
+            'blocking' => $clarifications->where('is_blocking', true)->whereNotIn('status', ['accepted'])->count(),
+            'overdue' => $clarifications->filter(fn($c) => $c->due_date && $c->due_date->isPast() && !in_array($c->status, ['accepted', 'answered']))->count(),
+        ];
+    }
+
+    /**
+     * Check if the audit review window has been breached
+     *
+     * Returns true if the disclosure has been under review for longer
+     * than the configured threshold (default: 7 business days).
+     */
+    protected function isAuditWindowBreached(CompanyDisclosure $disclosure): bool
+    {
+        if (!$disclosure->review_started_at) {
+            return false;
+        }
+
+        if (in_array($disclosure->status, ['approved', 'rejected'])) {
+            return false;
+        }
+
+        $thresholdDays = config('disclosure.audit_window_days', 7);
+        return $disclosure->review_started_at->addWeekdays($thresholdDays)->isPast();
     }
 }

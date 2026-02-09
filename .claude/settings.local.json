@@ -20,7 +20,9 @@
       "Bash(echo:*)",
       "Bash(taskkill:*)",
       "Bash(claude config get:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(mysql:*)"
     ]
   }
 }

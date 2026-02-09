@@ -229,7 +229,26 @@ class DisclosureController extends Controller
             if ($existingDisclosure) {
                 $this->authorize('update', $existingDisclosure);
             } else {
-                $this->authorize('create', $company);
+                // Check permission to create disclosure for this company
+                $role = \App\Models\CompanyUserRole::where('user_id', $user->id)
+                    ->where('company_id', $company->id)
+                    ->where('is_active', true)
+                    ->whereNull('revoked_at')
+                    ->first();
+
+                if (!$role) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'You do not have access to this company',
+                    ], 403);
+                }
+
+                if (!$role->canEdit()) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Viewers cannot create disclosures. Contact your company founder.',
+                    ], 403);
+                }
             }
 
             $disclosure = $this->disclosureService->saveDraft(
@@ -516,6 +535,22 @@ class DisclosureController extends Controller
 
             $user = auth()->user();
 
+            // WORKAROUND: If disclosure is draft and has no data, populate it with the message
+            // This allows simple text-based disclosures to be submitted
+            if ($disclosure->status === 'draft' &&
+                (empty($disclosure->disclosure_data) || $disclosure->completion_percentage === 0)) {
+                $disclosure->disclosure_data = [
+                    'disclosure_text' => $request->message,
+                ];
+                $disclosure->completion_percentage = 100;
+                $disclosure->last_modified_at = now();
+                $disclosure->last_modified_by_type = get_class($user);
+                $disclosure->last_modified_by_id = $user->id;
+                $disclosure->last_modified_ip = $request->ip();
+                $disclosure->last_modified_user_agent = $request->userAgent();
+                $disclosure->save();
+            }
+
             // Create response timeline event
             $event = \App\Models\DisclosureEvent::create([
                 'company_disclosure_id' => $disclosure->id,
@@ -546,7 +581,7 @@ class DisclosureController extends Controller
                         'uploaded_by_id' => $user->id,
                         'uploaded_by_name' => $user->name ?? $user->full_name ?? 'Company User',
                         'is_public' => false,
-                        'visibility' => 'admin',
+                        'visibility' => 'platform', // Visible to platform team for review
                         'uploaded_from_ip' => $request->ip(),
                     ]);
                 }

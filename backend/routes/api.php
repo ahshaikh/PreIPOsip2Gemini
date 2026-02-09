@@ -1300,15 +1300,19 @@ Route::prefix('v1')->group(function () {
 
             // Disclosure Review Workflow
             Route::prefix('disclosures')->middleware('permission:products.edit')->group(function () {
+                // All disclosures (primary list endpoint with filters)
+                Route::get('/', [App\Http\Controllers\Api\Admin\DisclosureController::class, 'index']);
+
                 // Queue Management
                 Route::get('/pending', [App\Http\Controllers\Api\Admin\DisclosureController::class, 'pending']);
                 Route::get('/under-review', [App\Http\Controllers\Api\Admin\DisclosureController::class, 'underReview']);
                 Route::get('/approved', [App\Http\Controllers\Api\Admin\DisclosureController::class, 'approved']);
                 Route::get('/rejected', [App\Http\Controllers\Api\Admin\DisclosureController::class, 'rejected']);
 
-                // Disclosure Details & Diff
+                // Disclosure Details, Diff & Timeline
                 Route::get('/{id}', [App\Http\Controllers\Api\Admin\DisclosureController::class, 'show']);
                 Route::get('/{id}/diff', [App\Http\Controllers\Api\Admin\DisclosureController::class, 'diff']);
+                Route::get('/{id}/timeline', [App\Http\Controllers\Api\Admin\DisclosureController::class, 'timeline']);
                 Route::get('/{id}/history', [App\Http\Controllers\Api\Admin\DisclosureController::class, 'history']);
 
                 // Review Actions (Rate Limited)
@@ -1530,6 +1534,7 @@ Route::prefix('v1')->group(function () {
                 // Draft Editing & Submission
                 Route::post('/disclosures', [App\Http\Controllers\Api\Company\DisclosureController::class, 'store']);
                 Route::post('/disclosures/{id}/submit', [App\Http\Controllers\Api\Company\DisclosureController::class, 'submit']);
+                Route::post('/disclosures/{id}/respond', [App\Http\Controllers\Api\Company\DisclosureController::class, 'respond']);
                 Route::post('/disclosures/{id}/attach', [App\Http\Controllers\Api\Company\DisclosureController::class, 'attachDocuments']);
 
                 // Error Reporting (CRITICAL: Creates new draft, preserves approved data)

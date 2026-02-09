@@ -83,11 +83,11 @@ class CompanyUserRole extends Model
     // =========================================================================
 
     /**
-     * User who has this role
+     * CompanyUser who has this role
      */
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(CompanyUser::class, 'user_id');
     }
 
     /**
@@ -99,11 +99,11 @@ class CompanyUserRole extends Model
     }
 
     /**
-     * User who assigned this role
+     * CompanyUser who assigned this role
      */
     public function assignedBy()
     {
-        return $this->belongsTo(User::class, 'assigned_by');
+        return $this->belongsTo(CompanyUser::class, 'assigned_by');
     }
 
     // =========================================================================

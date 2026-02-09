@@ -8,19 +8,7 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "feat(disclosures): implement requirement-centric, tier-aware disclosure system end-to-end
-
-- Introduce disclosure requirement taxonomy with backend authority
-- Render all requirements (including not_started) across category tabs
-- Implement tier-aware readiness with narrative explanations
-- Enforce respectful, collaborative compliance language
-- Add immutable, timeline-based disclosure threads
-- Fix platform overrides contract and UI rendering
-- Unblock first disclosure creation via API-driven start flow
-- Align frontend types with contract-complete backend responses
-- Remove frontend inference and band-aid guards
-
-End-to-end compliance workflow is now audit-grade, deterministic, and user-unblocking."
+$CommitMessage = "completed admin disclosure UI with backend-authoritative review flags"
 #----------------------
 
 function Get-GitCredential {

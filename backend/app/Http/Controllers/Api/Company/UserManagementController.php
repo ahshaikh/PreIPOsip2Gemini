@@ -289,6 +289,34 @@ class UserManagementController extends Controller
 
             $newUser->assignRole($assignedRole);
 
+            // Map Spatie role to CompanyUserRole for disclosure permissions
+            $disclosureRoleMap = [
+                'company_admin' => 'founder',
+                'company_finance' => 'finance',
+                'company_legal' => 'legal',
+                'company_viewer' => 'viewer',
+                'company_marketing' => 'viewer', // Marketing gets viewer access to disclosures
+            ];
+
+            $disclosureRole = $disclosureRoleMap[$assignedRole] ?? 'viewer';
+
+            \App\Models\CompanyUserRole::create([
+                'user_id' => $newUser->id,
+                'company_id' => $company->id,
+                'role' => $disclosureRole,
+                'is_active' => true,
+                'assigned_by' => $companyUser->id, // Founder/admin who created the user
+                'assigned_at' => now(),
+            ]);
+
+            \Log::info('CompanyUserRole assigned during user creation', [
+                'company_id' => $company->id,
+                'new_user_id' => $newUser->id,
+                'spatie_role' => $assignedRole,
+                'disclosure_role' => $disclosureRole,
+                'assigned_by' => $companyUser->id,
+            ]);
+
             DB::commit();
 
             return response()->json([

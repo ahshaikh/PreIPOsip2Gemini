@@ -4,9 +4,9 @@ namespace App\Policies;
 
 use App\Models\Company;
 use App\Models\CompanyDisclosure;
+use App\Models\CompanyUser;
 use App\Models\CompanyUserRole;
 use App\Models\DisclosureClarification;
-use App\Models\User;
 use Illuminate\Auth\Access\Response;
 
 /**
@@ -31,11 +31,11 @@ class CompanyDisclosurePolicy
     /**
      * Get user's active role for company
      *
-     * @param User $user
+     * @param CompanyUser $user
      * @param Company $company
      * @return CompanyUserRole|null
      */
-    protected function getUserRole(User $user, Company $company): ?CompanyUserRole
+    protected function getUserRole(CompanyUser $user, Company $company): ?CompanyUserRole
     {
         return CompanyUserRole::where('user_id', $user->id)
             ->where('company_id', $company->id)
@@ -47,11 +47,11 @@ class CompanyDisclosurePolicy
     /**
      * Determine if user can view disclosure
      *
-     * @param User $user
+     * @param CompanyUser $user
      * @param CompanyDisclosure $disclosure
      * @return Response
      */
-    public function view(User $user, CompanyDisclosure $disclosure): Response
+    public function view(CompanyUser $user, CompanyDisclosure $disclosure): Response
     {
         $role = $this->getUserRole($user, $disclosure->company);
 
@@ -72,11 +72,11 @@ class CompanyDisclosurePolicy
     /**
      * Determine if user can create disclosure
      *
-     * @param User $user
+     * @param CompanyUser $user
      * @param Company $company
      * @return Response
      */
-    public function create(User $user, Company $company): Response
+    public function create(CompanyUser $user, Company $company): Response
     {
         $role = $this->getUserRole($user, $company);
 
@@ -105,11 +105,11 @@ class CompanyDisclosurePolicy
      * - Must have role access to disclosure module
      * - Must have edit permission
      *
-     * @param User $user
+     * @param CompanyUser $user
      * @param CompanyDisclosure $disclosure
      * @return Response
      */
-    public function update(User $user, CompanyDisclosure $disclosure): Response
+    public function update(CompanyUser $user, CompanyDisclosure $disclosure): Response
     {
         $role = $this->getUserRole($user, $disclosure->company);
 
@@ -174,11 +174,11 @@ class CompanyDisclosurePolicy
     /**
      * Determine if user can submit disclosure for review
      *
-     * @param User $user
+     * @param CompanyUser $user
      * @param CompanyDisclosure $disclosure
      * @return Response
      */
-    public function submit(User $user, CompanyDisclosure $disclosure): Response
+    public function submit(CompanyUser $user, CompanyDisclosure $disclosure): Response
     {
         $role = $this->getUserRole($user, $disclosure->company);
 
@@ -219,11 +219,11 @@ class CompanyDisclosurePolicy
     /**
      * Determine if user can answer clarification
      *
-     * @param User $user
+     * @param CompanyUser $user
      * @param DisclosureClarification $clarification
      * @return Response
      */
-    public function answerClarification(User $user, DisclosureClarification $clarification): Response
+    public function answerClarification(CompanyUser $user, DisclosureClarification $clarification): Response
     {
         $role = $this->getUserRole($user, $clarification->company);
 
@@ -251,11 +251,11 @@ class CompanyDisclosurePolicy
     /**
      * Determine if user can report error in approved disclosure
      *
-     * @param User $user
+     * @param CompanyUser $user
      * @param CompanyDisclosure $disclosure
      * @return Response
      */
-    public function reportError(User $user, CompanyDisclosure $disclosure): Response
+    public function reportError(CompanyUser $user, CompanyDisclosure $disclosure): Response
     {
         $role = $this->getUserRole($user, $disclosure->company);
 
@@ -283,11 +283,11 @@ class CompanyDisclosurePolicy
     /**
      * Determine if user can attach documents to disclosure
      *
-     * @param User $user
+     * @param CompanyUser $user
      * @param CompanyDisclosure $disclosure
      * @return Response
      */
-    public function attachDocuments(User $user, CompanyDisclosure $disclosure): Response
+    public function attachDocuments(CompanyUser $user, CompanyDisclosure $disclosure): Response
     {
         $role = $this->getUserRole($user, $disclosure->company);
 
@@ -317,11 +317,11 @@ class CompanyDisclosurePolicy
      *
      * SAFEGUARD: Only drafts can be deleted, and only by founder
      *
-     * @param User $user
+     * @param CompanyUser $user
      * @param CompanyDisclosure $disclosure
      * @return Response
      */
-    public function delete(User $user, CompanyDisclosure $disclosure): Response
+    public function delete(CompanyUser $user, CompanyDisclosure $disclosure): Response
     {
         $role = $this->getUserRole($user, $disclosure->company);
 
@@ -351,11 +351,11 @@ class CompanyDisclosurePolicy
     /**
      * Determine if user can manage company users/roles
      *
-     * @param User $user
+     * @param CompanyUser $user
      * @param Company $company
      * @return Response
      */
-    public function manageUsers(User $user, Company $company): Response
+    public function manageUsers(CompanyUser $user, Company $company): Response
     {
         $role = $this->getUserRole($user, $company);
 

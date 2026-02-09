@@ -27,3 +27,12 @@ node_modules/
 dist/
 build/
 vendor/
+
+# Windows reserved device names
+NUL
+CON
+PRN
+AUX
+COM1
+LPT1
+

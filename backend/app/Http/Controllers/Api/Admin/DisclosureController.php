@@ -47,6 +47,100 @@ class DisclosureController extends Controller
     }
 
     /**
+     * List all disclosures with filters (primary list endpoint)
+     *
+     * GET /api/admin/disclosures
+     *
+     * Query params:
+     * - status: Filter by status (comma-separated for multiple)
+     * - company_id: Filter by company
+     * - tier: Filter by tier (1, 2, 3)
+     * - module_id: Filter by module
+     *
+     * Default: returns actionable statuses (submitted, resubmitted, under_review, clarification_required)
+     */
+    public function index(Request $request): JsonResponse
+    {
+        try {
+            $query = CompanyDisclosure::with(['company', 'module', 'clarifications'])
+                ->orderBy('submitted_at', 'asc');
+
+            // Status filter (comma-separated or single)
+            if ($request->has('status')) {
+                $statuses = explode(',', $request->input('status'));
+                $query->whereIn('status', $statuses);
+            } else {
+                // Default: actionable items only
+                $query->whereIn('status', ['submitted', 'resubmitted', 'under_review', 'clarification_required']);
+            }
+
+            if ($request->has('company_id')) {
+                $query->where('company_id', $request->input('company_id'));
+            }
+
+            if ($request->has('tier')) {
+                $query->whereHas('module', function ($q) use ($request) {
+                    $q->where('tier', $request->input('tier'));
+                });
+            }
+
+            if ($request->has('module_id')) {
+                $query->where('disclosure_module_id', $request->input('module_id'));
+            }
+
+            $disclosures = $query->get();
+
+            $data = $disclosures->map(function ($disclosure) {
+                $summary = $this->reviewService->getReviewSummary($disclosure);
+                return [
+                    'id' => $disclosure->id,
+                    'company' => [
+                        'id' => $disclosure->company_id,
+                        'name' => $disclosure->company?->name ?? 'Unknown Company',
+                        'lifecycle_state' => $disclosure->company?->lifecycle_state ?? 'unknown',
+                    ],
+                    'module' => [
+                        'id' => $disclosure->disclosure_module_id,
+                        'code' => $disclosure->module?->code ?? 'unknown',
+                        'name' => $disclosure->module?->name ?? 'Unknown Module',
+                        'tier' => $disclosure->module?->tier ?? 1,
+                    ],
+                    'status' => $disclosure->status,
+                    'submitted_at' => $disclosure->submitted_at,
+                    'review_started_at' => $disclosure->review_started_at,
+                    'clarifications' => $summary['clarifications'],
+                    'can_start_review' => $summary['can_start_review'],
+                    'can_approve' => $summary['can_approve'],
+                    'can_reject' => $summary['can_reject'],
+                    'can_request_clarification' => $summary['can_request_clarification'],
+                    'audit_window_breached' => $summary['audit_window_breached'],
+                    'is_terminal' => $summary['is_terminal'],
+                ];
+            });
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $data,
+                'meta' => [
+                    'total' => $data->count(),
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to fetch disclosures', [
+                'error' => $e->getMessage(),
+                'admin_id' => auth()->id(),
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to fetch disclosures',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
      * Get list of disclosures pending admin review
      *
      * GET /api/admin/disclosures/pending

@@ -98,74 +98,55 @@ export default function DisclosureThreadPage() {
 
   // Load disclosure thread
   useEffect(() => {
-    async function loadThread() {
-      setLoading(true);
-      setError(null);
-
-      try {
-        // TODO: Replace with actual API call
-        // const response = await fetchDisclosureThread(disclosureId);
-        // setThread(response);
-
-        // Mock data for design
-        setThread({
-          id: parseInt(disclosureId),
-          requirement_name: "Board Composition & Independence",
-          requirement_description: "Details of board members, their roles, and independence status",
-          current_status: "clarification_required",
-          can_respond: true,
-          timeline: [
-            {
-              id: 1,
-              type: "submission",
-              actor: "company",
-              actor_name: "John Smith",
-              timestamp: "2024-01-15T10:30:00Z",
-              message: "Initial submission of board composition details including all current directors.",
-              documents: [
-                {
-                  id: 1,
-                  filename: "board-composition.pdf",
-                  size: 245000,
-                  uploaded_at: "2024-01-15T10:30:00Z",
-                  url: "/api/storage/documents/board-composition.pdf",
-                },
-              ],
-            },
-            {
-              id: 2,
-              type: "clarification",
-              actor: "platform",
-              actor_name: "Platform Review Team",
-              timestamp: "2024-01-16T14:20:00Z",
-              message: "Thank you for the submission. We need additional clarification on the independence criteria for two directors. Could you provide details on any business relationships they may have with the company?",
-            },
-            {
-              id: 3,
-              type: "status_change",
-              actor: "platform",
-              actor_name: "System",
-              timestamp: "2024-01-16T14:20:00Z",
-              status_change: {
-                from: "under_review",
-                to: "clarification_required",
-              },
-            },
-          ],
-          created_at: "2024-01-15T10:30:00Z",
-          updated_at: "2024-01-16T14:20:00Z",
-        });
-      } catch (err: any) {
-        console.error("[DISCLOSURE THREAD] Failed to load:", err);
-        setError("Unable to load disclosure thread.");
-        toast.error("Failed to load thread");
-      } finally {
-        setLoading(false);
-      }
-    }
-
     loadThread();
   }, [disclosureId]);
+
+  async function loadThread() {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { fetchDisclosureThread } = await import('@/lib/issuerCompanyApi');
+      const apiResponse = await fetchDisclosureThread(parseInt(disclosureId));
+
+      // Backend returns: { status: 'success', data: { disclosure, module, timeline, clarifications, permissions } }
+      const response = apiResponse.data;
+
+      // Transform backend response to match frontend interface
+      const threadData = {
+        id: response.disclosure.id,
+        requirement_name: response.module?.name || "Disclosure Requirement",
+        requirement_description: response.module?.description,
+        current_status: response.disclosure.status,
+        can_respond: response.permissions?.can_respond || false,
+        timeline: (response.timeline || []).map((event: any) => ({
+          id: event.id,
+          type: event.event_type,
+          actor: event.actor_type === 'CompanyUser' ? 'company' : 'platform',
+          actor_name: event.actor_name,
+          timestamp: event.created_at, // Backend returns created_at, map to timestamp
+          message: event.message,
+          documents: (event.documents || []).map((doc: any) => ({
+            id: doc.id,
+            filename: doc.file_name,
+            size: doc.file_size,
+            uploaded_at: doc.uploaded_at,
+            url: doc.url,
+          })),
+        })),
+        created_at: response.disclosure.created_at || new Date().toISOString(),
+        updated_at: response.disclosure.updated_at || new Date().toISOString(),
+      };
+
+      setThread(threadData);
+    } catch (err: any) {
+      console.error("[DISCLOSURE THREAD] Failed to load:", err);
+      setError(err.response?.data?.message || "Unable to load disclosure thread.");
+      toast.error("Failed to load thread");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   // Get status badge with respectful language
   const getStatusBadge = (status: string) => {
@@ -218,7 +199,7 @@ export default function DisclosureThreadPage() {
     }
   };
 
-  // Submit response
+  // Submit response (for clarification_required status)
   const handleSubmitResponse = async () => {
     if (!replyText.trim()) {
       toast.error("Please enter a response");
@@ -227,22 +208,57 @@ export default function DisclosureThreadPage() {
 
     setSubmitting(true);
     try {
-      // TODO: Replace with actual API call
-      // await submitDisclosureResponse(disclosureId, {
-      //   message: replyText,
-      //   documents: uploadedFiles,
-      // });
+      const { submitDisclosureResponse } = await import('@/lib/issuerCompanyApi');
+      await submitDisclosureResponse(parseInt(disclosureId), {
+        message: replyText,
+        documents: uploadedFiles,
+      });
 
       toast.success("Response submitted successfully");
       setReplyMode(false);
       setReplyText("");
       setUploadedFiles([]);
 
-      // Reload thread
-      // await loadThread();
+      // Reload thread to show new entry
+      await loadThread();
     } catch (err: any) {
       console.error("[DISCLOSURE THREAD] Failed to submit:", err);
-      toast.error("Failed to submit response");
+      toast.error(err.response?.data?.message || "Failed to submit response");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Submit disclosure for review (for draft status)
+  const handleSubmitForReview = async () => {
+    if (!replyText.trim()) {
+      toast.error("Please provide disclosure details");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      // First, add the disclosure response/message
+      const { submitDisclosureResponse, submitDisclosureForReview } = await import('@/lib/issuerCompanyApi');
+      await submitDisclosureResponse(parseInt(disclosureId), {
+        message: replyText,
+        documents: uploadedFiles,
+      });
+
+      // Then submit for admin review
+      await submitDisclosureForReview(parseInt(disclosureId));
+
+      toast.success("Disclosure submitted for review");
+      setReplyMode(false);
+      setReplyText("");
+      setUploadedFiles([]);
+
+      // Reload thread to show new status
+      await loadThread();
+    } catch (err: any) {
+      console.error("[DISCLOSURE THREAD] Failed to submit for review:", err);
+      const errorMsg = err.response?.data?.message || err.response?.data?.error || "Failed to submit disclosure";
+      toast.error(errorMsg);
     } finally {
       setSubmitting(false);
     }
@@ -341,9 +357,11 @@ export default function DisclosureThreadPage() {
                       <Badge variant="outline" className="text-xs">
                         {event.actor === "company" ? "Company" : "Platform"}
                       </Badge>
-                      <span className="text-sm text-gray-500">
-                        {formatDistanceToNow(new Date(event.timestamp), { addSuffix: true })}
-                      </span>
+                      {event.timestamp && (
+                        <span className="text-sm text-gray-500">
+                          {formatDistanceToNow(new Date(event.timestamp), { addSuffix: true })}
+                        </span>
+                      )}
                     </div>
 
                     {/* Event Type Badge */}
@@ -381,8 +399,8 @@ export default function DisclosureThreadPage() {
 
                     {/* Event Message */}
                     {event.message && (
-                      <div className="bg-gray-50 border rounded-lg p-4 mb-3">
-                        <p className="text-sm whitespace-pre-wrap">{event.message}</p>
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-3">
+                        <p className="text-sm text-gray-900 whitespace-pre-wrap">{event.message}</p>
                       </div>
                     )}
 
@@ -442,28 +460,42 @@ export default function DisclosureThreadPage() {
         <Card>
           <CardHeader>
             <CardTitle>
-              {replyMode ? "Your Response" : "Respond to Request"}
+              {replyMode
+                ? (thread.current_status === 'draft' ? "Your Disclosure" : "Your Response")
+                : (thread.current_status === 'draft' ? "Complete Your Disclosure" : "Respond to Request")
+              }
             </CardTitle>
             <CardDescription>
               {replyMode
-                ? "Provide your response and attach any supporting documents"
-                : "Click below to respond to the platform's request"}
+                ? (thread.current_status === 'draft'
+                    ? "Provide your disclosure details and attach any supporting documents"
+                    : "Provide your response and attach any supporting documents")
+                : (thread.current_status === 'draft'
+                    ? "Click below to provide your disclosure information for this requirement"
+                    : "Click below to respond to the platform's request")
+              }
             </CardDescription>
           </CardHeader>
           <CardContent>
             {!replyMode ? (
               <Button onClick={() => setReplyMode(true)} size="lg">
                 <Edit className="w-4 h-4 mr-2" />
-                Write Response
+                {thread.current_status === 'draft' ? 'Start Writing' : 'Write Response'}
               </Button>
             ) : (
               <div className="space-y-4">
                 {/* Response Text */}
                 <div>
-                  <Label htmlFor="response">Response</Label>
+                  <Label htmlFor="response">
+                    {thread.current_status === 'draft' ? 'Disclosure Details' : 'Response'}
+                  </Label>
                   <Textarea
                     id="response"
-                    placeholder="Provide your response here..."
+                    placeholder={
+                      thread.current_status === 'draft'
+                        ? "Provide the required disclosure information here..."
+                        : "Provide your response here..."
+                    }
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
                     rows={6}
@@ -501,20 +533,24 @@ export default function DisclosureThreadPage() {
                 <Alert>
                   <Info className="h-4 w-4" />
                   <AlertDescription className="text-sm">
-                    Your response will be added to the thread and reviewed by the platform team.
-                    All entries are permanent and cannot be edited or deleted.
+                    {thread.current_status === 'draft'
+                      ? "Your disclosure will be submitted for admin review. Once submitted, the disclosure status will change and you'll be notified of the outcome."
+                      : "Your response will be added to the thread and reviewed by the platform team. All entries are permanent and cannot be edited or deleted."}
                   </AlertDescription>
                 </Alert>
 
                 {/* Action Buttons */}
                 <div className="flex gap-2">
                   <Button
-                    onClick={handleSubmitResponse}
+                    onClick={thread.current_status === 'draft' ? handleSubmitForReview : handleSubmitResponse}
                     disabled={submitting || !replyText.trim()}
                     size="lg"
                   >
                     <Send className="w-4 h-4 mr-2" />
-                    {submitting ? "Submitting..." : "Submit Response"}
+                    {submitting
+                      ? "Submitting..."
+                      : (thread.current_status === 'draft' ? "Submit for Review" : "Submit Response")
+                    }
                   </Button>
                   <Button
                     variant="outline"

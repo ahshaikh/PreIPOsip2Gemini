@@ -572,15 +572,16 @@ export default function IssuerDisclosuresPage() {
                               try {
                                 const response = await companyApi.post('/disclosures', {
                                   module_id: requirement.module_id,
-                                  disclosure_data: {},
+                                  disclosure_data: { _initialized: true },
                                   edit_reason: 'Initial draft creation',
                                 });
 
                                 toast.success('Disclosure draft created');
                                 window.location.href = `/company/disclosures/${response.data.data.disclosure_id}`;
                               } catch (error: any) {
-                                console.error('[START DISCLOSURE] Failed:', error);
-                                toast.error(error.response?.data?.message || 'Failed to start disclosure');
+                                console.error('[DISCLOSURE] Failed to start:', error);
+                                const errorMessage = error.response?.data?.message || 'Failed to start disclosure';
+                                toast.error(errorMessage);
                               }
                             }}
                           >
@@ -599,7 +600,7 @@ export default function IssuerDisclosuresPage() {
                             </Link>
 
                             {requirement.can_edit && requirement.status !== 'approved' && (
-                              <Link href={`/company/disclosures/${requirement.id}/respond`}>
+                              <Link href={`/company/disclosures/${requirement.id}`}>
                                 <Button>
                                   <MessageSquare className="w-4 h-4 mr-2" />
                                   {requirement.status === 'clarification_required' ? 'Respond' : 'Edit'}

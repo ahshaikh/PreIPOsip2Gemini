@@ -154,6 +154,49 @@ export async function submitDisclosureForReview(
 }
 
 /**
+ * Fetch disclosure thread with timeline
+ *
+ * Backend endpoint: GET /company/disclosures/{id}
+ * Returns disclosure details with complete timeline of events
+ */
+export async function fetchDisclosureThread(
+  disclosureId: number
+): Promise<any> {
+  const response = await companyApi.get(`/disclosures/${disclosureId}`);
+  return response.data;
+}
+
+/**
+ * Submit response to disclosure thread
+ *
+ * Backend endpoint: POST /company/disclosures/{id}/respond
+ * Adds a response entry to the disclosure timeline
+ */
+export async function submitDisclosureResponse(
+  disclosureId: number,
+  data: {
+    message: string;
+    documents?: File[];
+  }
+): Promise<{ success: boolean; message: string }> {
+  const formData = new FormData();
+  formData.append('message', data.message);
+
+  if (data.documents && data.documents.length > 0) {
+    data.documents.forEach((file, index) => {
+      formData.append(`documents[${index}]`, file);
+    });
+  }
+
+  const response = await companyApi.post(`/disclosures/${disclosureId}/respond`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+}
+
+/**
  * Answer clarification
  *
  * Backend endpoint: POST /issuer/clarifications/{id}/answer
