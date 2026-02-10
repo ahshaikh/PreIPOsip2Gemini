@@ -16,6 +16,7 @@ use App\Console\Commands\ProcessPendingWebhooks;
 use App\Console\Commands\ProcessProfitShareDistribution;
 use App\Console\Commands\ReleaseExpiredFundLocks; // FIX 18
 use App\Console\Commands\ReconcileBalances; // FIX 32
+use App\Services\DisclosureFreshnessService;
 
 class Kernel extends ConsoleKernel
 {
@@ -77,6 +78,19 @@ class Kernel extends ConsoleKernel
                  ->dailyAt('02:00')
                  ->withoutOverlapping()
                  ->onOneServer();
+
+        // FRESHNESS MODEL: Daily disclosure freshness refresh at 3 AM
+        // Recomputes freshness_state for all approved disclosures
+        // Records pillar vitality snapshots for audit trail
+        // FROZEN VOCABULARY: current|aging|stale|unstable
+        $schedule->call(function () {
+            app(DisclosureFreshnessService::class)->refreshAllFreshnessStates();
+        })
+            ->dailyAt('03:30')
+            ->withoutOverlapping()
+            ->onOneServer()
+            ->name('disclosure-freshness-refresh')
+            ->description('Refresh disclosure freshness states and record vitality snapshots');
     }
 
     /**

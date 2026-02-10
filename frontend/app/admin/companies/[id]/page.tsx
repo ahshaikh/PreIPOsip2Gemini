@@ -48,6 +48,7 @@ import {
   Eye,
   EyeOff,
   ShieldAlert,
+  Shield,
   Lock,
   Unlock,
   AlertTriangle,
@@ -87,6 +88,39 @@ import {
 } from "@/lib/adminCompanyApi";
 import { AdminPlatformAuthorityBanner } from "@/components/admin/AdminPlatformAuthorityBanner";
 import { AdminSnapshotAwarenessPanel } from "@/components/admin/AdminSnapshotAwarenessPanel";
+import { VitalityBadge, FreshnessIndicator, type ArtifactFreshnessState } from "@/components/disclosures";
+import api from "@/lib/api";
+
+// Pillar Evidence types (from backend pillar-evidence endpoint)
+interface PillarEvidenceDriver {
+  module_code: string;
+  module_name: string;
+  freshness_state: ArtifactFreshnessState;
+  days_since_approval: number | null;
+  signal_text: string;
+}
+
+interface PillarEvidenceData {
+  pillar: string;
+  label: string;
+  vitality_state: "healthy" | "needs_attention" | "at_risk" | null;
+  total_artifacts: number;
+  freshness_breakdown: {
+    current: number;
+    aging: number;
+    stale: number;
+    unstable: number;
+  };
+  drivers: PillarEvidenceDriver[];
+  pillar_signal_text: string;
+}
+
+interface PillarEvidenceResponse {
+  pillars: PillarEvidenceData[];
+  overall_vitality: "healthy" | "needs_attention" | "at_risk" | null;
+  current_tier: number;
+  last_computed: string | null;
+}
 
 export default function AdminCompanyManagementPage() {
   const { id } = useParams();
@@ -118,6 +152,10 @@ export default function AdminCompanyManagementPage() {
   const [platformContextImpact, setPlatformContextImpact] = useState<PlatformContextChangeImpact | null>(null);
   const [platformContextReason, setPlatformContextReason] = useState("");
   const [savingPlatformContext, setSavingPlatformContext] = useState(false);
+
+  // Pillar Evidence state (freshness/vitality tracking)
+  const [pillarEvidence, setPillarEvidence] = useState<PillarEvidenceResponse | null>(null);
+  const [pillarEvidenceLoading, setPillarEvidenceLoading] = useState(false);
 
   // Load company data
   useEffect(() => {
@@ -152,6 +190,28 @@ export default function AdminCompanyManagementPage() {
     }
 
     loadCompany();
+  }, [id]);
+
+  // Load pillar evidence when company is loaded
+  useEffect(() => {
+    async function loadPillarEvidence() {
+      if (!id || typeof id !== "string") return;
+
+      setPillarEvidenceLoading(true);
+      try {
+        const response = await api.get(`/admin/companies/${id}/pillar-evidence`);
+        if (response.data.status === "success") {
+          setPillarEvidence(response.data.data);
+        }
+      } catch (err: any) {
+        // Pillar evidence is optional, don't show error toast
+        console.error("[ADMIN COMPANY] Failed to load pillar evidence:", err);
+      } finally {
+        setPillarEvidenceLoading(false);
+      }
+    }
+
+    loadPillarEvidence();
   }, [id]);
 
   // Track visibility changes
@@ -575,6 +635,118 @@ export default function AdminCompanyManagementPage() {
               );
             })}
           </div>
+        </CardContent>
+      </Card>
+
+      {/*
+       * Pillar Evidence Snapshot
+       * Shows per-pillar disclosure freshness/vitality status.
+       * Backend-computed - no frontend business logic inference.
+       */}
+      <Card className="mb-6 border-blue-200 dark:border-blue-800">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center text-blue-900 dark:text-blue-200">
+                <Shield className="w-5 h-5 mr-2" />
+                Disclosure Freshness Evidence
+              </CardTitle>
+              <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                Backend-computed freshness and vitality status for approved disclosures.
+                {pillarEvidence?.last_computed && (
+                  <span className="ml-2 text-xs text-blue-500">
+                    Last computed: {new Date(pillarEvidence.last_computed).toLocaleString()}
+                  </span>
+                )}
+              </p>
+            </div>
+            {pillarEvidence?.overall_vitality && (
+              <VitalityBadge state={pillarEvidence.overall_vitality} size="lg" />
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {pillarEvidenceLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+            </div>
+          ) : !pillarEvidence || pillarEvidence.pillars.length === 0 ? (
+            <p className="text-sm text-gray-500 py-4">
+              No freshness data available. Disclosures must be approved before freshness is computed.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {/* Current Tier */}
+              <div className="text-sm text-gray-600 mb-4">
+                Showing evidence for <strong>Tier {pillarEvidence.current_tier}</strong> requirements.
+              </div>
+
+              {/* Pillar Grid */}
+              <div className="grid gap-4">
+                {pillarEvidence.pillars.map((pillar) => (
+                  <div
+                    key={pillar.pillar}
+                    className="border rounded-lg p-4 bg-gray-50/50 dark:bg-slate-800/50"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold">{pillar.label}</span>
+                        <VitalityBadge state={pillar.vitality_state} size="sm" />
+                      </div>
+                      <span className="text-sm text-gray-600">
+                        {pillar.pillar_signal_text}
+                      </span>
+                    </div>
+
+                    {/* Freshness Breakdown */}
+                    <div className="flex items-center gap-4 text-xs text-gray-600 mb-3">
+                      <span className="text-green-600">
+                        {pillar.freshness_breakdown.current} current
+                      </span>
+                      {pillar.freshness_breakdown.aging > 0 && (
+                        <span className="text-amber-600">
+                          {pillar.freshness_breakdown.aging} aging
+                        </span>
+                      )}
+                      {pillar.freshness_breakdown.stale > 0 && (
+                        <span className="text-orange-600">
+                          {pillar.freshness_breakdown.stale} stale
+                        </span>
+                      )}
+                      {pillar.freshness_breakdown.unstable > 0 && (
+                        <span className="text-blue-600">
+                          {pillar.freshness_breakdown.unstable} unstable
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Drivers (only show if there are attention-worthy items) */}
+                    {pillar.drivers.length > 0 && (
+                      <div className="space-y-2 pt-2 border-t border-gray-200">
+                        {pillar.drivers.map((driver, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between text-sm"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-700">{driver.module_name}</span>
+                              <FreshnessIndicator
+                                state={driver.freshness_state}
+                                variant="inline"
+                              />
+                            </div>
+                            <span className="text-xs text-gray-500">
+                              {driver.signal_text}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

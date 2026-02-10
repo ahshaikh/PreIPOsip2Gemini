@@ -20,10 +20,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, FileText, AlertTriangle } from "lucide-react";
+import { Loader2, FileText, AlertTriangle, Clock, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import Link from "next/link";
+import { FreshnessIndicator, type ArtifactFreshnessState } from "@/components/disclosures";
 
 interface DisclosureListItem {
   id: number;
@@ -56,6 +57,10 @@ interface DisclosureListItem {
   can_request_clarification: boolean;
   audit_window_breached: boolean;
   is_terminal: boolean;
+  // Freshness tracking (for approved disclosures)
+  freshness_state: ArtifactFreshnessState;
+  freshness_signal_text?: string;
+  days_since_approval?: number;
 }
 
 const STATUS_BADGES: Record<string, { color: string; label: string }> = {
@@ -91,10 +96,11 @@ export default function DisclosureListPage() {
   const [disclosures, setDisclosures] = useState<DisclosureListItem[]>([]);
   const [statusFilter, setStatusFilter] = useState("actionable");
   const [tierFilter, setTierFilter] = useState("all");
+  const [freshnessFilter, setFreshnessFilter] = useState("all");
 
   useEffect(() => {
     loadDisclosures();
-  }, [statusFilter, tierFilter]);
+  }, [statusFilter, tierFilter, freshnessFilter]);
 
   async function loadDisclosures() {
     try {
@@ -109,6 +115,10 @@ export default function DisclosureListPage() {
 
       if (tierFilter !== "all") {
         params.tier = tierFilter;
+      }
+
+      if (freshnessFilter !== "all") {
+        params.freshness = freshnessFilter;
       }
 
       const response = await api.get("/admin/disclosures", { params });
@@ -171,6 +181,19 @@ export default function DisclosureListPage() {
             <SelectItem value="3">Tier 3</SelectItem>
           </SelectContent>
         </Select>
+
+        <Select value={freshnessFilter} onValueChange={setFreshnessFilter}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Filter by freshness" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Freshness</SelectItem>
+            <SelectItem value="stale">Stale</SelectItem>
+            <SelectItem value="unstable">Unstable</SelectItem>
+            <SelectItem value="aging">Aging</SelectItem>
+            <SelectItem value="current">Current</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Table */}
@@ -198,6 +221,7 @@ export default function DisclosureListPage() {
                   <TableHead>Module</TableHead>
                   <TableHead>Tier</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Freshness</TableHead>
                   <TableHead>Submitted</TableHead>
                   <TableHead>Review Started</TableHead>
                   <TableHead>Clarifications</TableHead>
@@ -234,6 +258,19 @@ export default function DisclosureListPage() {
                       <Badge variant="outline" className={STATUS_BADGES[d.status]?.color || "bg-gray-100 text-gray-700"}>
                         {STATUS_BADGES[d.status]?.label || d.status}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {d.status === "approved" && d.freshness_state ? (
+                        <FreshnessIndicator
+                          state={d.freshness_state}
+                          signalText={d.days_since_approval !== undefined ? `${d.days_since_approval}d` : undefined}
+                          variant="badge"
+                        />
+                      ) : d.status === "approved" ? (
+                        <span className="text-xs text-gray-400">—</span>
+                      ) : (
+                        <span className="text-xs text-gray-400">N/A</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm text-gray-600">
                       {formatDate(d.submitted_at)}

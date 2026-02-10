@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api\Investor;
 
 use App\Http\Controllers\Controller;
 use App\Models\Company;
+use App\Models\CompanyDisclosure;
 use App\Models\Deal;
 use App\Models\Wallet;
+use App\Services\DisclosureFreshnessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -16,6 +18,13 @@ use Illuminate\Support\Facades\DB;
  */
 class InvestorCompanyController extends Controller
 {
+    protected DisclosureFreshnessService $freshnessService;
+
+    public function __construct(DisclosureFreshnessService $freshnessService)
+    {
+        $this->freshnessService = $freshnessService;
+    }
+
     /**
      * Get all companies available for investment
      * Also returns wallet balance for the authenticated investor
@@ -246,8 +255,38 @@ class InvestorCompanyController extends Controller
             'platform_risk_assessment' => $this->buildPlatformRiskAssessment($company),
         ];
 
-        // Build disclosures array (empty for now, can be populated from related models later)
-        $company->disclosures = [];
+        // Build disclosures array - ONLY approved disclosures visible to investors
+        // Includes subscriber-friendly freshness signals (abstracted, non-alarming)
+        $approvedDisclosures = CompanyDisclosure::where('company_id', $company->id)
+            ->where('status', 'approved')
+            ->where('is_visible', true)
+            ->with(['disclosureModule'])
+            ->get();
+
+        $company->disclosures = $approvedDisclosures->map(function ($disclosure) {
+            // Get subscriber-friendly freshness signal
+            $freshnessSignal = $this->freshnessService->getInvestorFreshnessSignal($disclosure);
+
+            return [
+                'id' => $disclosure->id,
+                'module_id' => $disclosure->disclosure_module_id,
+                'module_name' => $disclosure->disclosureModule?->name ?? 'Unknown',
+                'module_code' => $disclosure->disclosureModule?->code ?? 'unknown',
+                'status' => 'approved',
+                'version' => $disclosure->version_number,
+                'approved_at' => $disclosure->approved_at?->toIso8601String(),
+                // SUBSCRIBER-FRIENDLY FRESHNESS (ABSTRACTED ONLY)
+                // Backend sends ONLY the abstracted signal text.
+                // Raw freshness_state is NOT exposed to subscribers.
+                // This prevents vocabulary drift and frontend bypass.
+                // Mapping (for reference, enforced in backend):
+                // - 'stale' -> "Update Pending"
+                // - 'aging' -> "Update Expected Soon"
+                // - 'unstable' -> "Frequent Changes" (neutral, not falsely positive)
+                // - 'current' -> null (no signal shown)
+                'freshness_signal_text' => $freshnessSignal,
+            ];
+        })->toArray();
 
         // Build required_acknowledgements array
         $acknowledgements = [

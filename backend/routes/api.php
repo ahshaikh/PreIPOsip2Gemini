@@ -1324,6 +1324,10 @@ Route::prefix('v1')->group(function () {
                 });
             });
 
+            // Company Pillar Evidence (Freshness + Coverage)
+            Route::get('/companies/{companyId}/pillar-evidence', [App\Http\Controllers\Api\Admin\DisclosureController::class, 'pillarEvidence'])
+                ->middleware('permission:products.edit');
+
             // Clarification Management
             Route::prefix('clarifications')->middleware('permission:products.edit')->group(function () {
                 Route::get('/', [App\Http\Controllers\Api\Admin\DisclosureController::class, 'clarifications']);
@@ -1529,6 +1533,7 @@ Route::prefix('v1')->group(function () {
                 // Dashboard & Disclosure Management
                 Route::get('/dashboard', [App\Http\Controllers\Api\Company\DisclosureController::class, 'dashboard']);
                 Route::get('/disclosures', [App\Http\Controllers\Api\Company\DisclosureController::class, 'index']);
+                Route::get('/disclosures/freshness', [App\Http\Controllers\Api\Company\DisclosureController::class, 'freshnessSummary']);
                 Route::get('/disclosures/{id}', [App\Http\Controllers\Api\Company\DisclosureController::class, 'show']);
 
                 // Draft Editing & Submission

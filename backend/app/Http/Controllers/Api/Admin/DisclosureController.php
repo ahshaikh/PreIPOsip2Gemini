@@ -7,6 +7,7 @@ use App\Models\CompanyDisclosure;
 use App\Models\DisclosureClarification;
 use App\Models\DisclosureModule;
 use App\Services\DisclosureDiffService;
+use App\Services\DisclosureFreshnessService;
 use App\Services\DisclosureReviewService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -37,13 +38,16 @@ class DisclosureController extends Controller
 {
     protected DisclosureReviewService $reviewService;
     protected DisclosureDiffService $diffService;
+    protected DisclosureFreshnessService $freshnessService;
 
     public function __construct(
         DisclosureReviewService $reviewService,
-        DisclosureDiffService $diffService
+        DisclosureDiffService $diffService,
+        DisclosureFreshnessService $freshnessService
     ) {
         $this->reviewService = $reviewService;
         $this->diffService = $diffService;
+        $this->freshnessService = $freshnessService;
     }
 
     /**
@@ -88,6 +92,16 @@ class DisclosureController extends Controller
                 $query->where('disclosure_module_id', $request->input('module_id'));
             }
 
+            // Freshness filter (FROZEN VOCABULARY: current|aging|stale|unstable)
+            if ($request->has('freshness')) {
+                $freshness = $request->input('freshness');
+                if ($freshness === 'needs_attention') {
+                    $query->whereIn('freshness_state', ['aging', 'stale', 'unstable']);
+                } else {
+                    $query->where('freshness_state', $freshness);
+                }
+            }
+
             $disclosures = $query->get();
 
             $data = $disclosures->map(function ($disclosure) {
@@ -115,6 +129,9 @@ class DisclosureController extends Controller
                     'can_request_clarification' => $summary['can_request_clarification'],
                     'audit_window_breached' => $summary['audit_window_breached'],
                     'is_terminal' => $summary['is_terminal'],
+                    // Freshness data (FROZEN VOCABULARY)
+                    'freshness_state' => $disclosure->freshness_state,
+                    'days_since_approval' => $disclosure->days_since_approval,
                 ];
             });
 
@@ -264,7 +281,19 @@ class DisclosureController extends Controller
                         'is_locked' => $disclosure->is_locked,
                         'edits_during_review' => $disclosure->edits_during_review,
                         'edit_count_during_review' => $disclosure->edit_count_during_review,
+                        // Freshness data (FROZEN VOCABULARY: current|aging|stale|unstable)
+                        'freshness_state' => $disclosure->freshness_state,
+                        'freshness_computed_at' => $disclosure->freshness_computed_at,
+                        'days_since_approval' => $disclosure->days_since_approval,
+                        'update_count_in_window' => $disclosure->update_count_in_window,
+                        'next_update_expected' => $disclosure->next_update_expected,
+                        'has_freshness_override' => $disclosure->hasFreshnessOverride(),
+                        'freshness_override' => $disclosure->freshness_override,
                     ],
+                    // Freshness signal text (computed)
+                    'freshness' => $disclosure->status === 'approved'
+                        ? $this->freshnessService->computeArtifactFreshness($disclosure)
+                        : null,
                     'company' => [
                         'id' => $disclosure->company->id,
                         'name' => $disclosure->company->name,
@@ -773,6 +802,72 @@ class DisclosureController extends Controller
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to dispute clarification',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get pillar evidence snapshot for a company
+     *
+     * GET /api/admin/companies/{companyId}/pillar-evidence
+     *
+     * Returns per-pillar:
+     * - Vitality state (FROZEN: healthy|needs_attention|at_risk)
+     * - Freshness breakdown
+     * - Vitality drivers (artifacts causing degradation)
+     * - Coverage facts
+     *
+     * ADMIN USE: Decision-grade evidence for approval/rejection justification.
+     * Admin decisions can cite freshness decay or instability from this data.
+     */
+    public function pillarEvidence(int $companyId): JsonResponse
+    {
+        try {
+            $company = \App\Models\Company::findOrFail($companyId);
+
+            // Determine current tier
+            $tierStatus = $company->tier_status ?? [];
+            $currentTier = 1;
+            if ($tierStatus['tier_3_approved'] ?? false) {
+                $currentTier = 3;
+            } elseif ($tierStatus['tier_2_approved'] ?? false) {
+                $currentTier = 2;
+            } elseif ($tierStatus['tier_1_approved'] ?? false) {
+                $currentTier = 1;
+            }
+
+            $freshnessSummary = $this->freshnessService->getCompanyFreshnessSummary($company, $currentTier);
+
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'company_id' => $company->id,
+                    'company_name' => $company->name,
+                    'current_tier' => $currentTier,
+                    'overall_vitality' => $freshnessSummary['overall_vitality'],
+                    'pillars' => $freshnessSummary['pillars'],
+                    'coverage_summary' => $freshnessSummary['coverage_summary'],
+                    'last_computed' => $freshnessSummary['last_computed'],
+                ],
+            ]);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Company not found',
+            ], 404);
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to fetch pillar evidence', [
+                'company_id' => $companyId,
+                'admin_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to fetch pillar evidence',
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }

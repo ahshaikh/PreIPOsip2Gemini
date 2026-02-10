@@ -1,12 +1,16 @@
 /**
- * Company Disclosures Page - Redesigned
+ * Company Disclosures Page - Coverage + Freshness Model
  *
  * DESIGN PRINCIPLES:
- * - Preserve founder dignity with respectful language
- * - Present compliance as collaborative, audit-ready process
- * - Progress based on fulfilled requirements, not uploads
- * - Timeline-style disclosure threads (like PR reviews)
- * - Clear governance status context
+ * - Disclosure is a LIVING, DECAYING body of evidence
+ * - NO progress bars, NO percentages, NO readiness scores
+ * - Coverage answers "what exists vs missing" (not readiness)
+ * - Freshness/Vitality tracks data decay over time
+ * - Backend computes all facts; frontend renders them
+ *
+ * FROZEN VOCABULARY:
+ * - Artifact Freshness: current | aging | stale | unstable
+ * - Pillar Vitality: healthy | needs_attention | at_risk
  *
  * LANGUAGE RULES:
  * - "Action Requested" not "Rejected"
@@ -37,8 +41,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  CoverageVitalitySummary,
+  FreshnessIndicator,
+  type ArtifactFreshnessState,
+} from "@/components/disclosures";
 import { toast } from "sonner";
 import {
   fetchIssuerCompany,
@@ -112,21 +120,33 @@ const DISCLOSURE_CATEGORIES = {
   },
 };
 
+// Freshness summary type (from backend)
+interface FreshnessSummary {
+  pillars: Record<string, {
+    label: string;
+    vitality: {
+      state: "healthy" | "needs_attention" | "at_risk";
+      total_artifacts: number;
+      freshness_breakdown: { current: number; aging: number; stale: number; unstable: number };
+      drivers: Array<{ module_code: string; module_name: string; freshness_state: string; signal_text: string }>;
+      pillar_signal_text: string;
+    };
+    // NOTE: total_required intentionally excluded - prevents percentage derivation
+    coverage: { present: number; draft: number; partial: number; missing: number };
+  }>;
+  overall_vitality: "healthy" | "needs_attention" | "at_risk";
+  coverage_summary: { present: number; draft: number; partial: number; missing: number };
+  last_computed: string;
+}
+
 export default function IssuerDisclosuresPage() {
   const [company, setCompany] = useState<IssuerCompanyData | null>(null);
+  const [freshnessSummary, setFreshnessSummary] = useState<FreshnessSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
-  // Risk 2: Track progress changes for narrative fallback
-  const [previousProgress, setPreviousProgress] = useState<{
-    percentage: number;
-    total: number;
-    tier: number;
-  } | null>(null);
-  const [progressChangeReason, setProgressChangeReason] = useState<string | null>(null);
-
-  // Load issuer company data
+  // Load issuer company data and freshness summary
   useEffect(() => {
     async function loadCompanyData() {
       setLoading(true);
@@ -136,6 +156,11 @@ export default function IssuerDisclosuresPage() {
         const rawData = await fetchIssuerCompany();
         const normalizedData = normalizeIssuerCompanyData(rawData);
         setCompany(normalizedData);
+
+        // Extract freshness summary from dashboard data (backend now includes it)
+        if (rawData.freshness_summary) {
+          setFreshnessSummary(rawData.freshness_summary);
+        }
       } catch (err: any) {
         console.error("[ISSUER DISCLOSURES] Failed to load:", err);
         setError("Unable to load company data. Please try again later.");
@@ -148,69 +173,8 @@ export default function IssuerDisclosuresPage() {
     loadCompanyData();
   }, []);
 
-  // Risk 2 Fix: Detect progress changes and provide narrative
-  useEffect(() => {
-    if (!company) return;
-
-    const currentProgress = getRequirementCompletion();
-
-    // Load previous progress from localStorage
-    const storageKey = `disclosure_progress_${company.id}`;
-    const stored = localStorage.getItem(storageKey);
-
-    if (stored) {
-      const previous = JSON.parse(stored);
-
-      // Detect significant changes
-      if (previous.tier !== currentProgress.tier) {
-        // Tier changed
-        if (currentProgress.tier > previous.tier) {
-          setProgressChangeReason(
-            `You've advanced to Tier ${currentProgress.tier}! New disclosure requirements have been added.`
-          );
-        } else if (currentProgress.tier < previous.tier) {
-          setProgressChangeReason(
-            `Your tier status changed to Tier ${currentProgress.tier}. Requirement count has been updated.`
-          );
-        }
-      } else if (currentProgress.total !== previous.total) {
-        // Same tier but total changed
-        if (currentProgress.total > previous.total) {
-          const newCount = currentProgress.total - previous.total;
-          setProgressChangeReason(
-            `${newCount} new disclosure ${newCount === 1 ? 'requirement was' : 'requirements were'} added to your current tier.`
-          );
-        } else {
-          const removedCount = previous.total - currentProgress.total;
-          setProgressChangeReason(
-            `${removedCount} disclosure ${removedCount === 1 ? 'requirement was' : 'requirements were'} removed or reclassified.`
-          );
-        }
-      } else if (Math.abs(currentProgress.percentage - previous.percentage) >= 10) {
-        // Significant percentage change without total change (completions)
-        if (currentProgress.percentage > previous.percentage) {
-          setProgressChangeReason(
-            `Great progress! You've completed ${currentProgress.completed - previous.completed} more ${
-              currentProgress.completed - previous.completed === 1 ? 'requirement' : 'requirements'
-            }.`
-          );
-        }
-      }
-
-      setPreviousProgress(previous);
-    }
-
-    // Save current progress
-    localStorage.setItem(
-      storageKey,
-      JSON.stringify({
-        percentage: currentProgress.percentage,
-        total: currentProgress.total,
-        tier: currentProgress.tier,
-        completed: currentProgress.completed,
-      })
-    );
-  }, [company]);
+  // NOTE: Progress percentage tracking removed - replaced with Coverage + Vitality model
+  // Disclosure is a living, decaying body of evidence - not a finishable task
 
   // Get respectful status badge (no "rejected" language)
   const getStatusBadge = (status: string) => {
@@ -257,32 +221,8 @@ export default function IssuerDisclosuresPage() {
     }
   };
 
-  // Tier-aware requirement calculation using backend-provided taxonomy
-  const getRequirementCompletion = () => {
-    if (!company) return { completed: 0, total: 0, percentage: 0, tier: 0 };
-
-    const currentTier = getTierInfo().current;
-
-    // Backend provides tier for each requirement - filter by current tier
-    const requiredDisclosures = company.disclosures.filter((d: any) => {
-      // Must be required
-      if (!d.is_required) return false;
-
-      // Must be for current tier or lower
-      return d.tier <= currentTier;
-    });
-
-    const completedDisclosures = requiredDisclosures.filter((d: any) => d.status === "approved");
-
-    return {
-      completed: completedDisclosures.length,
-      total: requiredDisclosures.length,
-      percentage: requiredDisclosures.length > 0
-        ? Math.round((completedDisclosures.length / requiredDisclosures.length) * 100)
-        : 0,
-      tier: currentTier,
-    };
-  };
+  // NOTE: getRequirementCompletion removed - NO PROGRESS PERCENTAGES
+  // Disclosure health is now tracked via Coverage + Vitality model
 
   // Get governance lifecycle label
   const getGovernanceStatusLabel = (lifecycleState: string) => {
@@ -377,7 +317,7 @@ export default function IssuerDisclosuresPage() {
           <div>
             <h1 className="text-3xl font-bold">Disclosure Management</h1>
             <p className="text-gray-600 mt-1">
-              Collaborative review process for investment readiness
+              Ongoing disclosure maintenance and platform review
             </p>
           </div>
           <Badge variant="outline" className="px-4 py-2 text-sm">
@@ -409,16 +349,17 @@ export default function IssuerDisclosuresPage() {
                     <>
                       <ChevronRight className="w-4 h-4 text-gray-400" />
                       <span className="text-sm text-gray-600">
-                        Progress toward Tier {tierInfo.next}
+                        Tier {tierInfo.next} disclosures available
                       </span>
                     </>
                   )}
                 </div>
                 <p className="text-sm text-gray-600">
-                  {tierInfo.current === 0 && "Complete required disclosures to enable platform features"}
-                  {tierInfo.current === 1 && "Tier 1 complete. Continue to Tier 2 for investor access"}
-                  {tierInfo.current === 2 && "Tier 2 complete. Tier 3 provides full transparency"}
-                  {tierInfo.current === 3 && "All disclosure requirements met. Platform fully enabled"}
+                  {/* NO FINISHABILITY LANGUAGE - Disclosure is ongoing, never "complete" */}
+                  {tierInfo.current === 0 && "Submit required disclosures to enable platform features"}
+                  {tierInfo.current === 1 && "Tier 1 disclosures approved. Tier 2 enables investor access."}
+                  {tierInfo.current === 2 && "Tier 2 disclosures approved. Tier 3 extends visibility."}
+                  {tierInfo.current === 3 && "All tier disclosures approved. Ongoing maintenance required."}
                 </p>
               </div>
             </div>
@@ -426,43 +367,12 @@ export default function IssuerDisclosuresPage() {
         </Card>
       </div>
 
-      {/* 2. Disclosure Completion Indicator */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Tier Readiness (Current Requirements)</CardTitle>
-              <CardDescription className="mt-1 flex items-center gap-1">
-                <Info className="w-3 h-3" />
-                Based on disclosures required for Tier {requirementCompletion.tier}
-              </CardDescription>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold">{requirementCompletion.percentage}%</div>
-              <div className="text-sm text-gray-600">
-                {requirementCompletion.completed} of {requirementCompletion.total} completed
-              </div>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Progress value={requirementCompletion.percentage} className="h-3" />
-
-          {/* Risk 2: Narrative fallback for progress changes */}
-          {progressChangeReason && (
-            <Alert className="border-blue-300 bg-blue-50">
-              <Info className="h-4 w-4 text-blue-600" />
-              <AlertDescription className="text-blue-900">
-                {progressChangeReason}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          <p className="text-xs text-gray-500">
-            Progress reflects approved disclosure requirements, not document count
-          </p>
-        </CardContent>
-      </Card>
+      {/* 2. Coverage + Vitality Summary (replaces progress bar) */}
+      {/* NO PROGRESS BARS. NO PERCENTAGES. NO READINESS SCORES. */}
+      <CoverageVitalitySummary
+        freshnessSummary={freshnessSummary}
+        currentTier={tierInfo.current}
+      />
 
       {/* 3. Disclosure Requirements by Category */}
       <div className="space-y-6">
@@ -480,7 +390,7 @@ export default function IssuerDisclosuresPage() {
             </Tabs>
           </div>
           <p className="text-sm text-gray-600">
-            All disclosure requirements for your company, organized by category. Start with required items to progress through platform tiers.
+            All disclosure categories for your company. Required items must be approved for tier advancement.
           </p>
         </div>
 
@@ -527,7 +437,7 @@ export default function IssuerDisclosuresPage() {
                             <CardDescription>{requirement.description}</CardDescription>
                           )}
                           {/* Show tier requirement if higher than current tier */}
-                          {requirement.is_required && requirement.required_for_tier && requirement.required_for_tier > requirementCompletion.tier && (
+                          {requirement.is_required && requirement.required_for_tier && requirement.required_for_tier > tierInfo.current && (
                             <p className="text-xs text-gray-500 mt-1">
                               Required at Tier {requirement.required_for_tier}
                             </p>
@@ -617,8 +527,18 @@ export default function IssuerDisclosuresPage() {
                         )}
                       </div>
 
-                      {/* Last updated */}
-                      {requirement.last_updated && (
+                      {/* Freshness indicator for approved disclosures */}
+                      {requirement.status === 'approved' && (requirement as any).freshness_state && (
+                        <div className="flex items-center gap-2">
+                          <FreshnessIndicator
+                            state={(requirement as any).freshness_state as ArtifactFreshnessState}
+                            signalText={(requirement as any).freshness_signal_text}
+                            variant="inline"
+                          />
+                        </div>
+                      )}
+                      {/* Last updated for non-approved disclosures */}
+                      {requirement.status !== 'approved' && requirement.last_updated && (
                         <p className="text-xs text-gray-500">
                           Last updated: {new Date(requirement.last_updated).toLocaleDateString()}
                         </p>

@@ -19,6 +19,15 @@ use Illuminate\Database\Seeder;
  * - Tier 1 (Visibility): Basic business information modules
  * - Tier 2 (Investable): Financial data modules (ENABLES BUYING)
  * - Tier 3 (Full Disclosure): Legal and compliance modules
+ *
+ * FRESHNESS CONFIGURATION (Coverage + Freshness Model):
+ * - document_type: 'update_required' | 'version_controlled'
+ * - expected_update_days: Cadence for update_required docs (triggers aging/stale)
+ * - stability_window_days: Window for version_controlled docs
+ * - max_changes_per_window: Instability threshold for version_controlled
+ * - category: Pillar assignment (governance|financial|legal|operational)
+ *
+ * NO DEFAULTS THAT IMPLY "CURRENT" - every module must declare its freshness policy.
  */
 class DisclosureModuleSeeder extends Seeder
 {
@@ -41,6 +50,13 @@ class DisclosureModuleSeeder extends Seeder
                 'is_active' => true,
                 'display_order' => 1,
                 'tier' => 1, // PHASE 2: Tier 1 (Visibility) - Basic business information
+                'category' => 'operational', // Pillar: Operational (business operations)
+                // FRESHNESS CONFIG: Version-controlled document (rarely changes)
+                'document_type' => 'version_controlled',
+                'stability_window_days' => 365, // Expected stable for 1 year
+                'max_changes_per_window' => 2,  // More than 2 changes = unstable
+                'expected_update_days' => null, // Not applicable for version_controlled
+                'freshness_weight' => 1.00,
                 'icon' => 'building',
                 'color' => 'blue',
                 'json_schema' => [
@@ -116,6 +132,13 @@ class DisclosureModuleSeeder extends Seeder
                 'is_active' => true,
                 'display_order' => 2,
                 'tier' => 2, // PHASE 2: Tier 2 (Investable) - Financial data (ENABLES BUYING)
+                'category' => 'financial', // Pillar: Financial
+                // FRESHNESS CONFIG: Update-required document (quarterly updates expected)
+                'document_type' => 'update_required',
+                'expected_update_days' => 90, // Quarterly update cadence
+                'stability_window_days' => null, // Not applicable for update_required
+                'max_changes_per_window' => null,
+                'freshness_weight' => 1.00,
                 'icon' => 'chart-line',
                 'color' => 'green',
                 'json_schema' => [
@@ -196,6 +219,13 @@ class DisclosureModuleSeeder extends Seeder
                 'is_active' => true,
                 'display_order' => 3,
                 'tier' => 3, // PHASE 2: Tier 3 (Full Disclosure) - Risk factors
+                'category' => 'legal', // Pillar: Legal & Risk
+                // FRESHNESS CONFIG: Version-controlled (changes with material events)
+                'document_type' => 'version_controlled',
+                'stability_window_days' => 180, // Review every 6 months
+                'max_changes_per_window' => 3,  // Risk updates can be more frequent
+                'expected_update_days' => null,
+                'freshness_weight' => 1.00,
                 'icon' => 'shield',
                 'color' => 'red',
                 'json_schema' => [
@@ -272,6 +302,13 @@ class DisclosureModuleSeeder extends Seeder
                 'is_active' => true,
                 'display_order' => 4,
                 'tier' => 1, // PHASE 2: Tier 1 (Visibility) - Governance information
+                'category' => 'governance', // Pillar: Governance
+                // FRESHNESS CONFIG: Version-controlled (rarely changes)
+                'document_type' => 'version_controlled',
+                'stability_window_days' => 365, // Annual review expected
+                'max_changes_per_window' => 2,  // Board changes should be infrequent
+                'expected_update_days' => null,
+                'freshness_weight' => 1.00,
                 'icon' => 'users',
                 'color' => 'purple',
                 'json_schema' => [
@@ -343,6 +380,13 @@ class DisclosureModuleSeeder extends Seeder
                 'is_active' => true,
                 'display_order' => 5,
                 'tier' => 3, // PHASE 2: Tier 3 (Full Disclosure) - Legal and compliance
+                'category' => 'legal', // Pillar: Legal & Risk
+                // FRESHNESS CONFIG: Version-controlled (rarely changes unless litigation)
+                'document_type' => 'version_controlled',
+                'stability_window_days' => 365, // Annual review expected
+                'max_changes_per_window' => 2,  // Frequent legal changes = instability
+                'expected_update_days' => null,
+                'freshness_weight' => 1.00,
                 'icon' => 'file-text',
                 'color' => 'gray',
                 'json_schema' => [

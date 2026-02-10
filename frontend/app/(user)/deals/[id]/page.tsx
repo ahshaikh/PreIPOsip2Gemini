@@ -83,6 +83,8 @@ import {
   getSnapshotGuaranteeMessage,
   Disclosure,
 } from "@/lib/investorDisclosureGuard";
+// NOTE: SubscriberFreshnessChip removed - backend now sends only abstracted signal text
+// Frontend renders text directly, no state-to-label mapping needed
 
 export default function InvestorCompanyDetailPage() {
   const { id } = useParams();
@@ -755,6 +757,7 @@ export default function InvestorCompanyDetailPage() {
               <CardContent>
                 <div className="space-y-4">
                   {/* STORY 5.2: Apply disclosure guard - only show approved disclosures */}
+                  {/* FRESHNESS: Backend sends ONLY abstracted signal text (no raw state) */}
                   {filterApprovedDisclosures(company.disclosures as Disclosure[]).map((disclosure, i) => (
                     <div key={i} className="border-b border-gray-200 dark:border-slate-800 last:border-0 pb-4 last:pb-0">
                       <div className="flex items-center justify-between mb-2">
@@ -766,6 +769,12 @@ export default function InvestorCompanyDetailPage() {
                       <p className="text-sm text-gray-600 dark:text-gray-400">
                         Approved on: {disclosure.approved_at ? new Date(disclosure.approved_at).toLocaleDateString() : 'N/A'}
                       </p>
+                      {/* Subscriber-friendly signal text (backend-abstracted, no raw state) */}
+                      {(disclosure as any).freshness_signal_text && (
+                        <p className="text-xs text-amber-600 mt-1">
+                          {(disclosure as any).freshness_signal_text}
+                        </p>
+                      )}
                     </div>
                   ))}
                   {/* Show message if no approved disclosures */}

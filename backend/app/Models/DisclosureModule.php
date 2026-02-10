@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\DocumentType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -79,6 +80,12 @@ class DisclosureModule extends Model
         'approval_checklist',
         'created_by',
         'updated_by',
+        // Freshness configuration (FROZEN VOCABULARY)
+        'document_type',           // 'update_required' | 'version_controlled'
+        'expected_update_days',    // For update_required docs
+        'stability_window_days',   // For version_controlled docs
+        'max_changes_per_window',  // Instability threshold
+        'freshness_weight',        // Pillar vitality contribution
     ];
 
     /**
@@ -97,6 +104,11 @@ class DisclosureModule extends Model
         'approval_checklist' => 'array',
         'created_by' => 'integer',
         'updated_by' => 'integer',
+        // Freshness configuration casts
+        'expected_update_days' => 'integer',
+        'stability_window_days' => 'integer',
+        'max_changes_per_window' => 'integer',
+        'freshness_weight' => 'decimal:2',
     ];
 
     // =========================================================================
@@ -263,5 +275,49 @@ class DisclosureModule extends Model
     public function getColorAttribute($value): string
     {
         return $value ?? 'gray';
+    }
+
+    // =========================================================================
+    // FRESHNESS HELPERS
+    // =========================================================================
+
+    /**
+     * Check if this module requires regular updates (financials, cap table, etc.)
+     */
+    public function isUpdateRequired(): bool
+    {
+        return $this->document_type === DocumentType::UPDATE_REQUIRED->value;
+    }
+
+    /**
+     * Check if this module is version-controlled (articles, bylaws, etc.)
+     */
+    public function isVersionControlled(): bool
+    {
+        return $this->document_type === DocumentType::VERSION_CONTROLLED->value;
+    }
+
+    /**
+     * Get the expected cadence in days for freshness calculation.
+     * For update_required: returns expected_update_days
+     * For version_controlled: returns stability_window_days
+     */
+    public function getExpectedCadenceDays(): ?int
+    {
+        if ($this->isUpdateRequired()) {
+            return $this->expected_update_days;
+        }
+        if ($this->isVersionControlled()) {
+            return $this->stability_window_days;
+        }
+        return null;
+    }
+
+    /**
+     * Check if freshness tracking is configured for this module
+     */
+    public function hasFreshnessConfig(): bool
+    {
+        return !empty($this->document_type);
     }
 }

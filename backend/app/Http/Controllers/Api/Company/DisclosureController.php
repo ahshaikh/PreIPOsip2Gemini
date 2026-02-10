@@ -8,6 +8,7 @@ use App\Models\CompanyDisclosure;
 use App\Models\DisclosureClarification;
 use App\Models\DisclosureModule;
 use App\Services\CompanyDisclosureService;
+use App\Services\DisclosureFreshnessService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -35,10 +36,14 @@ use Illuminate\Support\Facades\Validator;
 class DisclosureController extends Controller
 {
     protected CompanyDisclosureService $disclosureService;
+    protected DisclosureFreshnessService $freshnessService;
 
-    public function __construct(CompanyDisclosureService $disclosureService)
-    {
+    public function __construct(
+        CompanyDisclosureService $disclosureService,
+        DisclosureFreshnessService $freshnessService
+    ) {
         $this->disclosureService = $disclosureService;
+        $this->freshnessService = $freshnessService;
     }
 
     /**
@@ -67,6 +72,13 @@ class DisclosureController extends Controller
 
             $summary = $this->disclosureService->getDashboardSummary($company);
 
+            // Add freshness summary (Coverage + Vitality model)
+            $currentTier = $summary['tier_progress']['current_tier'] ?? 1;
+            $summary['freshness_summary'] = $this->freshnessService->getCompanyFreshnessSummary(
+                $company,
+                $currentTier
+            );
+
             return response()->json([
                 'status' => 'success',
                 'data' => $summary,
@@ -81,6 +93,65 @@ class DisclosureController extends Controller
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to fetch dashboard',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get freshness summary for company (Coverage + Vitality model)
+     *
+     * GET /api/company/disclosures/freshness
+     *
+     * Returns per-pillar:
+     * - Vitality state (healthy|needs_attention|at_risk)
+     * - Freshness breakdown (current|aging|stale|unstable counts)
+     * - Coverage facts (present|draft|partial|missing counts)
+     * - Vitality drivers (artifacts causing degradation)
+     *
+     * NO PROGRESS BARS. NO PERCENTAGES. NO READINESS SCORES.
+     * This is a living, decaying view of disclosure health.
+     */
+    public function freshnessSummary(): JsonResponse
+    {
+        try {
+            $user = auth()->user();
+            $company = $user->company;
+
+            if (!$company) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'You are not associated with any company',
+                ], 403);
+            }
+
+            // Determine current tier for coverage calculation
+            $tierStatus = $company->tier_status ?? [];
+            $currentTier = 1;
+            if ($tierStatus['tier_3_approved'] ?? false) {
+                $currentTier = 3;
+            } elseif ($tierStatus['tier_2_approved'] ?? false) {
+                $currentTier = 2;
+            } elseif ($tierStatus['tier_1_approved'] ?? false) {
+                $currentTier = 1;
+            }
+
+            $freshnessSummary = $this->freshnessService->getCompanyFreshnessSummary($company, $currentTier);
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $freshnessSummary,
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to fetch freshness summary', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to fetch freshness summary',
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }

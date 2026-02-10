@@ -39,10 +39,13 @@ import {
   MessageSquare,
   Shield,
   Paperclip,
+  RefreshCw,
+  CalendarDays,
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import Link from "next/link";
+import { FreshnessIndicator, VitalityBadge, type ArtifactFreshnessState } from "@/components/disclosures";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -68,6 +71,18 @@ interface DisclosureDetail {
     is_locked: boolean;
     edits_during_review: any[] | null;
     edit_count_during_review: number | null;
+  };
+  // Freshness tracking (backend-computed, only for approved disclosures)
+  freshness?: {
+    state: ArtifactFreshnessState;
+    days_since_approval: number | null;
+    expected_cadence_days: number | null;
+    next_update_expected: string | null;
+    update_count_in_window: number;
+    signal_text: string;
+    is_update_required_document: boolean;
+    has_override: boolean;
+    override_reason?: string | null;
   };
   company: {
     id: number;
@@ -611,6 +626,75 @@ export default function DisclosureDetailPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* ================================================================= */}
+        {/* SECTION 1.5: Document Freshness (only for approved disclosures) */}
+        {/* ================================================================= */}
+        {disclosure.status === "approved" && detail.freshness && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <RefreshCw className="w-5 h-5" />
+                  Document Freshness
+                </CardTitle>
+                <FreshnessIndicator state={detail.freshness.state} />
+              </div>
+              <CardDescription>
+                Backend-computed freshness status for this approved disclosure.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
+                <div>
+                  <span className="text-gray-500 text-xs uppercase tracking-wide">Days Since Approval</span>
+                  <p className="font-medium">{detail.freshness.days_since_approval ?? "—"}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500 text-xs uppercase tracking-wide">Expected Cadence</span>
+                  <p className="font-medium">
+                    {detail.freshness.expected_cadence_days
+                      ? `${detail.freshness.expected_cadence_days} days`
+                      : "N/A (Version Controlled)"}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-gray-500 text-xs uppercase tracking-wide">Next Update Expected</span>
+                  <p className="font-medium">
+                    {detail.freshness.next_update_expected
+                      ? new Date(detail.freshness.next_update_expected).toLocaleDateString()
+                      : "—"}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-gray-500 text-xs uppercase tracking-wide">Updates in Window</span>
+                  <p className="font-medium">{detail.freshness.update_count_in_window}</p>
+                </div>
+              </div>
+
+              {/* Signal Text */}
+              <div className="p-3 rounded-lg bg-gray-50 border">
+                <p className="text-sm text-gray-700">
+                  {detail.freshness.signal_text}
+                </p>
+              </div>
+
+              {/* Override Notice (Audit-Only) */}
+              {detail.freshness.has_override && (
+                <Alert className="mt-4 border-purple-300 bg-purple-50">
+                  <AlertTriangle className="h-4 w-4 text-purple-600" />
+                  <AlertTitle className="text-purple-900">Freshness Override Active</AlertTitle>
+                  <AlertDescription className="text-purple-800">
+                    {detail.freshness.override_reason || "An administrative override is in effect for this disclosure."}
+                    <span className="block mt-1 text-xs text-purple-600">
+                      Note: Overrides are audit-only and do not improve the computed freshness state.
+                    </span>
+                  </AlertDescription>
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* ================================================================= */}
         {/* SECTION 2: Disclosure Content */}

@@ -8,7 +8,7 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "completed admin disclosure UI with backend-authoritative review flags"
+$CommitMessage = "Implement Coverage + Freshness disclosure model across backend and all UIs; audit and close gaps"
 #----------------------
 
 function Get-GitCredential {

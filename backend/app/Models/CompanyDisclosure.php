@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ArtifactFreshness;
 use App\Traits\HasVisibilityScope;
 use App\Exceptions\DisclosureAuthorityViolationException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -91,6 +92,13 @@ class CompanyDisclosure extends Model
         'last_modified_ip',
         'last_modified_user_agent',
         'internal_notes',
+        // Freshness tracking (FROZEN VOCABULARY: current|aging|stale|unstable)
+        'freshness_state',
+        'freshness_computed_at',
+        'days_since_approval',
+        'update_count_in_window',
+        'next_update_expected',
+        'freshness_override',  // AUDIT-ONLY: Never improves state silently
     ];
 
     /**
@@ -107,6 +115,12 @@ class CompanyDisclosure extends Model
         'rejected_at' => 'datetime',
         'version_number' => 'integer',
         'last_modified_at' => 'datetime',
+        // Freshness tracking casts
+        'freshness_computed_at' => 'datetime',
+        'days_since_approval' => 'integer',
+        'update_count_in_window' => 'integer',
+        'next_update_expected' => 'date',
+        'freshness_override' => 'array',
     ];
 
     // =========================================================================
@@ -309,6 +323,55 @@ class CompanyDisclosure extends Model
     public function scopeIncomplete($query)
     {
         return $query->where('completion_percentage', '<', 100);
+    }
+
+    // =========================================================================
+    // FRESHNESS SCOPES (FROZEN VOCABULARY: current|aging|stale|unstable)
+    // =========================================================================
+
+    /**
+     * Scope to stale disclosures (overdue for update)
+     */
+    public function scopeStale($query)
+    {
+        return $query->where('freshness_state', ArtifactFreshness::STALE->value);
+    }
+
+    /**
+     * Scope to aging disclosures (approaching staleness)
+     */
+    public function scopeAging($query)
+    {
+        return $query->where('freshness_state', ArtifactFreshness::AGING->value);
+    }
+
+    /**
+     * Scope to unstable disclosures (excessive changes)
+     */
+    public function scopeUnstable($query)
+    {
+        return $query->where('freshness_state', ArtifactFreshness::UNSTABLE->value);
+    }
+
+    /**
+     * Scope to disclosures needing attention (aging, stale, or unstable)
+     */
+    public function scopeNeedsFreshnessAttention($query)
+    {
+        return $query->whereIn('freshness_state', [
+            ArtifactFreshness::AGING->value,
+            ArtifactFreshness::STALE->value,
+            ArtifactFreshness::UNSTABLE->value,
+        ]);
+    }
+
+    /**
+     * Scope to disclosures with freshness overrides
+     * Note: Overrides are AUDIT-ONLY and never improve state silently
+     */
+    public function scopeWithFreshnessOverride($query)
+    {
+        return $query->whereNotNull('freshness_override');
     }
 
     // =========================================================================
@@ -649,5 +712,92 @@ class CompanyDisclosure extends Model
             'is_immutable' => true,
             'locked_at' => $this->currentVersion->locked_at?->toIso8601String(),
         ];
+    }
+
+    // =========================================================================
+    // FRESHNESS ACCESSORS (FROZEN VOCABULARY)
+    // =========================================================================
+
+    /**
+     * Get freshness state as enum
+     */
+    public function getFreshnessEnumAttribute(): ?ArtifactFreshness
+    {
+        return $this->freshness_state
+            ? ArtifactFreshness::from($this->freshness_state)
+            : null;
+    }
+
+    /**
+     * Check if disclosure is stale (overdue for update)
+     */
+    public function isStale(): bool
+    {
+        return $this->freshness_state === ArtifactFreshness::STALE->value;
+    }
+
+    /**
+     * Check if disclosure is aging (approaching staleness)
+     */
+    public function isAging(): bool
+    {
+        return $this->freshness_state === ArtifactFreshness::AGING->value;
+    }
+
+    /**
+     * Check if disclosure is unstable (excessive changes)
+     */
+    public function isUnstable(): bool
+    {
+        return $this->freshness_state === ArtifactFreshness::UNSTABLE->value;
+    }
+
+    /**
+     * Check if disclosure needs freshness attention
+     */
+    public function needsFreshnessAttention(): bool
+    {
+        return in_array($this->freshness_state, [
+            ArtifactFreshness::AGING->value,
+            ArtifactFreshness::STALE->value,
+            ArtifactFreshness::UNSTABLE->value,
+        ]);
+    }
+
+    /**
+     * Check if disclosure has a freshness override
+     *
+     * CONSTRAINT: Overrides are AUDIT-ONLY
+     * - Must never improve state silently
+     * - Must always be visible in admin evidence
+     * - Must not propagate to subscriber UI as "improved freshness"
+     */
+    public function hasFreshnessOverride(): bool
+    {
+        return !empty($this->freshness_override);
+    }
+
+    /**
+     * Get effective freshness state (respects override if present)
+     *
+     * CONSTRAINT: Override never improves state silently.
+     * Admin can extend window or acknowledge staleness, but
+     * the override reason is always visible in admin evidence.
+     */
+    public function getEffectiveFreshnessStateAttribute(): ?string
+    {
+        if (!$this->hasFreshnessOverride()) {
+            return $this->freshness_state;
+        }
+
+        $override = $this->freshness_override;
+
+        // Check if override is expired
+        if (isset($override['expires_at']) && now()->gt($override['expires_at'])) {
+            return $this->freshness_state; // Override expired, use computed state
+        }
+
+        // Return overridden state (but admin evidence must show this is overridden)
+        return $override['state'] ?? $this->freshness_state;
     }
 }
