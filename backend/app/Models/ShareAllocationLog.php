@@ -8,22 +8,24 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 /**
  * ShareAllocationLog Model
- *
+ * 
  * P0 FIX: Immutable audit trail for share allocation flow.
- *
+ * 
  * PURPOSE:
  * Provides forensic traceability proving:
  * 1. Which BulkPurchase lot funded which investment
  * 2. Inventory balance before/after each allocation
  * 3. Link to AdminLedgerEntry proving cash receipt
- *
+ * 
  * This enables answering:
  * "Admin bought 100K shares. Where did 99K go?"
- *
+ * 
  * IMMUTABILITY:
  * - Records are locked immediately on creation
  * - Cannot be updated after lock
  * - Reversals create new compensating entries
+ *
+ * @mixin IdeHelperShareAllocationLog
  */
 class ShareAllocationLog extends Model
 {

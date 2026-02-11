@@ -17,6 +17,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Models\User;
 
+/**
+ * @mixin IdeHelperProductAudit
+ */
 class ProductAudit extends Model
 {
     protected $fillable = [

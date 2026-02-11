@@ -13,6 +13,7 @@ use Carbon\Carbon;
 use App\Models\UserKyc;
 use App\Models\KycDocument;
 use App\Services\Kyc\KycOrchestrator; // ADDED: Import KycOrchestrator for proper state management
+use App\Services\Kyc\KycStatusService; // ADDED: Import KycStatusService for status transitions
 use App\Enums\KycStatus; // ADDED: Import KycStatus enum
 
 class VerificationService
@@ -150,13 +151,13 @@ class VerificationService
         // [CRITICAL BUG FIX] DO NOT set global status to 'verified' here!
         // Only mark Aadhaar as verified, then let KycOrchestrator decide overall status
         $kyc->aadhaar_number = 'DL-VERIFIED-' . $kyc->id;
-
-        // Update status to PROCESSING if it's still PENDING
-        if ($kyc->status === KycStatus::PENDING->value) {
-            $kyc->status = KycStatus::PROCESSING->value;
-        }
-
         $kyc->save();
+
+        // Update status to PROCESSING if it's still PENDING (enum comparison)
+        if ($kyc->status === KycStatus::PENDING) {
+            // Use service to transition status (triggers events, audit log, user sync)
+            app(KycStatusService::class)->transitionTo($kyc, KycStatus::PROCESSING);
+        }
 
         // Store the DigiLocker verification document
         $kyc->documents()->updateOrCreate(

@@ -16,6 +16,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * @mixin IdeHelperLegalAgreementVersion
+ */
 class LegalAgreementVersion extends Model
 {
     use HasFactory;

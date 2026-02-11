@@ -10,8 +10,10 @@ use App\Models\Traits\HasMonetaryFields;
 
 /**
  * FIX 13 (P3): TDS Deduction Model
- *
+ * 
  * Tracks Tax Deducted at Source for regulatory compliance
+ *
+ * @mixin IdeHelperTdsDeduction
  */
 class TdsDeduction extends Model
 {

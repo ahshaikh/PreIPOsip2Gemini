@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * @mixin IdeHelperCompanyFundingRound
+ */
 class CompanyFundingRound extends Model
 {
     use HasFactory, SoftDeletes;

@@ -7,16 +7,16 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * PHASE 3 - MODEL: CompanyUserRole
- *
+ * 
  * PURPOSE:
  * Role-based access control for company users.
- *
+ * 
  * ROLES:
  * - founder: Full access to all disclosures
  * - finance: Access to financial disclosures (Tier 2)
  * - legal: Access to legal/compliance disclosures
  * - viewer: Read-only access
- *
+ * 
  * USAGE:
  * Used by CompanyDisclosurePolicy to enforce permissions at API and UI level.
  *
@@ -28,6 +28,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int|null $assigned_by
  * @property \Illuminate\Support\Carbon $assigned_at
  * @property \Illuminate\Support\Carbon|null $revoked_at
+ * @mixin IdeHelperCompanyUserRole
  */
 class CompanyUserRole extends Model
 {

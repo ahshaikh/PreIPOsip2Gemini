@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany; // <-- IMPORT
 
+/**
+ * @mixin IdeHelperPage
+ */
 class Page extends Model
 {
     use HasFactory, SoftDeletes;

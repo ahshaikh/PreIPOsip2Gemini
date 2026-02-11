@@ -38,7 +38,7 @@ class DisclosureModuleSeeder extends Seeder
     {
         // Get or create system admin user for created_by
         $admin = User::where('email', 'admin@preiposip.com')->first()
-            ?? User::factory()->create(['email' => 'admin@preiposip.com', 'name' => 'System Admin']);
+            ?? User::factory()->create(['email' => 'admin@preiposip.com', 'username' => 'system_admin']);
 
         $modules = [
             [
@@ -137,7 +137,7 @@ class DisclosureModuleSeeder extends Seeder
                 'document_type' => 'update_required',
                 'expected_update_days' => 90, // Quarterly update cadence
                 'stability_window_days' => null, // Not applicable for update_required
-                'max_changes_per_window' => null,
+                'max_changes_per_window' => 1, // More than 1 update in 90 days = unstable
                 'freshness_weight' => 1.00,
                 'icon' => 'chart-line',
                 'color' => 'green',

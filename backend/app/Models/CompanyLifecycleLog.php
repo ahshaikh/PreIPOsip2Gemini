@@ -7,16 +7,16 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * PHASE 2 - MODEL: CompanyLifecycleLog
- *
+ * 
  * PURPOSE:
  * Audit trail for all company lifecycle state transitions.
  * Immutable record of why and when a company moved between states.
- *
+ * 
  * USAGE:
  * - Automatically created by CompanyLifecycleService
  * - Provides compliance audit trail
  * - Shows investors why company state changed
- *
+ * 
  * IMMUTABILITY:
  * - No updates allowed after creation
  * - No soft deletes (permanent retention)
@@ -33,6 +33,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $user_agent User agent
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @mixin IdeHelperCompanyLifecycleLog
  */
 class CompanyLifecycleLog extends Model
 {

@@ -50,28 +50,30 @@ class KycStatusService
      * bypasses validation and events, which is PROHIBITED.
      *
      * @param UserKyc $kyc
-     * @param KycStatus $newStatus Use KycStatus enum (not string)
+     * @param KycStatus|string $newStatus KycStatus enum or string value (normalized to enum)
      * @param array $data Additional data (remarks, verified_by, etc.)
      * @return UserKyc
      * @throws InvalidArgumentException if transition is not allowed
      */
-    public function transitionTo(UserKyc $kyc, KycStatus $newStatus, array $data = []): UserKyc
+    public function transitionTo(UserKyc $kyc, KycStatus|string $newStatus, array $data = []): UserKyc
     {
         return DB::transaction(function () use ($kyc, $newStatus, $data) {
-            $oldStatus = $kyc->status;
+            // Normalize to enum immediately (flexible input, strict internal handling)
+            $newStatus = is_string($newStatus) ? KycStatus::from($newStatus) : $newStatus;
+            $oldStatus = $kyc->status; // Already enum from cast
 
-            // [P1.2 FIX]: Validate state transition
-            if (!$this->canTransitionTo($oldStatus, $newStatus->value)) {
+            // [P1.2 FIX]: Validate state transition (enum-to-enum)
+            if (!$this->canTransitionTo($oldStatus, $newStatus)) {
                 throw new InvalidArgumentException(
-                    "Invalid KYC transition: {$oldStatus} → {$newStatus->value}. " .
-                    "Allowed transitions from {$oldStatus}: " .
-                    implode(', ', self::ALLOWED_TRANSITIONS[$oldStatus] ?? [])
+                    "Invalid KYC transition: {$oldStatus->value} → {$newStatus->value}. " .
+                    "Allowed transitions from {$oldStatus->value}: " .
+                    implode(', ', self::ALLOWED_TRANSITIONS[$oldStatus->value] ?? [])
                 );
             }
 
             // Prepare update data
             $updateData = array_merge([
-                'status' => $newStatus->value,
+                'status' => $newStatus,
             ], $data);
 
             // Set verified_at timestamp for VERIFIED status
@@ -79,8 +81,8 @@ class KycStatusService
                 $updateData['verified_at'] = now();
             }
 
-            // Clear verified_at for non-verified statuses
-            if ($newStatus !== KycStatus::VERIFIED && $oldStatus === KycStatus::VERIFIED->value) {
+            // Clear verified_at for non-verified statuses (enum comparison)
+            if ($newStatus !== KycStatus::VERIFIED && $oldStatus === KycStatus::VERIFIED) {
                 $updateData['verified_at'] = null;
             }
 
@@ -93,7 +95,7 @@ class KycStatusService
             // 3. Log the transition for audit purposes
             Log::info("KYC Status Transition", [
                 'user_id' => $kyc->user_id,
-                'from' => $oldStatus,
+                'from' => $oldStatus->value,
                 'to' => $newStatus->value,
                 'admin_id' => auth()->id(),
                 'data' => $data
@@ -101,7 +103,7 @@ class KycStatusService
 
             // 4. [CRITICAL]: Trigger Events (e.g., Send Email, Process Referral Bonus)
             // This ensures all downstream effects happen (referral completion, etc.)
-            event(new KycStatusUpdated($kyc, $oldStatus));
+            event(new KycStatusUpdated($kyc, $oldStatus->value));
 
             return $kyc;
         });
@@ -110,23 +112,27 @@ class KycStatusService
     /**
      * [P1.2 FIX]: Check if transition from current status to new status is allowed.
      *
-     * @param string $currentStatus
-     * @param string $newStatus
+     * @param KycStatus|string $currentStatus Current status (enum or string value)
+     * @param KycStatus|string $newStatus New status (enum or string value)
      * @return bool
      */
-    public function canTransitionTo(string $currentStatus, string $newStatus): bool
+    public function canTransitionTo(KycStatus|string $currentStatus, KycStatus|string $newStatus): bool
     {
+        // Normalize to enum (flexible input, strict internal handling)
+        $current = is_string($currentStatus) ? KycStatus::from($currentStatus) : $currentStatus;
+        $new = is_string($newStatus) ? KycStatus::from($newStatus) : $newStatus;
+
         // If current status doesn't exist in transitions map, deny
-        if (!isset(self::ALLOWED_TRANSITIONS[$currentStatus])) {
+        if (!isset(self::ALLOWED_TRANSITIONS[$current->value])) {
             return false;
         }
 
         // Allow self-transition (no-op)
-        if ($currentStatus === $newStatus) {
+        if ($current === $new) {
             return true;
         }
 
-        return in_array($newStatus, self::ALLOWED_TRANSITIONS[$currentStatus]);
+        return in_array($new->value, self::ALLOWED_TRANSITIONS[$current->value]);
     }
 
     /**
@@ -139,7 +145,8 @@ class KycStatusService
      */
     public function getAllowedTransitions(UserKyc $kyc): array
     {
-        $allowedValues = self::ALLOWED_TRANSITIONS[$kyc->status] ?? [];
+        $status = $kyc->status; // Already enum from cast
+        $allowedValues = self::ALLOWED_TRANSITIONS[$status->value] ?? [];
 
         return array_map(
             fn($value) => KycStatus::from($value),

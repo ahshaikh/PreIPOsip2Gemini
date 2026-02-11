@@ -15,6 +15,9 @@ use App\Traits\HasWorkflowActions;
 use App\Enums\DisclosureTier;
 use App\Scopes\ProductPublicVisibilityScope;
 
+/**
+ * @mixin IdeHelperProduct
+ */
 class Product extends Model
 {
     use HasFactory, SoftDeletes, HasDeletionProtection, HasWorkflowActions;

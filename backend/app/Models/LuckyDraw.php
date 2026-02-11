@@ -9,6 +9,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 
+/**
+ * @mixin IdeHelperLuckyDraw
+ */
 class LuckyDraw extends Model
 {
     use HasFactory, SoftDeletes;

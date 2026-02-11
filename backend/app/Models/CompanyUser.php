@@ -13,9 +13,11 @@ use App\Models\Traits\LogsStateChanges;
 
 /**
  * FIX 19: Company User with Email Verification
- *
+ * 
  * Implements MustVerifyEmail to require email verification before approval
  * Uses LogsStateChanges for audit trail
+ *
+ * @mixin IdeHelperCompanyUser
  */
 class CompanyUser extends Authenticatable implements MustVerifyEmail
 {

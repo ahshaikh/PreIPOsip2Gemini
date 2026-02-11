@@ -8,19 +8,19 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * PHASE 1 - MODEL 4/5: DisclosureClarification
- *
+ * 
  * PURPOSE:
  * Represents Q&A between admins and companies during disclosure review.
  * Enables structured clarification requests with field-level precision
  * and threading support for follow-up questions.
- *
+ * 
  * KEY RESPONSIBILITIES:
  * - Store admin questions and company answers
  * - Target specific fields via JSON path
  * - Support threaded conversations (parent_id)
  * - Track status (open → answered → accepted/disputed)
  * - Enforce deadlines and priority levels
- *
+ * 
  * WORKFLOW:
  * 1. Admin asks question (status: open)
  * 2. Company answers (status: answered)
@@ -63,6 +63,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @mixin IdeHelperDisclosureClarification
  */
 class DisclosureClarification extends Model
 {

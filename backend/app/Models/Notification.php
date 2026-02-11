@@ -5,6 +5,9 @@ namespace App\Models;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
+/**
+ * @mixin IdeHelperNotification
+ */
 class Notification extends DatabaseNotification
 {
     use HasFactory;

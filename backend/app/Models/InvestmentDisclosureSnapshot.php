@@ -6,18 +6,20 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * P0 REMEDIATION - Gate 4: Investment Snapshot Immutability
- *
+ * 
  * PURPOSE:
  * Enforces ABSOLUTE immutability of investment snapshots.
  * Once created, snapshots CANNOT be modified or deleted.
- *
+ * 
  * CRITICAL GUARANTEE:
  * Investor disputes can reconstruct exactly what was seen at purchase time.
- *
+ * 
  * ENFORCEMENT:
  * - booted() hooks prevent UPDATE and DELETE operations
  * - No exceptions, not even in console mode
  * - Snapshots are permanent audit records
+ *
+ * @mixin IdeHelperInvestmentDisclosureSnapshot
  */
 class InvestmentDisclosureSnapshot extends Model
 {

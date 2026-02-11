@@ -49,7 +49,7 @@ class ProcessAllocationJob implements ShouldQueue
      * 2. Control concurrency: limit to 1 worker for strict FIFO ordering
      * 3. Monitor allocation queue separately from other jobs
      */
-    public $queue = 'allocations';
+    // public $queue = 'allocations';
 
     /**
      * Retry Configuration
@@ -67,7 +67,9 @@ class ProcessAllocationJob implements ShouldQueue
      */
     public function __construct(
         public Investment $investment
-    ) {
+    ) 
+    {
+    $this->onQueue('allocations');
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use Illuminate\Contracts\Queue\ShouldQueue;
 use App\Models\Payment;
 use App\Services\Payments\Gateways\PaymentGatewayInterface;
 use Illuminate\Support\Facades\DB;

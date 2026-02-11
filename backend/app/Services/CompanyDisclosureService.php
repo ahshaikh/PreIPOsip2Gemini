@@ -316,6 +316,11 @@ class CompanyDisclosureService
         DB::beginTransaction();
 
         try {
+            $user = \App\Models\User::find($userId);
+            if (!$user) {
+                throw new \RuntimeException("Authenticated User with ID {$userId} not found in the 'users' table. Cannot submit disclosure.");
+            }
+
             // SAFEGUARD: Validate can submit
             if (!$this->canSubmit($disclosure)) {
                 throw new \RuntimeException(
@@ -325,8 +330,8 @@ class CompanyDisclosureService
                 );
             }
 
-            // Get actor (CompanyUser)
-            $actor = \App\Models\CompanyUser::find($userId);
+            // Get actor (User who submitted)
+            $actor = $user;
 
             // Use model method (Phase 1)
             $disclosure->submit($userId);

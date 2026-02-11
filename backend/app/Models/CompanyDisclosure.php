@@ -11,19 +11,19 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * PHASE 1 - MODEL 2/5: CompanyDisclosure
- *
+ * 
  * PURPOSE:
  * Represents a company's instance of a specific disclosure module.
  * Each record tracks the current state of one disclosure type (business, financials, etc.)
  * for one company. Historical versions are stored separately in DisclosureVersion.
- *
+ * 
  * KEY RESPONSIBILITIES:
  * - Store current disclosure data (JSON)
  * - Track lifecycle status (draft → submitted → approved)
  * - Calculate completion percentage
  * - Enforce locking after approval
  * - Link to current approved version
- *
+ * 
  * LIFECYCLE STATES:
  * draft → submitted → under_review → (clarification_required → resubmitted)* → approved
  *                                  → rejected
@@ -53,6 +53,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @mixin IdeHelperCompanyDisclosure
  */
 class CompanyDisclosure extends Model
 {

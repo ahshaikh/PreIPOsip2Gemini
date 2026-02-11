@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Prunable;
 
+/**
+ * @mixin IdeHelperWebhookLog
+ */
 class WebhookLog extends Model
 {
     use HasFactory, Prunable;

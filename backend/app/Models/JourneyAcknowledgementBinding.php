@@ -8,11 +8,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * P0 FIX (GAP 19-20): Journey Acknowledgement Binding Model
- *
+ * 
  * Binds acknowledgements to specific journey states and snapshots.
  * Proves what the investor saw and acknowledged at each step.
- *
+ * 
  * IMMUTABLE: Cannot be modified after creation.
+ *
+ * @mixin IdeHelperJourneyAcknowledgementBinding
  */
 class JourneyAcknowledgementBinding extends Model
 {

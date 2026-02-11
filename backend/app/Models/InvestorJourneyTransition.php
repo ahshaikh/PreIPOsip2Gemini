@@ -8,9 +8,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * P0 FIX (GAP 18): Investor Journey Transition Model
- *
+ * 
  * Immutable record of a state transition in an investor's journey.
  * Cannot be modified after creation (audit trail integrity).
+ *
+ * @mixin IdeHelperInvestorJourneyTransition
  */
 class InvestorJourneyTransition extends Model
 {

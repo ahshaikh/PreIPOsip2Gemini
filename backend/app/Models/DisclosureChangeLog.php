@@ -7,16 +7,18 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * PHASE 4 - MODEL: DisclosureChangeLog
- *
+ * 
  * PURPOSE:
  * Complete audit trail of all disclosure modifications.
  * Powers "what's new" feature for investors.
- *
+ * 
  * REGULATORY COMPLIANCE:
  * - Immutable audit trail of all changes
  * - Includes before/after values for transparency
  * - Tracks who made changes and why
  * - Material changes trigger investor notifications
+ *
+ * @mixin IdeHelperDisclosureChangeLog
  */
 class DisclosureChangeLog extends Model
 {

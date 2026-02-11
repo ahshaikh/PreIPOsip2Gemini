@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * ReferralTransaction Model
  * * [AUDIT FIX]: Tracks commissions earned through the affiliate tree.
+ *
+ * @mixin IdeHelperReferralTransaction
  */
 class ReferralTransaction extends Model
 {

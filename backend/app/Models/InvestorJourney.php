@@ -10,10 +10,10 @@ use Illuminate\Support\Str;
 
 /**
  * P0 FIX (GAP 18): Investor Journey State Model
- *
+ * 
  * Represents an investor's journey through the investment flow for a specific company.
  * Tracks state transitions, acknowledgements, and snapshot bindings.
- *
+ * 
  * STATES:
  * - initiated: Journey started
  * - viewing: Viewing company details
@@ -24,6 +24,8 @@ use Illuminate\Support\Str;
  * - invested: Successfully completed (terminal)
  * - blocked: Blocked by compliance (terminal)
  * - abandoned: Journey abandoned (terminal)
+ *
+ * @mixin IdeHelperInvestorJourney
  */
 class InvestorJourney extends Model
 {

@@ -7,10 +7,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * CompanySnapshot Model
- *
+ * 
  * FIX 5 (P1): Immutable record of company data at specific points in time
  * Created when company is frozen (listing approval, deal launch)
  * Provides audit trail and regulatory compliance
+ *
+ * @mixin IdeHelperCompanySnapshot
  */
 class CompanySnapshot extends Model
 {

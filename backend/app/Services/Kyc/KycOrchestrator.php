@@ -21,10 +21,16 @@ use Illuminate\Support\Facades\Log;
  * 3. Triggering notifications when KYC becomes fully verified
  * 4. Ensuring business logic consistency across all KYC flows
  *
- * CRITICAL: This is the ONLY place where $kyc->status should be set to 'verified'
+ * CRITICAL: All status changes MUST go through KycStatusService::transitionTo()
  */
 class KycOrchestrator
 {
+    protected KycStatusService $statusService;
+
+    public function __construct(KycStatusService $statusService)
+    {
+        $this->statusService = $statusService;
+    }
     /**
      * Update individual component verification status
      *
@@ -89,15 +95,14 @@ class KycOrchestrator
     public function markComponentAsFailed(UserKyc $kyc, string $component, string $reason): UserKyc
     {
         DB::transaction(function () use ($kyc, $component, $reason) {
-            // Update status to processing or rejected based on severity
-            if ($kyc->status !== KycStatus::REJECTED->value) {
-                $kyc->status = KycStatus::PROCESSING->value;
+            // Update status to processing or rejected based on severity (enum comparison)
+            if ($kyc->status !== KycStatus::REJECTED) {
+                // Use service to transition status (triggers events, audit log, user sync)
+                $this->statusService->transitionTo($kyc, KycStatus::PROCESSING);
             }
 
             // Log the failure reason
             Log::warning("KYC #{$kyc->id}: {$component} verification failed - {$reason}");
-
-            $kyc->save();
         });
 
         return $kyc->fresh();
@@ -120,11 +125,11 @@ class KycOrchestrator
      */
     public function evaluateOverallStatus(UserKyc $kyc): void
     {
-        // Don't re-evaluate if already in a finalized state (unless forced)
-        if (in_array($kyc->status, [KycStatus::VERIFIED->value, KycStatus::REJECTED->value])) {
+        // Don't re-evaluate if already in a finalized state (enum comparison)
+        if (in_array($kyc->status, [KycStatus::VERIFIED, KycStatus::REJECTED])) {
             // Allow re-evaluation only if manually triggered or if components changed
             // For now, skip to prevent accidental status changes
-            Log::info("KYC #{$kyc->id}: Already in finalized state ({$kyc->status}), skipping re-evaluation");
+            Log::info("KYC #{$kyc->id}: Already in finalized state ({$kyc->status->value}), skipping re-evaluation");
             return;
         }
 
@@ -156,29 +161,27 @@ class KycOrchestrator
 
         // Update overall status based on requirements
         if ($allRequirementsMet) {
-            DB::transaction(function () use ($kyc) {
-                $kyc->status = KycStatus::VERIFIED->value;
-                $kyc->verified_at = now();
-                $kyc->rejection_reason = null; // Clear any previous rejection reason
-                $kyc->save();
+            // Use service to transition status (triggers events, audit log, user sync)
+            $this->statusService->transitionTo($kyc, KycStatus::VERIFIED, [
+                'rejection_reason' => null,
+            ]);
 
-                Log::info("KYC #{$kyc->id}: ALL components verified. Status set to VERIFIED.");
+            Log::info("KYC #{$kyc->id}: ALL components verified. Status set to VERIFIED via service.");
 
-                // Send notification to user
-                try {
-                    $kyc->user->notify(new KycVerified());
-                } catch (\Exception $e) {
-                    Log::error("Failed to send KYC verified notification: " . $e->getMessage());
-                }
-            });
+            // Send notification to user
+            try {
+                $kyc->user->notify(new KycVerified());
+            } catch (\Exception $e) {
+                Log::error("Failed to send KYC verified notification: " . $e->getMessage());
+            }
         } else {
             // Not all components verified yet - keep in PROCESSING or SUBMITTED state
-            if ($kyc->status === KycStatus::PENDING->value) {
-                $kyc->status = KycStatus::SUBMITTED->value;
-                $kyc->save();
+            if ($kyc->status === KycStatus::PENDING) {
+                // Use service to transition status
+                $this->statusService->transitionTo($kyc, KycStatus::SUBMITTED);
             }
 
-            Log::info("KYC #{$kyc->id}: Not all components verified yet. Current status: {$kyc->status}");
+            Log::info("KYC #{$kyc->id}: Not all components verified yet. Current status: {$kyc->status->value}");
         }
     }
 
@@ -200,7 +203,8 @@ class KycOrchestrator
             $requiredComponentsVerified = $requiredComponentsVerified && $kyc->is_demat_verified;
         }
 
-        return $requiredComponentsVerified && $kyc->status === KycStatus::VERIFIED->value;
+        // Enum comparison
+        return $requiredComponentsVerified && $kyc->status === KycStatus::VERIFIED;
     }
 
     /**
@@ -294,12 +298,13 @@ class KycOrchestrator
                 }
             }
 
-            // Reset overall status
-            $kyc->status = KycStatus::RESUBMISSION_REQUIRED->value;
-            $kyc->verified_at = null;
-            $kyc->verified_by = null;
-
             $kyc->save();
+
+            // Use service to transition status (triggers events, audit log, user sync)
+            $this->statusService->transitionTo($kyc, KycStatus::RESUBMISSION_REQUIRED, [
+                'verified_at' => null,
+                'verified_by' => null,
+            ]);
 
             Log::info("KYC #{$kyc->id}: Verification reset for components: " . implode(', ', $componentsToReset));
         });

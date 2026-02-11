@@ -9,6 +9,9 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Carbon\Carbon;
 
+/**
+ * @mixin IdeHelperPayment
+ */
 class Payment extends Model
 {
     use HasFactory;

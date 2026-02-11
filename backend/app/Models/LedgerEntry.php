@@ -9,15 +9,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * DOUBLE-ENTRY LEDGER: Journal Entry Header
- *
+ * 
  * One ledger entry = one business event. Each entry contains multiple
  * ledger lines that MUST balance (debits = credits).
- *
+ * 
  * IMMUTABILITY:
  * - Entries cannot be updated after creation
  * - Entries cannot be deleted
  * - Corrections are made by creating reversal entries
- *
+ * 
  * REFERENCE TYPES:
  * - bulk_purchase: Inventory acquisition
  * - user_deposit: User adds funds to wallet
@@ -36,6 +36,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property bool $is_reversal
  * @property int|null $reverses_entry_id
  * @property \Carbon\Carbon $created_at
+ * @mixin IdeHelperLedgerEntry
  */
 class LedgerEntry extends Model
 {

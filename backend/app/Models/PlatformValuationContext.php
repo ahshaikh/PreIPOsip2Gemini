@@ -7,23 +7,25 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * PHASE 4 - MODEL: PlatformValuationContext
- *
+ * 
  * PURPOSE:
  * Provides peer comparison context to help investors understand valuation positioning.
- *
+ * 
  * CRITICAL REGULATORY SAFEGUARDS:
  * - This is COMPARATIVE DATA, not investment advice or recommendations
  * - Platform does NOT say "undervalued" or "overvalued" (subjective judgments)
  * - Platform DOES say "below peers" or "above peers" (objective comparison)
  * - No predictive language (e.g., "will appreciate" or "likely to grow")
  * - Methodology is transparent and documented
- *
+ * 
  * SAFE LANGUAGE EXAMPLES:
  * ✅ "Company valuation is at 5x revenue, peers median is 3x revenue"
  * ✅ "Trading at premium to peer group based on disclosed valuations"
  * ✅ "Liquidity appears limited based on recent transaction volume"
  * ❌ "This company is undervalued and a good buy" (recommendation)
  * ❌ "Price will likely increase" (prediction)
+ *
+ * @mixin IdeHelperPlatformValuationContext
  */
 class PlatformValuationContext extends Model
 {

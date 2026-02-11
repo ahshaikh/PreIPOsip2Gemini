@@ -35,6 +35,12 @@ class CalculateCampaignBenefitOperation implements OperationInterface
      * @param User $user
      * @param Investment $investment
      */
+
+    public function getName(): string
+	{
+		return 'calculate_campaign_benefit';
+	}
+
     public function __construct(User $user, Investment $investment)
     {
         $this->user = $user;

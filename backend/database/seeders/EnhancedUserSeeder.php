@@ -9,22 +9,10 @@ use App\Models\Wallet;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role;
 
-/**
- * Enhanced User Seeder
- *
- * Creates additional test users for comprehensive testing:
- * - 4 more verified test users (total 7 test users with existing UserSeeder)
- * - 2 company representative users
- * - All with KYC, profiles, and wallets
- *
- * Note: Run this AFTER UserSeeder.php to add more test users
- */
 class EnhancedUserSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
         DB::transaction(function () {
@@ -35,97 +23,120 @@ class EnhancedUserSeeder extends Seeder
         $this->command->info('✓ Enhanced test users seeded successfully');
     }
 
-    /**
-     * Seed 4 additional verified test users
-     */
+    /* ============================================================
+     | ADDITIONAL TEST USERS (IDEMPOTENT)
+     |============================================================*/
     private function seedAdditionalTestUsers(): void
     {
         $testUsers = [
             [
-                'username' => 'testuser2',
+                'username' => 'testuser12',
                 'email' => 'user2@preiposip.com',
                 'mobile' => '9191919191',
-                'first_name' => 'Test User',
+                'first_name' => 'Test',
                 'last_name' => 'Two',
                 'referral_code' => 'USER002',
                 'kyc_verified' => true,
             ],
             [
-                'username' => 'testuser3',
+                'username' => 'testuser13',
                 'email' => 'user3@preiposip.com',
                 'mobile' => '9292929292',
-                'first_name' => 'Test User',
+                'first_name' => 'Test',
                 'last_name' => 'Three',
                 'referral_code' => 'USER003',
                 'kyc_verified' => true,
             ],
             [
-                'username' => 'testuser4',
+                'username' => 'testuser14',
                 'email' => 'user4@preiposip.com',
                 'mobile' => '9393939393',
-                'first_name' => 'Test User',
+                'first_name' => 'Test',
                 'last_name' => 'Four',
                 'referral_code' => 'USER004',
                 'kyc_verified' => true,
             ],
             [
-                'username' => 'testuser5',
+                'username' => 'testuser15',
                 'email' => 'user5@preiposip.com',
                 'mobile' => '9494949494',
-                'first_name' => 'Test User',
+                'first_name' => 'Test',
                 'last_name' => 'Five',
                 'referral_code' => 'USER005',
-                'kyc_verified' => false, // This one is pending KYC
+                'kyc_verified' => false,
             ],
         ];
 
-        foreach ($testUsers as $userData) {
-            $kycVerified = $userData['kyc_verified'];
-            unset($userData['kyc_verified'], $userData['first_name'], $userData['last_name']);
+        foreach ($testUsers as $data) {
 
-            // Check if user already exists
-            if (User::where('email', $userData['email'])->exists()) {
-                continue;
+            $kycVerified = $data['kyc_verified'];
+            unset($data['kyc_verified']);
+
+            /* ---------------------------
+             | USER (updateOrCreate)
+             ----------------------------*/
+            $user = User::updateOrCreate(
+                ['email' => $data['email']], // natural key
+                [
+                    'username' => $data['username'],
+                    'mobile' => $data['mobile'],
+                    'referral_code' => $data['referral_code'],
+                    'password' => Hash::make('password'),
+                    'status' => 'active',
+                    'email_verified_at' => now(),
+                    'mobile_verified_at' => now(),
+                ]
+            );
+
+            /* ---------------------------
+             | ROLE (safe assign)
+             ----------------------------*/
+            if (! $user->hasRole('user')) {
+                $user->assignRole('user');
             }
 
-            $user = User::create(array_merge($userData, [
-                'password' => Hash::make('password'),
-                'status' => 'active',
-                'email_verified_at' => now(),
-                'mobile_verified_at' => now(),
-            ]));
+            /* ---------------------------
+             | PROFILE (updateOrCreate)
+             ----------------------------*/
+            UserProfile::updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'first_name' => $data['first_name'],
+                    'last_name' => $data['last_name'],
+                ]
+            );
 
-            $user->assignRole('user');
+            /* ---------------------------
+             | KYC (updateOrCreate)
+             ----------------------------*/
+            UserKyc::updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'status' => $kycVerified ? 'verified' : 'pending',
+                    'verified_at' => $kycVerified ? now() : null,
+                ]
+            );
 
-            // Create profile
-            UserProfile::create([
-                'user_id' => $user->id,
-                'first_name' => explode('@', $user->email)[0],
-                'last_name' => 'User',
-            ]);
-
-            // Create KYC
-            UserKyc::create([
-                'user_id' => $user->id,
-                'status' => $kycVerified ? 'verified' : 'pending',
-                'verified_at' => $kycVerified ? now() : null,
-            ]);
-
-            // Create wallet
-            Wallet::create(['user_id' => $user->id]);
+            /* ---------------------------
+             | WALLET (updateOrCreate)
+             ----------------------------*/
+            Wallet::updateOrCreate(
+                ['user_id' => $user->id],
+                []
+            );
         }
 
-        $this->command->info('  ✓ Additional test users seeded: 4 users');
+        $this->command->info('  ✓ Additional test users ensured');
     }
 
-    /**
-     * Seed company representative users
-     */
+    /* ============================================================
+     | COMPANY REPRESENTATIVES (IDEMPOTENT)
+     |============================================================*/
     private function seedCompanyRepresentatives(): void
     {
         $companyUsers = [
             [
-                'username' => 'companyrep1',
+                'username' => 'companyrep11',
                 'email' => 'company1@preiposip.com',
                 'mobile' => '9595959595',
                 'first_name' => 'Company',
@@ -133,7 +144,7 @@ class EnhancedUserSeeder extends Seeder
                 'referral_code' => 'COMP001',
             ],
             [
-                'username' => 'companyrep2',
+                'username' => 'companyrep12',
                 'email' => 'company2@preiposip.com',
                 'mobile' => '9696969696',
                 'first_name' => 'Company',
@@ -142,45 +153,67 @@ class EnhancedUserSeeder extends Seeder
             ],
         ];
 
-        foreach ($companyUsers as $userData) {
-            unset($userData['first_name'], $userData['last_name']);
+        foreach ($companyUsers as $data) {
 
-            // Check if user already exists
-            if (User::where('email', $userData['email'])->exists()) {
-                continue;
-            }
+            /* ---------------------------
+             | USER
+             ----------------------------*/
+            $user = User::updateOrCreate(
+                ['email' => $data['email']],
+                [
+                    'username' => $data['username'],
+                    'mobile' => $data['mobile'],
+                    'referral_code' => $data['referral_code'],
+                    'password' => Hash::make('password'),
+                    'status' => 'active',
+                    'email_verified_at' => now(),
+                    'mobile_verified_at' => now(),
+                ]
+            );
 
-            $user = User::create(array_merge($userData, [
-                'password' => Hash::make('password'),
-                'status' => 'active',
-                'email_verified_at' => now(),
-                'mobile_verified_at' => now(),
-            ]));
-
-            // Assign company role if it exists, otherwise assign user role
-            if (\Spatie\Permission\Models\Role::where('name', 'company')->exists()) {
-                $user->assignRole('company');
+            /* ---------------------------
+             | ROLE
+             ----------------------------*/
+            if (Role::where('name', 'company')->exists()) {
+                if (! $user->hasRole('company')) {
+                    $user->assignRole('company');
+                }
             } else {
-                $user->assignRole('user');
+                if (! $user->hasRole('user')) {
+                    $user->assignRole('user');
+                }
             }
 
-            // Create profile
-            UserProfile::create([
-                'user_id' => $user->id,
-                'first_name' => explode('@', $user->email)[0],
-                'last_name' => 'Representative',
-            ]);
+            /* ---------------------------
+             | PROFILE
+             ----------------------------*/
+            UserProfile::updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'first_name' => $data['first_name'],
+                    'last_name' => $data['last_name'],
+                ]
+            );
 
-            // Create pending KYC
-            UserKyc::create([
-                'user_id' => $user->id,
-                'status' => 'pending',
-            ]);
+            /* ---------------------------
+             | KYC
+             ----------------------------*/
+            UserKyc::updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'status' => 'pending',
+                ]
+            );
 
-            // Create wallet
-            Wallet::create(['user_id' => $user->id]);
+            /* ---------------------------
+             | WALLET
+             ----------------------------*/
+            Wallet::updateOrCreate(
+                ['user_id' => $user->id],
+                []
+            );
         }
 
-        $this->command->info('  ✓ Company representatives seeded: 2 users');
+        $this->command->info('  ✓ Company representatives ensured');
     }
 }

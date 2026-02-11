@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany; // <-- Import
 use Illuminate\Support\Carbon;
 
+/**
+ * @mixin IdeHelperReferralCampaign
+ */
 class ReferralCampaign extends Model
 {
     use HasFactory;

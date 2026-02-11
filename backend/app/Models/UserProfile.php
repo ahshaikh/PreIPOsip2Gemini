@@ -9,6 +9,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Carbon\Carbon;
 
+/**
+ * @mixin IdeHelperUserProfile
+ */
 class UserProfile extends Model
 {
     use HasFactory;

@@ -11,6 +11,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Prunable;
 
+/**
+ * @mixin IdeHelperAuditLog
+ */
 class AuditLog extends Model
 {
     use Prunable;

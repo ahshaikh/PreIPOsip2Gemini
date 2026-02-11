@@ -9,15 +9,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * DisclosureEvent Model
- *
+ * 
  * Represents an immutable timeline event in a disclosure thread.
  * Similar to GitHub PR timeline entries.
- *
+ * 
  * IMMUTABILITY:
  * - No updates allowed (enforced by service layer)
  * - No deletes allowed (except via cascade)
  * - All corrections are new events
- *
+ * 
  * EVENT TYPES:
  * - submission: Company submits disclosure
  * - clarification: Platform requests info
@@ -40,6 +40,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $ip_address
  * @property string|null $user_agent
  * @property \Carbon\Carbon $created_at
+ * @mixin IdeHelperDisclosureEvent
  */
 class DisclosureEvent extends Model
 {

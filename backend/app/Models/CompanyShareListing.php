@@ -10,12 +10,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Company Share Listing - Self-service share upload.
- *
+ * 
  * WORKFLOW:
  * - Company creates listing
  * - Admin reviews
  * - Approved → BulkPurchase created
  * - Deal can be created from listing
+ *
+ * @mixin IdeHelperCompanyShareListing
  */
 class CompanyShareListing extends Model
 {

@@ -304,7 +304,7 @@ export default function IssuerDisclosuresPage() {
     );
   }
 
-  const requirementCompletion = getRequirementCompletion();
+
   const tierInfo = getTierInfo();
   const groupedDisclosures = groupDisclosuresByCategory();
   const lifecycleState = company.platform_context?.lifecycle_state || 'unknown';

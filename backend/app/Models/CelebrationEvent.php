@@ -5,6 +5,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @mixin IdeHelperCelebrationEvent
+ */
 class CelebrationEvent extends Model
 {
     protected $fillable = [

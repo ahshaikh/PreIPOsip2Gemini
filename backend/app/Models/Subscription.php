@@ -11,6 +11,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Carbon\Carbon;
 
+/**
+ * @mixin IdeHelperSubscription
+ */
 class Subscription extends Model
 {
     use HasFactory, SoftDeletes;

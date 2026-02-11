@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory; // Added HasFactory
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @mixin IdeHelperKbArticleView
+ */
 class KbArticleView extends Model
 {
     use HasFactory;

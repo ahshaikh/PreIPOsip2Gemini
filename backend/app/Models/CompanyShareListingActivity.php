@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Activity log for share listing workflow.
+ *
+ * @mixin IdeHelperCompanyShareListingActivity
  */
 class CompanyShareListingActivity extends Model
 {

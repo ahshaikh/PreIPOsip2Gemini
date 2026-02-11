@@ -9,6 +9,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 
+/**
+ * @mixin IdeHelperWithdrawal
+ */
 class Withdrawal extends Model
 {
     use HasFactory;

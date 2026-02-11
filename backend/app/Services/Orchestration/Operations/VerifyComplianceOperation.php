@@ -35,6 +35,12 @@ class VerifyComplianceOperation implements OperationInterface
      * @param string $operationType Type of operation ('investment', 'withdrawal', 'deposit')
      * @param float $amount Amount for the operation
      */
+
+	public function getName(): string
+	{
+	    return 'verify_compliance';
+	}
+
     public function __construct(User $user, string $operationType, float $amount)
     {
         $this->user = $user;

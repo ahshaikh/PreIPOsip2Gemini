@@ -151,26 +151,26 @@ interface TimelineEvent {
 // ---------------------------------------------------------------------------
 
 const STATUS_BADGES: Record<string, { color: string; label: string }> = {
-  submitted: { color: "bg-amber-100 text-amber-800 border-amber-300", label: "Submitted" },
-  resubmitted: { color: "bg-amber-100 text-amber-800 border-amber-300", label: "Resubmitted" },
-  under_review: { color: "bg-blue-100 text-blue-800 border-blue-300", label: "Under Review" },
-  clarification_required: { color: "bg-orange-100 text-orange-800 border-orange-300", label: "Clarification Required" },
-  approved: { color: "bg-green-100 text-green-800 border-green-300", label: "Approved" },
-  rejected: { color: "bg-red-100 text-red-800 border-red-300", label: "Rejected" },
+  submitted: { color: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700", label: "Submitted" },
+  resubmitted: { color: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700", label: "Resubmitted" },
+  under_review: { color: "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700", label: "Under Review" },
+  clarification_required: { color: "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700", label: "Clarification Required" },
+  approved: { color: "bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700", label: "Approved" },
+  rejected: { color: "bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700", label: "Rejected" },
 };
 
 const PRIORITY_BADGES: Record<string, string> = {
-  low: "bg-gray-100 text-gray-700",
-  medium: "bg-blue-100 text-blue-700",
-  high: "bg-orange-100 text-orange-700",
-  critical: "bg-red-100 text-red-700",
+  low: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
+  medium: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+  high: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
+  critical: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
 };
 
 const CLARIFICATION_STATUS_BADGES: Record<string, { color: string; label: string }> = {
-  open: { color: "bg-amber-100 text-amber-800", label: "Open" },
-  answered: { color: "bg-blue-100 text-blue-800", label: "Answered" },
-  accepted: { color: "bg-green-100 text-green-800", label: "Accepted" },
-  disputed: { color: "bg-red-100 text-red-800", label: "Disputed" },
+  open: { color: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300", label: "Open" },
+  answered: { color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300", label: "Answered" },
+  accepted: { color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300", label: "Accepted" },
+  disputed: { color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300", label: "Disputed" },
 };
 
 const QUESTION_TYPE_LABELS: Record<string, string> = {
@@ -219,25 +219,25 @@ function eventIcon(eventType: string) {
 
 function DisclosureContentRenderer({ data }: { data: Record<string, any> | null }) {
   if (!data || Object.keys(data).length === 0) {
-    return <p className="text-sm text-gray-500 italic">No disclosure data provided.</p>;
+    return <p className="text-sm text-gray-500 dark:text-gray-400 italic">No disclosure data provided.</p>;
   }
 
   function renderValue(value: any, depth: number = 0): React.ReactNode {
     if (value === null || value === undefined) {
-      return <span className="text-gray-400 italic">Not provided</span>;
+      return <span className="text-gray-400 dark:text-gray-500 italic">Not provided</span>;
     }
     if (typeof value === "boolean") {
-      return <span>{value ? "Yes" : "No"}</span>;
+      return <span className="text-gray-900 dark:text-gray-100">{value ? "Yes" : "No"}</span>;
     }
     if (typeof value === "string" || typeof value === "number") {
-      return <span className="text-gray-900">{String(value)}</span>;
+      return <span className="text-gray-900 dark:text-gray-100">{String(value)}</span>;
     }
     if (Array.isArray(value)) {
-      if (value.length === 0) return <span className="text-gray-400 italic">None</span>;
+      if (value.length === 0) return <span className="text-gray-400 dark:text-gray-500 italic">None</span>;
       return (
         <ul className="list-disc list-inside space-y-1">
           {value.map((item, i) => (
-            <li key={i} className="text-sm text-gray-900">
+            <li key={i} className="text-sm text-gray-900 dark:text-gray-100">
               {typeof item === "object" ? renderValue(item, depth + 1) : String(item)}
             </li>
           ))}
@@ -246,10 +246,10 @@ function DisclosureContentRenderer({ data }: { data: Record<string, any> | null 
     }
     if (typeof value === "object") {
       return (
-        <div className={depth > 0 ? "ml-4 border-l-2 border-gray-200 pl-4 mt-1" : ""}>
+        <div className={depth > 0 ? "ml-4 border-l-2 border-gray-200 dark:border-gray-600 pl-4 mt-1" : ""}>
           {Object.entries(value).map(([k, v]) => (
             <div key={k} className="mb-2">
-              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                 {k.replace(/_/g, " ")}
               </span>
               <div className="mt-0.5">{renderValue(v, depth + 1)}</div>
@@ -258,14 +258,14 @@ function DisclosureContentRenderer({ data }: { data: Record<string, any> | null 
         </div>
       );
     }
-    return <span>{JSON.stringify(value)}</span>;
+    return <span className="text-gray-900 dark:text-gray-100">{JSON.stringify(value)}</span>;
   }
 
   return (
     <div className="space-y-4">
       {Object.entries(data).map(([key, value]) => (
-        <div key={key} className="border-b border-gray-100 pb-3 last:border-0">
-          <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+        <div key={key} className="border-b border-gray-100 dark:border-gray-700 pb-3 last:border-0">
+          <Label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
             {key.replace(/_/g, " ")}
           </Label>
           <div className="mt-1 text-sm">{renderValue(value)}</div>
@@ -336,11 +336,22 @@ export default function DisclosureDetailPage() {
       setTimelineLoading(true);
       const response = await api.get(`/admin/disclosures/${disclosureId}/timeline`);
       if (response.data.status === "success") {
-        setTimeline(response.data.data || []);
+        // Backend returns { has_history: false, message: "..." } when < 2 versions,
+        // or { timeline: [...], current_version: {...} } otherwise.
+        // Ensure we always set an array.
+        const data = response.data.data;
+        if (Array.isArray(data)) {
+          setTimeline(data);
+        } else if (data?.timeline && Array.isArray(data.timeline)) {
+          setTimeline(data.timeline);
+        } else {
+          setTimeline([]);
+        }
       }
     } catch (error: any) {
       // Timeline may not exist yet — not critical
       console.error("Failed to load timeline:", error);
+      setTimeline([]);
     } finally {
       setTimelineLoading(false);
     }
@@ -528,7 +539,7 @@ export default function DisclosureDetailPage() {
   }
 
   const { disclosure, company, module, clarifications, summary } = detail;
-  const statusBadge = STATUS_BADGES[disclosure.status] || { color: "bg-gray-100 text-gray-700", label: disclosure.status };
+  const statusBadge = STATUS_BADGES[disclosure.status] || { color: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300", label: disclosure.status };
 
   // ---------------------------------------------------------------------------
   // Render
@@ -538,7 +549,7 @@ export default function DisclosureDetailPage() {
     <div className="container mx-auto py-8 max-w-5xl">
       <Link
         href="/admin/disclosures"
-        className="inline-flex items-center text-sm text-gray-600 hover:text-purple-600 mb-6"
+        className="inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 mb-6"
       >
         <ArrowLeft className="w-4 h-4 mr-2" />
         Back to Disclosure Review
@@ -573,10 +584,10 @@ export default function DisclosureDetailPage() {
           <CardContent>
             {/* Audit Window Breach Banner */}
             {summary.audit_window_breached && (
-              <Alert className="mb-4 border-amber-300 bg-amber-50">
-                <AlertTriangle className="h-4 w-4 text-amber-600" />
-                <AlertTitle className="text-amber-900">Audit Window Exceeded</AlertTitle>
-                <AlertDescription className="text-amber-800">
+              <Alert className="mb-4 border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700">
+                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                <AlertTitle className="text-amber-900 dark:text-amber-300">Audit Window Exceeded</AlertTitle>
+                <AlertDescription className="text-amber-800 dark:text-amber-400">
                   The review period for this disclosure has exceeded the expected audit window.
                 </AlertDescription>
               </Alert>
@@ -584,43 +595,43 @@ export default function DisclosureDetailPage() {
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
-                <span className="text-gray-500 text-xs uppercase tracking-wide">Version</span>
-                <p className="font-medium">v{disclosure.version_number}</p>
+                <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Version</span>
+                <p className="font-medium text-gray-900 dark:text-gray-100">v{disclosure.version_number}</p>
               </div>
               <div>
-                <span className="text-gray-500 text-xs uppercase tracking-wide">Company State</span>
-                <p className="font-medium capitalize">{company.lifecycle_state?.replace(/_/g, " ") || "\u2014"}</p>
+                <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Company State</span>
+                <p className="font-medium capitalize text-gray-900 dark:text-gray-100">{company.lifecycle_state?.replace(/_/g, " ") || "\u2014"}</p>
               </div>
               <div>
-                <span className="text-gray-500 text-xs uppercase tracking-wide">Submitted</span>
-                <p className="font-medium">{formatTimestamp(disclosure.submitted_at)}</p>
+                <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Submitted</span>
+                <p className="font-medium text-gray-900 dark:text-gray-100">{formatTimestamp(disclosure.submitted_at)}</p>
               </div>
               <div>
-                <span className="text-gray-500 text-xs uppercase tracking-wide">Review Started</span>
-                <p className="font-medium">{formatTimestamp(disclosure.review_started_at)}</p>
+                <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Review Started</span>
+                <p className="font-medium text-gray-900 dark:text-gray-100">{formatTimestamp(disclosure.review_started_at)}</p>
               </div>
               {disclosure.approved_at && (
                 <div>
-                  <span className="text-gray-500 text-xs uppercase tracking-wide">Approved</span>
-                  <p className="font-medium">{formatTimestamp(disclosure.approved_at)}</p>
+                  <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Approved</span>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">{formatTimestamp(disclosure.approved_at)}</p>
                 </div>
               )}
               {disclosure.rejected_at && (
                 <>
                   <div>
-                    <span className="text-gray-500 text-xs uppercase tracking-wide">Rejected</span>
-                    <p className="font-medium">{formatTimestamp(disclosure.rejected_at)}</p>
+                    <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Rejected</span>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">{formatTimestamp(disclosure.rejected_at)}</p>
                   </div>
                   <div className="col-span-2">
-                    <span className="text-gray-500 text-xs uppercase tracking-wide">Rejection Reason</span>
-                    <p className="font-medium text-red-700">{disclosure.rejection_reason}</p>
+                    <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Rejection Reason</span>
+                    <p className="font-medium text-red-700 dark:text-red-400">{disclosure.rejection_reason}</p>
                   </div>
                 </>
               )}
               {(disclosure.edit_count_during_review ?? 0) > 0 && (
                 <div>
-                  <span className="text-gray-500 text-xs uppercase tracking-wide">Edits During Review</span>
-                  <p className="font-medium text-amber-700">{disclosure.edit_count_during_review} edit(s)</p>
+                  <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Edits During Review</span>
+                  <p className="font-medium text-amber-700 dark:text-amber-400">{disclosure.edit_count_during_review} edit(s)</p>
                 </div>
               )}
             </div>
@@ -647,46 +658,46 @@ export default function DisclosureDetailPage() {
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
                 <div>
-                  <span className="text-gray-500 text-xs uppercase tracking-wide">Days Since Approval</span>
-                  <p className="font-medium">{detail.freshness.days_since_approval ?? "—"}</p>
+                  <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Days Since Approval</span>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">{detail.freshness.days_since_approval ?? "—"}</p>
                 </div>
                 <div>
-                  <span className="text-gray-500 text-xs uppercase tracking-wide">Expected Cadence</span>
-                  <p className="font-medium">
+                  <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Expected Cadence</span>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">
                     {detail.freshness.expected_cadence_days
                       ? `${detail.freshness.expected_cadence_days} days`
                       : "N/A (Version Controlled)"}
                   </p>
                 </div>
                 <div>
-                  <span className="text-gray-500 text-xs uppercase tracking-wide">Next Update Expected</span>
-                  <p className="font-medium">
+                  <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Next Update Expected</span>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">
                     {detail.freshness.next_update_expected
                       ? new Date(detail.freshness.next_update_expected).toLocaleDateString()
                       : "—"}
                   </p>
                 </div>
                 <div>
-                  <span className="text-gray-500 text-xs uppercase tracking-wide">Updates in Window</span>
-                  <p className="font-medium">{detail.freshness.update_count_in_window}</p>
+                  <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Updates in Window</span>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">{detail.freshness.update_count_in_window}</p>
                 </div>
               </div>
 
               {/* Signal Text */}
-              <div className="p-3 rounded-lg bg-gray-50 border">
-                <p className="text-sm text-gray-700">
+              <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800 border dark:border-gray-700">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
                   {detail.freshness.signal_text}
                 </p>
               </div>
 
               {/* Override Notice (Audit-Only) */}
               {detail.freshness.has_override && (
-                <Alert className="mt-4 border-purple-300 bg-purple-50">
-                  <AlertTriangle className="h-4 w-4 text-purple-600" />
-                  <AlertTitle className="text-purple-900">Freshness Override Active</AlertTitle>
-                  <AlertDescription className="text-purple-800">
+                <Alert className="mt-4 border-purple-300 bg-purple-50 dark:bg-purple-900/20 dark:border-purple-700">
+                  <AlertTriangle className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  <AlertTitle className="text-purple-900 dark:text-purple-300">Freshness Override Active</AlertTitle>
+                  <AlertDescription className="text-purple-800 dark:text-purple-400">
                     {detail.freshness.override_reason || "An administrative override is in effect for this disclosure."}
-                    <span className="block mt-1 text-xs text-purple-600">
+                    <span className="block mt-1 text-xs text-purple-600 dark:text-purple-500">
                       Note: Overrides are audit-only and do not improve the computed freshness state.
                     </span>
                   </AlertDescription>
@@ -711,14 +722,14 @@ export default function DisclosureDetailPage() {
 
             {/* Attachments */}
             {disclosure.attachments && disclosure.attachments.length > 0 && (
-              <div className="mt-6 pt-4 border-t">
-                <h4 className="text-sm font-semibold text-gray-600 mb-2 flex items-center gap-2">
+              <div className="mt-6 pt-4 border-t dark:border-gray-700">
+                <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-2 flex items-center gap-2">
                   <Paperclip className="w-4 h-4" />
                   Attachments ({disclosure.attachments.length})
                 </h4>
                 <div className="space-y-2">
                   {disclosure.attachments.map((attachment: any, i: number) => (
-                    <div key={i} className="flex items-center gap-2 text-sm text-blue-600">
+                    <div key={i} className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
                       <FileText className="w-4 h-4" />
                       <span>{attachment.file_name || attachment.name || `Attachment ${i + 1}`}</span>
                     </div>
@@ -752,14 +763,14 @@ export default function DisclosureDetailPage() {
                 </Button>
               )}
             </div>
-            <CardDescription className="text-xs text-gray-500">
+            <CardDescription className="text-xs text-gray-500 dark:text-gray-400">
               Clarifications are non-decisional. They gather information only and do not affect compliance status.
             </CardDescription>
           </CardHeader>
           <CardContent>
             {/* Clarification Request Form */}
             {showClarificationForm && (
-              <div className="mb-6 p-4 border rounded-lg bg-gray-50 space-y-4">
+              <div className="mb-6 p-4 border dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 space-y-4">
                 <div>
                   <Label htmlFor="clar-subject">Subject</Label>
                   <Input
@@ -835,7 +846,7 @@ export default function DisclosureDetailPage() {
 
             {/* Clarification List */}
             {clarifications.length === 0 ? (
-              <p className="text-sm text-gray-500">No clarifications requested.</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">No clarifications requested.</p>
             ) : (
               <div className="space-y-4">
                 {clarifications.map((c) => (
@@ -865,36 +876,36 @@ export default function DisclosureDetailPage() {
           <CardContent>
             {timelineLoading ? (
               <div className="flex justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                <Loader2 className="w-6 h-6 animate-spin text-gray-400 dark:text-gray-500" />
               </div>
             ) : timeline.length === 0 ? (
-              <p className="text-sm text-gray-500">No timeline events recorded.</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">No timeline events recorded.</p>
             ) : (
               <div className="space-y-0">
                 {timeline.map((event, i) => (
                   <div key={event.id} className="flex gap-4 pb-4 relative">
                     {/* Connector line */}
                     {i < timeline.length - 1 && (
-                      <div className="absolute left-[7px] top-6 bottom-0 w-px bg-gray-200" />
+                      <div className="absolute left-[7px] top-6 bottom-0 w-px bg-gray-200 dark:bg-gray-700" />
                     )}
                     <div className="mt-1 z-10">{eventIcon(event.event_type)}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-baseline gap-2">
-                        <span className="text-sm font-medium text-gray-900">
+                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                           {event.actor_name}
                         </span>
                         <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                           {actorLabel(event.actor_type)}
                         </Badge>
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-gray-400 dark:text-gray-500">
                           {formatTimestamp(event.created_at)}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 mt-0.5 capitalize">
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5 capitalize">
                         {event.event_type.replace(/_/g, " ")}
                       </p>
                       {event.message && (
-                        <p className="text-sm text-gray-900 mt-1 bg-gray-50 rounded p-2">
+                        <p className="text-sm text-gray-900 dark:text-gray-100 mt-1 bg-gray-50 dark:bg-gray-800 rounded p-2">
                           {event.message}
                         </p>
                       )}
@@ -932,7 +943,7 @@ export default function DisclosureDetailPage() {
                       "Begin Review"
                     )}
                   </Button>
-                  <p className="text-xs text-gray-500 mt-2">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                     This action is recorded and cannot be undone.
                   </p>
                 </div>
@@ -965,7 +976,7 @@ export default function DisclosureDetailPage() {
 
               {/* Reject */}
               {summary.can_reject && (
-                <div className="space-y-3 pt-4 border-t">
+                <div className="space-y-3 pt-4 border-t dark:border-gray-700">
                   <div>
                     <Label htmlFor="reject-reason">Reason for Rejection (required)</Label>
                     <Textarea
@@ -996,7 +1007,7 @@ export default function DisclosureDetailPage() {
 
               {/* No actions available */}
               {!summary.can_start_review && !summary.can_approve && !summary.can_reject && !summary.can_request_clarification && (
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   No actions available. The disclosure is pending company response.
                 </p>
               )}
@@ -1006,9 +1017,9 @@ export default function DisclosureDetailPage() {
 
         {/* Terminal state read-only notice */}
         {summary.is_terminal && (
-          <Card className="border-gray-200 bg-gray-50">
+          <Card className="border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
             <CardContent className="py-6 text-center">
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 This disclosure has been {disclosure.status === "approved" ? "approved" : "rejected"} and is read-only.
               </p>
             </CardContent>
@@ -1028,7 +1039,7 @@ export default function DisclosureDetailPage() {
             <AlertDialogDescription>
               This will lock this disclosure version and may trigger a tier transition.
               {summary.audit_window_breached && (
-                <span className="block mt-2 font-medium text-amber-700">
+                <span className="block mt-2 font-medium text-amber-700 dark:text-amber-400">
                   This action is being taken after the audit review window.
                 </span>
               )}
@@ -1056,7 +1067,7 @@ export default function DisclosureDetailPage() {
             <AlertDialogDescription>
               The company will be notified of the rejection with the provided reason.
               {summary.audit_window_breached && (
-                <span className="block mt-2 font-medium text-amber-700">
+                <span className="block mt-2 font-medium text-amber-700 dark:text-amber-400">
                   This action is being taken after the audit review window.
                 </span>
               )}
@@ -1098,45 +1109,45 @@ function ClarificationItem({
   const [showDispute, setShowDispute] = useState(false);
 
   const statusBadge = CLARIFICATION_STATUS_BADGES[clarification.status] || {
-    color: "bg-gray-100 text-gray-700",
+    color: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
     label: clarification.status,
   };
 
   return (
-    <div className={`border rounded-lg p-4 ${clarification.is_blocking ? "border-red-200 bg-red-50/30" : ""}`}>
+    <div className={`border dark:border-gray-700 rounded-lg p-4 ${clarification.is_blocking ? "border-red-200 dark:border-red-800 bg-red-50/30 dark:bg-red-900/20" : ""}`}>
       <div className="flex items-start justify-between mb-2">
         <div>
-          <h4 className="font-medium text-sm">{clarification.question_subject}</h4>
+          <h4 className="font-medium text-sm text-gray-900 dark:text-gray-100">{clarification.question_subject}</h4>
           <div className="flex items-center gap-2 mt-1">
             <Badge variant="outline" className={statusBadge.color}>
               {statusBadge.label}
             </Badge>
-            <Badge variant="outline" className={PRIORITY_BADGES[clarification.priority] || "bg-gray-100 text-gray-700"}>
+            <Badge variant="outline" className={PRIORITY_BADGES[clarification.priority] || "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"}>
               {clarification.priority}
             </Badge>
             <Badge variant="outline" className="text-xs">
               {QUESTION_TYPE_LABELS[clarification.question_type] || clarification.question_type}
             </Badge>
             {clarification.is_blocking && (
-              <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300 text-xs">
+              <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700 text-xs">
                 Blocking
               </Badge>
             )}
           </div>
         </div>
-        <span className="text-xs text-gray-400">{formatTimestamp(clarification.asked_at)}</span>
+        <span className="text-xs text-gray-400 dark:text-gray-500">{formatTimestamp(clarification.asked_at)}</span>
       </div>
 
-      <p className="text-sm text-gray-700 mt-2">{clarification.question_body}</p>
+      <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">{clarification.question_body}</p>
 
       {/* Company Answer */}
       {clarification.answer_body && (
-        <div className="mt-3 p-3 bg-blue-50 rounded border border-blue-100">
+        <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-100 dark:border-blue-800">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-semibold text-blue-700">Company Response</span>
-            <span className="text-xs text-gray-400">{formatTimestamp(clarification.answered_at)}</span>
+            <span className="text-xs font-semibold text-blue-700 dark:text-blue-400">Company Response</span>
+            <span className="text-xs text-gray-400 dark:text-gray-500">{formatTimestamp(clarification.answered_at)}</span>
           </div>
-          <p className="text-sm text-gray-900">{clarification.answer_body}</p>
+          <p className="text-sm text-gray-900 dark:text-gray-100">{clarification.answer_body}</p>
         </div>
       )}
 
@@ -1146,7 +1157,7 @@ function ClarificationItem({
           <Button
             size="sm"
             variant="outline"
-            className="text-green-700 border-green-300 hover:bg-green-50"
+            className="text-green-700 border-green-300 hover:bg-green-50 dark:text-green-400 dark:border-green-700 dark:hover:bg-green-900/30"
             onClick={() => onAccept(clarification.id)}
             disabled={submitting}
           >
@@ -1156,7 +1167,7 @@ function ClarificationItem({
           <Button
             size="sm"
             variant="outline"
-            className="text-red-700 border-red-300 hover:bg-red-50"
+            className="text-red-700 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-700 dark:hover:bg-red-900/30"
             onClick={() => setShowDispute(!showDispute)}
             disabled={submitting}
           >
@@ -1192,7 +1203,7 @@ function ClarificationItem({
 
       {/* Resolution Notes */}
       {clarification.resolution_notes && (
-        <div className="mt-2 text-xs text-gray-500">
+        <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
           <span className="font-semibold">Resolution:</span> {clarification.resolution_notes}
         </div>
       )}

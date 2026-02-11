@@ -14,21 +14,24 @@ class GenericMailable extends Mailable
     use Queueable, SerializesModels;
 
     public function __construct(
-        public string $subject,
-        public string $htmlContent
+        protected string $customSubject,
+        protected string $body
     ) {}
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: $this->subject,
+            subject: $this->customSubject
         );
     }
 
     public function content(): Content
     {
         return new Content(
-            htmlString: $this->htmlContent,
+            view: 'emails.generic',
+            with: [
+                'body' => $this->body,
+            ],
         );
     }
 }

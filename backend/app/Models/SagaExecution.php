@@ -8,8 +8,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * SagaExecution Model
- *
+ * 
  * Tracks saga lifecycle and enables crash-safe recovery
+ *
+ * @mixin IdeHelperSagaExecution
  */
 class SagaExecution extends Model
 {

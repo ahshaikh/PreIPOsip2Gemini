@@ -5,11 +5,9 @@ namespace Database\Seeders;
 use App\Models\Plan;
 use App\Models\PlanFeature;
 use App\Models\PlanConfig;
-// use App\Models\PlanProduct; // Model doesn't exist - plan eligibility handled via products.eligibility_mode
 use App\Models\Product;
 use App\Models\Menu;
 use App\Models\MenuItem;
-// use App\Models\Page; // Pages table doesn't exist
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 

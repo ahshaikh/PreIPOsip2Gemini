@@ -10,9 +10,11 @@ use App\Models\Traits\HasMonetaryFields;
 
 /**
  * FIX 18: Fund Lock Model
- *
+ * 
  * Tracks all fund reservations/locks on user wallets
  * Provides audit trail for financial operations
+ *
+ * @mixin IdeHelperFundLock
  */
 class FundLock extends Model
 {

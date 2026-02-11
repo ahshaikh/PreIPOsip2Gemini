@@ -8,10 +8,10 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 /**
  * DisclosureDocument Model
- *
+ * 
  * Represents an immutable document attachment for a disclosure event.
  * Documents are versioned by event and never overwritten.
- *
+ * 
  * IMMUTABILITY:
  * - Documents are never updated
  * - Documents are never deleted (except via cascade)
@@ -34,6 +34,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property string $visibility
  * @property string|null $uploaded_from_ip
  * @property \Carbon\Carbon $created_at
+ * @mixin IdeHelperDisclosureDocument
  */
 class DisclosureDocument extends Model
 {

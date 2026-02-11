@@ -22,7 +22,8 @@
       "Bash(claude config get:*)",
       "Bash(grep:*)",
       "Bash(ls:*)",
-      "Bash(mysql:*)"
+      "Bash(mysql:*)",
+      "Bash(npm run type-check:*)"
     ]
   }
 }

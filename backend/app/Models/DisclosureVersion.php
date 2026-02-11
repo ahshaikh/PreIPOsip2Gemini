@@ -7,18 +7,18 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * PHASE 1 - MODEL 3/5: DisclosureVersion
- *
+ * 
  * PURPOSE:
  * Represents an immutable historical snapshot of a company disclosure at approval time.
  * Provides audit trail for regulatory compliance and investor protection.
- *
+ * 
  * KEY RESPONSIBILITIES:
  * - Store complete snapshot of disclosure data at approval
  * - Enforce immutability (no updates/deletes allowed)
  * - Track investor visibility and view counts
  * - Link to SEBI filings and certifications
  * - Provide tamper detection via SHA-256 hash
- *
+ * 
  * IMMUTABILITY ENFORCEMENT:
  * - is_locked always true
  * - Observer prevents updates/deletes
@@ -52,6 +52,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int|null $created_by CompanyUser who triggered
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @mixin IdeHelperDisclosureVersion
  */
 class DisclosureVersion extends Model
 {

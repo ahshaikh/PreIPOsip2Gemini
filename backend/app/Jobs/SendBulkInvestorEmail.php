@@ -2,9 +2,11 @@
 
 namespace App\Jobs;
 
+use Illuminate\Contracts\Queue\ShouldQueue;
 use App\Models\User;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\InvestorNewsletter;
+
 
 class SendBulkInvestorEmail implements ShouldQueue
 {

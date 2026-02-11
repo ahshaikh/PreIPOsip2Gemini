@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Carbon\Carbon;
 
+/**
+ * @mixin IdeHelperTicketSlaTracking
+ */
 class TicketSlaTracking extends Model
 {
     use HasFactory;

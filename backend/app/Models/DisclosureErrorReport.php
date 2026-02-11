@@ -7,18 +7,18 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * PHASE 3 - MODEL: DisclosureErrorReport
- *
+ * 
  * PURPOSE:
  * Tracks self-reported errors/omissions in approved disclosures.
  * Treats issuer honesty as a POSITIVE signal, not a penalty.
- *
+ * 
  * WORKFLOW:
  * 1. Company discovers error in approved disclosure
  * 2. Company reports error (this record created)
  * 3. System creates NEW draft with corrections (doesn't modify approved)
  * 4. Admin is notified
  * 5. New draft goes through normal review process
- *
+ * 
  * SAFEGUARDS:
  * - Original approved data is preserved
  * - All corrections are transparent
@@ -41,6 +41,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $user_agent
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @mixin IdeHelperDisclosureErrorReport
  */
 class DisclosureErrorReport extends Model
 {

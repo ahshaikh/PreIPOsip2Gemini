@@ -7,21 +7,23 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * PHASE 4 - MODEL: InvestorViewHistory
- *
+ * 
  * PURPOSE:
  * Track what investors saw and when, enabling "what's new" feature.
- *
+ * 
  * USE CASE:
  * When investor returns to company profile, platform can show:
  * "Since your last visit on Jan 5:
  *  - Financial disclosures updated (revenue increased)
  *  - New risk flag detected (cash flow negative)
  *  - Peer comparison data refreshed"
- *
+ * 
  * PRIVACY NOTE:
  * - View history is personal to each investor
  * - Used only for showing relevant changes
  * - Not shared with companies or other investors
+ *
+ * @mixin IdeHelperInvestorViewHistory
  */
 class InvestorViewHistory extends Model
 {

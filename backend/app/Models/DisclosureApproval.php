@@ -8,19 +8,19 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * PHASE 1 - MODEL 5/5: DisclosureApproval
- *
+ * 
  * PURPOSE:
  * Represents workflow tracking for disclosure approval processes.
  * Records every approval request, decision, and state change for
  * regulatory audit and compliance reporting.
- *
+ * 
  * KEY RESPONSIBILITIES:
  * - Track approval lifecycle (pending → approved/rejected)
  * - Record admin review timeline (SLA tracking)
  * - Support revocation of approvals (emergency override)
  * - Link to approved disclosure versions
  * - Track clarification workflow integration
- *
+ * 
  * WORKFLOW EXAMPLE:
  * 1. Company submits disclosure (request_type: initial_submission, status: pending)
  * 2. Admin requests clarifications (status: clarification_required)
@@ -71,6 +71,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @mixin IdeHelperDisclosureApproval
  */
 class DisclosureApproval extends Model
 {

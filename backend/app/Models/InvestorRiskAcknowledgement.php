@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Investor Risk Acknowledgement Model
- *
+ * 
  * Tracks investor risk acknowledgements with full audit trail.
  * Required before any investment can proceed.
  *
@@ -28,6 +28,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property array|null $metadata
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
+ * @mixin IdeHelperInvestorRiskAcknowledgement
  */
 class InvestorRiskAcknowledgement extends Model
 {

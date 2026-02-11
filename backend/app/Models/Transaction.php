@@ -15,14 +15,16 @@ use Illuminate\Support\Str;
 
 /**
  * Transaction Model
- *
+ * 
  * Immutable, append-only financial ledger.
- *
+ * 
  * CORE GUARANTEES:
  * - ALL monetary values stored in PAISA (integer)
  * - Rupee values exposed ONLY via virtual accessors
  * - Transactions are IMMUTABLE after creation
  * - Reversals must be explicit (no updates)
+ *
+ * @mixin IdeHelperTransaction
  */
 class Transaction extends Model
 {

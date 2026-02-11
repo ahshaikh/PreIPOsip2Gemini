@@ -9,17 +9,17 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * DOUBLE-ENTRY LEDGER: Chart of Accounts
- *
+ * 
  * Represents an account in the chart of accounts. Each account has a type
  * that determines its normal balance and how it appears in financial statements.
- *
+ * 
  * ACCOUNT TYPES:
  * - ASSET: Debit increases, Credit decreases (Bank, Inventory)
  * - LIABILITY: Credit increases, Debit decreases (User Wallets, Bonuses)
  * - EQUITY: Credit increases, Debit decreases (Owner Capital)
  * - INCOME: Credit increases, Debit decreases (Revenue)
  * - EXPENSE: Debit increases, Credit decreases (Costs)
- *
+ * 
  * IMMUTABILITY:
  * - System accounts (is_system=true) cannot be deleted
  * - Accounts with ledger lines cannot be deleted
@@ -33,6 +33,7 @@ use Illuminate\Support\Facades\DB;
  * @property string $normal_balance
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
+ * @mixin IdeHelperLedgerAccount
  */
 class LedgerAccount extends Model
 {

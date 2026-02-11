@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes; // V-AUDIT-MODULE6-006: Add soft delete support
 
+/**
+ * @mixin IdeHelperProductHighlight
+ */
 class ProductHighlight extends Model
 {
     use HasFactory, SoftDeletes; // V-AUDIT-MODULE6-006: Enable soft deletes for safety

@@ -9,10 +9,10 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * PillarVitalitySnapshot
- *
+ * 
  * Point-in-time record of pillar vitality for audit trail.
  * Created daily by DisclosureFreshnessService.
- *
+ * 
  * VITALITY STATES (FROZEN - DO NOT ADD SYNONYMS):
  * - healthy: All artifacts current
  * - needs_attention: Any aging OR 1 stale/unstable
@@ -29,6 +29,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $total_count
  * @property array|null $vitality_drivers
  * @property \Carbon\Carbon $computed_at
+ * @mixin IdeHelperPillarVitalitySnapshot
  */
 class PillarVitalitySnapshot extends Model
 {

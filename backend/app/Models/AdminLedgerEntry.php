@@ -7,27 +7,23 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @deprecated PHASE 4.1: This model is DEPRECATED. Use LedgerEntry and LedgerLine instead.
- *
  * MIGRATION NOTICE:
  * - New entries are stored in ledger_entries + ledger_lines tables (true double-entry)
  * - This model remains ONLY for querying historical records
  * - DO NOT create new AdminLedgerEntry records
  * - Use App\Models\LedgerEntry and App\Models\LedgerLine for new entries
- *
  * DATA PRESERVATION:
  * Historical admin_ledger_entries are preserved for audit compliance.
- *
  * ============================================================================
  * LEGACY DOCUMENTATION (for historical context):
  * ============================================================================
- *
  * AdminLedgerEntry Model
- *
  * PROTOCOL:
  * - IMMUTABLE: Cannot be updated or deleted after creation
  * - Double-entry: Every entry has a paired entry (entry_pair_id)
  * - Balance calculated from entries, not stored separately
  * - Source of truth for admin financial state
+ * @mixin IdeHelperAdminLedgerEntry
  */
 class AdminLedgerEntry extends Model
 {

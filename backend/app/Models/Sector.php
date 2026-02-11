@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
+/**
+ * @mixin IdeHelperSector
+ */
 class Sector extends Model
 {
     use SoftDeletes;

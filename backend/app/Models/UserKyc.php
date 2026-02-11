@@ -10,6 +10,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Enums\KycStatus; // ADDED: Import KycStatus enum
 
+/**
+ * @mixin IdeHelperUserKyc
+ */
 class UserKyc extends Model
 {
     use HasFactory;

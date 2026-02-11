@@ -39,6 +39,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use RuntimeException;
 
+/**
+ * @mixin IdeHelperPlatformLedgerEntry
+ */
 class PlatformLedgerEntry extends Model
 {
     /**

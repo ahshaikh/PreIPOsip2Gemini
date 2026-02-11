@@ -9,18 +9,18 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * PHASE 1 - MODEL 1/5: DisclosureModule
- *
+ * 
  * PURPOSE:
  * Represents reusable templates for different types of company disclosures.
  * Modules define the structure, validation rules, and requirements for
  * disclosure data (business model, financials, risks, governance, etc.)
- *
+ * 
  * KEY RESPONSIBILITIES:
  * - Store JSON schema validation rules
  * - Define module ordering and display configuration
  * - Map to SEBI regulatory categories
  * - Configure approval workflow requirements
- *
+ * 
  * ADMIN MANAGED:
  * Only admins can create/modify modules. Companies use these as templates.
  *
@@ -46,6 +46,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @mixin IdeHelperDisclosureModule
  */
 class DisclosureModule extends Model
 {

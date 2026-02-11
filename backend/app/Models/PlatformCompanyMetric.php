@@ -7,16 +7,16 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * PHASE 4 - MODEL: PlatformCompanyMetric
- *
+ * 
  * PURPOSE:
  * Stores platform-calculated health scores and completeness metrics.
- *
+ * 
  * CRITICAL SAFEGUARDS:
  * - These metrics are PLATFORM-GENERATED, not company-editable
  * - All calculations are transparent and auditable
  * - Metrics are informational context, NOT investment recommendations
  * - Use bands (e.g., "healthy", "moderate") not precise scores that look like ratings
- *
+ * 
  * REGULATORY COMPLIANCE:
  * - Clear separation: This is platform analysis, not company data
  * - Methodology is documented and accessible
@@ -43,6 +43,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property bool $is_under_admin_review
  * @property string $calculation_version
  * @property array|null $calculation_metadata
+ * @mixin IdeHelperPlatformCompanyMetric
  */
 class PlatformCompanyMetric extends Model
 {

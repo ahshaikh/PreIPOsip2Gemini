@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Support\Facades\Crypt;
 
+/**
+ * @mixin IdeHelperSetting
+ */
 class Setting extends Model
 {
     use HasFactory;

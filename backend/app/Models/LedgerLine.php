@@ -8,18 +8,18 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * DOUBLE-ENTRY LEDGER: Debit/Credit Line
- *
+ * 
  * Each ledger entry contains multiple lines. Lines represent the actual
  * debits and credits that affect account balances.
- *
+ * 
  * IMMUTABILITY:
  * - Lines cannot be updated after creation
  * - Lines cannot be deleted
- *
+ * 
  * VALIDATION:
  * - Amount must be positive (direction determines sign)
  * - Direction must be DEBIT or CREDIT
- *
+ * 
  * ACCOUNTING RULES:
  * - DEBIT increases ASSET and EXPENSE accounts
  * - CREDIT increases LIABILITY, EQUITY, and INCOME accounts
@@ -31,6 +31,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $direction
  * @property float $amount
  * @property \Carbon\Carbon $created_at
+ * @mixin IdeHelperLedgerLine
  */
 class LedgerLine extends Model
 {

@@ -11,19 +11,21 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 /**
  * CompanyInvestment Model
- *
+ * 
  * PURPOSE: Direct company investments (outside of SIP subscriptions)
  * This model handles one-time investments in companies via the investor portal
- *
+ * 
  * DISTINCTION from Investment model:
  * - Investment: SIP-based investments with subscription_id and deal_id
  * - CompanyInvestment: Direct company investments with disclosure snapshots
- *
+ * 
  * P0 FIX: Now includes per-lot provenance tracking:
  * - bulk_purchase_id: Links to inventory source
  * - admin_ledger_entry_id: Links to cash receipt proof
  * - allocation_status: Tracks allocation state
  * - allocation_logs: Full audit trail via ShareAllocationLog
+ *
+ * @mixin IdeHelperCompanyInvestment
  */
 class CompanyInvestment extends Model
 {

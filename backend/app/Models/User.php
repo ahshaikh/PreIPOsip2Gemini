@@ -15,6 +15,9 @@ use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Support\Str;
 use PragmaRX\Google2FA\Google2FA;
 
+/**
+ * @mixin IdeHelperUser
+ */
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, HasRoles, SoftDeletes;

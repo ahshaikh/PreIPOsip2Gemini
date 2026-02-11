@@ -5,10 +5,7 @@ namespace Database\Seeders;
 use App\Models\User;
 use App\Models\UserProfile;
 use App\Models\UserKyc;
-use App\Models\KycDocument;
 use App\Models\Wallet;
-use App\Models\AdminLedgerEntry;
-use App\Models\UserSetting;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -50,8 +47,6 @@ class IdentityAccessSeeder extends Seeder
             $this->seedUserProfiles();
             $this->seedUserKyc();
             $this->seedWallets();
-            $this->seedAdminLedgerGenesis();
-            $this->seedUserSettings();
         });
 
         $this->command->info('✅ Identity & Access data seeded successfully');
@@ -352,94 +347,5 @@ class IdentityAccessSeeder extends Seeder
         }
 
         $this->command->info('  ✓ Wallets seeded: ' . $users->count() . ' records');
-    }
-
-    /**
-     * Seed admin ledger genesis entries
-     *
-     * This creates the opening balance for the admin's liability account.
-     * Total test wallet balances = ₹1,75,000 (₹50,000 + ₹1,00,000 + ₹25,000)
-     *
-     * Double-entry accounting:
-     * Entry 1 (Debit): Initial Liability - ₹10,00,000
-     * Entry 2 (Credit): Offsetting entry - ₹10,00,000
-     */
-    private function seedAdminLedgerGenesis(): void
-    {
-        // Check if genesis entries already exist
-        if (AdminLedgerEntry::where('description', 'LIKE', '%GENESIS%')->exists()) {
-            $this->command->info('  ⚠ Admin ledger genesis already exists, skipping');
-            return;
-        }
-
-        // Calculate total test wallet balances
-        $totalTestBalancesPaise = Wallet::sum('balance_paise');
-        $totalTestBalances = $totalTestBalancesPaise / 100;
-
-        // Round up to nearest lakh for clean accounting
-        $genesisAmount = 1000000; // ₹10,00,000 (covers ₹1,75,000 test balances + buffer)
-
-        // Create double-entry for genesis
-        $debitEntry = AdminLedgerEntry::create([
-            'account' => 'liabilities',
-            'type' => 'debit',
-            'amount_paise' => $genesisAmount * 100,
-            'balance_before_paise' => 0,
-            'balance_after_paise' => $genesisAmount * 100,
-            'reference_type' => 'system_genesis',
-            'reference_id' => 1, // System reference for genesis entries
-            'description' => 'GENESIS: Initial Wallet Liability for Test Users (Total: ₹' . number_format($totalTestBalances, 2) . ', Buffer: ₹' . number_format(($genesisAmount - $totalTestBalances), 2) . ')',
-        ]);
-
-        $creditEntry = AdminLedgerEntry::create([
-            'account' => 'liabilities',
-            'type' => 'credit',
-            'amount_paise' => $genesisAmount * 100,
-            'balance_before_paise' => $genesisAmount * 100,
-            'balance_after_paise' => 0, // Back to zero after offsetting
-            'reference_type' => 'system_genesis',
-            'reference_id' => 1, // System reference for genesis entries
-            'description' => 'GENESIS: Offsetting Entry for Initial Liability',
-            'entry_pair_id' => $debitEntry->id,
-        ]);
-
-        // Link the debit entry back to credit entry
-        // MUST use DB::table() to bypass model's immutability protection
-        // AdminLedgerEntry::updating() throws exception, so we use raw DB query
-        DB::table('admin_ledger_entries')
-            ->where('id', $debitEntry->id)
-            ->update(['entry_pair_id' => $creditEntry->id]);
-
-        $this->command->info('  ✓ Admin ledger genesis seeded: ₹' . number_format($genesisAmount, 2));
-    }
-
-    /**
-     * Seed user settings
-     */
-    private function seedUserSettings(): void
-    {
-        $users = User::whereHas('roles', function ($query) {
-            $query->where('name', 'User');
-        })->get();
-
-        foreach ($users as $user) {
-            if (UserSetting::where('user_id', $user->id)->exists()) {
-                continue;
-            }
-
-            UserSetting::create([
-                'user_id' => $user->id,
-                'theme' => 'light',
-                'language' => 'en',
-                'timezone' => 'Asia/Kolkata',
-                'email_notifications' => true,
-                'sms_notifications' => true,
-                'push_notifications' => true,
-                'marketing_emails' => true,
-                'two_factor_enabled' => false,
-            ]);
-        }
-
-        $this->command->info('  ✓ User settings seeded: ' . $users->count() . ' records');
     }
 }

@@ -11,6 +11,9 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use App\Traits\HasDeletionProtection;
 
+/**
+ * @mixin IdeHelperPlan
+ */
 class Plan extends Model
 {
     use HasFactory, SoftDeletes, HasDeletionProtection;

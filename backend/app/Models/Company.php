@@ -20,7 +20,11 @@ use App\Traits\HasWorkflowActions;
 use App\Enums\DisclosureTier;
 use App\Exceptions\DisclosureTierImmutabilityException;
 use App\Scopes\PublicVisibilityScope;
+use App\Models\Product;
 
+/**
+ * @mixin IdeHelperCompany
+ */
 class Company extends Model
 {
     use HasFactory, SoftDeletes, HasDeletionProtection, HasWorkflowActions;
@@ -364,6 +368,14 @@ class Company extends Model
     public function webinars()
     {
         return $this->hasMany(CompanyWebinar::class);
+    }
+
+    /**
+     * Products belonging to this company.
+     */
+    public function products(): HasMany
+    {
+        return $this->hasMany(Product::class);
     }
 
     /**

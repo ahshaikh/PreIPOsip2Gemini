@@ -205,7 +205,7 @@ class CompanyMetricsService
 
         // Analyze profitability
         $netProfit = $data['net_profit'] ?? null;
-        $isProf itable = $netProfit !== null && $netProfit > 0;
+        $isProfitable = $netProfit !== null && $netProfit > 0;
 
         // Analyze cash flow
         $cashFlow = $data['cash_flow'] ?? null;

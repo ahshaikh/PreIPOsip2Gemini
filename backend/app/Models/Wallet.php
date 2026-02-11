@@ -15,9 +15,9 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 
 /**
  * Wallet Model
- *
+ * 
  * Represents the user's financial wallet.
- *
+ * 
  * ⚠️ SECURITY NOTE:
  * Do NOT add deposit / withdraw methods here.
  * All financial mutations MUST go through WalletService
@@ -25,6 +25,8 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
  *  - ACID compliance
  *  - Double-entry ledger
  *  - Pessimistic locking (lockForUpdate)
+ *
+ * @mixin IdeHelperWallet
  */
 class Wallet extends Model
 {

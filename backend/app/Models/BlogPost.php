@@ -9,6 +9,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
+/**
+ * @mixin IdeHelperBlogPost
+ */
 class BlogPost extends Model
 {
     use HasFactory, SoftDeletes;
