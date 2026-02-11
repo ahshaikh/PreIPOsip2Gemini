@@ -43,10 +43,13 @@ class ComplianceGateService
     {
         // Check 1: KYC must be complete and approved
         if (!$this->isKycComplete($user)) {
+            // ARCH-FIX: Read KYC status from canonical source for logging
+            $kycStatus = $this->getKycStatusValue($user);
+
             Log::warning("COMPLIANCE GATE: Cash ingress blocked - KYC incomplete", [
                 'user_id' => $user->id,
                 'email' => $user->email,
-                'kyc_status' => $user->kyc_status ?? 'not_submitted',
+                'kyc_status' => $kycStatus,
             ]);
 
             return [
@@ -54,7 +57,7 @@ class ComplianceGateService
                 'reason' => 'KYC verification required before receiving funds',
                 'requirements' => [
                     'kyc_complete' => false,
-                    'kyc_status' => $user->kyc_status ?? 'not_submitted',
+                    'kyc_status' => $kycStatus,
                     'action_required' => 'Complete KYC verification',
                 ],
             ];
@@ -193,19 +196,41 @@ class ComplianceGateService
     }
 
     /**
+     * Get KYC status value from canonical source.
+     *
+     * ARCH-FIX: Helper to read KYC status without triggering accessor N+1 concerns.
+     *
+     * @param User $user
+     * @return string
+     */
+    private function getKycStatusValue(User $user): string
+    {
+        $status = $user->relationLoaded('kyc')
+            ? $user->kyc?->status
+            : $user->kyc()->value('status');
+
+        if ($status === null) {
+            return 'not_submitted';
+        }
+
+        return is_object($status) && method_exists($status, 'value')
+            ? $status->value
+            : $status;
+    }
+
+    /**
      * Check if KYC is complete and approved
      * V-FIX-WALLET-NOT-REFLECTING: Fixed to check for 'verified' (actual KycStatus enum value)
+     *
+     * ARCH-FIX: Reads directly from user_kyc table (single source of truth).
+     * Does not rely on accessor to avoid N+1 concerns in compliance gates.
      *
      * @param User $user
      * @return bool
      */
     private function isKycComplete(User $user): bool
     {
-        // V-FIX-WALLET-NOT-REFLECTING: KYC status must be 'verified' (not 'approved')
-        // The KycStatus enum uses 'verified' as the successful state
-        // Mismatch between 'approved' and 'verified' was blocking wallet deposits
-        // Any other status (pending, submitted, processing, rejected, resubmission_required) blocks operations
-        return $user->kyc_status === 'verified';
+        return $this->getKycStatusValue($user) === 'verified';
     }
 
     /**

@@ -30,7 +30,7 @@ class User extends Authenticatable
         'referral_code',
         'referred_by',
         'status',
-        'kyc_status',
+        // 'kyc_status' - REMOVED: Now read from user_kyc relationship via accessor
         'email_verified_at',
         'mobile_verified_at',
         'two_factor_secret',
@@ -67,6 +67,42 @@ class User extends Authenticatable
         'role',
         'is_admin',
     ];
+
+    /**
+     * Get KYC status from canonical source (user_kyc table).
+     *
+     * ARCHITECTURAL FIX: Eliminates dual-state by reading from single source of truth.
+     *
+     * CRITICAL: This accessor is PURE - zero DB calls, zero lazy loading.
+     * Callers MUST eager-load the 'kyc' relationship before accessing this property.
+     * If relationship not loaded, returns 'pending' (safe default that blocks operations).
+     *
+     * @return string The KYC status value
+     */
+    public function getKycStatusAttribute(): string
+    {
+        // PURE accessor - explicitly check relationLoaded to prevent lazy loading
+        if (!$this->relationLoaded('kyc')) {
+            // Relationship not eager-loaded: return blocking default
+            // This ensures payment/investment operations fail-safe
+            return 'pending';
+        }
+
+        // Relationship loaded - read from it (no DB call)
+        $kyc = $this->getRelation('kyc');
+
+        if ($kyc === null) {
+            // User has no KYC record → treat as pending (blocks operations)
+            return 'pending';
+        }
+
+        $status = $kyc->status;
+
+        // Handle KycStatus enum or plain string
+        return is_object($status) && method_exists($status, 'value')
+            ? $status->value
+            : ($status ?? 'pending');
+    }
     
     protected static function booted()
     {

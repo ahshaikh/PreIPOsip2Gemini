@@ -277,6 +277,7 @@ class IdentityAccessSeeder extends Seeder
 
     /**
      * Seed user KYC records
+     * ARCH-FIX: user_kyc is now single source of truth, no sync needed
      */
     private function seedUserKyc(): void
     {
@@ -290,12 +291,9 @@ class IdentityAccessSeeder extends Seeder
                 continue;
             }
 
-            $profile = $user->profile;
             $status = $this->userKycStatuses[$user->id] ?? 'pending';
 
-            // Get first and last name from profile
-            $fullName = ($profile->first_name ?? 'User') . ' ' . ($profile->last_name ?? 'Seeded');
-
+            // Create KYC record directly - user_kyc is single source of truth
             UserKyc::create([
                 'user_id' => $user->id,
                 'pan_number' => 'ABCDE' . rand(1000, 9999) . 'F',

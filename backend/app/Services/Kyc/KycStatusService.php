@@ -86,13 +86,13 @@ class KycStatusService
                 $updateData['verified_at'] = null;
             }
 
-            // 1. Update the KYC Record
+            // 1. Update the KYC Record (single source of truth)
             $kyc->update($updateData);
 
-            // 2. Sync the status to the User model for fast lookups in AuthGating
-            $kyc->user->update(['kyc_status' => $newStatus->value]);
+            // ARCH-FIX: Removed sync to users.kyc_status - column is being deprecated
+            // User model accessor now reads directly from user_kyc.status
 
-            // 3. Log the transition for audit purposes
+            // 2. Log the transition for audit purposes
             Log::info("KYC Status Transition", [
                 'user_id' => $kyc->user_id,
                 'from' => $oldStatus->value,

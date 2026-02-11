@@ -33,8 +33,9 @@ class PaymentController extends Controller
      */
     public function index(Request $request)
     {
-        // V-FIX-COMPLIANCE: Include kyc_status in user data for admin to see before approval
-        $query = Payment::with(['user:id,username,email,kyc_status', 'subscription.plan:id,name']);
+        // V-FIX-COMPLIANCE: Eager load kyc relationship for KYC status display
+        // ARCH-FIX: kyc_status now reads from user_kyc table via accessor, must eager load
+        $query = Payment::with(['user:id,username,email', 'user.kyc:user_id,status', 'subscription.plan:id,name']);
 
         if ($request->has('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
@@ -118,7 +119,8 @@ class PaymentController extends Controller
         // V-FIX-COMPLIANCE: Check user KYC status before allowing payment approval
         // This prevents admin from approving payments for non-KYC verified users
         // which would later fail at wallet crediting stage (compliance gate)
-        $user = $payment->user;
+        // ARCH-FIX: Eager load kyc to prevent N+1 - accessor reads from relationship
+        $user = $payment->user()->with('kyc')->first();
         if ($user->kyc_status !== 'verified') {
             \Log::warning("ADMIN PAYMENT APPROVAL BLOCKED: User KYC not verified", [
                 'payment_id' => $payment->id,

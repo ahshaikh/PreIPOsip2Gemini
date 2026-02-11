@@ -8,23 +8,22 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "refactor: enforce strict domain compliance and clean structural inconsistencies across seeders & core services
+$CommitMessage = "refactor: eliminate denormalized users.kyc_status and enforce single source of truth
 
-- Refactored DealSeeder to fully respect domain invariants:
-  - Enforced disclosure tier requirements
-  - Created products via company relationship (ownership invariant)
-  - Added backing inventory before deal creation
-  - Satisfied bulk purchase provenance requirements
-- Removed all seeder-level bypass hacks; aligned bootstrap flow with real lifecycle
-- Fixed namespace resolution issues across controllers and jobs
-- Added missing ShouldQueue imports in job classes
-- Resolved trait property conflicts (Queueable $queue)
-- Fixed PHP 8 property inheritance violations in mailables
-- Implemented missing OperationInterface::getName() across orchestration operations
-- Cleaned syntax errors and legacy model references (Offer → Campaign migration)
-- Generated IDE helper files for full static analysis support
+- Removed users.kyc_status column and related sync logic
+- Added pure accessor on User model to read KYC status from user_kyc relationship
+- Updated ComplianceGateService to use canonical KYC source
+- Eager loaded kyc relation in PaymentController to avoid N+1
+- Replaced dashboard where('kyc_status') queries with whereHas('kyc')
+- Removed KYC sync trait and repair command
+- Simplified seeders to write only to user_kyc table
+- Added migration to drop users.kyc_status with safe rollback
 
-Result: codebase now passes full reflection load, strict PHP 8 checks, and domain invariants without runtime bypass."
+Result:
+- Eliminates dual-state drift between users and user_kyc
+- Removes 13+ sync write points
+- Ensures fail-safe compliance behavior (no KYC → pending → blocked)
+- Reduces architectural complexity and long-term maintenance risk"
 #----------------------
 
 function Get-GitCredential {

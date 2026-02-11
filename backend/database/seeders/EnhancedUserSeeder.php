@@ -107,7 +107,7 @@ class EnhancedUserSeeder extends Seeder
             );
 
             /* ---------------------------
-             | KYC (updateOrCreate)
+             | KYC (user_kyc is single source of truth)
              ----------------------------*/
             UserKyc::updateOrCreate(
                 ['user_id' => $user->id],
@@ -196,13 +196,11 @@ class EnhancedUserSeeder extends Seeder
             );
 
             /* ---------------------------
-             | KYC
+             | KYC (user_kyc is single source of truth)
              ----------------------------*/
             UserKyc::updateOrCreate(
                 ['user_id' => $user->id],
-                [
-                    'status' => 'pending',
-                ]
+                ['status' => 'pending']
             );
 
             /* ---------------------------

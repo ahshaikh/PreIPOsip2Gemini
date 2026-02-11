@@ -85,7 +85,10 @@ class UnifiedDashboardController extends Controller
                 'total_users' => User::count(),
                 'active_subscribers' => Subscription::whereIn('status', ['active', 'paused'])->count(),
                 'new_users_period' => User::where('created_at', '>=', $periodStart)->count(),
-                'kyc_pending' => User::where('kyc_status', 'pending')->count(),
+                // ARCH-FIX: Query user_kyc table (canonical source) instead of denormalized users.kyc_status
+                'kyc_pending' => User::whereHas('kyc', fn($q) => $q->where('status', 'pending'))
+                    ->orWhereDoesntHave('kyc')
+                    ->count(),
             ],
 
             // Companies
@@ -240,7 +243,10 @@ class UnifiedDashboardController extends Controller
         }
 
         // KYC pending
-        $kycPending = User::where('kyc_status', 'pending')->count();
+        // ARCH-FIX: Query user_kyc table (canonical source) instead of denormalized users.kyc_status
+        $kycPending = User::whereHas('kyc', fn($q) => $q->where('status', 'pending'))
+            ->orWhereDoesntHave('kyc')
+            ->count();
         if ($kycPending > 10) {
             $alerts[] = [
                 'type' => 'warning',

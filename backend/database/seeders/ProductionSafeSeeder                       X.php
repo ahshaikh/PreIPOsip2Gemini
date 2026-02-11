@@ -444,7 +444,7 @@ class ProductionSafeSeeder extends Seeder
                     'last_name' => $adminData['last_name'],
                 ]);
 
-                // Create verified KYC for admin
+                // Create verified KYC for admin (user_kyc is single source of truth)
                 $kyc = \App\Models\UserKyc::create([
                     'user_id' => $user->id,
                     'status' => 'verified',
@@ -529,6 +529,7 @@ class ProductionSafeSeeder extends Seeder
         ]);
 
         if ($kycStatus) {
+            // Create KYC record directly - user_kyc is single source of truth
             $kyc = \App\Models\UserKyc::create([
                 'user_id' => $user->id,
                 'status' => $kycStatus,
