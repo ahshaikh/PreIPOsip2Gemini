@@ -1,4 +1,5 @@
 // V-FINAL-1730-263 (Created) | V-FINAL-1730-580 (Refund Info)
+// V-ARCH-2026: Typed with canonical Plan types
 'use client';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -12,12 +13,16 @@ import api from "@/lib/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { AlertTriangle, PauseCircle, XCircle, ArrowUpCircle } from "lucide-react";
+import type { PlanWithRelations } from "@/types/plan";
+
+// API error type for mutations
+type ApiError = Error & { response?: { data?: { message?: string } } };
 
 interface ManageSubModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentPlanId: number;
-  plans: any[];
+  plans: PlanWithRelations[];
   status: string;
 }
 
@@ -35,7 +40,7 @@ export function ManageSubscriptionModal({ isOpen, onClose, currentPlanId, plans,
       queryClient.invalidateQueries({ queryKey: ['subscription'] });
       onClose();
     },
-    onError: (e: any) => toast.error("Failed", { description: e.response?.data?.message })
+    onError: (e: ApiError) => toast.error("Failed", { description: e.response?.data?.message })
   });
 
   const pauseMutation = useMutation({
@@ -45,7 +50,7 @@ export function ManageSubscriptionModal({ isOpen, onClose, currentPlanId, plans,
       queryClient.invalidateQueries({ queryKey: ['subscription'] });
       onClose();
     },
-    onError: (e: any) => toast.error("Failed", { description: e.response?.data?.message })
+    onError: (e: ApiError) => toast.error("Failed", { description: e.response?.data?.message })
   });
 
   const resumeMutation = useMutation({
@@ -55,7 +60,7 @@ export function ManageSubscriptionModal({ isOpen, onClose, currentPlanId, plans,
       queryClient.invalidateQueries({ queryKey: ['subscription'] });
       onClose();
     },
-    onError: (e: any) => toast.error("Failed", { description: e.response?.data?.message })
+    onError: (e: ApiError) => toast.error("Failed", { description: e.response?.data?.message })
   });
 
   const cancelMutation = useMutation({
@@ -65,7 +70,7 @@ export function ManageSubscriptionModal({ isOpen, onClose, currentPlanId, plans,
       queryClient.invalidateQueries({ queryKey: ['subscription'] });
       onClose();
     },
-    onError: (e: any) => toast.error("Failed", { description: e.response?.data?.message })
+    onError: (e: ApiError) => toast.error("Failed", { description: e.response?.data?.message })
   });
 
   return (
@@ -101,7 +106,7 @@ export function ManageSubscriptionModal({ isOpen, onClose, currentPlanId, plans,
                 <Select value={selectedPlan} onValueChange={setSelectedPlan}>
                     <SelectTrigger><SelectValue placeholder="Choose a plan" /></SelectTrigger>
                     <SelectContent>
-                    {plans.filter(p => p.id !== currentPlanId).map((p: any) => (
+                    {plans.filter(p => p.id !== currentPlanId).map((p: PlanWithRelations) => (
                         <SelectItem key={p.id} value={p.id.toString()}>
                         {p.name} (₹{p.monthly_amount}/mo)
                         </SelectItem>

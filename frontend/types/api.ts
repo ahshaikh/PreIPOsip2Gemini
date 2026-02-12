@@ -169,22 +169,10 @@ export interface Subscription {
 }
 
 /**
- * Plan
+ * Plan - Re-exported from dedicated plan types module
+ * See types/plan.ts for full type hierarchy
  */
-export interface Plan {
-  id: number;
-  name: string;
-  slug: string;
-  description: string;
-  price: number;
-  duration_days: number;
-  max_investments: number;
-  features: string[];
-  is_active: boolean;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
-}
+export type { Plan, PlanWithRelations, AdminPlan, PublicPlan, PlanFeature } from './plan';
 
 /**
  * Product / Investment Opportunity

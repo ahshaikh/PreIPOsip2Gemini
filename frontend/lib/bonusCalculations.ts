@@ -3,31 +3,32 @@
  *
  * Client-side bonus calculation functions for preview and estimation.
  * Mirrors the backend BonusCalculatorService logic for UI previews.
+ *
+ * Types are re-exported from the canonical plan types module.
  */
 
-export interface ProgressiveConfig {
-  rate: number;
-  start_month: number;
-  max_percentage: number;
-  overrides: Record<number, number>;
-}
+// Re-export config types from canonical source
+export type {
+  ProgressiveConfig,
+  MilestoneEntry,
+  ConsistencyConfig,
+  WelcomeBonusConfig,
+  StreakRule,
+} from '@/types/plan';
 
-export interface MilestoneConfig {
-  month: number;
-  amount: number;
-}
+// Local alias for backward compatibility
+import type {
+  ProgressiveConfig,
+  MilestoneEntry,
+  ConsistencyConfig,
+  WelcomeBonusConfig,
+} from '@/types/plan';
 
-export interface ConsistencyConfig {
-  amount_per_payment: number;
-  streaks: Array<{
-    months: number;
-    multiplier: number;
-  }>;
-}
-
-export interface WelcomeBonusConfig {
-  amount: number;
-}
+/**
+ * @deprecated Use MilestoneEntry[] instead
+ * Preserved for backward compatibility with existing code
+ */
+export type MilestoneConfig = MilestoneEntry;
 
 /**
  * Calculate progressive bonus for a specific month
@@ -157,7 +158,7 @@ export function calculateTotalBonuses(
     total: number;
   }>;
 } {
-  let welcomeTotal = configs.welcome?.amount || 0;
+  const welcomeTotal = configs.welcome?.amount || 0;
   let progressiveTotal = 0;
   let milestoneTotal = 0;
   let consistencyTotal = 0;
@@ -203,10 +204,16 @@ export function calculateTotalBonuses(
 }
 
 /**
- * Format currency for display
+ * Format currency for display in Indian Rupees.
+ * Uses Intl.NumberFormat for proper locale-aware formatting.
  */
 export function formatCurrency(amount: number): string {
-  return `₹${amount.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
 }
 
 /**

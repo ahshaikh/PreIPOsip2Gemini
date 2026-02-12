@@ -2,11 +2,13 @@
 
 import { Check, Sparkles, TrendingUp, Zap, Crown, Star, ArrowRight } from "lucide-react";
 import api from "@/lib/api";
+import { formatCurrencyINR } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import Link from 'next/link';
+import type { PlanWithRelations, PlanFeature } from "@/types/plan";
 
 export default function PlansPage() {
-  const { data: plans, isLoading } = useQuery({
+  const { data: plans, isLoading } = useQuery<PlanWithRelations[]>({
     queryKey: ['publicPlans'],
     queryFn: async () => (await api.get('/plans')).data,
     staleTime: 1000 * 60 * 5 // 5 minutes
@@ -97,7 +99,7 @@ export default function PlansPage() {
       <section className="py-20 -mt-10 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {plans?.map((plan: any, index: number) => {
+            {plans?.map((plan: PlanWithRelations, index: number) => {
               const colorScheme = planColors[index % planColors.length];
               const PlanIcon = colorScheme.icon;
 
@@ -128,7 +130,7 @@ export default function PlansPage() {
 
                     <div className="mb-3">
                       <div className={`text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r ${colorScheme.priceGradient}`}>
-                        ₹{plan.monthly_amount.toLocaleString('en-IN')}
+                        {formatCurrencyINR(plan.monthly_amount)}
                       </div>
                       <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mt-1">
                         per month
@@ -141,7 +143,7 @@ export default function PlansPage() {
                   </div>
 
                   <div className="space-y-3 mb-8">
-                    {plan.features.map((feature: any) => (
+                    {plan.features.map((feature: PlanFeature) => (
                       <div key={feature.id} className="flex items-start space-x-3">
                         <div className="flex-shrink-0">
                           <Check className="w-5 h-5 text-green-600 dark:text-green-400 font-bold" />

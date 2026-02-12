@@ -8,11 +8,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Plus, Trash2, Edit, Trophy, Check, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { validateMilestoneConfig, formatCurrency } from '@/lib/bonusCalculations';
-import type { MilestoneConfig } from '@/lib/bonusCalculations';
+import type { MilestoneEntry } from '@/types/plan';
 
 interface MilestoneBonusFormProps {
-  value: MilestoneConfig[];
-  onChange: (milestones: MilestoneConfig[]) => void;
+  value: MilestoneEntry[];
+  onChange: (milestones: MilestoneEntry[]) => void;
 }
 
 export function MilestoneBonusForm({ value = [], onChange }: MilestoneBonusFormProps) {

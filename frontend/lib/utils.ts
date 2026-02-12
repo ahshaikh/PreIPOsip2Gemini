@@ -6,6 +6,24 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Format currency in Indian Rupees (INR) without decimal places.
+ * Uses Intl.NumberFormat for proper locale-aware formatting.
+ *
+ * @example
+ * formatCurrencyINR(5000)    // "₹5,000"
+ * formatCurrencyINR(100000)  // "₹1,00,000"
+ * formatCurrencyINR(5000.50) // "₹5,001" (rounds)
+ */
+export function formatCurrencyINR(amount: number): string {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+/**
  * Get the base URL for Laravel storage files
  * Removes /api/v1 suffix from API_URL to get storage base
  */

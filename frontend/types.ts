@@ -111,34 +111,36 @@ export interface Role {
 // PLANS & PRODUCTS
 // ============================================
 
-export interface Plan {
-  id: number;
-  name: string;
-  slug: string;
-  monthly_amount: number;
-  duration_months: number;
-  description: string;
-  is_active: boolean;
-  is_featured: boolean;
-  bonus_multiplier: number;
-  display_order: number;
-  features: PlanFeature[];
-  configs: PlanConfig[];
-}
+// Re-export Plan types from dedicated module for architectural consistency
+export type {
+  Plan,
+  PlanBase,
+  PlanWithRelations,
+  AdminPlan,
+  PublicPlan,
+  PlanFeature,
+  PlanConfig,
+  GenericPlanConfig,
+  BillingCycle,
+  PlanMetadata,
+  ProgressiveConfig,
+  MilestoneEntry,
+  MilestoneConfig, // Deprecated: use MilestoneEntry
+  ConsistencyConfig,
+  WelcomeBonusConfig,
+  ReferralConfig,
+  ConfigKey,
+  ConfigValueMap,
+  CreatePlanPayload,
+  UpdatePlanPayload,
+  StreakRule,
+} from './types/plan';
 
-export interface PlanFeature {
-  id: number;
-  plan_id: number;
-  feature_text: string;
-  display_order: number;
-}
-
-export interface PlanConfig {
-  id: number;
-  plan_id: number;
-  config_key: string;
-  value: Record<string, unknown>;
-}
+export {
+  isKnownConfigKey,
+  getTypedConfig,
+  hasConfig,
+} from './types/plan';
 
 export interface Product {
   id: number;

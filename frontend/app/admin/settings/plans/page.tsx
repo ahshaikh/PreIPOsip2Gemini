@@ -1,8 +1,9 @@
 // V-REMEDIATE-1730-131 (Created - Revised) | V-FINAL-1730-484 (Scheduling UI) | V-ENHANCED-PLANS | V-BONUS-CONFIG-1208
+// V-ARCH-2026: Typed with canonical Plan types
 'use client';
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -12,12 +13,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { formatCurrencyINR } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Plus, PlusCircle, Edit, Trash2, Copy, Users, IndianRupee, TrendingUp, Star, Calendar, Eye, MoreHorizontal, Gift, ShieldCheck, Sparkles, PartyPopper, Tag, Clock } from "lucide-react";
+import { Plus, PlusCircle, Edit, Trash2, Copy, Users, IndianRupee, TrendingUp, Star, Calendar, Eye, MoreHorizontal, Gift, ShieldCheck, Sparkles, PartyPopper, Tag } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BonusConfigDialog } from "@/components/admin/BonusConfigDialog";
@@ -28,6 +30,7 @@ import { CelebrationBonusConfigDialog } from "@/components/admin/CelebrationBonu
 import { AutoDebitConfigDialog } from "@/components/admin/AutoDebitConfigDialog";
 import { DiscountConfigDialog } from "@/components/admin/DiscountConfigDialog";
 import { PlanAnalyticsDashboard } from "@/components/admin/PlanAnalyticsDashboard";
+import type { AdminPlan, BillingCycle, CreatePlanPayload, UpdatePlanPayload, PlanFeature, GenericPlanConfig } from "@/types/plan";
 
 // Helper to format date for input
 const formatDateForInput = (date: string | null) => {
@@ -38,13 +41,13 @@ const formatDateForInput = (date: string | null) => {
 export default function PlanManagerPage() {
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingPlan, setEditingPlan] = useState<any>(null);
-  const [deleteConfirmPlan, setDeleteConfirmPlan] = useState<any>(null);
+  const [editingPlan, setEditingPlan] = useState<AdminPlan | null>(null);
+  const [deleteConfirmPlan, setDeleteConfirmPlan] = useState<AdminPlan | null>(null);
   const [activeTab, setActiveTab] = useState('all');
 
   // Bonus Configuration State
   const [bonusConfigOpen, setBonusConfigOpen] = useState(false);
-  const [bonusConfigPlan, setBonusConfigPlan] = useState<any>(null);
+  const [bonusConfigPlan, setBonusConfigPlan] = useState<AdminPlan | null>(null);
 
   // Form State
   const [name, setName] = useState('');
@@ -71,27 +74,27 @@ export default function PlanManagerPage() {
 
   // Eligibility Configuration State
   const [eligibilityConfigOpen, setEligibilityConfigOpen] = useState(false);
-  const [eligibilityConfigPlan, setEligibilityConfigPlan] = useState<any>(null);
+  const [eligibilityConfigPlan, setEligibilityConfigPlan] = useState<AdminPlan | null>(null);
 
   // Advanced Features Configuration State
   const [advancedFeaturesOpen, setAdvancedFeaturesOpen] = useState(false);
-  const [advancedFeaturesPlan, setAdvancedFeaturesPlan] = useState<any>(null);
+  const [advancedFeaturesPlan, setAdvancedFeaturesPlan] = useState<AdminPlan | null>(null);
 
   // Profit Sharing Configuration State
   const [profitSharingConfigOpen, setProfitSharingConfigOpen] = useState(false);
-  const [profitSharingConfigPlan, setProfitSharingConfigPlan] = useState<any>(null);
+  const [profitSharingConfigPlan, setProfitSharingConfigPlan] = useState<AdminPlan | null>(null);
 
   // Celebration Bonus Configuration State
   const [celebrationBonusConfigOpen, setCelebrationBonusConfigOpen] = useState(false);
-  const [celebrationBonusConfigPlan, setCelebrationBonusConfigPlan] = useState<any>(null);
+  const [celebrationBonusConfigPlan, setCelebrationBonusConfigPlan] = useState<AdminPlan | null>(null);
 
   // Auto-Debit Configuration State
   const [autoDebitConfigOpen, setAutoDebitConfigOpen] = useState(false);
-  const [autoDebitConfigPlan, setAutoDebitConfigPlan] = useState<any>(null);
+  const [autoDebitConfigPlan, setAutoDebitConfigPlan] = useState<AdminPlan | null>(null);
 
   // Discount Configuration State
   const [discountConfigOpen, setDiscountConfigOpen] = useState(false);
-  const [discountConfigPlan, setDiscountConfigPlan] = useState<any>(null);
+  const [discountConfigPlan, setDiscountConfigPlan] = useState<AdminPlan | null>(null);
 
   // Features 4, 5, 14 Form State
   const [billingCycle, setBillingCycle] = useState<'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'yearly'>('monthly');
@@ -100,9 +103,8 @@ export default function PlanManagerPage() {
 
   // Bulk Actions State
   const [selectedPlans, setSelectedPlans] = useState<number[]>([]);
-  const [showComparisonPreview, setShowComparisonPreview] = useState(false);
 
-  const { data: plans, isLoading } = useQuery({
+  const { data: plans, isLoading } = useQuery<AdminPlan[]>({
     queryKey: ['adminPlans'],
     queryFn: async () => (await api.get('/admin/plans')).data,
   });
@@ -114,7 +116,7 @@ export default function PlanManagerPage() {
   });
 
   const mutation = useMutation({
-    mutationFn: (newPlan: any) => {
+    mutationFn: (newPlan: CreatePlanPayload | UpdatePlanPayload) => {
       if (editingPlan) {
         return api.put(`/admin/plans/${editingPlan.id}`, newPlan);
       }
@@ -127,7 +129,7 @@ export default function PlanManagerPage() {
       setIsDialogOpen(false);
       resetForm();
     },
-    onError: (e: any) => toast.error("Error", { description: e.response?.data?.message })
+    onError: (e: Error & { response?: { data?: { message?: string } } }) => toast.error("Error", { description: e.response?.data?.message })
   });
 
   const deleteMutation = useMutation({
@@ -138,11 +140,11 @@ export default function PlanManagerPage() {
       queryClient.invalidateQueries({ queryKey: ['adminPlanStats'] });
       setDeleteConfirmPlan(null);
     },
-    onError: (e: any) => toast.error("Cannot delete plan", { description: e.response?.data?.message || "Plan may have active subscriptions" })
+    onError: (e: Error & { response?: { data?: { message?: string } } }) => toast.error("Cannot delete plan", { description: e.response?.data?.message || "Plan may have active subscriptions" })
   });
 
   const duplicateMutation = useMutation({
-    mutationFn: (plan: any) => api.post('/admin/plans', {
+    mutationFn: (plan: AdminPlan) => api.post('/admin/plans', {
       name: `${plan.name} (Copy)`,
       monthly_amount: plan.monthly_amount,
       duration_months: plan.duration_months,
@@ -157,12 +159,15 @@ export default function PlanManagerPage() {
       toast.success("Plan duplicated successfully");
       queryClient.invalidateQueries({ queryKey: ['adminPlans'] });
     },
-    onError: (e: any) => toast.error("Error duplicating plan", { description: e.response?.data?.message })
+    onError: (e: Error & { response?: { data?: { message?: string } } }) => toast.error("Error duplicating plan", { description: e.response?.data?.message })
   });
+
+  // Type for API errors
+  type ApiError = Error & { response?: { data?: { message?: string } } };
 
   // Bonus Configuration Mutation
   const bonusConfigMutation = useMutation({
-    mutationFn: ({ planId, configs }: { planId: number; configs: any }) =>
+    mutationFn: ({ planId, configs }: { planId: number; configs: Record<string, unknown> }) =>
       api.put(`/admin/plans/${planId}`, { configs }),
     onSuccess: () => {
       toast.success("Bonus configuration saved successfully!");
@@ -170,12 +175,12 @@ export default function PlanManagerPage() {
       setBonusConfigOpen(false);
       setBonusConfigPlan(null);
     },
-    onError: (e: any) => toast.error("Failed to save bonus configuration", { description: e.response?.data?.message })
+    onError: (e: ApiError) => toast.error("Failed to save bonus configuration", { description: e.response?.data?.message })
   });
 
   // Eligibility Configuration Mutation
   const eligibilityConfigMutation = useMutation({
-    mutationFn: ({ planId, eligibilityConfig }: { planId: number; eligibilityConfig: any }) =>
+    mutationFn: ({ planId, eligibilityConfig }: { planId: number; eligibilityConfig: Record<string, unknown> }) =>
       api.put(`/admin/plans/${planId}`, { configs: { eligibility_config: eligibilityConfig } }),
     onSuccess: () => {
       toast.success("Eligibility rules saved successfully!");
@@ -183,12 +188,12 @@ export default function PlanManagerPage() {
       setEligibilityConfigOpen(false);
       setEligibilityConfigPlan(null);
     },
-    onError: (e: any) => toast.error("Failed to save eligibility rules", { description: e.response?.data?.message })
+    onError: (e: ApiError) => toast.error("Failed to save eligibility rules", { description: e.response?.data?.message })
   });
 
   // Advanced Features Configuration Mutation
   const advancedFeaturesMutation = useMutation({
-    mutationFn: ({ planId, advancedConfig }: { planId: number; advancedConfig: any }) =>
+    mutationFn: ({ planId, advancedConfig }: { planId: number; advancedConfig: Record<string, unknown> }) =>
       api.put(`/admin/plans/${planId}`, { configs: advancedConfig }),
     onSuccess: () => {
       toast.success("Advanced features saved successfully!");
@@ -196,12 +201,12 @@ export default function PlanManagerPage() {
       setAdvancedFeaturesOpen(false);
       setAdvancedFeaturesPlan(null);
     },
-    onError: (e: any) => toast.error("Failed to save advanced features", { description: e.response?.data?.message })
+    onError: (e: ApiError) => toast.error("Failed to save advanced features", { description: e.response?.data?.message })
   });
 
   // Profit Sharing Configuration Mutation
   const profitSharingConfigMutation = useMutation({
-    mutationFn: ({ planId, profitSharingConfig }: { planId: number; profitSharingConfig: any }) =>
+    mutationFn: ({ planId, profitSharingConfig }: { planId: number; profitSharingConfig: Record<string, unknown> }) =>
       api.put(`/admin/plans/${planId}`, { configs: { profit_sharing_config: profitSharingConfig } }),
     onSuccess: () => {
       toast.success("Profit sharing configuration saved successfully!");
@@ -209,12 +214,12 @@ export default function PlanManagerPage() {
       setProfitSharingConfigOpen(false);
       setProfitSharingConfigPlan(null);
     },
-    onError: (e: any) => toast.error("Failed to save profit sharing configuration", { description: e.response?.data?.message })
+    onError: (e: ApiError) => toast.error("Failed to save profit sharing configuration", { description: e.response?.data?.message })
   });
 
   // Celebration Bonus Configuration Mutation
   const celebrationBonusConfigMutation = useMutation({
-    mutationFn: ({ planId, celebrationBonusConfig }: { planId: number; celebrationBonusConfig: any }) =>
+    mutationFn: ({ planId, celebrationBonusConfig }: { planId: number; celebrationBonusConfig: Record<string, unknown> }) =>
       api.put(`/admin/plans/${planId}`, { configs: { celebration_bonus_config: celebrationBonusConfig } }),
     onSuccess: () => {
       toast.success("Celebration bonus configuration saved successfully!");
@@ -222,12 +227,12 @@ export default function PlanManagerPage() {
       setCelebrationBonusConfigOpen(false);
       setCelebrationBonusConfigPlan(null);
     },
-    onError: (e: any) => toast.error("Failed to save celebration bonus configuration", { description: e.response?.data?.message })
+    onError: (e: ApiError) => toast.error("Failed to save celebration bonus configuration", { description: e.response?.data?.message })
   });
 
   // Auto-Debit Configuration Mutation
   const autoDebitConfigMutation = useMutation({
-    mutationFn: ({ planId, autoDebitConfig }: { planId: number; autoDebitConfig: any }) =>
+    mutationFn: ({ planId, autoDebitConfig }: { planId: number; autoDebitConfig: Record<string, unknown> }) =>
       api.put(`/admin/plans/${planId}`, { configs: { auto_debit_config: autoDebitConfig } }),
     onSuccess: () => {
       toast.success("Auto-debit configuration saved successfully!");
@@ -235,12 +240,12 @@ export default function PlanManagerPage() {
       setAutoDebitConfigOpen(false);
       setAutoDebitConfigPlan(null);
     },
-    onError: (e: any) => toast.error("Failed to save auto-debit configuration", { description: e.response?.data?.message })
+    onError: (e: ApiError) => toast.error("Failed to save auto-debit configuration", { description: e.response?.data?.message })
   });
 
   // Discount Configuration Mutation
   const discountConfigMutation = useMutation({
-    mutationFn: ({ planId, discountConfig }: { planId: number; discountConfig: any }) =>
+    mutationFn: ({ planId, discountConfig }: { planId: number; discountConfig: Record<string, unknown> }) =>
       api.put(`/admin/plans/${planId}`, { configs: { discount_config: discountConfig } }),
     onSuccess: () => {
       toast.success("Discount configuration saved successfully!");
@@ -248,7 +253,7 @@ export default function PlanManagerPage() {
       setDiscountConfigOpen(false);
       setDiscountConfigPlan(null);
     },
-    onError: (e: any) => toast.error("Failed to save discount configuration", { description: e.response?.data?.message })
+    onError: (e: ApiError) => toast.error("Failed to save discount configuration", { description: e.response?.data?.message })
   });
 
   // Bulk Actions Mutations
@@ -261,7 +266,7 @@ export default function PlanManagerPage() {
       queryClient.invalidateQueries({ queryKey: ['adminPlans'] });
       setSelectedPlans([]);
     },
-    onError: (e: any) => toast.error("Failed to activate plans", { description: e.response?.data?.message })
+    onError: (e: ApiError) => toast.error("Failed to activate plans", { description: e.response?.data?.message })
   });
 
   const bulkDeactivateMutation = useMutation({
@@ -273,7 +278,7 @@ export default function PlanManagerPage() {
       queryClient.invalidateQueries({ queryKey: ['adminPlans'] });
       setSelectedPlans([]);
     },
-    onError: (e: any) => toast.error("Failed to deactivate plans", { description: e.response?.data?.message })
+    onError: (e: ApiError) => toast.error("Failed to deactivate plans", { description: e.response?.data?.message })
   });
 
   const resetForm = () => {
@@ -298,20 +303,20 @@ export default function PlanManagerPage() {
     setFeatures(features.filter((_, i) => i !== index));
   };
 
-  const handleEdit = (plan: any) => {
+  const handleEdit = (plan: AdminPlan) => {
     setEditingPlan(plan);
     setName(plan.name);
-    setMonthlyAmount(plan.monthly_amount);
-    setDuration(plan.duration_months);
-    setDescription(plan.description);
+    setMonthlyAmount(String(plan.monthly_amount));
+    setDuration(String(plan.duration_months));
+    setDescription(plan.description || '');
     setIsActive(plan.is_active);
     setIsFeatured(plan.is_featured);
     setAvailableFrom(formatDateForInput(plan.available_from));
     setAvailableUntil(formatDateForInput(plan.available_until));
-    // Convert feature objects to strings, or keep strings as-is
-    setFeatures(Array.isArray(plan.features) ? plan.features.map((f: any) => typeof f === 'string' ? f : f.feature_text) : []);
-    setMinInvestment(plan.min_investment || '');
-    setMaxInvestment(plan.max_investment || '');
+    // Convert feature objects to strings
+    setFeatures(Array.isArray(plan.features) ? plan.features.map((f: PlanFeature) => f.feature_text) : []);
+    setMinInvestment(plan.min_investment?.toString() || '');
+    setMaxInvestment(plan.max_investment?.toString() || '');
     setDisplayOrder(plan.display_order?.toString() || '0');
     setAllowPause(plan.allow_pause ?? true);
     setMaxPauseCount(plan.max_pause_count?.toString() || '3');
@@ -355,112 +360,99 @@ export default function PlanManagerPage() {
     mutation.mutate(payload);
   };
 
-  const handleBonusConfig = (plan: any) => {
-    // Transform configs array to object format for the dialog
-    const configsArray = plan.configs || [];
-    const configsObject = configsArray.reduce((acc: any, config: any) => {
+  // Helper to extract config from configs array
+  const getConfigValue = (configs: GenericPlanConfig[], key: string): unknown => {
+    return configs.find(c => c.config_key === key)?.value || {};
+  };
+
+  // Helper to convert configs array to object
+  const configsArrayToObject = (configs: GenericPlanConfig[]): Record<string, unknown> => {
+    return configs.reduce<Record<string, unknown>>((acc, config) => {
       acc[config.config_key] = config.value;
       return acc;
     }, {});
+  };
 
-    setBonusConfigPlan({ ...plan, configs: configsObject });
+  const handleBonusConfig = (plan: AdminPlan) => {
+    // Transform configs array to object format for the dialog
+    const configsObject = configsArrayToObject(plan.configs);
+    setBonusConfigPlan({ ...plan, configs: configsObject } as AdminPlan);
     setBonusConfigOpen(true);
   };
 
-  const handleSaveBonusConfig = (configs: any) => {
+  const handleSaveBonusConfig = (configs: Record<string, unknown>) => {
     if (!bonusConfigPlan) return;
     bonusConfigMutation.mutate({ planId: bonusConfigPlan.id, configs });
   };
 
-  const handleEligibilityConfig = (plan: any) => {
-    // Extract eligibility_config from configs array
-    const configsArray = plan.configs || [];
-    const eligibilityConfig = configsArray.find((c: any) => c.config_key === 'eligibility_config')?.value || {};
-
-    setEligibilityConfigPlan({ ...plan, eligibilityConfig });
+  const handleEligibilityConfig = (plan: AdminPlan) => {
+    const eligibilityConfig = getConfigValue(plan.configs, 'eligibility_config');
+    setEligibilityConfigPlan({ ...plan, eligibilityConfig } as AdminPlan);
     setEligibilityConfigOpen(true);
   };
 
-  const handleSaveEligibilityConfig = (eligibilityConfig: any) => {
+  const handleSaveEligibilityConfig = (eligibilityConfig: Record<string, unknown>) => {
     if (!eligibilityConfigPlan) return;
     eligibilityConfigMutation.mutate({ planId: eligibilityConfigPlan.id, eligibilityConfig });
   };
 
-  const handleAdvancedFeatures = (plan: any) => {
-    // Extract advanced configs from configs array
-    const configsArray = plan.configs || [];
-    const configsObject = configsArray.reduce((acc: any, config: any) => {
-      acc[config.config_key] = config.value;
-      return acc;
-    }, {});
-
+  const handleAdvancedFeatures = (plan: AdminPlan) => {
+    const configsObject = configsArrayToObject(plan.configs);
     const advancedConfig = {
       lucky_draw_config: configsObject['lucky_draw_config'] || {},
       referral_config: configsObject['referral_config'] || {},
       plan_change_config: configsObject['plan_change_config'] || {}
     };
-
-    setAdvancedFeaturesPlan({ ...plan, advancedConfig });
+    setAdvancedFeaturesPlan({ ...plan, advancedConfig } as AdminPlan);
     setAdvancedFeaturesOpen(true);
   };
 
-  const handleSaveAdvancedFeatures = (advancedConfig: any) => {
+  const handleSaveAdvancedFeatures = (advancedConfig: Record<string, unknown>) => {
     if (!advancedFeaturesPlan) return;
     advancedFeaturesMutation.mutate({ planId: advancedFeaturesPlan.id, advancedConfig });
   };
 
-  const handleProfitSharingConfig = (plan: any) => {
-    // Extract profit_sharing_config from configs array
-    const configsArray = plan.configs || [];
-    const profitSharingConfig = configsArray.find((c: any) => c.config_key === 'profit_sharing_config')?.value || {};
-
-    setProfitSharingConfigPlan({ ...plan, profitSharingConfig });
+  const handleProfitSharingConfig = (plan: AdminPlan) => {
+    const profitSharingConfig = getConfigValue(plan.configs, 'profit_sharing_config');
+    setProfitSharingConfigPlan({ ...plan, profitSharingConfig } as AdminPlan);
     setProfitSharingConfigOpen(true);
   };
 
-  const handleSaveProfitSharingConfig = (profitSharingConfig: any) => {
+  const handleSaveProfitSharingConfig = (profitSharingConfig: Record<string, unknown>) => {
     if (!profitSharingConfigPlan) return;
     profitSharingConfigMutation.mutate({ planId: profitSharingConfigPlan.id, profitSharingConfig });
   };
 
-  const handleCelebrationBonusConfig = (plan: any) => {
-    // Extract celebration_bonus_config from configs array
-    const configsArray = plan.configs || [];
-    const celebrationBonusConfig = configsArray.find((c: any) => c.config_key === 'celebration_bonus_config')?.value || {};
-
-    setCelebrationBonusConfigPlan({ ...plan, celebrationBonusConfig });
+  const handleCelebrationBonusConfig = (plan: AdminPlan) => {
+    const celebrationBonusConfig = getConfigValue(plan.configs, 'celebration_bonus_config');
+    setCelebrationBonusConfigPlan({ ...plan, celebrationBonusConfig } as AdminPlan);
     setCelebrationBonusConfigOpen(true);
   };
 
-  const handleSaveCelebrationBonusConfig = (celebrationBonusConfig: any) => {
+  const handleSaveCelebrationBonusConfig = (celebrationBonusConfig: Record<string, unknown>) => {
     if (!celebrationBonusConfigPlan) return;
     celebrationBonusConfigMutation.mutate({ planId: celebrationBonusConfigPlan.id, celebrationBonusConfig });
   };
 
-  const handleAutoDebitConfig = (plan: any) => {
-    // Extract auto_debit_config from configs array
-    const configsArray = plan.configs || [];
-    const autoDebitConfig = configsArray.find((c: any) => c.config_key === 'auto_debit_config')?.value || {};
+  const handleAutoDebitConfig = (plan: AdminPlan) => {
+    const autoDebitConfig = getConfigValue(plan.configs, 'auto_debit_config');
 
     setAutoDebitConfigPlan({ ...plan, autoDebitConfig });
     setAutoDebitConfigOpen(true);
   };
 
-  const handleSaveAutoDebitConfig = (autoDebitConfig: any) => {
+  const handleSaveAutoDebitConfig = (autoDebitConfig: Record<string, unknown>) => {
     if (!autoDebitConfigPlan) return;
     autoDebitConfigMutation.mutate({ planId: autoDebitConfigPlan.id, autoDebitConfig });
   };
 
-  const handleDiscountConfig = (plan: any) => {
-    // Extract discount_config from configs array
-    const configsArray = plan.configs || [];
-    const discountConfig = configsArray.find((c: any) => c.config_key === 'discount_config')?.value || {};
-
-    setDiscountConfigPlan({ ...plan, discountConfig });
+  const handleDiscountConfig = (plan: AdminPlan) => {
+    const discountConfig = getConfigValue(plan.configs, 'discount_config');
+    setDiscountConfigPlan({ ...plan, discountConfig } as AdminPlan);
     setDiscountConfigOpen(true);
   };
 
-  const handleSaveDiscountConfig = (discountConfig: any) => {
+  const handleSaveDiscountConfig = (discountConfig: Record<string, unknown>) => {
     if (!discountConfigPlan) return;
     discountConfigMutation.mutate({ planId: discountConfigPlan.id, discountConfig });
   };
@@ -476,7 +468,7 @@ export default function PlanManagerPage() {
     if (selectedPlans.length === filteredPlans?.length) {
       setSelectedPlans([]);
     } else {
-      setSelectedPlans(filteredPlans?.map((p: any) => p.id) || []);
+      setSelectedPlans(filteredPlans?.map((p: AdminPlan) => p.id) || []);
     }
   };
 
@@ -491,7 +483,7 @@ export default function PlanManagerPage() {
   };
 
   // Filter plans based on active tab
-  const filteredPlans = plans?.filter((plan: any) => {
+  const filteredPlans = plans?.filter((plan: AdminPlan) => {
     if (activeTab === 'all') return true;
     if (activeTab === 'active') return plan.is_active;
     if (activeTab === 'inactive') return !plan.is_active;
@@ -537,7 +529,7 @@ export default function PlanManagerPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>Total Investment</Label>
-                    <Input value={monthlyAmount && duration ? `₹${(parseFloat(monthlyAmount) * parseInt(duration)).toLocaleString()}` : '₹0'} disabled className="bg-muted" />
+                    <Input value={monthlyAmount && duration ? formatCurrencyINR(parseFloat(monthlyAmount) * parseInt(duration)) : '₹0'} disabled className="bg-muted" />
                   </div>
                 </div>
               </div>
@@ -663,7 +655,7 @@ export default function PlanManagerPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Billing Cycle</Label>
-                    <Select value={billingCycle} onValueChange={(value: any) => setBillingCycle(value)}>
+                    <Select value={billingCycle} onValueChange={(value: BillingCycle) => setBillingCycle(value)}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -770,7 +762,7 @@ export default function PlanManagerPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{plans?.length || 0}</div>
-            <p className="text-xs text-muted-foreground">{plans?.filter((p: any) => p.is_active).length || 0} active</p>
+            <p className="text-xs text-muted-foreground">{plans?.filter((p: AdminPlan) => p.is_active).length || 0} active</p>
           </CardContent>
         </Card>
         <Card>
@@ -862,7 +854,7 @@ export default function PlanManagerPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredPlans?.map((plan: any) => (
+                {filteredPlans?.map((plan: AdminPlan) => (
                   <TableRow key={plan.id}>
                     <TableCell>
                       <Checkbox
@@ -880,8 +872,8 @@ export default function PlanManagerPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="font-semibold">₹{plan.monthly_amount?.toLocaleString()}/mo</div>
-                      <div className="text-xs text-muted-foreground">Total: ₹{(plan.monthly_amount * plan.duration_months).toLocaleString()}</div>
+                      <div className="font-semibold">{formatCurrencyINR(plan.monthly_amount || 0)}/mo</div>
+                      <div className="text-xs text-muted-foreground">Total: {formatCurrencyINR((plan.monthly_amount || 0) * (plan.duration_months || 0))}</div>
                     </TableCell>
                     <TableCell>{plan.duration_months} months</TableCell>
                     <TableCell>
@@ -974,7 +966,7 @@ export default function PlanManagerPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Plan</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{deleteConfirmPlan?.name}"? This action cannot be undone.
+              Are you sure you want to delete &ldquo;{deleteConfirmPlan?.name}&rdquo;? This action cannot be undone.
               {deleteConfirmPlan?.subscribers_count > 0 && (
                 <span className="block mt-2 text-destructive font-medium">
                   Warning: This plan has {deleteConfirmPlan.subscribers_count} active subscribers.

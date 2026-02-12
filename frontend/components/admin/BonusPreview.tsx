@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Trophy, Zap, Gift } from 'lucide-react';
 import { calculateTotalBonuses, formatCurrency } from '@/lib/bonusCalculations';
-import type { ProgressiveConfig, MilestoneConfig, ConsistencyConfig, WelcomeBonusConfig } from '@/lib/bonusCalculations';
+import type { ProgressiveConfig, MilestoneEntry, ConsistencyConfig, WelcomeBonusConfig } from '@/types/plan';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
 interface BonusPreviewProps {
@@ -13,7 +13,7 @@ interface BonusPreviewProps {
   configs: {
     welcome?: WelcomeBonusConfig;
     progressive?: ProgressiveConfig;
-    milestones?: MilestoneConfig[];
+    milestones?: MilestoneEntry[];
     consistency?: ConsistencyConfig;
   };
   multiplier?: number;
@@ -48,84 +48,84 @@ export function BonusPreview({ paymentAmount, durationMonths, configs, multiplie
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid md:grid-cols-4 gap-4">
+      <div className="grid md:grid-cols-4 gap-3">
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Gift className="h-4 w-4 text-purple-500" />
+          <CardHeader className="pb-1 pt-3 px-3">
+            <CardTitle className="text-xs font-medium flex items-center gap-1.5">
+              <Gift className="h-3.5 w-3.5 text-purple-500" />
               Welcome
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{formatCurrency(result.breakdown.welcome)}</p>
-            <p className="text-xs text-muted-foreground mt-1">First payment</p>
+          <CardContent className="pt-0 px-3 pb-3">
+            <div className="text-base font-bold">{formatCurrency(result.breakdown.welcome)}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">First payment</div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-blue-500" />
+          <CardHeader className="pb-1 pt-3 px-3">
+            <CardTitle className="text-xs font-medium flex items-center gap-1.5">
+              <TrendingUp className="h-3.5 w-3.5 text-blue-500" />
               Progressive
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{formatCurrency(result.breakdown.progressive)}</p>
-            <p className="text-xs text-muted-foreground mt-1">Over {durationMonths} months</p>
+          <CardContent className="pt-0 px-3 pb-3">
+            <div className="text-base font-bold">{formatCurrency(result.breakdown.progressive)}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">Over {durationMonths} months</div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-yellow-500" />
+          <CardHeader className="pb-1 pt-3 px-3">
+            <CardTitle className="text-xs font-medium flex items-center gap-1.5">
+              <Trophy className="h-3.5 w-3.5 text-yellow-500" />
               Milestone
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{formatCurrency(result.breakdown.milestone)}</p>
-            <p className="text-xs text-muted-foreground mt-1">{configs.milestones?.length || 0} milestones</p>
+          <CardContent className="pt-0 px-3 pb-3">
+            <div className="text-base font-bold">{formatCurrency(result.breakdown.milestone)}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">{configs.milestones?.length || 0} milestones</div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Zap className="h-4 w-4 text-green-500" />
+          <CardHeader className="pb-1 pt-3 px-3">
+            <CardTitle className="text-xs font-medium flex items-center gap-1.5">
+              <Zap className="h-3.5 w-3.5 text-green-500" />
               Consistency
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{formatCurrency(result.breakdown.consistency)}</p>
-            <p className="text-xs text-muted-foreground mt-1">On-time payments</p>
+          <CardContent className="pt-0 px-3 pb-3">
+            <div className="text-base font-bold">{formatCurrency(result.breakdown.consistency)}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">On-time payments</div>
           </CardContent>
         </Card>
       </div>
 
       {/* Total Summary */}
       <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/30">
-        <CardContent className="p-6">
-          <div className="grid md:grid-cols-3 gap-6">
+        <CardContent className="p-4">
+          <div className="grid md:grid-cols-3 gap-4">
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Total Investment</p>
-              <p className="text-3xl font-bold">{formatCurrency(totalInvestment)}</p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <div className="text-xs text-muted-foreground mb-0.5">Total Investment</div>
+              <div className="text-lg font-bold">{formatCurrency(totalInvestment)}</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">
                 {durationMonths} × {formatCurrency(paymentAmount)}
-              </p>
+              </div>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Total Bonuses</p>
-              <p className="text-3xl font-bold text-primary">{formatCurrency(result.totalBonus)}</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                <Badge variant="secondary">{bonusPercentage.toFixed(2)}% of investment</Badge>
-              </p>
+              <div className="text-xs text-muted-foreground mb-0.5">Total Bonuses</div>
+              <div className="text-lg font-bold text-primary">{formatCurrency(result.totalBonus)}</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{bonusPercentage.toFixed(2)}% of investment</Badge>
+              </div>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Grand Total</p>
-              <p className="text-3xl font-bold text-green-600">{formatCurrency(totalWithBonus)}</p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <div className="text-xs text-muted-foreground mb-0.5">Grand Total</div>
+              <div className="text-lg font-bold text-green-600">{formatCurrency(totalWithBonus)}</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">
                 Investment + Bonuses
-              </p>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -190,7 +190,7 @@ export function BonusPreview({ paymentAmount, durationMonths, configs, multiplie
 
       {/* Assumptions */}
       <div className="p-4 bg-muted/50 rounded-lg border">
-        <p className="text-sm font-medium mb-2">Assumptions:</p>
+        <div className="text-sm font-medium mb-2">Assumptions:</div>
         <ul className="text-xs text-muted-foreground space-y-1">
           <li>• All payments made on time (consistency bonus applied)</li>
           <li>• Bonus multiplier: {multiplier}x</li>

@@ -27,14 +27,20 @@ class PlanController extends Controller
 
     /**
      * Display a single publicly available plan.
+     * Accepts either slug or numeric ID.
      */
-    public function show($slug)
+    public function show($identifier)
     {
         // --- LOGIC CHANGE ---
-        $plan = Plan::publiclyAvailable()
-                    ->where('slug', $slug)
-                    ->with('features', 'configs')
-                    ->firstOrFail();
+        // Accept both slug and numeric ID for flexibility
+        $query = Plan::publiclyAvailable()
+                    ->with('features', 'configs');
+
+        if (is_numeric($identifier)) {
+            $plan = $query->where('id', $identifier)->firstOrFail();
+        } else {
+            $plan = $query->where('slug', $identifier)->firstOrFail();
+        }
         // --------------------
 
         return response()->json($plan);

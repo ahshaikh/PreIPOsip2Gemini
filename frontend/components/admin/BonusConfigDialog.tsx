@@ -8,50 +8,113 @@
  * 3. Single Truth: Ensures Admin and User see identical bonus projections.
  */
 
-import { useState, useEffect } from 'react';
-import api from '@/lib/api';
+import { useState, useCallback, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Gift, BarChart3, Save, Loader2 } from 'lucide-react';
-import { BonusPreview } from './BonusPreview'; 
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Gift, BarChart3, Save, Sparkles } from 'lucide-react';
+import { BonusPreview } from './BonusPreview';
+import { ProgressiveBonusForm } from './ProgressiveBonusForm';
+import { MilestoneBonusForm } from './MilestoneBonusForm';
+import { ConsistencyBonusForm } from './ConsistencyBonusForm';
+import { formatCurrencyINR } from '@/lib/utils';
+import type { ProgressiveConfig, MilestoneEntry, ConsistencyConfig, WelcomeBonusConfig } from '@/types/plan';
 
-export function BonusConfigDialog({ open, onOpenChange, planName, monthlyAmount, durationMonths, configs: initialConfigs, onSave, isSaving = false }) {
-  const [activeTab, setActiveTab] = useState('welcome');
-  const [configs, setConfigs] = useState(initialConfigs);
-  const [previewData, setPreviewData] = useState(null);
-  const [isSimulating, setIsSimulating] = useState(false);
+interface BonusConfigDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  planName: string;
+  monthlyAmount: number;
+  durationMonths: number;
+  configs: Record<string, unknown>;
+  onSave: (configs: Record<string, unknown>) => void;
+  isSaving?: boolean;
+}
 
-  /**
-   * [AUDIT FIX]: Backend-Driven Simulation
-   * Fetches projected bonus numbers directly from the server strategy engine.
-   */
-  const fetchLiveSimulation = async () => {
-    setIsSimulating(true);
-    try {
-      const { data } = await api.post('/api/v1/admin/bonuses/simulate', {
-        monthly_amount: monthlyAmount,
-        duration: durationMonths,
-        configs: configs
-      });
-      setPreviewData(data);
-    } catch (error) {
-      console.error("Simulation failed", error);
-    } finally {
-      setIsSimulating(false);
-    }
+// Helper to parse initial config values
+function parseInitialConfigs(configs: Record<string, unknown>) {
+  const welcomeBonus = (configs?.welcome_bonus as { enabled?: boolean; amount?: number }) || {};
+  return {
+    welcomeEnabled: welcomeBonus.enabled ?? false,
+    welcomeAmount: welcomeBonus.amount?.toString() || '',
+    progressive: (configs?.progressive_config as Partial<ProgressiveConfig>) || {},
+    milestones: (configs?.milestone_config as MilestoneEntry[]) || [],
+    consistency: (configs?.consistency_config as Partial<ConsistencyConfig>) || {},
   };
+}
 
-  // Fetch simulation whenever the user moves to the Preview tab
-  useEffect(() => {
-    if (activeTab === 'preview' && open) {
-      fetchLiveSimulation();
+export function BonusConfigDialog({
+  open,
+  onOpenChange,
+  planName,
+  monthlyAmount,
+  durationMonths,
+  configs: initialConfigs,
+  onSave,
+  isSaving = false
+}: BonusConfigDialogProps) {
+  // Parse initial values once using useMemo
+  const initialValues = useMemo(() => parseInitialConfigs(initialConfigs), [initialConfigs]);
+
+  const [activeTab, setActiveTab] = useState('welcome');
+
+  // Welcome bonus state - initialized from props
+  const [welcomeBonusEnabled, setWelcomeBonusEnabled] = useState(initialValues.welcomeEnabled);
+  const [welcomeBonusAmount, setWelcomeBonusAmount] = useState(initialValues.welcomeAmount);
+
+  // Progressive bonus state
+  const [progressiveConfig, setProgressiveConfig] = useState<Partial<ProgressiveConfig>>(initialValues.progressive);
+
+  // Milestone bonus state
+  const [milestones, setMilestones] = useState<MilestoneEntry[]>(initialValues.milestones);
+
+  // Consistency bonus state
+  const [consistencyConfig, setConsistencyConfig] = useState<Partial<ConsistencyConfig>>(initialValues.consistency);
+
+  // Reset state when dialog closes and reopens with new data
+  const handleOpenChange = useCallback((newOpen: boolean) => {
+    if (newOpen) {
+      // Reset to initial values when opening
+      const values = parseInitialConfigs(initialConfigs);
+      setWelcomeBonusEnabled(values.welcomeEnabled);
+      setWelcomeBonusAmount(values.welcomeAmount);
+      setProgressiveConfig(values.progressive);
+      setMilestones(values.milestones);
+      setConsistencyConfig(values.consistency);
+      setActiveTab('welcome');
     }
-  }, [activeTab, open]);
+    onOpenChange(newOpen);
+  }, [initialConfigs, onOpenChange]);
+
+  // Build preview configs for BonusPreview component
+  const buildPreviewConfigs = useCallback(() => {
+    return {
+      welcome: welcomeBonusEnabled ? { amount: parseFloat(welcomeBonusAmount) || 0 } as WelcomeBonusConfig : undefined,
+      progressive: Object.keys(progressiveConfig).length > 0 ? progressiveConfig as ProgressiveConfig : undefined,
+      milestones: milestones.length > 0 ? milestones : undefined,
+      consistency: Object.keys(consistencyConfig).length > 0 ? consistencyConfig as ConsistencyConfig : undefined,
+    };
+  }, [welcomeBonusEnabled, welcomeBonusAmount, progressiveConfig, milestones, consistencyConfig]);
+
+  // Build save configs
+  const buildSaveConfigs = useCallback(() => {
+    return {
+      welcome_bonus: {
+        enabled: welcomeBonusEnabled,
+        amount: parseFloat(welcomeBonusAmount) || 0
+      },
+      progressive_config: progressiveConfig,
+      milestone_config: milestones,
+      consistency_config: consistencyConfig
+    };
+  }, [welcomeBonusEnabled, welcomeBonusAmount, progressiveConfig, milestones, consistencyConfig]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Gift className="h-6 w-6" /> Configure Bonuses: {planName}
@@ -69,27 +132,99 @@ export function BonusConfigDialog({ open, onOpenChange, planName, monthlyAmount,
             </TabsTrigger>
           </TabsList>
 
-          {/* Setup Tabs (Welcome, Progressive, etc.) simply update the 'configs' state */}
-          <TabsContent value="welcome">
-             {/* Form Inputs here update local 'configs' state */}
+          {/* Welcome Bonus Tab */}
+          <TabsContent value="welcome" className="mt-6 space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5" />
+                <h4 className="font-semibold">Welcome Bonus Configuration</h4>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Award a one-time bonus when a user first subscribes to this plan.
+              </p>
+
+              <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
+                <div className="space-y-1">
+                  <Label className="text-base font-semibold">Enable Welcome Bonus</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Give new subscribers an instant reward
+                  </p>
+                </div>
+                <Switch checked={welcomeBonusEnabled} onCheckedChange={setWelcomeBonusEnabled} />
+              </div>
+
+              {welcomeBonusEnabled && (
+                <div className="space-y-4 p-4 border rounded-lg bg-card">
+                  <div className="space-y-2">
+                    <Label>Welcome Bonus Amount (₹)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="100"
+                      value={welcomeBonusAmount}
+                      onChange={(e) => setWelcomeBonusAmount(e.target.value)}
+                      placeholder="e.g., 500"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      This amount is credited immediately upon first successful payment
+                    </p>
+                  </div>
+
+                  {welcomeBonusAmount && parseFloat(welcomeBonusAmount) > 0 && (
+                    <div className="p-4 bg-primary/5 border border-primary/20 rounded-md">
+                      <p className="text-sm font-medium">Preview:</p>
+                      <p className="text-2xl font-bold text-primary mt-1">
+                        {formatCurrencyINR(parseFloat(welcomeBonusAmount))}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        One-time bonus on first payment
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </TabsContent>
 
-          {/* [AUDIT FIX]: The Preview tab no longer uses local JS math */}
+          {/* Progressive Bonus Tab */}
+          <TabsContent value="progressive" className="mt-6">
+            <ProgressiveBonusForm
+              value={progressiveConfig}
+              onChange={setProgressiveConfig}
+              paymentAmount={monthlyAmount}
+              durationMonths={durationMonths}
+            />
+          </TabsContent>
+
+          {/* Milestone Bonus Tab */}
+          <TabsContent value="milestone" className="mt-6">
+            <MilestoneBonusForm
+              value={milestones}
+              onChange={setMilestones}
+            />
+          </TabsContent>
+
+          {/* Consistency Bonus Tab */}
+          <TabsContent value="consistency" className="mt-6">
+            <ConsistencyBonusForm
+              value={consistencyConfig}
+              onChange={setConsistencyConfig}
+            />
+          </TabsContent>
+
+          {/* Live Preview Tab - uses local calculation for instant feedback */}
           <TabsContent value="preview" className="mt-6">
-            {isSimulating ? (
-              <div className="flex justify-center p-12"><Loader2 className="animate-spin h-8 w-8" /></div>
-            ) : (
-              <BonusPreview 
-                data={previewData} // Data comes directly from the Backend Strategy Engine
-                monthlyAmount={monthlyAmount} 
-              />
-            )}
+            <BonusPreview
+              paymentAmount={monthlyAmount}
+              durationMonths={durationMonths}
+              configs={buildPreviewConfigs()}
+            />
           </TabsContent>
         </Tabs>
 
         <div className="flex justify-end gap-2 pt-4 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={() => onSave(configs)} disabled={isSaving}>
+          <Button onClick={() => onSave(buildSaveConfigs())} disabled={isSaving}>
             <Save className="h-4 w-4 mr-2" /> {isSaving ? 'Saving...' : 'Save Configuration'}
           </Button>
         </div>

@@ -5,15 +5,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import api from "@/lib/api";
+import { formatCurrencyINR } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import type { PlanWithRelations, PlanFeature } from "@/types/plan";
+
+// API error type for mutations
+type ApiError = Error & { response?: { data?: { message?: string } } };
 
 export default function UserPlansPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const { data: plans, isLoading } = useQuery({
+  const { data: plans, isLoading } = useQuery<PlanWithRelations[]>({
     queryKey: ['plans'],
     queryFn: async () => (await api.get('/plans')).data,
   });
@@ -60,7 +65,7 @@ export default function UserPlansPage() {
         router.push('/subscription'); // Complete payment via gateway
       }
     },
-    onError: (error: any) => {
+    onError: (error: ApiError) => {
       toast.error("Subscription Failed", { description: error.response?.data?.message });
     }
   });
@@ -74,7 +79,7 @@ export default function UserPlansPage() {
       queryClient.invalidateQueries({ queryKey: ['subscription'] });
       router.push('/subscription');
     },
-    onError: (error: any) => {
+    onError: (error: ApiError) => {
       toast.error("Plan Change Failed", { description: error.response?.data?.message || "Please try again" });
     }
   });
@@ -158,7 +163,7 @@ export default function UserPlansPage() {
 
       {/* Plans Grid */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {plans?.map((plan: any, index: number) => {
+        {plans?.map((plan: PlanWithRelations, index: number) => {
           const colorScheme = planColors[index % planColors.length];
           const PlanIcon = colorScheme.icon;
           const isCurrentPlan = subscription?.plan?.id === plan.id;
@@ -195,7 +200,7 @@ export default function UserPlansPage() {
 
                 <div className="mt-4">
                   <div className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">
-                    ₹{plan.monthly_amount.toLocaleString('en-IN')}
+                    {formatCurrencyINR(plan.monthly_amount)}
                   </div>
                   <div className="text-sm text-muted-foreground mt-1">per month</div>
                 </div>
@@ -205,7 +210,7 @@ export default function UserPlansPage() {
 
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  {plan.features?.map((feature: any) => (
+                  {plan.features?.map((feature: PlanFeature) => (
                     <div key={feature.id} className="flex items-start space-x-2">
                       <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                       <span className="text-sm">{feature.feature_text}</span>

@@ -1,4 +1,5 @@
 // Admin Bonus Management Page - Comprehensive Bonus Configuration & Monitoring
+// V-ARCH-2026: Typed with canonical Plan types
 'use client';
 
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,93 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import type { AdminPlan } from "@/types/plan";
+
+// API error type for mutations
+type ApiError = Error & { response?: { data?: { message?: string } } };
+
+// Bonus setting item from backend
+interface BonusSetting {
+  key: string;
+  value: string | number | boolean;
+}
+
+// Bonus settings response structure
+interface BonusSettingsResponse {
+  settings: {
+    bonus_controls?: BonusSetting[];
+    bonus_config?: BonusSetting[];
+    referral_config?: BonusSetting[];
+    bonus_processing?: BonusSetting[];
+  };
+}
+
+// Bonus transaction record
+interface BonusTransaction {
+  id: number;
+  type: string;
+  amount: number;
+  tds_deducted: number | null;
+  description: string;
+  created_at: string;
+  user?: {
+    username: string;
+  };
+}
+
+// Bonus stats summary
+interface BonusStats {
+  total_amount: number;
+  total_tds: number;
+  net_amount: number;
+  total_count: number;
+}
+
+// Bonus data response structure
+interface BonusDataResponse {
+  bonuses: {
+    data: BonusTransaction[];
+  };
+  stats?: BonusStats;
+}
+
+// Calculator test result
+interface CalculatorBonus {
+  type: string;
+  amount: number;
+  calculation: string;
+}
+
+interface CalculatorTestResponse {
+  data: {
+    total_bonus: number;
+    bonuses: CalculatorBonus[];
+  };
+}
+
+// Calculator input for test mutation
+interface CalculatorInput {
+  payment_amount: string;
+  payment_month: number;
+  is_on_time: boolean;
+  plan_id: string;
+  bonus_multiplier: number;
+  consecutive_payments: number;
+}
+
+// Bonus type color map
+const BONUS_TYPE_COLORS: Record<string, string> = {
+  'loyalty_bonus': 'bg-blue-500',
+  'milestone_bonus': 'bg-purple-500',
+  'cashback': 'bg-green-500',
+  'welcome_bonus': 'bg-yellow-500',
+  'referral_bonus': 'bg-pink-500',
+  'celebration': 'bg-orange-500',
+  'lucky_draw': 'bg-indigo-500',
+  'profit_share': 'bg-teal-500',
+  'special_bonus': 'bg-red-500',
+  'reversal': 'bg-gray-500',
+};
 import {
   Download,
   Upload,
@@ -67,13 +155,13 @@ export default function BonusManagementPage() {
   });
 
   // Fetch bonus settings
-  const { data: settings, isLoading: settingsLoading } = useQuery({
+  const { data: settings, isLoading: settingsLoading } = useQuery<BonusSettingsResponse>({
     queryKey: ['bonusSettings'],
     queryFn: async () => (await api.get('/admin/bonuses/settings')).data,
   });
 
   // Fetch bonus transactions
-  const { data: bonusData, isLoading: bonusesLoading, refetch } = useQuery({
+  const { data: bonusData, isLoading: bonusesLoading, refetch } = useQuery<BonusDataResponse>({
     queryKey: ['adminBonuses', filters],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -85,19 +173,20 @@ export default function BonusManagementPage() {
   });
 
   // Fetch plans for calculator
-  const { data: plans } = useQuery({
+  const { data: plans } = useQuery<AdminPlan[]>({
     queryKey: ['adminPlans'],
     queryFn: async () => (await api.get('/admin/plans')).data,
   });
 
   // Update settings mutation
   const updateSettingsMutation = useMutation({
-    mutationFn: (settingsData: any) => api.put('/admin/bonuses/settings', { settings: settingsData }),
+    mutationFn: (settingsData: Array<{ key: string; value: string | number | boolean }>) =>
+      api.put('/admin/bonuses/settings', { settings: settingsData }),
     onSuccess: () => {
       toast.success("Settings updated successfully!");
       queryClient.invalidateQueries({ queryKey: ['bonusSettings'] });
     },
-    onError: (error: any) => {
+    onError: (error: ApiError) => {
       toast.error("Failed to update settings", { description: error.response?.data?.message });
     }
   });
@@ -111,7 +200,7 @@ export default function BonusManagementPage() {
       setReversalDialog({ open: false, bonusId: null, reason: '' });
       refetch();
     },
-    onError: (error: any) => {
+    onError: (error: ApiError) => {
       toast.error("Failed to reverse bonus", { description: error.response?.data?.message });
     }
   });
@@ -128,20 +217,21 @@ export default function BonusManagementPage() {
       setCsvFile(null);
       refetch();
     },
-    onError: (error: any) => {
+    onError: (error: ApiError) => {
       toast.error("Failed to upload CSV", { description: error.response?.data?.message });
     }
   });
 
   // Calculate test mutation
-  const calculateTestMutation = useMutation({
-    mutationFn: (data: any) => api.post('/admin/bonuses/calculate-test', data),
+  const calculateTestMutation = useMutation<CalculatorTestResponse, ApiError, CalculatorInput>({
+    mutationFn: (data: CalculatorInput) => api.post('/admin/bonuses/calculate-test', data),
   });
 
-  const handleSettingChange = (key: string, value: any) => {
-    const settingsArray = Object.entries(settings?.settings || {})
-      .flatMap(([group, items]: [string, any]) => items)
-      .map((s: any) => ({ key: s.key, value: s.key === key ? value : s.value }));
+  const handleSettingChange = (key: string, value: string | number | boolean) => {
+    const settingsArray = Object.values(settings?.settings || {})
+      .flat()
+      .filter((s): s is BonusSetting => s !== undefined)
+      .map((s: BonusSetting) => ({ key: s.key, value: s.key === key ? value : s.value }));
 
     updateSettingsMutation.mutate(settingsArray);
   };
@@ -166,20 +256,8 @@ export default function BonusManagementPage() {
     calculateTestMutation.mutate(calculator);
   };
 
-  const getBonusTypeColor = (type: string) => {
-    const colors: any = {
-      'loyalty_bonus': 'bg-blue-500',
-      'milestone_bonus': 'bg-purple-500',
-      'cashback': 'bg-green-500',
-      'welcome_bonus': 'bg-yellow-500',
-      'referral_bonus': 'bg-pink-500',
-      'celebration': 'bg-orange-500',
-      'lucky_draw': 'bg-indigo-500',
-      'profit_share': 'bg-teal-500',
-      'special_bonus': 'bg-red-500',
-      'reversal': 'bg-gray-500',
-    };
-    return colors[type] || 'bg-gray-400';
+  const getBonusTypeColor = (type: string): string => {
+    return BONUS_TYPE_COLORS[type] || 'bg-gray-400';
   };
 
   return (
@@ -307,7 +385,7 @@ export default function BonusManagementPage() {
                         <TableCell colSpan={9} className="text-center">Loading...</TableCell>
                       </TableRow>
                     ) : bonusData?.bonuses?.data?.length > 0 ? (
-                      bonusData.bonuses.data.map((bonus: any) => (
+                      bonusData.bonuses.data.map((bonus: BonusTransaction) => (
                         <TableRow key={bonus.id}>
                           <TableCell className="font-medium">{bonus.id}</TableCell>
                           <TableCell>{bonus.user?.username || 'N/A'}</TableCell>
@@ -359,7 +437,7 @@ export default function BonusManagementPage() {
                 {settingsLoading ? (
                   <div>Loading settings...</div>
                 ) : (
-                  settings?.settings?.bonus_controls?.map((setting: any) => (
+                  settings?.settings?.bonus_controls?.map((setting: BonusSetting) => (
                     <div key={setting.key} className="flex items-center justify-between">
                       <Label htmlFor={setting.key}>{setting.key.replace(/_/g, ' ').replace(/bonus/gi, '').trim()}</Label>
                       <Switch
@@ -380,7 +458,7 @@ export default function BonusManagementPage() {
                 <CardDescription>Configure bonus calculation settings</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {settings?.settings?.bonus_config?.map((setting: any) => (
+                {settings?.settings?.bonus_config?.map((setting: BonusSetting) => (
                   <div key={setting.key} className="space-y-2">
                     <Label>{setting.key.replace(/_/g, ' ')}</Label>
                     {setting.key === 'bonus_rounding_mode' ? (
@@ -430,7 +508,7 @@ export default function BonusManagementPage() {
                 <CardDescription>Configure referral bonus settings</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {settings?.settings?.referral_config?.map((setting: any) => (
+                {settings?.settings?.referral_config?.map((setting: BonusSetting) => (
                   <div key={setting.key} className="space-y-2">
                     <Label>{setting.key.replace(/_/g, ' ')}</Label>
                     {setting.key === 'referral_completion_criteria' ? (
@@ -466,7 +544,7 @@ export default function BonusManagementPage() {
                 <CardDescription>Configure when bonuses are processed</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {settings?.settings?.bonus_processing?.map((setting: any) => (
+                {settings?.settings?.bonus_processing?.map((setting: BonusSetting) => (
                   <div key={setting.key} className="space-y-2">
                     <Label>{setting.key.replace(/_/g, ' ')}</Label>
                     {setting.key === 'bonus_processing_mode' ? (
@@ -568,7 +646,7 @@ export default function BonusManagementPage() {
                       <SelectValue placeholder="Select plan" />
                     </SelectTrigger>
                     <SelectContent>
-                      {plans?.map((plan: any) => (
+                      {plans?.map((plan: AdminPlan) => (
                         <SelectItem key={plan.id} value={plan.id.toString()}>
                           {plan.name}
                         </SelectItem>
@@ -623,7 +701,7 @@ export default function BonusManagementPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {calculateTestMutation.data.data.bonuses.map((bonus: any, idx: number) => (
+                      {calculateTestMutation.data.data.bonuses.map((bonus: CalculatorBonus, idx: number) => (
                         <TableRow key={idx}>
                           <TableCell>
                             <Badge className={getBonusTypeColor(bonus.type)}>

@@ -23,7 +23,10 @@
       "Bash(grep:*)",
       "Bash(ls:*)",
       "Bash(mysql:*)",
-      "Bash(npm run type-check:*)"
+      "Bash(npm run type-check:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npx eslint:*)"
     ]
   }
 }

@@ -1,26 +1,29 @@
 // V-FINAL-1730-197 (THEME AWARE PLANS)
+// V-ARCH-2026: Typed with canonical Plan types
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { formatCurrencyINR } from '@/lib/utils';
+import type { PlanWithRelations, PlanFeature } from '@/types/plan';
 
 export default function Plans() {
-  const { data: plansData } = useQuery({
+  const { data: plansData } = useQuery<PlanWithRelations[]>({
     queryKey: ['publicPlans'],
     queryFn: async () => (await api.get('/plans')).data,
     staleTime: 300000,
   });
 
-  const plans = (plansData || []).map((plan: any) => {
-    const features = plan.features?.map((f: any) => typeof f === 'string' ? f : f.feature_text) || [];
+  const plans = (plansData || []).map((plan: PlanWithRelations) => {
+    const features = plan.features?.map((f: PlanFeature) => f.feature_text) || [];
     return {
       emoji: plan.metadata?.emoji || "💼",
       title: plan.name,
-      price: `₹${plan.monthly_amount?.toLocaleString()}`,
+      price: formatCurrencyINR(plan.monthly_amount || 0),
       period: "per month",
       highlights: features.slice(0, 2),
       extras: features.slice(2),
-      totalValue: `₹${(plan.monthly_amount * plan.duration_months)?.toLocaleString()}`,
+      totalValue: formatCurrencyINR((plan.monthly_amount || 0) * (plan.duration_months || 0)),
       invested: `over ${plan.duration_months} months`,
       featured: plan.is_featured,
     };

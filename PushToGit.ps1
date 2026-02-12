@@ -8,22 +8,23 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "refactor: eliminate denormalized users.kyc_status and enforce single source of truth
+$CommitMessage = "chore(architecture): audit bonus contract model and formalize immutable subscription strategy
 
-- Removed users.kyc_status column and related sync logic
-- Added pure accessor on User model to read KYC status from user_kyc relationship
-- Updated ComplianceGateService to use canonical KYC source
-- Eager loaded kyc relation in PaymentController to avoid N+1
-- Replaced dashboard where('kyc_status') queries with whereHas('kyc')
-- Removed KYC sync trait and repair command
-- Simplified seeders to write only to user_kyc table
-- Added migration to drop users.kyc_status with safe rollback
+- Conducted deep structural audit of Subscription, Plan, BonusConfig, Campaign, and Payment flows
+- Confirmed dynamic dependency on plan.configs in BonusCalculatorService
+- Verified absence of bonus config snapshot in subscriptions table
+- Classified current system as hybrid (snapshotted payment + dynamic bonus policy)
+- Defined corrected contract model:
+  - Default immutable subscription bonus snapshot
+  - Plan edits affect only future subscriptions
+  - Explicit per-plan regulatory override mechanism (audited & controlled)
+- Established governance boundaries between commercial edits and regulatory overrides
+- Designed backend evolution plan (snapshot schema + override framework)
+- Planned frontend alignment (remove plan.config financial dependency)
+- Outlined lint and type-hardening strategy for ConfigBonus module
 
-Result:
-- Eliminates dual-state drift between users and user_kyc
-- Removes 13+ sync write points
-- Ensures fail-safe compliance behavior (no KYC → pending → blocked)
-- Reduces architectural complexity and long-term maintenance risk"
+No functional changes in this commit.
+This documents architectural direction prior to backend implementation."
 #----------------------
 
 function Get-GitCredential {
