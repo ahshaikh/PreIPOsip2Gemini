@@ -30,21 +30,19 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('bulk_purchases', function (Blueprint $table) {
-            // Add reference to new double-entry ledger
-            $table->unsignedBigInteger('ledger_entry_id')
-                ->nullable()
-                ->after('platform_ledger_entry_id')
-                ->comment('Reference to double-entry ledger_entries table (Phase 4.1)');
+            // Add reference to new double-entry ledger (idempotent)
+            if (!Schema::hasColumn('bulk_purchases', 'ledger_entry_id')) {
+                $table->unsignedBigInteger('ledger_entry_id')
+                    ->nullable()
+                    ->after('platform_ledger_entry_id')
+                    ->comment('Reference to double-entry ledger_entries table (Phase 4.1)');
 
-            // Foreign key to ledger_entries table
-            $table->foreign('ledger_entry_id')
-                ->references('id')
-                ->on('ledger_entries')
-                ->nullOnDelete();
-
-            // Add deprecation comment to existing column (informational only)
-            // Note: MySQL doesn't support column comments on existing columns without CHANGE
-            // This is documented in the migration file instead
+                // Add foreign key to ledger_entries table
+                $table->foreign('ledger_entry_id')
+                    ->references('id')
+                    ->on('ledger_entries')
+                    ->nullOnDelete();
+            }
         });
     }
 

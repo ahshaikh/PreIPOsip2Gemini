@@ -12,21 +12,39 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Add new fields to payments table for analytics
+        // Add new fields to payments table for analytics (idempotent)
         Schema::table('payments', function (Blueprint $table) {
-            $table->string('payment_method')->nullable()->after('method'); // upi, card, netbanking, wallet
-            $table->json('payment_metadata')->nullable()->after('gateway_signature'); // Store additional gateway data
-            $table->timestamp('refunded_at')->nullable()->after('paid_at');
-            $table->foreignId('refunded_by')->nullable()->constrained('users')->after('refunded_at');
+            if (!Schema::hasColumn('payments', 'payment_method')) {
+                $table->string('payment_method')->nullable()->after('method'); // upi, card, netbanking, wallet
+            }
+            if (!Schema::hasColumn('payments', 'payment_metadata')) {
+                $table->json('payment_metadata')->nullable()->after('gateway_signature'); // Store additional gateway data
+            }
+            if (!Schema::hasColumn('payments', 'refunded_at')) {
+                $table->timestamp('refunded_at')->nullable()->after('paid_at');
+            }
+            if (!Schema::hasColumn('payments', 'refunded_by')) {
+                $table->foreignId('refunded_by')->nullable()->constrained('users')->after('refunded_at');
+            }
         });
 
-        // Add new fields to withdrawals table for fee tiers and processing
+        // Add new fields to withdrawals table for fee tiers and processing (idempotent)
         Schema::table('withdrawals', function (Blueprint $table) {
-            $table->string('priority')->default('normal')->after('status'); // low, normal, high
-            $table->json('fee_breakdown')->nullable()->after('fee'); // Store tiered fee calculation details
-            $table->timestamp('approved_at')->nullable()->after('admin_id');
-            $table->timestamp('processed_at')->nullable()->after('approved_at');
-            $table->text('admin_notes')->nullable()->after('rejection_reason');
+            if (!Schema::hasColumn('withdrawals', 'priority')) {
+                $table->string('priority')->default('normal')->after('status'); // low, normal, high
+            }
+            if (!Schema::hasColumn('withdrawals', 'fee_breakdown')) {
+                $table->json('fee_breakdown')->nullable()->after('fee'); // Store tiered fee calculation details
+            }
+            if (!Schema::hasColumn('withdrawals', 'approved_at')) {
+                $table->timestamp('approved_at')->nullable()->after('admin_id');
+            }
+            if (!Schema::hasColumn('withdrawals', 'processed_at')) {
+                $table->timestamp('processed_at')->nullable()->after('approved_at');
+            }
+            if (!Schema::hasColumn('withdrawals', 'admin_notes')) {
+                $table->text('admin_notes')->nullable()->after('rejection_reason');
+            }
         });
 
         // Insert payment & withdrawal configuration settings

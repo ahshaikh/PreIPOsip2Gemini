@@ -8,23 +8,14 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "feat(contract): enforce end-to-end financial contract immutability
+$CommitMessage = "ci(database): align CI database with production by switching from MySQL 8 to MariaDB 10.4
 
-- Implemented PaymentAmountMismatchException (CRITICAL severity)
-- Added strict webhook amount validation against subscriptions.amount using bccomp()
-- Halt processing on mismatch (no Payment creation, no state mutation)
-- Centralized structured logging to financial_contract channel
-- Added snapshot_hash_used linkage in bonus_transactions for audit traceability
-- Enforced DB-level immutability triggers on subscription snapshot fields
-- Strengthened override governance (scoped, schema-aware, unique per plan+scope)
-- Verified hash integrity before every bonus calculation
-- Added comprehensive unit tests for payment contract enforcement
+- Replace mysql:8.0 service with mariadb:10.4 in GitHub Actions
+- Ensure CI environment matches local and planned production setup
+- Eliminate JSON default incompatibility between MySQL 8 and MariaDB
+- Standardize database engine across Local, CI, and Production
 
-System now guarantees:
-- Immutable subscription financial contract
-- Deterministic bonus calculation bound to snapshot
-- Explicit, audited regulatory overrides
-- Strict monetary validation against external gateway payloads"
+This removes environment drift and ensures deterministic schema behavior."
 #----------------------
 
 function Get-GitCredential {

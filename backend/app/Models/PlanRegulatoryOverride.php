@@ -71,14 +71,21 @@ class PlanRegulatoryOverride extends Model
         return $this->belongsTo(Plan::class);
     }
 
+    /**
+     * The admin user who approved this override.
+     * Note: Admins are users with admin roles (Spatie permissions)
+     */
     public function approvedByAdmin(): BelongsTo
     {
-        return $this->belongsTo(Admin::class, 'approved_by_admin_id');
+        return $this->belongsTo(User::class, 'approved_by_admin_id');
     }
 
+    /**
+     * The admin user who revoked this override.
+     */
     public function revokedByAdmin(): BelongsTo
     {
-        return $this->belongsTo(Admin::class, 'revoked_by_admin_id');
+        return $this->belongsTo(User::class, 'revoked_by_admin_id');
     }
 
     public function bonusTransactions()
@@ -164,7 +171,7 @@ class PlanRegulatoryOverride extends Model
     /**
      * Revoke this override with audit trail
      *
-     * @param Admin $admin The admin revoking the override
+     * @param User $admin The admin user revoking the override
      * @param string $reason The reason for revocation
      */
     public function revoke($admin, string $reason): void

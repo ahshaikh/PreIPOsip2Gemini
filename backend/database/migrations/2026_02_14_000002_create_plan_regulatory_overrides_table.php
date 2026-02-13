@@ -39,10 +39,11 @@ return new class extends Migration
                 ->comment('Regulatory order/circular reference (e.g., SEBI/HO/2026/001)');
 
             // Authorization and lifecycle
+            // Note: Admins are users with admin roles (Spatie permissions)
             $table->foreignId('approved_by_admin_id')
-                ->constrained('admins')
+                ->constrained('users')
                 ->onDelete('restrict')
-                ->comment('Admin who approved this regulatory override');
+                ->comment('Admin user who approved this regulatory override');
             $table->timestamp('effective_from')
                 ->comment('When this override becomes active');
             $table->timestamp('expires_at')->nullable()
@@ -51,7 +52,7 @@ return new class extends Migration
             // Soft revocation (never hard delete regulatory records)
             $table->timestamp('revoked_at')->nullable();
             $table->foreignId('revoked_by_admin_id')->nullable()
-                ->constrained('admins')
+                ->constrained('users')
                 ->onDelete('restrict');
             $table->text('revocation_reason')->nullable();
 
