@@ -8,14 +8,14 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "ci(database): align CI database with production by switching from MySQL 8 to MariaDB 10.4
+$CommitMessage = "ci: remove Redis dependency from test pipeline for deterministic CI runs
 
-- Replace mysql:8.0 service with mariadb:10.4 in GitHub Actions
-- Ensure CI environment matches local and planned production setup
-- Eliminate JSON default incompatibility between MySQL 8 and MariaDB
-- Standardize database engine across Local, CI, and Production
+- Remove Redis service from GitHub Actions
+- Switch CACHE_DRIVER to array for CI environment
+- Use sync queue and array session for isolation
+- Eliminate external service dependency during migrations and tests
 
-This removes environment drift and ensures deterministic schema behavior."
+Improves CI stability and removes container networking issues."
 #----------------------
 
 function Get-GitCredential {
