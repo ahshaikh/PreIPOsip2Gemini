@@ -1,5 +1,6 @@
 <?php
 // V-PHASE3-1730-073 (Created) | V-FINAL-1730-333 (Rich Domain Model)
+// V-CONTRACT-HARDENING-CORRECTIVE: Enforced snapshot immutability
 
 namespace App\Models;
 
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use App\Exceptions\SnapshotImmutabilityViolationException;
 use Carbon\Carbon;
 
 /**
@@ -17,6 +19,22 @@ use Carbon\Carbon;
 class Subscription extends Model
 {
     use HasFactory, SoftDeletes;
+
+    /**
+     * V-CONTRACT-HARDENING-CORRECTIVE: Immutable snapshot fields.
+     * These fields CANNOT be modified after config_snapshot_at is set.
+     */
+    private const IMMUTABLE_SNAPSHOT_FIELDS = [
+        'progressive_config',
+        'milestone_config',
+        'consistency_config',
+        'welcome_bonus_config',
+        'referral_tiers',
+        'celebration_bonus_config',
+        'lucky_draw_entries',
+        'config_snapshot_at',
+        'config_snapshot_version',
+    ];
 
     protected $fillable = [
         'user_id',
@@ -35,7 +53,18 @@ class Subscription extends Model
         'cancelled_at',
         'cancellation_reason',
         'is_auto_debit',
-        'razorpay_subscription_id'
+        'razorpay_subscription_id',
+        // V-CONTRACT-HARDENING: Immutable bonus config snapshots
+        // These are fillable ONLY during initial creation
+        'progressive_config',
+        'milestone_config',
+        'consistency_config',
+        'welcome_bonus_config',
+        'referral_tiers',
+        'celebration_bonus_config',
+        'lucky_draw_entries',
+        'config_snapshot_at',
+        'config_snapshot_version',
     ];
 
     protected $casts = [
@@ -47,7 +76,90 @@ class Subscription extends Model
         'cancelled_at' => 'datetime',
         'is_auto_debit' => 'boolean',
         'bonus_multiplier' => 'decimal:2',
+        // V-CONTRACT-HARDENING: Immutable bonus config snapshots (JSON)
+        'progressive_config' => 'json',
+        'milestone_config' => 'json',
+        'consistency_config' => 'json',
+        'welcome_bonus_config' => 'json',
+        'referral_tiers' => 'json',
+        'celebration_bonus_config' => 'json',
+        'lucky_draw_entries' => 'json',
+        'config_snapshot_at' => 'datetime',
     ];
+
+    /**
+     * V-CONTRACT-HARDENING-CORRECTIVE: Boot method to enforce immutability
+     */
+    protected static function booted()
+    {
+        // Enforce snapshot immutability on update
+        static::updating(function (Subscription $subscription) {
+            $subscription->enforceSnapshotImmutability();
+        });
+    }
+
+    /**
+     * V-CONTRACT-HARDENING-CORRECTIVE: Enforce that snapshot fields cannot be modified
+     * after the snapshot has been created.
+     *
+     * @throws SnapshotImmutabilityViolationException If immutable fields are being modified
+     */
+    private function enforceSnapshotImmutability(): void
+    {
+        // Get the original value before any changes
+        $originalSnapshotAt = $this->getOriginal('config_snapshot_at');
+
+        // If snapshot was never set, allow changes (initial snapshot creation)
+        if ($originalSnapshotAt === null) {
+            return;
+        }
+
+        // Check which immutable fields are being modified
+        $violatedFields = [];
+        foreach (self::IMMUTABLE_SNAPSHOT_FIELDS as $field) {
+            if ($this->isDirty($field)) {
+                $violatedFields[] = $field;
+            }
+        }
+
+        // If any immutable fields are being modified, throw exception
+        if (!empty($violatedFields)) {
+            throw new SnapshotImmutabilityViolationException(
+                $this->id ?? 0,
+                $violatedFields
+            );
+        }
+    }
+
+    /**
+     * V-CONTRACT-HARDENING-CORRECTIVE: Check if snapshot has been created
+     */
+    public function hasSnapshot(): bool
+    {
+        return $this->config_snapshot_at !== null;
+    }
+
+    /**
+     * V-CONTRACT-HARDENING-CORRECTIVE: Check if snapshot is valid (has all required fields)
+     */
+    public function hasValidSnapshot(): bool
+    {
+        if (!$this->hasSnapshot()) {
+            return false;
+        }
+
+        // Must have version hash
+        if (empty($this->config_snapshot_version)) {
+            return false;
+        }
+
+        // Must have at least progressive_config (the minimum required config)
+        if ($this->progressive_config === null) {
+            return false;
+        }
+
+        return true;
+    }
 
     // --- RELATIONSHIPS ---
 

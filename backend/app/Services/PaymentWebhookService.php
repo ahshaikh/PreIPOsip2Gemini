@@ -1,5 +1,6 @@
 <?php
 // V-PHASE3-1730-081 (Created) | V-FINAL-1730-338 | V-FINAL-1730-454 (Idempotent) | V-AUDIT-FIX-MODULE8 (Race Condition Fix)
+// V-CONTRACT-HARDENING-FINAL: Payment amount validation against subscription contract
 
 namespace App\Services;
 
@@ -9,6 +10,7 @@ use App\Jobs\ProcessSuccessfulPaymentJob;
 use App\Jobs\SendPaymentFailedEmailJob;
 use App\Notifications\PaymentFailed;
 use App\Services\AllocationService; // V-AUDIT-MODULE4-003: For refund reversal
+use App\Exceptions\PaymentAmountMismatchException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache; // Added for Atomic Locks
@@ -72,12 +74,23 @@ class PaymentWebhookService
      * - If payment exists AND is 'paid', skip (already processed)
      * - If payment exists but is 'pending', proceed with fulfillment (retry)
      * - If payment doesn't exist, create and fulfill
+     *
+     * V-CONTRACT-HARDENING-FINAL: Payment Amount Contract Enforcement
+     * The webhook amount MUST match subscription.amount exactly.
+     * If mismatch:
+     * - Log CRITICAL to financial_contract channel
+     * - Throw PaymentAmountMismatchException
+     * - Do NOT create Payment record
+     * - Do NOT advance subscription
+     *
+     * @throws PaymentAmountMismatchException If webhook amount doesn't match contract
      */
     public function handleSubscriptionCharged(array $payload)
     {
-        $subscriptionId = $payload['subscription_id'];
+        $razorpaySubscriptionId = $payload['subscription_id'];
         $paymentId = $payload['payment_id'];
-        $amount = $payload['amount'] / 100;
+        $webhookAmountPaise = $payload['amount'];
+        $webhookAmount = $webhookAmountPaise / 100; // Convert paise to rupees
 
         // CRITICAL FIX: Check for existing payment and its status
         $existingPayment = Payment::where('gateway_payment_id', $paymentId)->first();
@@ -101,30 +114,103 @@ class PaymentWebhookService
             return;
         }
 
-        // Payment doesn't exist yet - create it
-        $subscription = Subscription::where('razorpay_subscription_id', $subscriptionId)->first();
+        // Payment doesn't exist yet - fetch subscription first
+        $subscription = Subscription::where('razorpay_subscription_id', $razorpaySubscriptionId)->first();
         if (!$subscription) {
-            Log::error("Recurring payment received for unknown subscription: $subscriptionId");
+            Log::error("Recurring payment received for unknown subscription: $razorpaySubscriptionId");
             return;
         }
 
-        // Create the payment record for this new charge
+        // V-CONTRACT-HARDENING-FINAL: Enforce payment amount matches contract
+        $this->validatePaymentAmountAgainstContract(
+            $subscription,
+            $webhookAmount,
+            $razorpaySubscriptionId,
+            $paymentId
+        );
+
+        // Amount validated - safe to create the payment record
         $payment = Payment::create([
             'user_id' => $subscription->user_id,
             'subscription_id' => $subscription->id,
-            'amount' => $amount,
+            'amount' => $webhookAmount, // Now validated against contract
             'status' => 'pending',
             'gateway' => 'razorpay_auto',
             'gateway_payment_id' => $paymentId,
-            'gateway_order_id' => $subscriptionId,
+            'gateway_order_id' => $razorpaySubscriptionId,
             'paid_at' => now(),
             'is_on_time' => true,
         ]);
 
-        Log::info("Created new payment record #{$payment->id} for subscription {$subscriptionId}");
+        Log::channel('financial_contract')->info("Payment record created after amount validation", [
+            'payment_id' => $payment->id,
+            'subscription_id' => $subscription->id,
+            'contract_amount' => (float) $subscription->amount,
+            'webhook_amount' => $webhookAmount,
+            'razorpay_subscription_id' => $razorpaySubscriptionId,
+        ]);
 
         // MODULE 8 FIX: Fulfill securely with atomic lock
         $this->fulfillPayment($payment, $paymentId);
+    }
+
+    /**
+     * V-CONTRACT-HARDENING-FINAL: Validate webhook payment amount against subscription contract.
+     *
+     * The subscription.amount is the SINGLE SOURCE OF TRUTH.
+     * External payment gateway payloads are NOT trusted.
+     *
+     * Uses strict decimal comparison with 2-decimal precision normalization.
+     *
+     * @param Subscription $subscription The subscription with immutable amount
+     * @param float $webhookAmount The amount received from webhook (in rupees)
+     * @param string $razorpaySubscriptionId Razorpay subscription ID for logging
+     * @param string $paymentId Razorpay payment ID for logging
+     * @throws PaymentAmountMismatchException If amounts don't match
+     */
+    private function validatePaymentAmountAgainstContract(
+        Subscription $subscription,
+        float $webhookAmount,
+        string $razorpaySubscriptionId,
+        string $paymentId
+    ): void {
+        // Normalize both amounts to 2 decimal places for strict comparison
+        $contractAmount = round((float) $subscription->amount, 2);
+        $normalizedWebhookAmount = round($webhookAmount, 2);
+
+        // Strict equality check after normalization
+        if (bccomp((string) $contractAmount, (string) $normalizedWebhookAmount, 2) !== 0) {
+            // Log CRITICAL before throwing
+            Log::channel('financial_contract')->critical('PAYMENT AMOUNT MISMATCH - CONTRACT VIOLATION', [
+                'subscription_id' => $subscription->id,
+                'user_id' => $subscription->user_id,
+                'plan_id' => $subscription->plan_id,
+                'contract_amount' => $contractAmount,
+                'webhook_amount' => $normalizedWebhookAmount,
+                'amount_difference' => abs($contractAmount - $normalizedWebhookAmount),
+                'razorpay_subscription_id' => $razorpaySubscriptionId,
+                'razorpay_payment_id' => $paymentId,
+                'action' => 'PAYMENT_REJECTED',
+                'alert_level' => 'CRITICAL',
+                'timestamp' => now()->toIso8601String(),
+            ]);
+
+            throw new PaymentAmountMismatchException(
+                $subscription->id,
+                $contractAmount,
+                $normalizedWebhookAmount,
+                $razorpaySubscriptionId,
+                $paymentId
+            );
+        }
+
+        // Log successful validation for audit trail
+        Log::channel('financial_contract')->debug('Payment amount validated against contract', [
+            'subscription_id' => $subscription->id,
+            'contract_amount' => $contractAmount,
+            'webhook_amount' => $normalizedWebhookAmount,
+            'validation' => 'PASSED',
+        ]);
     }
 
     /**

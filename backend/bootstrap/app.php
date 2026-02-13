@@ -24,6 +24,13 @@ use App\Http\Middleware\ThrottlePublicApi; // [FIX 16 (P3)] Rate limiting for pu
 use App\Http\Middleware\EnsureCompanyInvestable; // [PHASE 2] Buying guard for company lifecycle states
 use App\Http\Middleware\Protocol1Middleware; // [PROTOCOL-1] Governance enforcement framework
 
+// V-CONTRACT-HARDENING-FINAL: Contract violation exception handling
+use App\Exceptions\ContractIntegrityException;
+use App\Exceptions\SnapshotImmutabilityViolationException;
+use App\Exceptions\OverrideSchemaViolationException;
+use App\Exceptions\PaymentAmountMismatchException;
+use Illuminate\Support\Facades\Log;
+
 // ----------------------------------------------------------
 // 1. Build the application instance
 // ----------------------------------------------------------
@@ -87,7 +94,108 @@ $app = Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // Global exception handling logic...
+        // V-CONTRACT-HARDENING-FINAL: Centralized contract violation handling
+        // These exceptions MUST NEVER silently degrade to generic 500 errors.
+        // All contract violations are logged to the financial_contract channel.
+
+        // ContractIntegrityException: CRITICAL - potential tampering detected
+        $exceptions->renderable(function (ContractIntegrityException $e, $request) {
+            Log::channel('financial_contract')->critical('CONTRACT INTEGRITY FAILURE', array_merge(
+                $e->reportContext(),
+                [
+                    'message' => $e->getMessage(),
+                    'user_id' => $request->user()?->id,
+                    'ip' => $request->ip(),
+                    'url' => $request->fullUrl(),
+                    'timestamp' => now()->toIso8601String(),
+                ]
+            ));
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'error' => 'contract_integrity_failure',
+                    'message' => 'Financial contract verification failed. This incident has been logged.',
+                    'subscription_id' => $e->getSubscriptionId(),
+                ], 500);
+            }
+
+            abort(500, 'Financial contract verification failed.');
+        });
+
+        // SnapshotImmutabilityViolationException: HIGH - code bug attempting to modify frozen fields
+        $exceptions->renderable(function (SnapshotImmutabilityViolationException $e, $request) {
+            Log::channel('financial_contract')->error('SNAPSHOT IMMUTABILITY VIOLATION', array_merge(
+                $e->reportContext(),
+                [
+                    'message' => $e->getMessage(),
+                    'user_id' => $request->user()?->id,
+                    'ip' => $request->ip(),
+                    'url' => $request->fullUrl(),
+                    'timestamp' => now()->toIso8601String(),
+                ]
+            ));
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'error' => 'snapshot_immutability_violation',
+                    'message' => 'Subscription snapshot fields are immutable and cannot be modified.',
+                    'violated_fields' => $e->getViolatedFields(),
+                ], 500);
+            }
+
+            abort(500, 'Subscription snapshot fields are immutable.');
+        });
+
+        // OverrideSchemaViolationException: MEDIUM - admin submitted invalid override
+        $exceptions->renderable(function (OverrideSchemaViolationException $e, $request) {
+            Log::channel('financial_contract')->warning('OVERRIDE SCHEMA VIOLATION', array_merge(
+                $e->reportContext(),
+                [
+                    'message' => $e->getMessage(),
+                    'admin_id' => $request->user()?->id,
+                    'ip' => $request->ip(),
+                    'url' => $request->fullUrl(),
+                    'request_payload' => $request->except(['password', 'token']),
+                    'timestamp' => now()->toIso8601String(),
+                ]
+            ));
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'error' => 'override_schema_violation',
+                    'message' => $e->getMessage(),
+                ], 422);
+            }
+
+            abort(422, $e->getMessage());
+        });
+
+        // PaymentAmountMismatchException: CRITICAL - webhook amount doesn't match contract
+        $exceptions->renderable(function (PaymentAmountMismatchException $e, $request) {
+            // Note: Logging already done in PaymentWebhookService before throwing
+            // This handler ensures proper HTTP response for webhook endpoints
+            Log::channel('financial_contract')->critical('PAYMENT AMOUNT MISMATCH (Handler)', array_merge(
+                $e->reportContext(),
+                [
+                    'message' => $e->getMessage(),
+                    'ip' => $request->ip(),
+                    'url' => $request->fullUrl(),
+                    'timestamp' => now()->toIso8601String(),
+                ]
+            ));
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'error' => 'payment_amount_mismatch',
+                    'message' => 'Payment amount does not match subscription contract. Payment rejected.',
+                    'subscription_id' => $e->getSubscriptionId(),
+                    'expected_amount' => $e->getExpectedAmount(),
+                    'received_amount' => $e->getWebhookAmount(),
+                ], 500);
+            }
+
+            abort(500, 'Payment amount mismatch. Contract enforcement active.');
+        });
     })
     ->create();
 

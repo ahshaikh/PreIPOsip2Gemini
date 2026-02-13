@@ -8,23 +8,23 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "chore(architecture): audit bonus contract model and formalize immutable subscription strategy
+$CommitMessage = "feat(contract): enforce end-to-end financial contract immutability
 
-- Conducted deep structural audit of Subscription, Plan, BonusConfig, Campaign, and Payment flows
-- Confirmed dynamic dependency on plan.configs in BonusCalculatorService
-- Verified absence of bonus config snapshot in subscriptions table
-- Classified current system as hybrid (snapshotted payment + dynamic bonus policy)
-- Defined corrected contract model:
-  - Default immutable subscription bonus snapshot
-  - Plan edits affect only future subscriptions
-  - Explicit per-plan regulatory override mechanism (audited & controlled)
-- Established governance boundaries between commercial edits and regulatory overrides
-- Designed backend evolution plan (snapshot schema + override framework)
-- Planned frontend alignment (remove plan.config financial dependency)
-- Outlined lint and type-hardening strategy for ConfigBonus module
+- Implemented PaymentAmountMismatchException (CRITICAL severity)
+- Added strict webhook amount validation against subscriptions.amount using bccomp()
+- Halt processing on mismatch (no Payment creation, no state mutation)
+- Centralized structured logging to financial_contract channel
+- Added snapshot_hash_used linkage in bonus_transactions for audit traceability
+- Enforced DB-level immutability triggers on subscription snapshot fields
+- Strengthened override governance (scoped, schema-aware, unique per plan+scope)
+- Verified hash integrity before every bonus calculation
+- Added comprehensive unit tests for payment contract enforcement
 
-No functional changes in this commit.
-This documents architectural direction prior to backend implementation."
+System now guarantees:
+- Immutable subscription financial contract
+- Deterministic bonus calculation bound to snapshot
+- Explicit, audited regulatory overrides
+- Strict monetary validation against external gateway payloads"
 #----------------------
 
 function Get-GitCredential {

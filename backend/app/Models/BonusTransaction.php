@@ -24,6 +24,13 @@ class BonusTransaction extends Model
         'multiplier_applied',
         'base_amount',
         'description',
+        // V-CONTRACT-HARDENING: Override tracking for audit
+        'override_applied',
+        'override_id',
+        'config_used',
+        'override_delta',
+        // V-CONTRACT-HARDENING-FINAL: Snapshot integrity tracking
+        'snapshot_hash_used',
     ];
 
     protected $casts = [
@@ -31,6 +38,10 @@ class BonusTransaction extends Model
         'tds_deducted' => 'decimal:2', // <-- NEW
         'multiplier_applied' => 'decimal:2',
         'base_amount' => 'decimal:2',
+        // V-CONTRACT-HARDENING: Override tracking for audit
+        'override_applied' => 'boolean',
+        'config_used' => 'json',
+        'override_delta' => 'json',
     ];
 
     /**
@@ -63,6 +74,14 @@ class BonusTransaction extends Model
     public function payment(): BelongsTo
     {
         return $this->belongsTo(Payment::class);
+    }
+
+    /**
+     * V-CONTRACT-HARDENING: Relationship to regulatory override (if applied)
+     */
+    public function regulatoryOverride(): BelongsTo
+    {
+        return $this->belongsTo(PlanRegulatoryOverride::class, 'override_id');
     }
 
     // --- HELPERS ---

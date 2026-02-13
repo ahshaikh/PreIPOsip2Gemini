@@ -84,6 +84,22 @@ class Plan extends Model
         return $this->hasMany(PlanConfig::class);
     }
 
+    /**
+     * V-CONTRACT-HARDENING: Regulatory overrides for this plan
+     */
+    public function regulatoryOverrides(): HasMany
+    {
+        return $this->hasMany(PlanRegulatoryOverride::class);
+    }
+
+    /**
+     * V-CONTRACT-HARDENING: Active regulatory overrides only
+     */
+    public function activeRegulatoryOverrides(): HasMany
+    {
+        return $this->regulatoryOverrides()->active();
+    }
+
     public function features(): HasMany
     {
         return $this->hasMany(PlanFeature::class);

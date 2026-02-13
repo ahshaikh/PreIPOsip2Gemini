@@ -10,20 +10,27 @@ use App\Models\User;
 use App\Models\Payment;
 use App\Services\WalletService;
 use App\Services\PaymentInitiationService; // [ADDED]
+use App\Services\SubscriptionConfigSnapshotService; // V-CONTRACT-HARDENING
 use App\Enums\PaymentType; // V-AUDIT-MODULE5-008: Replace magic strings
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class SubscriptionService
 {
     protected $walletService;
     protected $paymentInitiationService; // [ADDED]
+    protected $configSnapshotService; // V-CONTRACT-HARDENING
 
-    // [MODIFIED] Inject PaymentInitiationService
-    public function __construct(WalletService $walletService, PaymentInitiationService $paymentInitiationService)
-    {
+    // [MODIFIED] Inject PaymentInitiationService and SubscriptionConfigSnapshotService
+    public function __construct(
+        WalletService $walletService,
+        PaymentInitiationService $paymentInitiationService,
+        SubscriptionConfigSnapshotService $configSnapshotService
+    ) {
         $this->walletService = $walletService;
         $this->paymentInitiationService = $paymentInitiationService;
+        $this->configSnapshotService = $configSnapshotService;
     }
 
     /**
@@ -71,6 +78,18 @@ class SubscriptionService
                 'end_date' => now()->addMonths($plan->duration_months),
                 'next_payment_date' => $hasWalletFunds ? now()->addMonth() : now(),
                 'is_auto_debit' => false, // Can be enabled later via payment settings
+            ]);
+
+            // V-CONTRACT-HARDENING: Snapshot plan bonus config into subscription
+            // This creates an immutable contractual record of bonus terms at subscription time
+            $plan->load('configs'); // Ensure configs are loaded
+            $this->configSnapshotService->snapshotConfigToSubscription($subscription, $plan);
+            $subscription->save();
+
+            Log::info('Subscription created with snapshotted bonus config', [
+                'subscription_id' => $subscription->id,
+                'plan_id' => $plan->id,
+                'config_version' => $subscription->config_snapshot_version,
             ]);
 
             // V-AUDIT-MODULE5-008: Use PaymentType enum instead of magic string

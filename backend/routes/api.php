@@ -765,6 +765,21 @@ Route::prefix('v1')->group(function () {
                 Route::delete('/products/{product}', [\App\Http\Controllers\Api\Admin\PlanProductController::class, 'destroy']);
             });
 
+            // V-CONTRACT-HARDENING: Regulatory Override Management
+            // HIGH-RISK: These operations affect bonus calculations for all active subscriptions
+            Route::prefix('regulatory-overrides')->middleware('permission:plans.edit')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Api\Admin\PlanRegulatoryOverrideController::class, 'index']);
+                Route::post('/', [\App\Http\Controllers\Api\Admin\PlanRegulatoryOverrideController::class, 'store']);
+                Route::post('/validate-payload', [\App\Http\Controllers\Api\Admin\PlanRegulatoryOverrideController::class, 'validatePayload']);
+                Route::get('/{override}', [\App\Http\Controllers\Api\Admin\PlanRegulatoryOverrideController::class, 'show']);
+                Route::post('/{override}/revoke', [\App\Http\Controllers\Api\Admin\PlanRegulatoryOverrideController::class, 'revoke']);
+                Route::get('/{override}/transactions', [\App\Http\Controllers\Api\Admin\PlanRegulatoryOverrideController::class, 'transactions']);
+            });
+
+            // Plan-specific regulatory overrides
+            Route::get('/plans/{plan}/regulatory-overrides', [\App\Http\Controllers\Api\Admin\PlanRegulatoryOverrideController::class, 'activeForPlan'])
+                ->middleware('permission:plans.edit');
+
             // Campaign Relationship Management
             // [P0.2 FIX]: Changed from offers/{offer} to campaigns/{campaign}
             Route::prefix('campaigns/{campaign}')->middleware('permission:settings.manage_cms')->group(function () {

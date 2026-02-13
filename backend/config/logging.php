@@ -143,6 +143,31 @@ return [
             'replace_placeholders' => true,
         ],
 
+        /*
+        |--------------------------------------------------------------------------
+        | V-CONTRACT-HARDENING-FINAL: Financial Contract Audit Channel
+        |--------------------------------------------------------------------------
+        |
+        | Dedicated logging channel for financial contract violations and audit events.
+        | This channel captures:
+        | - Snapshot creation with canonical hash
+        | - Snapshot integrity verification results
+        | - Immutability violation attempts
+        | - Override schema violations
+        | - Regulatory override applications
+        |
+        | RETENTION: 90 days minimum for regulatory compliance.
+        | ALERTING: Configure external alerting for ERROR level entries.
+        |
+        */
+        'financial_contract' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/financial_contract.log'),
+            'level' => 'debug',
+            'days' => env('LOG_FINANCIAL_CONTRACT_DAYS', 90),
+            'replace_placeholders' => true,
+        ],
+
     ],
 
 ];

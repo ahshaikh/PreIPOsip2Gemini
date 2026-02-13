@@ -209,7 +209,32 @@ class PlanController extends Controller
             }
         }
 
+        // V-CONTRACT-HARDENING: Guardrail for bonus config edits
         if ($request->has('configs')) {
+            $bonusConfigKeys = [
+                'progressive_config',
+                'milestone_config',
+                'consistency_config',
+                'welcome_bonus_config',
+                'referral_config',
+                'celebration_bonus_config',
+                'lucky_draw_config',
+            ];
+
+            $requestedConfigKeys = array_keys($request->input('configs'));
+            $bonusConfigsBeingEdited = array_intersect($requestedConfigKeys, $bonusConfigKeys);
+
+            // Check if any bonus configs are being edited AND plan has active subscriptions
+            if (!empty($bonusConfigsBeingEdited) && $activeSubscriptionCount > 0) {
+                return response()->json([
+                    'message' => "Cannot modify bonus configuration for a plan with {$activeSubscriptionCount} active subscription(s). " .
+                        "Bonus configs are immutable after subscriptions exist. " .
+                        "To change bonus terms: (1) Clone this plan with new bonus config, or (2) Create a regulatory override for existing subscriptions.",
+                    'blocked_configs' => array_values($bonusConfigsBeingEdited),
+                    'suggestion' => 'clone_plan_or_regulatory_override',
+                ], 409);
+            }
+
             foreach ($request->input('configs') as $key => $value) {
                 $plan->configs()->updateOrCreate(
                     ['config_key' => $key],
