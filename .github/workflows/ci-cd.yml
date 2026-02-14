@@ -88,6 +88,12 @@ services:
       - name: Run migrations
         working-directory: backend
         run: php artisan migrate --force
+      
+      env:
+    	CACHE_DRIVER: array
+    	SESSION_DRIVER: array
+    	QUEUE_CONNECTION: sync
+    	REDIS_CLIENT: null
 
       - name: Run PHPUnit tests
         working-directory: backend
