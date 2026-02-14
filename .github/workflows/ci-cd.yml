@@ -85,6 +85,13 @@ jobs:
       - name: Run migrations
         working-directory: backend
         run: |
+	  cp .env.example .env
+    	  php artisan key:generate
+
+    	  # Force CI-safe drivers
+    	  sed -i 's/^CACHE_STORE=.*/CACHE_STORE=array/' .env
+    	  sed -i 's/^QUEUE_CONNECTION=.*/QUEUE_CONNECTION=sync/' .env
+
           php artisan config:clear
           php artisan cache:clear
           php artisan migrate --force
@@ -96,10 +103,6 @@ jobs:
           DB_DATABASE: preipo
           DB_USERNAME: root
           DB_PASSWORD: root
-          CACHE_DRIVER: array
-          SESSION_DRIVER: array
-          QUEUE_CONNECTION: sync
-
 
       # ✅ FIXED — force CI-safe drivers
       - name: Run PHPUnit tests
