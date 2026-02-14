@@ -72,33 +72,40 @@ jobs:
           cp .env.example .env
           php artisan key:generate
 
-      - name: Configure test database
-        working-directory: backend
-        run: |
-          echo "DB_CONNECTION=mysql" >> .env
-          echo "DB_HOST=127.0.0.1" >> .env
-          echo "DB_PORT=3306" >> .env
-          echo "DB_DATABASE=preipo" >> .env
-          echo "DB_USERNAME=root" >> .env
-          echo "DB_PASSWORD=root" >> .env
-          echo "CACHE_DRIVER=array" >> .env
-          echo "QUEUE_CONNECTION=sync" >> .env
-          echo "SESSION_DRIVER=array" >> .env
-
+      # ✅ FIXED — no Redis, clean environment
       - name: Run migrations
         working-directory: backend
-        run: php artisan migrate --force
-
-      - name: Run PHPUnit tests
-        working-directory: backend
-        run: php artisan test --parallel --coverage-clover=coverage.xml
+        run: |
+          php artisan config:clear
+          php artisan cache:clear
+          php artisan migrate --force
         env:
+          APP_ENV: testing
           DB_CONNECTION: mysql
           DB_HOST: 127.0.0.1
           DB_PORT: 3306
           DB_DATABASE: preipo
           DB_USERNAME: root
           DB_PASSWORD: root
+          CACHE_DRIVER: array
+          SESSION_DRIVER: array
+          QUEUE_CONNECTION: sync
+
+      # ✅ FIXED — force CI-safe drivers
+      - name: Run PHPUnit tests
+        working-directory: backend
+        run: php artisan test --parallel --coverage-clover=coverage.xml
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: preipo
+          DB_USERNAME: root
+          DB_PASSWORD: root
+          CACHE_DRIVER: array
+          SESSION_DRIVER: array
+          QUEUE_CONNECTION: sync
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
