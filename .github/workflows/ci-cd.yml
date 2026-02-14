@@ -1,4 +1,3 @@
-# V-CICD-001 - CI/CD Pipeline for PreIPO SIP Platform
 name: CI/CD Pipeline
 
 on:
@@ -13,6 +12,7 @@ env:
   COMPOSER_FLAGS: '--no-interaction --prefer-dist --optimize-autoloader'
 
 jobs:
+
   # ============================================
   # Backend Tests (Laravel)
   # ============================================
@@ -25,19 +25,19 @@ jobs:
       matrix:
         php: ['8.2', '8.3']
 
-services:
-  mysql:
-    image: mariadb:10.4
-    env:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: preipo
-    ports:
-      - 3306:3306
-    options: >-
-      --health-cmd="mysqladmin ping --silent"
-      --health-interval=10s
-      --health-timeout=5s
-      --health-retries=3
+    services:
+      mysql:
+        image: mariadb:10.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: preipo
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
 
     steps:
       - name: Checkout code
@@ -59,7 +59,7 @@ services:
         uses: actions/cache@v4
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
-          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('backend/composer.lock') }}
           restore-keys: ${{ runner.os }}-composer-
 
       - name: Install Composer dependencies
@@ -81,24 +81,17 @@ services:
           echo "DB_DATABASE=preipo" >> .env
           echo "DB_USERNAME=root" >> .env
           echo "DB_PASSWORD=root" >> .env
-	  echo "CACHE_DRIVER=array" >> .env
-	  echo "QUEUE_CONNECTION=sync" >> .env
-	  echo "SESSION_DRIVER=array" >> .env
+          echo "CACHE_DRIVER=array" >> .env
+          echo "QUEUE_CONNECTION=sync" >> .env
+          echo "SESSION_DRIVER=array" >> .env
 
       - name: Run migrations
         working-directory: backend
         run: php artisan migrate --force
-      
-      env:
-    	CACHE_DRIVER: array
-    	SESSION_DRIVER: array
-    	QUEUE_CONNECTION: sync
-    	REDIS_CLIENT: null
 
       - name: Run PHPUnit tests
         working-directory: backend
-        run: |
-          php artisan test --parallel --coverage-clover=coverage.xml
+        run: php artisan test --parallel --coverage-clover=coverage.xml
         env:
           DB_CONNECTION: mysql
           DB_HOST: 127.0.0.1
@@ -115,6 +108,7 @@ services:
           flags: backend
           fail_ci_if_error: false
 
+
   # ============================================
   # Backend Code Quality
   # ============================================
@@ -123,27 +117,24 @@ services:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.PHP_VERSION }}
           extensions: mbstring, dom, fileinfo
           tools: phpstan, php-cs-fixer
 
-      - name: Cache Composer dependencies
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: ~/.composer/cache
-          key: ${{ runner.os }}-composer-quality-${{ hashFiles('**/composer.lock') }}
+          key: ${{ runner.os }}-composer-quality-${{ hashFiles('backend/composer.lock') }}
 
       - name: Install dependencies
         working-directory: backend
         run: composer install ${{ env.COMPOSER_FLAGS }}
 
-      - name: Run PHP CS Fixer (dry-run)
+      - name: Run PHP CS Fixer
         working-directory: backend
         run: |
           if [ -f .php-cs-fixer.php ]; then
@@ -159,6 +150,7 @@ services:
           fi
         continue-on-error: true
 
+
   # ============================================
   # Backend Security Scan
   # ============================================
@@ -167,11 +159,9 @@ services:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.PHP_VERSION }}
           tools: composer
@@ -184,6 +174,7 @@ services:
         working-directory: backend
         run: composer audit
 
+
   # ============================================
   # Frontend Tests (Next.js)
   # ============================================
@@ -192,14 +183,12 @@ services:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: npm
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
@@ -208,18 +197,15 @@ services:
 
       - name: Run type check
         working-directory: frontend
-        run: npm run type-check || echo "Type check not configured"
-        continue-on-error: true
+        run: npm run type-check || true
 
       - name: Run lint
         working-directory: frontend
-        run: npm run lint || echo "Lint not configured"
-        continue-on-error: true
+        run: npm run lint || true
 
       - name: Run tests
         working-directory: frontend
-        run: npm test -- --passWithNoTests
-        continue-on-error: true
+        run: npm test -- --passWithNoTests || true
 
       - name: Build application
         working-directory: frontend
@@ -228,36 +214,6 @@ services:
           NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
           NEXT_TELEMETRY_DISABLED: 1
 
-  # ============================================
-  # Frontend Bundle Analysis
-  # ============================================
-  frontend-bundle:
-    name: Frontend Bundle Analysis
-    runs-on: ubuntu-latest
-    needs: frontend-tests
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install dependencies
-        working-directory: frontend
-        run: npm ci
-
-      - name: Build with bundle analyzer
-        working-directory: frontend
-        run: |
-          ANALYZE=true npm run build || npm run build
-        env:
-          NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
-          NEXT_TELEMETRY_DISABLED: 1
 
   # ============================================
   # Deploy to Staging
@@ -270,14 +226,9 @@ services:
     environment: staging
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - run: echo "Deploying to staging..."
 
-      - name: Deploy to staging server
-        run: |
-          echo "Deploying to staging environment..."
-          # Add your deployment script here
-          # Example: ssh deploy@staging-server 'cd /var/www/preipo && git pull && ./deploy.sh'
 
   # ============================================
   # Deploy to Production
@@ -290,13 +241,9 @@ services:
     environment: production
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - run: echo "Deploying to production..."
 
-      - name: Deploy to production server
-        run: |
-          echo "Deploying to production environment..."
-          # Add your production deployment script here
 
   # ============================================
   # Notification
@@ -308,7 +255,4 @@ services:
     if: failure()
 
     steps:
-      - name: Send failure notification
-        run: |
-          echo "Build failed - send notification"
-          # Add Slack/Discord/Email notification here
+      - run: echo "Build failed"
