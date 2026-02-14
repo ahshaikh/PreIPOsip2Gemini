@@ -72,6 +72,15 @@ jobs:
           cp .env.example .env
           php artisan key:generate
 
+- name: Debug Cache Config
+  working-directory: backend
+  run: php artisan tinker --execute="dump(config('cache.default')); dump(config('database.redis.client'));"
+  env:
+    APP_ENV: testing
+    CACHE_DRIVER: array
+    SESSION_DRIVER: array
+    QUEUE_CONNECTION: sync
+
       # ✅ FIXED — no Redis, clean environment
       - name: Run migrations
         working-directory: backend
@@ -90,9 +99,7 @@ jobs:
           CACHE_DRIVER: array
           SESSION_DRIVER: array
           QUEUE_CONNECTION: sync
-          REDIS_CLIENT: null
-          REDIS_HOST: 127.0.0.1
-          REDIS_PORT: 0
+
 
       # ✅ FIXED — force CI-safe drivers
       - name: Run PHPUnit tests
