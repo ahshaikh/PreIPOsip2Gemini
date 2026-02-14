@@ -85,12 +85,12 @@ jobs:
       - name: Run migrations
         working-directory: backend
         run: |
-	  cp .env.example .env
-    	  php artisan key:generate
+          cp .env.example .env
+          php artisan key:generate
 
-    	  # Force CI-safe drivers
-    	  sed -i 's/^CACHE_STORE=.*/CACHE_STORE=array/' .env
-    	  sed -i 's/^QUEUE_CONNECTION=.*/QUEUE_CONNECTION=sync/' .env
+          # Force CI-safe drivers
+          sed -i 's/^CACHE_STORE=.*/CACHE_STORE=array/' .env
+          sed -i 's/^QUEUE_CONNECTION=.*/QUEUE_CONNECTION=sync/' .env
 
           php artisan config:clear
           php artisan cache:clear
