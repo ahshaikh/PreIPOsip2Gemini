@@ -120,8 +120,8 @@ export default function CompanyWebinarsPage() {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['companyWebinars']);
-      queryClient.invalidateQueries(['webinarStats']);
+      queryClient.invalidateQueries({ queryKey: ['companyWebinars'] });
+      queryClient.invalidateQueries({ queryKey: ['webinarStats'] });
       toast.success('Webinar created successfully');
       setDialogOpen(false);
       resetForm();
@@ -138,8 +138,8 @@ export default function CompanyWebinarsPage() {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['companyWebinars']);
-      queryClient.invalidateQueries(['webinarStats']);
+      queryClient.invalidateQueries({ queryKey: ['companyWebinars'] });
+      queryClient.invalidateQueries({ queryKey: ['webinarStats'] });
       toast.success('Webinar updated successfully');
       setDialogOpen(false);
       resetForm();
@@ -158,7 +158,7 @@ export default function CompanyWebinarsPage() {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['companyWebinars']);
+      queryClient.invalidateQueries({ queryKey: ['companyWebinars'] });
       toast.success('Recording uploaded successfully');
       setRecordingDialogOpen(false);
       setRecordingUrl('');
@@ -176,8 +176,8 @@ export default function CompanyWebinarsPage() {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['companyWebinars']);
-      queryClient.invalidateQueries(['webinarStats']);
+      queryClient.invalidateQueries({ queryKey: ['companyWebinars'] });
+      queryClient.invalidateQueries({ queryKey: ['webinarStats'] });
       toast.success('Webinar deleted successfully');
     },
     onError: (error: any) => {
@@ -572,7 +572,7 @@ export default function CompanyWebinarsPage() {
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={!formData.title || !formData.scheduled_at || createMutation.isLoading || updateMutation.isLoading}
+              disabled={!formData.title || !formData.scheduled_at || createMutation.isPending || updateMutation.isPending}
             >
               {selectedWebinar ? 'Update Webinar' : 'Create Webinar'}
             </Button>
@@ -605,9 +605,9 @@ export default function CompanyWebinarsPage() {
             </Button>
             <Button
               onClick={handleSubmitRecording}
-              disabled={!recordingUrl || uploadRecordingMutation.isLoading}
+              disabled={!recordingUrl || uploadRecordingMutation.isPending}
             >
-              {uploadRecordingMutation.isLoading ? 'Uploading...' : 'Upload Recording'}
+              {uploadRecordingMutation.isPending ? 'Uploading...' : 'Upload Recording'}
             </Button>
           </DialogFooter>
         </DialogContent>

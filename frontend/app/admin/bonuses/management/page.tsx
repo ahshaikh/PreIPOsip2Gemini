@@ -384,7 +384,7 @@ export default function BonusManagementPage() {
                       <TableRow>
                         <TableCell colSpan={9} className="text-center">Loading...</TableCell>
                       </TableRow>
-                    ) : bonusData?.bonuses?.data?.length > 0 ? (
+                    ) : bonusData?.bonuses?.data && bonusData.bonuses.data.length > 0 ? (
                       bonusData.bonuses.data.map((bonus: BonusTransaction) => (
                         <TableRow key={bonus.id}>
                           <TableCell className="font-medium">{bonus.id}</TableCell>
@@ -463,7 +463,7 @@ export default function BonusManagementPage() {
                     <Label>{setting.key.replace(/_/g, ' ')}</Label>
                     {setting.key === 'bonus_rounding_mode' ? (
                       <Select
-                        value={setting.value}
+                        value={String(setting.value)}
                         onValueChange={(v) => handleSettingChange(setting.key, v)}
                       >
                         <SelectTrigger>
@@ -477,7 +477,7 @@ export default function BonusManagementPage() {
                       </Select>
                     ) : setting.key === 'bonus_allocation_source' ? (
                       <Select
-                        value={setting.value}
+                        value={String(setting.value)}
                         onValueChange={(v) => handleSettingChange(setting.key, v)}
                       >
                         <SelectTrigger>
@@ -492,7 +492,7 @@ export default function BonusManagementPage() {
                     ) : (
                       <Input
                         type="number"
-                        value={setting.value}
+                        value={String(setting.value)}
                         onChange={(e) => handleSettingChange(setting.key, e.target.value)}
                       />
                     )}
@@ -513,7 +513,7 @@ export default function BonusManagementPage() {
                     <Label>{setting.key.replace(/_/g, ' ')}</Label>
                     {setting.key === 'referral_completion_criteria' ? (
                       <Select
-                        value={setting.value}
+                        value={String(setting.value)}
                         onValueChange={(v) => handleSettingChange(setting.key, v)}
                       >
                         <SelectTrigger>
@@ -528,7 +528,7 @@ export default function BonusManagementPage() {
                     ) : (
                       <Input
                         type="number"
-                        value={setting.value}
+                        value={String(setting.value)}
                         onChange={(e) => handleSettingChange(setting.key, e.target.value)}
                       />
                     )}
@@ -549,7 +549,7 @@ export default function BonusManagementPage() {
                     <Label>{setting.key.replace(/_/g, ' ')}</Label>
                     {setting.key === 'bonus_processing_mode' ? (
                       <Select
-                        value={setting.value}
+                        value={String(setting.value)}
                         onValueChange={(v) => handleSettingChange(setting.key, v)}
                       >
                         <SelectTrigger>
@@ -565,7 +565,7 @@ export default function BonusManagementPage() {
                     ) : (
                       <Input
                         type="time"
-                        value={setting.value}
+                        value={String(setting.value)}
                         onChange={(e) => handleSettingChange(setting.key, e.target.value)}
                       />
                     )}

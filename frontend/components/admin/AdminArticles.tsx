@@ -1,18 +1,47 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
+// Type definitions
+interface Article {
+    id: number;
+    title: string;
+    content: string;
+    category_id: string | number;
+    category?: string;
+}
+
+interface Category {
+    id: number;
+    name: string;
+}
+
+interface Pagination {
+    current_page?: number;
+    last_page?: number;
+    next_page_url?: string | null;
+    prev_page_url?: string | null;
+    total?: number;
+}
+
+interface FormData {
+    id: number | null;
+    title: string;
+    content: string;
+    category_id: string | number;
+}
+
 export default function AdminArticles() {
     // --- STATE ---
-    const [articles, setArticles] = useState([]);
-    const [categories, setCategories] = useState([]); // Needed for dropdowns
-    const [pagination, setPagination] = useState({}); // Stores link/meta data
+    const [articles, setArticles] = useState<Article[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]); // Needed for dropdowns
+    const [pagination, setPagination] = useState<Pagination>({}); // Stores link/meta data
     const [loading, setLoading] = useState(false);
-    
+
     // Modal State
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    
+
     // Form State (for Edit)
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<FormData>({
         id: null,
         title: '',
         content: '',
@@ -44,7 +73,7 @@ export default function AdminArticles() {
 
 
     // --- 2. DELETE LOGIC (Fixing the fake delete) ---
-    const handleDelete = async (id) => {
+    const handleDelete = async (id: number) => {
         if (!confirm("Are you sure you want to delete this article?")) return;
 
         try {
@@ -60,7 +89,7 @@ export default function AdminArticles() {
 
 
     // --- 3. EDIT LOGIC (Fixing the empty window) ---
-    const openEditModal = (article) => {
+    const openEditModal = (article: Article) => {
         // Hydrate the form with the clicked article's data
         setFormData({
             id: article.id,
@@ -71,7 +100,7 @@ export default function AdminArticles() {
         setIsEditModalOpen(true);
     };
 
-    const handleUpdate = async (e) => {
+    const handleUpdate = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
             await axios.put(`/api/articles/${formData.id}`, formData);
@@ -102,13 +131,13 @@ export default function AdminArticles() {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                         {loading ? (
-                            <tr><td colSpan="4" className="text-center p-4">Loading...</td></tr>
+                            <tr><td colSpan={4} className="text-center p-4">Loading...</td></tr>
                         ) : articles.map(article => (
                             <tr key={article.id}>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{article.id}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{article.title}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {article.category ? article.category.name : 'N/A'}
+                                    {article.category || 'N/A'}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                     {/* EDIT ICON BUTTON */}
@@ -137,7 +166,7 @@ export default function AdminArticles() {
             <div className="mt-4 flex justify-between items-center">
                 <button
                     disabled={!pagination.prev_page_url}
-                    onClick={() => fetchArticles(pagination.prev_page_url)}
+                    onClick={() => pagination.prev_page_url && fetchArticles(pagination.prev_page_url)}
                     className={`px-4 py-2 border rounded ${!pagination.prev_page_url ? 'opacity-50 cursor-not-allowed' : 'bg-white hover:bg-gray-100'}`}
                 >
                     Previous
@@ -147,7 +176,7 @@ export default function AdminArticles() {
                 </span>
                 <button
                     disabled={!pagination.next_page_url}
-                    onClick={() => fetchArticles(pagination.next_page_url)}
+                    onClick={() => pagination.next_page_url && fetchArticles(pagination.next_page_url)}
                     className={`px-4 py-2 border rounded ${!pagination.next_page_url ? 'opacity-50 cursor-not-allowed' : 'bg-white hover:bg-gray-100'}`}
                 >
                     Next

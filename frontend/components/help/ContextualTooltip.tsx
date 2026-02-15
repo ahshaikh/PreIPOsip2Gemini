@@ -40,8 +40,8 @@ export default function ContextualTooltip({
   const [isVisible, setIsVisible] = useState(false);
   const [hasBeenDismissed, setHasBeenDismissed] = useState(false);
   const [hasBeenShown, setHasBeenShown] = useState(false);
-  const timeoutRef = useRef<NodeJS.Timeout>();
-  const autoHideRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const autoHideRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   // Check if tooltip was previously dismissed
   useEffect(() => {

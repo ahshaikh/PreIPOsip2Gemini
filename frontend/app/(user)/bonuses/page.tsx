@@ -89,7 +89,7 @@ export default function BonusesPage() {
   // Get highest bonus type
   const highestBonusType = Object.entries(summary).reduce((max, [type, value]) => {
     return (Number(value) || 0) > (Number(max.value) || 0) ? { type, value } : max;
-  }, { type: '', value: 0 });
+  }, { type: '', value: 0 } as { type: string; value: unknown });
 
   const handleExportHistory = async () => {
     try {
@@ -189,6 +189,7 @@ export default function BonusesPage() {
               const amount = Number(summary[bonusType.value] || 0);
               const percentage = totalBonuses > 0 ? ((amount / totalBonuses) * 100).toFixed(1) : '0';
               const Icon = bonusType.icon;
+              if (!Icon) return null;
               return (
                 <div
                   key={bonusType.value}

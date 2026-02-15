@@ -28,7 +28,7 @@ import type {
  * @deprecated Use MilestoneEntry[] instead
  * Preserved for backward compatibility with existing code
  */
-export type MilestoneConfig = MilestoneEntry;
+export type MilestoneConfig = MilestoneEntry[];
 
 /**
  * Calculate progressive bonus for a specific month
@@ -96,7 +96,7 @@ export function getProgressiveBonusSchedule(
  */
 export function calculateMilestoneBonus(
   month: number,
-  milestones: MilestoneConfig[],
+  milestones: MilestoneConfig,
   multiplier: number = 1.0
 ): number {
   const milestone = milestones.find(m => m.month === month);
@@ -138,7 +138,7 @@ export function calculateTotalBonuses(
   configs: {
     welcome?: WelcomeBonusConfig;
     progressive?: ProgressiveConfig;
-    milestones?: MilestoneConfig[];
+    milestones?: MilestoneConfig;
     consistency?: ConsistencyConfig;
   },
   multiplier: number = 1.0
@@ -248,7 +248,7 @@ export function validateProgressiveConfig(config: Partial<ProgressiveConfig>): s
 /**
  * Validate milestone config
  */
-export function validateMilestoneConfig(milestones: MilestoneConfig[]): string[] {
+export function validateMilestoneConfig(milestones: MilestoneConfig): string[] {
   const errors: string[] = [];
 
   // Check for duplicate months

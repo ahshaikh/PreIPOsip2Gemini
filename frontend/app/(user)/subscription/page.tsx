@@ -1,4 +1,5 @@
 // V-FINAL-1730-264 (COMPLETE CONSOLIDATED FILE)
+// V-ARCH-2026: Typed with canonical Subscription types
 'use client';
 
 import { Button } from "@/components/ui/button";
@@ -16,9 +17,23 @@ import { Download, CreditCard, Zap, Settings, Building2, TrendingUp } from "luci
 import { useState } from "react";
 import { ManageSubscriptionModal } from "@/components/features/ManageSubscriptionModal";
 import { ManualPaymentModal } from "@/components/features/ManualPaymentModal";
-import { PaginationControls } from "@/components/shared/PaginationControls"; // PAGINATION: added
+import { PaginationControls } from "@/components/shared/PaginationControls";
+import type {
+  SubscriptionWithRelations,
+  Payment,
+  PaginatedPaymentsResponse,
+  PaymentInitPayload,
+  PaymentInitResponse,
+  PaymentVerifyPayload,
+  CreateSubscriptionPayload,
+  ApiError,
+  getMonthlyAmount,
+  RazorpayOptions,
+  RazorpayPaymentResponse,
+} from "@/types/subscription";
+import type { PlanWithRelations } from "@/types/plan";
 
-declare var Razorpay: any;
+// Razorpay is now properly typed via global Window interface in subscription.ts
 
 export default function SubscriptionPage() {
   const router = useRouter();
@@ -46,56 +61,80 @@ export default function SubscriptionPage() {
     bank_qr_code: '' 
   };
 
-  // 1. Fetch Subscription
-  const { data: sub, isLoading: isSubLoading } = useQuery({
+  // 1. Fetch Subscription (Strictly Typed)
+  const { data: sub, isLoading: isSubLoading } = useQuery<SubscriptionWithRelations | null>({
     queryKey: ['subscription'],
-    queryFn: async () => (await api.get('/user/subscription')).data,
+    queryFn: async () => {
+      const response = await api.get<SubscriptionWithRelations>('/user/subscription');
+      return response.data;
+    },
     retry: false,
   });
 
-  // 2. Fetch Plans
+  // 2. Fetch Plans (Already typed via usePlans hook)
   const { data: plans } = usePlans();
 
-  // PAGINATION: added (after existing queries)
-  const { data: paginatedPayments } = useQuery({
+  // 3. Fetch Paginated Payments (Strictly Typed)
+  const { data: paginatedPayments } = useQuery<PaginatedPaymentsResponse>({
     queryKey: ['subscriptionPayments', paymentsPage],
     queryFn: async () => {
-      const res = await api.get(`/user/subscription/payments?page=${paymentsPage}`);
+      const res = await api.get<PaginatedPaymentsResponse>(`/user/subscription/payments?page=${paymentsPage}`);
       return res.data;
     },
     enabled: !!sub,
     placeholderData: (prev) => prev,
   });
   
-  // 3. Create Subscription Mutation
-  const createSubMutation = useMutation({
-    mutationFn: (planId: number) => api.post('/user/subscription', { plan_id: planId }),
+  // 4. Create Subscription Mutation (Strictly Typed)
+  const createSubMutation = useMutation<
+    { data: SubscriptionWithRelations },
+    ApiError,
+    number
+  >({
+    mutationFn: async (planId: number) => {
+      const response = await api.post<{ data: SubscriptionWithRelations }>(
+        '/user/subscription',
+        { plan_id: planId } as CreateSubscriptionPayload
+      );
+      return response.data;
+    },
     onSuccess: () => {
       toast.success("Subscribed!", { description: "Please make your first payment." });
       queryClient.invalidateQueries({ queryKey: ['subscription'] });
     },
-    onError: (error: any) => {
-      toast.error("Subscription Failed", { description: error.response?.data?.message });
+    onError: (error: ApiError) => {
+      toast.error("Subscription Failed", { description: error.message });
     }
   });
 
-  // 4. Payment Initiation Mutation
-  const paymentMutation = useMutation({
-    mutationFn: (paymentId: number) => api.post('/user/payment/initiate', { 
-      payment_id: paymentId, 
-      enable_auto_debit: autoDebitEnabled 
-    }),
-    onSuccess: (response) => {
+  // 5. Payment Initiation Mutation (Strictly Typed)
+  const paymentMutation = useMutation<
+    { data: PaymentInitResponse },
+    ApiError,
+    number
+  >({
+    mutationFn: async (paymentId: number) => {
+      const response = await api.post<{ data: PaymentInitResponse }>(
+        '/user/payment/initiate',
+        {
+          payment_id: paymentId,
+          enable_auto_debit: autoDebitEnabled
+        } as PaymentInitPayload
+      );
+      return response.data;
+    },
+    onSuccess: (response, paymentId) => {
       const data = response.data;
-      
-      const options: any = {
+
+      // Razorpay options - properly typed via RazorpayOptions interface
+      const options: RazorpayOptions = {
         key: data.razorpay_key,
         name: data.name,
         description: data.description,
         prefill: data.prefill,
-        handler: async function (response: any) {
+        handler: async function (response: RazorpayPaymentResponse) {
           try {
-            const verifyPayload: any = {
+            const verifyPayload: PaymentVerifyPayload = {
               payment_id: selectedPaymentId || paymentId,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
@@ -108,7 +147,7 @@ export default function SubscriptionPage() {
               verifyPayload.razorpay_subscription_id = response.razorpay_subscription_id;
             }
 
-            await api.post('/user/payment/verify', verifyPayload);
+            await api.post<{ message: string }>('/user/payment/verify', verifyPayload);
 
             toast.success("Payment Verified!", {
               description: "Your payment has been successfully processed."
@@ -121,10 +160,11 @@ export default function SubscriptionPage() {
             setTimeout(() => {
               router.push('/deals?welcome=true');
             }, 1500);
-          } catch (error: any) {
+          } catch (error) {
+            const apiError = error as ApiError;
             toast.error("Verification Failed", {
               description:
-                error.response?.data?.message ||
+                apiError.message ||
                 "Payment completed but verification failed. Please contact support."
             });
           }
@@ -138,26 +178,34 @@ export default function SubscriptionPage() {
         options.amount = data.amount;
         options.currency = "INR";
       }
-      
-      const rzp = new (window as any).Razorpay(options);
+
+      const rzp = new window.Razorpay(options);
       rzp.open();
     },
-    onError: (error: any) => {
-      toast.error("Payment Failed", { description: error.response?.data?.message });
+    onError: (error: ApiError) => {
+      toast.error("Payment Failed", { description: error.message });
     }
   });
 
-  // 5. Resume Subscription Mutation
-  const resumeMutation = useMutation({
-    mutationFn: () => api.post('/user/subscription/resume'),
+  // 6. Resume Subscription Mutation (Strictly Typed)
+  const resumeMutation = useMutation<
+    { data: SubscriptionWithRelations; message: string },
+    ApiError
+  >({
+    mutationFn: async () => {
+      const response = await api.post<{ data: SubscriptionWithRelations; message: string }>(
+        '/user/subscription/resume'
+      );
+      return response.data;
+    },
     onSuccess: () => {
       toast.success("Subscription Resumed!", {
         description: "Your subscription is now active again."
       });
       queryClient.invalidateQueries({ queryKey: ['subscription'] });
     },
-    onError: (error: any) => {
-      toast.error("Resume Failed", { description: error.response?.data?.message });
+    onError: (error: ApiError) => {
+      toast.error("Resume Failed", { description: error.message });
     }
   });
 
@@ -204,7 +252,7 @@ export default function SubscriptionPage() {
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-2 gap-4">
-            {plans?.map((plan: any) => (
+            {plans?.map((plan: PlanWithRelations) => (
               <Card key={plan.id}>
                 <CardHeader>
                   <CardTitle>{plan.name}</CardTitle>
@@ -228,7 +276,8 @@ export default function SubscriptionPage() {
   }
 
   // --- STATE 2: ACTIVE SUBSCRIPTION ---
-  const pendingPayment = (sub?.payments ?? []).find((p: any) => p.status === 'pending');
+  // Find pending payment using properly typed predicate
+  const pendingPayment = (sub?.payments ?? []).find((p: Payment) => p.status === 'pending');
 
   return (
     <div className="space-y-6">
@@ -236,6 +285,7 @@ export default function SubscriptionPage() {
         <CardHeader className="flex flex-row items-start justify-between">
           <div>
             <CardTitle>
+              {/* ✅ CORRECT: Using plan.name for display only */}
               My Subscription: {sub.plan?.name || 'Loading...'}
             </CardTitle>
             <CardDescription>
@@ -341,7 +391,9 @@ export default function SubscriptionPage() {
                     onClick={() =>
                       handleManualPayClick(
                         pendingPayment.id,
-                        parseFloat(pendingPayment.amount)
+                        typeof pendingPayment.amount === 'string'
+                          ? parseFloat(pendingPayment.amount)
+                          : pendingPayment.amount
                       )
                     }
                   >
@@ -356,7 +408,7 @@ export default function SubscriptionPage() {
           <div>
             <h3 className="font-semibold mb-2">Payment History</h3>
             <div className="border rounded-lg">
-              {(paginatedPayments?.data || []).map((p: any) => (
+              {(paginatedPayments?.data || []).map((p: Payment) => (
                 <div
                   key={p.id}
                   className="flex justify-between items-center p-4 border-b last:border-b-0"

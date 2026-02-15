@@ -14,7 +14,16 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ShieldCheck, Loader2 } from 'lucide-react';
 
-export function EligibilityConfigDialog({ open, onOpenChange, planId, planName, config, onSave }) {
+interface EligibilityConfigDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  planId: number;
+  planName: string;
+  config: unknown;
+  onSave: (config: unknown) => void;
+}
+
+export function EligibilityConfigDialog({ open, onOpenChange, planId, planName, config, onSave }: EligibilityConfigDialogProps) {
   const [activeConfig, setActiveConfig] = useState(config);
   const [serverSummary, setServerSummary] = useState<{ eligible: boolean, reasons: string[] } | null>(null);
   const [isValidating, setIsValidating] = useState(false);

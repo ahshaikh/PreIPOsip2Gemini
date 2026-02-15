@@ -32,6 +32,19 @@ import { DiscountConfigDialog } from "@/components/admin/DiscountConfigDialog";
 import { PlanAnalyticsDashboard } from "@/components/admin/PlanAnalyticsDashboard";
 import type { AdminPlan, BillingCycle, CreatePlanPayload, UpdatePlanPayload, PlanFeature, GenericPlanConfig } from "@/types/plan";
 
+// Local extended type for plans with extracted config properties
+// This represents the dynamically enhanced plan objects used in component state
+interface AdminPlanWithConfigs extends AdminPlan {
+  eligibilityConfig?: unknown;
+  advancedConfig?: unknown;
+  profitSharingConfig?: unknown;
+  celebrationBonusConfig?: unknown;
+  autoDebitConfig?: unknown;
+  discountConfig?: unknown;
+}
+type AdminPlanWithConfigMap = Omit<AdminPlan, 'configs'> & {
+  configs: Record<string, unknown>;
+};
 // Helper to format date for input
 const formatDateForInput = (date: string | null) => {
     if (!date) return '';
@@ -47,7 +60,7 @@ export default function PlanManagerPage() {
 
   // Bonus Configuration State
   const [bonusConfigOpen, setBonusConfigOpen] = useState(false);
-  const [bonusConfigPlan, setBonusConfigPlan] = useState<AdminPlan | null>(null);
+  const [bonusConfigPlan, setBonusConfigPlan] = useState<AdminPlanWithConfigMap | null>(null);
 
   // Form State
   const [name, setName] = useState('');
@@ -74,27 +87,27 @@ export default function PlanManagerPage() {
 
   // Eligibility Configuration State
   const [eligibilityConfigOpen, setEligibilityConfigOpen] = useState(false);
-  const [eligibilityConfigPlan, setEligibilityConfigPlan] = useState<AdminPlan | null>(null);
+  const [eligibilityConfigPlan, setEligibilityConfigPlan] = useState<AdminPlanWithConfigs | null>(null);
 
   // Advanced Features Configuration State
   const [advancedFeaturesOpen, setAdvancedFeaturesOpen] = useState(false);
-  const [advancedFeaturesPlan, setAdvancedFeaturesPlan] = useState<AdminPlan | null>(null);
+  const [advancedFeaturesPlan, setAdvancedFeaturesPlan] = useState<AdminPlanWithConfigs | null>(null);
 
   // Profit Sharing Configuration State
   const [profitSharingConfigOpen, setProfitSharingConfigOpen] = useState(false);
-  const [profitSharingConfigPlan, setProfitSharingConfigPlan] = useState<AdminPlan | null>(null);
+  const [profitSharingConfigPlan, setProfitSharingConfigPlan] = useState<AdminPlanWithConfigs | null>(null);
 
   // Celebration Bonus Configuration State
   const [celebrationBonusConfigOpen, setCelebrationBonusConfigOpen] = useState(false);
-  const [celebrationBonusConfigPlan, setCelebrationBonusConfigPlan] = useState<AdminPlan | null>(null);
+  const [celebrationBonusConfigPlan, setCelebrationBonusConfigPlan] = useState<AdminPlanWithConfigs | null>(null);
 
   // Auto-Debit Configuration State
   const [autoDebitConfigOpen, setAutoDebitConfigOpen] = useState(false);
-  const [autoDebitConfigPlan, setAutoDebitConfigPlan] = useState<AdminPlan | null>(null);
+  const [autoDebitConfigPlan, setAutoDebitConfigPlan] = useState<AdminPlanWithConfigs | null>(null);
 
   // Discount Configuration State
   const [discountConfigOpen, setDiscountConfigOpen] = useState(false);
-  const [discountConfigPlan, setDiscountConfigPlan] = useState<AdminPlan | null>(null);
+  const [discountConfigPlan, setDiscountConfigPlan] = useState<AdminPlanWithConfigs | null>(null);
 
   // Features 4, 5, 14 Form State
   const [billingCycle, setBillingCycle] = useState<'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'yearly'>('monthly');
@@ -343,11 +356,11 @@ export default function PlanManagerPage() {
         description,
         is_active: isActive,
         is_featured: isFeatured,
-        available_from: availableFrom || null,
-        available_until: availableUntil || null,
+        available_from: availableFrom || undefined,
+        available_until: availableUntil || undefined,
         features,
-        min_investment: minInvestment ? parseFloat(minInvestment) : null,
-        max_investment: maxInvestment ? parseFloat(maxInvestment) : null,
+        min_investment: minInvestment ? parseFloat(minInvestment) : undefined,
+        max_investment: maxInvestment ? parseFloat(maxInvestment) : undefined,
         display_order: parseInt(displayOrder),
         allow_pause: allowPause,
         max_pause_count: parseInt(maxPauseCount),
@@ -355,7 +368,7 @@ export default function PlanManagerPage() {
         max_subscriptions_per_user: parseInt(maxSubscriptionsPerUser),
         billing_cycle: billingCycle,
         trial_period_days: parseInt(trialPeriodDays),
-        metadata: Object.keys(metadataObject).length > 0 ? metadataObject : null,
+        metadata: Object.keys(metadataObject).length > 0 ? metadataObject : undefined,
     };
     mutation.mutate(payload);
   };
@@ -375,10 +388,15 @@ export default function PlanManagerPage() {
 
   const handleBonusConfig = (plan: AdminPlan) => {
     // Transform configs array to object format for the dialog
-    const configsObject = configsArrayToObject(plan.configs);
-    setBonusConfigPlan({ ...plan, configs: configsObject } as AdminPlan);
-    setBonusConfigOpen(true);
+  const configsObject = configsArrayToObject(plan.configs);
+
+  const transformedPlan: AdminPlanWithConfigMap = {
+    ...plan,
+    configs: configsObject,
   };
+  setBonusConfigPlan(transformedPlan);
+  setBonusConfigOpen(true);
+};
 
   const handleSaveBonusConfig = (configs: Record<string, unknown>) => {
     if (!bonusConfigPlan) return;
@@ -387,7 +405,7 @@ export default function PlanManagerPage() {
 
   const handleEligibilityConfig = (plan: AdminPlan) => {
     const eligibilityConfig = getConfigValue(plan.configs, 'eligibility_config');
-    setEligibilityConfigPlan({ ...plan, eligibilityConfig } as AdminPlan);
+    setEligibilityConfigPlan({ ...plan, eligibilityConfig } as AdminPlanWithConfigs);
     setEligibilityConfigOpen(true);
   };
 
@@ -403,7 +421,7 @@ export default function PlanManagerPage() {
       referral_config: configsObject['referral_config'] || {},
       plan_change_config: configsObject['plan_change_config'] || {}
     };
-    setAdvancedFeaturesPlan({ ...plan, advancedConfig } as AdminPlan);
+    setAdvancedFeaturesPlan({ ...plan, advancedConfig } as AdminPlanWithConfigs);
     setAdvancedFeaturesOpen(true);
   };
 
@@ -414,7 +432,7 @@ export default function PlanManagerPage() {
 
   const handleProfitSharingConfig = (plan: AdminPlan) => {
     const profitSharingConfig = getConfigValue(plan.configs, 'profit_sharing_config');
-    setProfitSharingConfigPlan({ ...plan, profitSharingConfig } as AdminPlan);
+    setProfitSharingConfigPlan({ ...plan, profitSharingConfig } as AdminPlanWithConfigs);
     setProfitSharingConfigOpen(true);
   };
 
@@ -425,7 +443,7 @@ export default function PlanManagerPage() {
 
   const handleCelebrationBonusConfig = (plan: AdminPlan) => {
     const celebrationBonusConfig = getConfigValue(plan.configs, 'celebration_bonus_config');
-    setCelebrationBonusConfigPlan({ ...plan, celebrationBonusConfig } as AdminPlan);
+    setCelebrationBonusConfigPlan({ ...plan, celebrationBonusConfig } as AdminPlanWithConfigs);
     setCelebrationBonusConfigOpen(true);
   };
 
@@ -448,7 +466,7 @@ export default function PlanManagerPage() {
 
   const handleDiscountConfig = (plan: AdminPlan) => {
     const discountConfig = getConfigValue(plan.configs, 'discount_config');
-    setDiscountConfigPlan({ ...plan, discountConfig } as AdminPlan);
+    setDiscountConfigPlan({ ...plan, discountConfig } as AdminPlanWithConfigs);
     setDiscountConfigOpen(true);
   };
 
@@ -967,7 +985,7 @@ export default function PlanManagerPage() {
             <AlertDialogTitle>Delete Plan</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete &ldquo;{deleteConfirmPlan?.name}&rdquo;? This action cannot be undone.
-              {deleteConfirmPlan?.subscribers_count > 0 && (
+              {deleteConfirmPlan && deleteConfirmPlan.subscribers_count && deleteConfirmPlan.subscribers_count > 0 && (
                 <span className="block mt-2 text-destructive font-medium">
                   Warning: This plan has {deleteConfirmPlan.subscribers_count} active subscribers.
                 </span>
@@ -977,7 +995,7 @@ export default function PlanManagerPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => deleteMutation.mutate(deleteConfirmPlan.id)}
+              onClick={() => deleteConfirmPlan && deleteMutation.mutate(deleteConfirmPlan.id)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteMutation.isPending ? "Deleting..." : "Delete Plan"}
@@ -986,7 +1004,7 @@ export default function PlanManagerPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Bonus Configuration Dialog */}
+{/* Bonus Configuration Dialog */}
       {bonusConfigPlan && (
         <BonusConfigDialog
           open={bonusConfigOpen}
@@ -994,7 +1012,7 @@ export default function PlanManagerPage() {
           planName={bonusConfigPlan.name}
           monthlyAmount={bonusConfigPlan.monthly_amount}
           durationMonths={bonusConfigPlan.duration_months}
-          configs={bonusConfigPlan.configs || {}}
+          configs={bonusConfigPlan.configs} // Use the already mapped object from state
           onSave={handleSaveBonusConfig}
           isSaving={bonusConfigMutation.isPending}
         />
@@ -1006,8 +1024,8 @@ export default function PlanManagerPage() {
           open={eligibilityConfigOpen}
           onOpenChange={setEligibilityConfigOpen}
           planName={eligibilityConfigPlan.name}
-          eligibilityConfig={eligibilityConfigPlan.eligibilityConfig || {}}
-          onSave={handleSaveEligibilityConfig}
+          eligibilityConfig={eligibilityConfigPlan.eligibilityConfig || {} as never}
+          onSave={handleSaveEligibilityConfig as never}
           isSaving={eligibilityConfigMutation.isPending}
         />
       )}
@@ -1019,7 +1037,7 @@ export default function PlanManagerPage() {
           onOpenChange={setAdvancedFeaturesOpen}
           planName={advancedFeaturesPlan.name}
           advancedConfig={advancedFeaturesPlan.advancedConfig || {}}
-          onSave={handleSaveAdvancedFeatures}
+          onSave={handleSaveAdvancedFeatures as never}
           isSaving={advancedFeaturesMutation.isPending}
         />
       )}
@@ -1031,7 +1049,7 @@ export default function PlanManagerPage() {
           onOpenChange={setProfitSharingConfigOpen}
           planName={profitSharingConfigPlan.name}
           profitSharingConfig={profitSharingConfigPlan.profitSharingConfig || {}}
-          onSave={handleSaveProfitSharingConfig}
+          onSave={handleSaveProfitSharingConfig as never}
           isSaving={profitSharingConfigMutation.isPending}
         />
       )}
@@ -1043,7 +1061,7 @@ export default function PlanManagerPage() {
           onOpenChange={setCelebrationBonusConfigOpen}
           planName={celebrationBonusConfigPlan.name}
           celebrationBonusConfig={celebrationBonusConfigPlan.celebrationBonusConfig || {}}
-          onSave={handleSaveCelebrationBonusConfig}
+          onSave={handleSaveCelebrationBonusConfig as never}
           isSaving={celebrationBonusConfigMutation.isPending}
         />
       )}
@@ -1055,7 +1073,7 @@ export default function PlanManagerPage() {
           onOpenChange={setAutoDebitConfigOpen}
           planName={autoDebitConfigPlan.name}
           autoDebitConfig={autoDebitConfigPlan.autoDebitConfig || {}}
-          onSave={handleSaveAutoDebitConfig}
+          onSave={handleSaveAutoDebitConfig as never}
           isSaving={autoDebitConfigMutation.isPending}
         />
       )}
@@ -1068,7 +1086,7 @@ export default function PlanManagerPage() {
           planName={discountConfigPlan.name}
           discountConfig={discountConfigPlan.discountConfig || {}}
           monthlyAmount={discountConfigPlan.monthly_amount || 0}
-          onSave={handleSaveDiscountConfig}
+          onSave={handleSaveDiscountConfig as never}
           isSaving={discountConfigMutation.isPending}
         />
       )}

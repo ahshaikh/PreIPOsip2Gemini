@@ -5,7 +5,7 @@
  * * [AUDIT FIX]: Consumes backend-driven valuation.
  * * No local math performed to ensure data integrity.
  */
-export function PortfolioSummary({ summary }) {
+export function PortfolioSummary({ summary }: { summary: any }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div className="p-4 border rounded shadow-sm">

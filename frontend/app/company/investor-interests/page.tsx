@@ -54,6 +54,16 @@ interface Statistics {
   not_interested: number;
 }
 
+interface InvestorInterestResponse {
+  data: InvestorInterest[];
+  pagination: {
+    total: number;
+    per_page: number;
+    current_page: number;
+    last_page: number;
+  };
+}
+
 export default function InvestorInterestsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
@@ -83,7 +93,7 @@ export default function InvestorInterestsPage() {
   };
 
   // Fetch interests
-  const { data: response, isLoading } = useQuery({
+  const { data: response, isLoading } = useQuery<InvestorInterestResponse>({
     queryKey: ['investorInterests', currentPage, statusFilter, interestFilter],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -94,7 +104,6 @@ export default function InvestorInterestsPage() {
       const { data } = await companyApi.get(`/investor-interests?${params}`);
       return data;
     },
-    keepPreviousData: true,
   });
 
   const interests: InvestorInterest[] = response?.data || [];
@@ -115,8 +124,8 @@ export default function InvestorInterestsPage() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['investorInterests']);
-      queryClient.invalidateQueries(['investorInterestStats']);
+      queryClient.invalidateQueries({ queryKey: ['investorInterests'] });
+      queryClient.invalidateQueries({ queryKey: ['investorInterestStats'] });
       toast.success('Status updated successfully');
       setDialogOpen(false);
       setSelectedInterest(null);
@@ -508,9 +517,9 @@ export default function InvestorInterestsPage() {
             </Button>
             <Button
               onClick={handleUpdateStatus}
-              disabled={updateStatusMutation.isLoading}
+              disabled={updateStatusMutation.isPending}
             >
-              {updateStatusMutation.isLoading ? 'Updating...' : 'Update Status'}
+              {updateStatusMutation.isPending ? 'Updating...' : 'Update Status'}
             </Button>
           </DialogFooter>
         </DialogContent>

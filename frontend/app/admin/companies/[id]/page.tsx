@@ -762,7 +762,13 @@ export default function AdminCompanyManagementPage() {
           total_snapshots: company.investor_snapshots?.snapshot_count ?? 0,
           latest_snapshot_at: company.investor_snapshots?.latest_snapshot_at,
           earliest_snapshot_at: company.investor_snapshots?.earliest_snapshot_at,
-          snapshots_by_version: company.investor_snapshots?.snapshots_by_version ?? [],
+          snapshots_by_version: company.investor_snapshots?.snapshots_by_version
+            ? Object.entries(company.investor_snapshots.snapshots_by_version).map(([version, count]) => ({
+                version: Number(version),
+                count,
+                total_amount: 0
+              }))
+            : [],
         }}
         companyId={company.id}
         companyName={company.name}

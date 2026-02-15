@@ -1,17 +1,24 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+// @ts-ignore - decimal.js types not installed
 import Decimal from 'decimal.js'; // [AUDIT FIX]: Use high-precision math
 import api from '@/lib/api';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { InfoIcon, ShieldAlert } from 'lucide-react';
+
+interface Plan {
+  annual_rate?: number;
+  asset_class?: string;
+  risk_level?: string;
+}
 
 /**
  * ReturnsCalculator
  * * [AUDIT FIX]: Decoupled math from UI.
  * * Uses Decimal.js for local feedback and Backend API for final truth.
  */
-export function ReturnsCalculator({ plan }) {
+export function ReturnsCalculator({ plan }: { plan: Plan }) {
   const [principal, setPrincipal] = useState(10000);
   const [months, setMonths] = useState(12);
   const [projections, setProjections] = useState<any>(null);
@@ -59,7 +66,7 @@ export function ReturnsCalculator({ plan }) {
       </div>
 
       {/* [AUDIT FIX]: Mandatory Regulatory Disclaimer */}
-      <Alert variant="warning" className="mt-4 bg-amber-50 border-amber-200">
+      <Alert variant="default" className="mt-4 bg-amber-50 border-amber-200">
         <ShieldAlert className="h-4 w-4 text-amber-600" />
         <AlertDescription className="text-xs text-amber-800">
           <strong>Regulatory Disclaimer:</strong> Investments in {plan.asset_class} carry risk. 

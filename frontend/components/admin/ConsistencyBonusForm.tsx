@@ -90,7 +90,7 @@ export function ConsistencyBonusForm({ value, onChange }: ConsistencyBonusFormPr
             Final Bonus = Base Amount × Streak Multiplier
           </code>
           <p className="text-xs text-muted-foreground mt-2">
-            Example: ₹{config.amount_per_payment} × 2.0 = ₹{config.amount_per_payment * 2} (for 2x streak multiplier)
+            Example: ₹{config.amount_per_payment ?? 0} × 2.0 = ₹{(config.amount_per_payment ?? 0) * 2} (for 2x streak multiplier)
           </p>
         </div>
       </div>

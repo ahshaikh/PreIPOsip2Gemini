@@ -24,7 +24,11 @@ export default function PaymentGatewaySettingsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['adminSettings'],
     queryFn: async () => (await api.get('/admin/settings')).data,
-    onSuccess: (data) => {
+  });
+
+  // Migrate onSuccess logic to useEffect
+  useEffect(() => {
+    if (data) {
       // Flatten all financial settings into a simple map
       const flatMap: Record<string, string> = {};
       Object.values(data.financial || {}).forEach((setting: any) => {

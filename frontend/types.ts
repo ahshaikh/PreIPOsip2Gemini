@@ -1,5 +1,7 @@
 // V-PHASE4-1730-100 | V-TYPES-ENHANCED (Comprehensive type definitions)
 
+import type { Plan } from './types/plan';
+
 // ============================================
 // COMMON TYPES
 // ============================================

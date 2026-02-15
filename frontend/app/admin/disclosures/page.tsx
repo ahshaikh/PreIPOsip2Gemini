@@ -239,7 +239,9 @@ export default function DisclosureListPage() {
                       <div className="flex items-center gap-2">
                         {d.company.name}
                         {d.audit_window_breached && (
-                          <AlertTriangle className="w-4 h-4 text-amber-500" title="Audit window exceeded" />
+                          <span title="Audit window exceeded">
+                            <AlertTriangle className="w-4 h-4 text-amber-500" />
+                          </span>
                         )}
                       </div>
                     </TableCell>

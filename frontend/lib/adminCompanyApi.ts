@@ -26,6 +26,12 @@ export interface AdminCompanyDetail {
   is_visible_public: boolean;
   is_visible_subscribers: boolean;
 
+  // Top-level fields (may be flattened from platform_context by backend)
+  suspended_at?: string | null;
+  lifecycle_state?: string;
+  is_frozen?: boolean;
+  buying_enabled?: boolean;
+
   // Platform Context (Admin-editable)
   platform_context: {
     lifecycle_state: string;
@@ -70,6 +76,8 @@ export interface AdminCompanyDetail {
     total_investments: number;
     snapshot_count: number;
     latest_snapshot_at?: string;
+    earliest_snapshot_at?: string;
+    snapshots_by_version?: Record<number, number>;
   };
 
   // Audit Trail Summary

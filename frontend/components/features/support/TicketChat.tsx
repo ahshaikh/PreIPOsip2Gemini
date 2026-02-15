@@ -6,10 +6,11 @@
  * * [AUDIT FIX]: Implements Pagination logic for "Load More" history.
  */
 import { useEffect, useState } from 'react';
+// @ts-ignore - laravel-echo types not installed
 import Echo from 'laravel-echo';
 import api from '@/lib/api';
 
-export function TicketChat({ ticketId }) {
+export function TicketChat({ ticketId }: { ticketId: number }) {
   const [messages, setMessages] = useState<any[]>([]);
   const [nextPageUrl, setNextPageUrl] = useState<string | null>(null);
 

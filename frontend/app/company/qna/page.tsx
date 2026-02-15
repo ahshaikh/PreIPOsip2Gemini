@@ -51,6 +51,16 @@ interface Statistics {
   featured_count: number;
 }
 
+interface QnAResponse {
+  data: QnA[];
+  pagination: {
+    total: number;
+    per_page: number;
+    current_page: number;
+    last_page: number;
+  };
+}
+
 export default function CompanyQnaPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
@@ -79,7 +89,7 @@ export default function CompanyQnaPage() {
   };
 
   // Fetch Q&As
-  const { data: response, isLoading } = useQuery({
+  const { data: response, isLoading } = useQuery<QnAResponse>({
     queryKey: ['companyQna', currentPage, statusFilter],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -89,7 +99,6 @@ export default function CompanyQnaPage() {
       const { data } = await companyApi.get(`/qna?${params}`);
       return data;
     },
-    keepPreviousData: true,
   });
 
   const qnas: QnA[] = response?.data || [];
@@ -110,8 +119,8 @@ export default function CompanyQnaPage() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['companyQna']);
-      queryClient.invalidateQueries(['qnaStats']);
+      queryClient.invalidateQueries({ queryKey: ['companyQna'] });
+      queryClient.invalidateQueries({ queryKey: ['qnaStats'] });
       toast.success('Answer posted successfully');
       setDialogOpen(false);
       setSelectedQna(null);
@@ -130,8 +139,8 @@ export default function CompanyQnaPage() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['companyQna']);
-      queryClient.invalidateQueries(['qnaStats']);
+      queryClient.invalidateQueries({ queryKey: ['companyQna'] });
+      queryClient.invalidateQueries({ queryKey: ['qnaStats'] });
       toast.success('Q&A updated successfully');
     },
     onError: () => {
@@ -146,8 +155,8 @@ export default function CompanyQnaPage() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['companyQna']);
-      queryClient.invalidateQueries(['qnaStats']);
+      queryClient.invalidateQueries({ queryKey: ['companyQna'] });
+      queryClient.invalidateQueries({ queryKey: ['qnaStats'] });
       toast.success('Q&A deleted successfully');
     },
     onError: () => {
@@ -520,9 +529,9 @@ export default function CompanyQnaPage() {
             </Button>
             <Button
               onClick={handleSubmitAnswer}
-              disabled={!answerText.trim() || answerMutation.isLoading}
+              disabled={!answerText.trim() || answerMutation.isPending}
             >
-              {answerMutation.isLoading ? 'Posting...' : 'Post Answer'}
+              {answerMutation.isPending ? 'Posting...' : 'Post Answer'}
             </Button>
           </DialogFooter>
         </DialogContent>

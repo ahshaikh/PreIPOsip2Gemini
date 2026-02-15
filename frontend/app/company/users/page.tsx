@@ -995,7 +995,7 @@ export default function CompanyUsersPage() {
                 type="submit"
                 disabled={
                   updateUserMutation.isPending ||
-                  (editingUser && isOnlyAdmin(editingUser) && formData.role !== 'company_admin')
+                  !!(editingUser && isOnlyAdmin(editingUser) && formData.role !== 'company_admin')
                 }
               >
                 {updateUserMutation.isPending ? (

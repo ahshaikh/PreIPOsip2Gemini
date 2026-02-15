@@ -8,7 +8,7 @@
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 
-export function PlanDisclaimer({ planId }) {
+export function PlanDisclaimer({ planId }: { planId: number }) {
   const [disclaimer, setDisclaimer] = useState('');
 
   useEffect(() => {

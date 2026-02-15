@@ -63,7 +63,7 @@ export default function ComplianceAgreementPage() {
 
   const handleAcceptAll = () => {
     if (!pendingDocuments) return;
-    const allIds = new Set(pendingDocuments.map((doc: any) => doc.id));
+    const allIds = new Set<number>(pendingDocuments.map((doc: any) => doc.id));
     setAcceptedDocs(allIds);
   };
 

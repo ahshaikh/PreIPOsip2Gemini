@@ -15,60 +15,82 @@
  * @param url - The storage URL from the backend (can be absolute or relative)
  * @returns Proxied URL path for Next.js
  */
-export function transformStorageUrl(url: string | undefined | null): string | undefined {
+export function transformStorageUrl(
+  url: string | undefined | null
+): string | undefined {
   if (!url) return undefined;
 
-  // If it's already a proxied URL, return as-is
+  // Already proxied
   if (url.startsWith('/api/storage/')) {
     return url;
   }
 
-  // Extract the storage path from absolute URLs
-  // Handles: http://localhost:8000/storage/... or https://api.example.com/storage/...
+  // Absolute backend URL → extract /storage/ path
   const storageMatch = url.match(/\/storage\/(.+)$/);
   if (storageMatch) {
     return `/api/storage/${storageMatch[1]}`;
   }
 
-  // If it's already a relative path starting with /storage/
+  // Relative /storage/ path
   if (url.startsWith('/storage/')) {
     return `/api${url}`;
   }
 
-  // If none of the patterns match, return the original URL
-  // (might be an external URL or data URI)
+  // External or unknown format
   return url;
 }
 
 /**
  * Batch transform multiple storage URLs
- *
- * @param urls - Array of storage URLs
- * @returns Array of proxied URLs
  */
-export function transformStorageUrls(urls: (string | undefined | null)[]): (string | undefined)[] {
+export function transformStorageUrls(
+  urls: (string | undefined | null)[]
+): (string | undefined)[] {
   return urls.map(transformStorageUrl);
 }
 
 /**
- * Transform storage URLs in an object (useful for company data)
- *
- * @param obj - Object containing logo_url or similar fields
- * @returns Object with transformed URLs
+ * Known image-related fields that may contain storage URLs
  */
-export function transformObjectStorageUrls<T extends Record<string, any>>(obj: T): T {
+type ImageField =
+  | 'logo_url'
+  | 'logo'
+  | 'image_url'
+  | 'image'
+  | 'avatar_url'
+  | 'avatar';
+
+/**
+ * Transform storage URLs in an object (e.g., company/user objects)
+ *
+ * - Does NOT mutate the original object
+ * - Preserves original type shape
+ * - Only transforms known image string fields
+ */
+export function transformObjectStorageUrls<
+  T extends Record<string, unknown>
+>(obj: T): T {
   if (!obj) return obj;
 
-  const transformed = { ...obj };
+  const imageFields: readonly ImageField[] = [
+    'logo_url',
+    'logo',
+    'image_url',
+    'image',
+    'avatar_url',
+    'avatar',
+  ];
 
-  // Transform common image field names
-  const imageFields = ['logo_url', 'logo', 'image_url', 'image', 'avatar_url', 'avatar'];
-
-  for (const field of imageFields) {
-    if (field in transformed && typeof transformed[field] === 'string') {
-      transformed[field] = transformStorageUrl(transformed[field]) || transformed[field];
+  const entries = Object.entries(obj).map(([key, value]) => {
+    if (
+      imageFields.includes(key as ImageField) &&
+      typeof value === 'string'
+    ) {
+      return [key, transformStorageUrl(value) ?? value] as const;
     }
-  }
 
-  return transformed;
+    return [key, value] as const;
+  });
+
+  return Object.fromEntries(entries) as T;
 }

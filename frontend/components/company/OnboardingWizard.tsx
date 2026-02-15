@@ -122,7 +122,7 @@ export default function OnboardingWizard({ open, onOpenChange, autoShow = false 
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['onboardingProgress']);
+      queryClient.invalidateQueries({ queryKey: ['onboardingProgress'] });
       toast.success('Step marked as completed!');
     },
     onError: () => {
@@ -137,7 +137,7 @@ export default function OnboardingWizard({ open, onOpenChange, autoShow = false 
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['onboardingProgress']);
+      queryClient.invalidateQueries({ queryKey: ['onboardingProgress'] });
       toast.success('Onboarding skipped. You can access it anytime from your dashboard.');
       onOpenChange(false);
     },
@@ -367,9 +367,9 @@ export default function OnboardingWizard({ open, onOpenChange, autoShow = false 
           <Button
             variant="ghost"
             onClick={handleSkip}
-            disabled={skipMutation.isLoading || progress?.is_completed}
+            disabled={skipMutation.isPending || progress?.is_completed}
           >
-            {skipMutation.isLoading ? 'Skipping...' : 'Skip for now'}
+            {skipMutation.isPending ? 'Skipping...' : 'Skip for now'}
           </Button>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>

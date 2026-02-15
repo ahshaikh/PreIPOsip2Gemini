@@ -10,6 +10,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, CheckCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import type { SubscriptionWithRelations, CreateSubscriptionPayload, ApiError } from "@/types/subscription";
+import type { PlanWithRelations } from "@/types/plan";
 
 export default function SubscribePage() {
   const router = useRouter();
@@ -17,12 +19,15 @@ export default function SubscribePage() {
   const { user } = useAuth();
 
   const [planSlug, setPlanSlug] = useState<string | null>(null);
-  const [selectedPlan, setSelectedPlan] = useState<any>(null);
+  const [selectedPlan, setSelectedPlan] = useState<PlanWithRelations | null>(null);
 
-  // Check if user already has an active subscription
-  const { data: existingSubscription } = useQuery({
+  // Check if user already has an active subscription (Strictly Typed)
+  const { data: existingSubscription } = useQuery<SubscriptionWithRelations | null>({
     queryKey: ['subscription'],
-    queryFn: async () => (await api.get('/user/subscription')).data,
+    queryFn: async () => {
+      const response = await api.get<SubscriptionWithRelations>('/user/subscription');
+      return response.data;
+    },
     retry: false,
   });
 
@@ -35,19 +40,22 @@ export default function SubscribePage() {
     }
   }, [existingSubscription, router]);
 
-  // 1. Get all public plans
-  const { data: plans, isLoading: isLoadingPlans } = useQuery({
+  // 1. Get all public plans (Strictly Typed)
+  const { data: plans, isLoading: isLoadingPlans } = useQuery<PlanWithRelations[]>({
     queryKey: ['publicPlans'],
-    queryFn: async () => (await api.get('/plans')).data,
+    queryFn: async () => {
+      const response = await api.get<PlanWithRelations[]>('/plans');
+      return response.data;
+    },
   });
 
   // 2. On load, find the user's chosen plan
   useEffect(() => {
     const slug = localStorage.getItem('pending_plan');
     setPlanSlug(slug);
-    
+
     if (slug && plans) {
-      const plan = plans.find((p: any) => p.slug === slug);
+      const plan = plans.find((p: PlanWithRelations) => p.slug === slug);
       if (plan) {
         setSelectedPlan(plan);
       } else {
@@ -58,18 +66,28 @@ export default function SubscribePage() {
     }
   }, [plans, router]);
 
-  // 3. Subscription Creation Mutation
-  const createSubMutation = useMutation({
-    mutationFn: (planId: number) => api.post('/user/subscription', { plan_id: planId }),
+  // 3. Subscription Creation Mutation (Strictly Typed)
+  const createSubMutation = useMutation<
+    { data: SubscriptionWithRelations },
+    ApiError,
+    number
+  >({
+    mutationFn: async (planId: number) => {
+      const response = await api.post<{ data: SubscriptionWithRelations }>(
+        '/user/subscription',
+        { plan_id: planId } as CreateSubscriptionPayload
+      );
+      return response.data;
+    },
     onSuccess: (data) => {
       toast.success("Subscription Created!", { description: "Redirecting you to payment..." });
       localStorage.removeItem('pending_plan');
       queryClient.invalidateQueries({ queryKey: ['subscription'] });
-      
+
       // Redirect to the dashboard, which will show the "Pay Now" button
       router.push('/dashboard');
     },
-    onError: (e: any) => toast.error("Subscription Failed", { description: e.response?.data?.message })
+    onError: (e: ApiError) => toast.error("Subscription Failed", { description: e.message })
   });
 
   const handleConfirm = () => {

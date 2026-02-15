@@ -26,17 +26,21 @@ export default function CaptchaSettingsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['adminSettings'],
     queryFn: async () => (await api.get('/admin/settings')).data,
-    onSuccess: (data) => {
+  });
+
+  // Migrate onSuccess logic to useEffect
+  useEffect(() => {
+    if (data) {
       // Flatten all settings into a simple map
       const flatMap: Record<string, string> = {};
-      Object.values(data).forEach((group: any) => {
-        Object.values(group).forEach((setting: any) => {
+      (Object.values(data) as Record<string, any>[]).forEach((group: Record<string, any>) => {
+        Object.values(group).forEach((setting: { key: string; value: string }) => {
           flatMap[setting.key] = setting.value;
         });
       });
       setSettings(flatMap);
     }
-  });
+  }, [data]);
 
   const mutation = useMutation({
     mutationFn: (updatedSettings: Setting[]) => api.put('/admin/settings', { settings: updatedSettings }),

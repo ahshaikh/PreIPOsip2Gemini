@@ -11,7 +11,8 @@ import { toast } from "sonner";
 import { useRouter } from 'next/navigation';
 
 export default function ComplianceGuard({ children }: { children: React.ReactNode }) {
-  const { user, isAuthenticated } = useAuth();
+  const { user } = useAuth();
+  const isAuthenticated = !!user;
   const [isBlockerOpen, setIsBlockerOpen] = useState(false);
   const router = useRouter();
 
@@ -72,7 +73,7 @@ export default function ComplianceGuard({ children }: { children: React.ReactNod
     <>
       {/* The Blocker Dialog */}
       <Dialog open={isBlockerOpen}>
-        <DialogContent className="sm:max-w-[500px]" hideCloseButton onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent className="sm:max-w-[500px]" showCloseButton={false} onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <div className="mx-auto bg-amber-100 p-3 rounded-full w-fit mb-4">
               <AlertTriangle className="h-8 w-8 text-amber-600" />

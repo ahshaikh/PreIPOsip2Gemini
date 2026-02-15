@@ -277,7 +277,7 @@ export default function DealsPage() {
                     <CardTitle className="text-xl mb-2 truncate">{company.name}</CardTitle>
                     {company.sector && (
                       <Badge variant="outline" className="text-xs">
-                        {typeof company.sector === 'string' ? company.sector : company.sector.name}
+                        {company.sector}
                       </Badge>
                     )}
                   </div>

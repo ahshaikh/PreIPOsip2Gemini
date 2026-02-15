@@ -78,14 +78,12 @@ export default function DealApprovalsPage() {
       await api.post(`/admin/deal-approvals/${approvalId}/start-review`);
     },
     onSuccess: () => {
-      toast({ title: 'Review started successfully' });
+      toast.success('Review started successfully');
       refetch();
     },
     onError: (error: any) => {
-      toast({
-        title: 'Failed to start review',
-        description: error.response?.data?.error || 'An error occurred',
-        variant: 'destructive'
+      toast.error('Failed to start review', {
+        description: error.response?.data?.error || 'An error occurred'
       });
     }
   });

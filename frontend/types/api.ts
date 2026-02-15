@@ -1,5 +1,7 @@
 // V-ENHANCED-ERROR-HANDLING - API Type Definitions
 
+import type { Plan } from './plan';
+
 /**
  * Generic API Response Wrapper
  * Laravel returns data in this format

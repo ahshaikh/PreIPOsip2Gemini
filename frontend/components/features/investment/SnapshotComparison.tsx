@@ -134,7 +134,9 @@ function ComparisonRow({ label, thenValue, nowValue, changeType, tooltip }: Comp
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium">{label}</span>
           {tooltip && (
-            <Info className="h-3 w-3 text-muted-foreground cursor-help" title={tooltip} />
+            <span title={tooltip}>
+              <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+            </span>
           )}
         </div>
         {hasChanged && (

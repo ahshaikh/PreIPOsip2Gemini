@@ -90,6 +90,14 @@ export interface IssuerCompanyData {
     is_escalated: boolean;
     is_expired: boolean;
   }>;
+
+  // Disclosure Freshness Summary
+  freshness_summary?: {
+    total_modules: number;
+    current_modules: number;
+    stale_modules: number;
+    freshness_percentage: number;
+  };
 }
 
 export interface DisclosureEditPermissions {

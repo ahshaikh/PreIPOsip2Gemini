@@ -10,9 +10,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import type { PlanWithRelations, PlanFeature } from "@/types/plan";
-
-// API error type for mutations
-type ApiError = Error & { response?: { data?: { message?: string } } };
+import type {
+  SubscriptionWithRelations,
+  CreateSubscriptionPayload,
+  CreateSubscriptionResponse,
+  ChangeSubscriptionPlanPayload,
+  ApiError,
+} from "@/types/subscription";
 
 export default function UserPlansPage() {
   const router = useRouter();
@@ -23,11 +27,11 @@ export default function UserPlansPage() {
     queryFn: async () => (await api.get('/plans')).data,
   });
 
-  // Check if user already has a subscription
-  const { data: subscription, isLoading: isSubscriptionLoading } = useQuery({
+  // Check if user already has a subscription (Strictly Typed)
+  const { data: subscription, isLoading: isSubscriptionLoading } = useQuery<SubscriptionWithRelations | null>({
     queryKey: ['subscription'],
     queryFn: async () => {
-      const response = await api.get('/user/subscription');
+      const response = await api.get<SubscriptionWithRelations>('/user/subscription');
       // Defensive check: Ensure null/undefined is treated as no subscription
       // Empty objects or arrays should also be treated as no subscription
       const sub = response.data;
@@ -42,11 +46,20 @@ export default function UserPlansPage() {
   // Defensive check: Treat invalid subscription data as no subscription
   const hasActiveSubscription = subscription && subscription.id && subscription.status;
 
-  // Subscribe mutation (for new subscriptions)
-  const subscribeMutation = useMutation({
-    mutationFn: (planId: number) => api.post('/user/subscription', { plan_id: planId }),
-    onSuccess: (response) => {
-      const data = response.data;
+  // Subscribe mutation (for new subscriptions) - Strictly Typed
+  const subscribeMutation = useMutation<
+    CreateSubscriptionResponse,
+    ApiError,
+    number
+  >({
+    mutationFn: async (planId: number) => {
+      const response = await api.post<CreateSubscriptionResponse>(
+        '/user/subscription',
+        { plan_id: planId } as CreateSubscriptionPayload
+      );
+      return response.data;
+    },
+    onSuccess: (data) => {
       const paidFromWallet = data.paid_from_wallet;
       const redirectTo = data.redirect_to;
 
@@ -66,21 +79,31 @@ export default function UserPlansPage() {
       }
     },
     onError: (error: ApiError) => {
-      toast.error("Subscription Failed", { description: error.response?.data?.message });
+      toast.error("Subscription Failed", { description: error.message });
     }
   });
 
-  // Change plan mutation (for existing subscriptions)
-  const changePlanMutation = useMutation({
-    mutationFn: (planId: number) => api.post('/user/subscription/change-plan', { new_plan_id: planId }),
-    onSuccess: (response) => {
-      const message = response.data?.message || "Plan changed successfully!";
+  // Change plan mutation (for existing subscriptions) - Strictly Typed
+  const changePlanMutation = useMutation<
+    { data: SubscriptionWithRelations; message?: string },
+    ApiError,
+    number
+  >({
+    mutationFn: async (planId: number) => {
+      const response = await api.post<{ data: SubscriptionWithRelations; message?: string }>(
+        '/user/subscription/change-plan',
+        { new_plan_id: planId } as ChangeSubscriptionPlanPayload
+      );
+      return response.data;
+    },
+    onSuccess: (data) => {
+      const message = data.message || "Plan changed successfully!";
       toast.success("Plan Changed!", { description: message });
       queryClient.invalidateQueries({ queryKey: ['subscription'] });
       router.push('/subscription');
     },
     onError: (error: ApiError) => {
-      toast.error("Plan Change Failed", { description: error.response?.data?.message || "Please try again" });
+      toast.error("Plan Change Failed", { description: error.message || "Please try again" });
     }
   });
 
@@ -154,6 +177,7 @@ export default function UserPlansPage() {
         <Card className="border-blue-500 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/30">
           <CardContent className="pt-6">
             <p className="text-sm">
+              {/* ✅ CORRECT: Using subscription.plan?.name for display only */}
               You're currently subscribed to <strong>{subscription.plan?.name}</strong>.
               To change plans, please go to your <a href="/subscription" className="text-blue-600 dark:text-blue-400 hover:underline">subscription page</a>.
             </p>
@@ -166,6 +190,7 @@ export default function UserPlansPage() {
         {plans?.map((plan: PlanWithRelations, index: number) => {
           const colorScheme = planColors[index % planColors.length];
           const PlanIcon = colorScheme.icon;
+          // ✅ CORRECT: Using subscription.plan?.id for comparison only
           const isCurrentPlan = subscription?.plan?.id === plan.id;
 
           return (

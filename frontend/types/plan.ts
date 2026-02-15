@@ -402,10 +402,3 @@ export function hasConfig(configs: GenericPlanConfig[], key: ConfigKey): boolean
  * Preserved for gradual migration
  */
 export type Plan = PlanWithRelations;
-
-/**
- * @deprecated Use MilestoneEntry instead
- * MilestoneConfig now refers to a single entry for backward compatibility
- * with existing code that used MilestoneConfig[]
- */
-export type MilestoneConfig = MilestoneEntry;

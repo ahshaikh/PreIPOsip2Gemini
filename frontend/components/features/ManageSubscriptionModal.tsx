@@ -1,5 +1,5 @@
 // V-FINAL-1730-263 (Created) | V-FINAL-1730-580 (Refund Info)
-// V-ARCH-2026: Typed with canonical Plan types
+// V-ARCH-2026: Typed with canonical Subscription and Plan types
 'use client';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -14,9 +14,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { AlertTriangle, PauseCircle, XCircle, ArrowUpCircle } from "lucide-react";
 import type { PlanWithRelations } from "@/types/plan";
-
-// API error type for mutations
-type ApiError = Error & { response?: { data?: { message?: string } } };
+import type {
+  SubscriptionWithRelations,
+  ChangeSubscriptionPlanPayload,
+  PauseSubscriptionPayload,
+  CancelSubscriptionPayload,
+  ApiError,
+} from "@/types/subscription";
 
 interface ManageSubModalProps {
   isOpen: boolean;
@@ -32,45 +36,83 @@ export function ManageSubscriptionModal({ isOpen, onClose, currentPlanId, plans,
   const [pauseMonths, setPauseMonths] = useState("1");
   const [cancelReason, setCancelReason] = useState("");
 
-  // Mutations
-  const changePlanMutation = useMutation({
-    mutationFn: (id: string) => api.post('/user/subscription/change-plan', { new_plan_id: id }),
+  // Mutations (Strictly Typed)
+  const changePlanMutation = useMutation<
+    { data: SubscriptionWithRelations; message: string },
+    ApiError,
+    string
+  >({
+    mutationFn: async (id: string) => {
+      const response = await api.post<{ data: SubscriptionWithRelations; message: string }>(
+        '/user/subscription/change-plan',
+        { new_plan_id: parseInt(id, 10) } as ChangeSubscriptionPlanPayload
+      );
+      return response.data;
+    },
     onSuccess: (data) => {
-      toast.success("Plan Changed", { description: data.data.message });
+      toast.success("Plan Changed", { description: data.message });
       queryClient.invalidateQueries({ queryKey: ['subscription'] });
       onClose();
     },
-    onError: (e: ApiError) => toast.error("Failed", { description: e.response?.data?.message })
+    onError: (e: ApiError) => toast.error("Failed", { description: e.message })
   });
 
-  const pauseMutation = useMutation({
-    mutationFn: (months: string) => api.post('/user/subscription/pause', { months }),
+  const pauseMutation = useMutation<
+    { data: SubscriptionWithRelations; message: string },
+    ApiError,
+    string
+  >({
+    mutationFn: async (months: string) => {
+      const response = await api.post<{ data: SubscriptionWithRelations; message: string }>(
+        '/user/subscription/pause',
+        { months } as PauseSubscriptionPayload
+      );
+      return response.data;
+    },
     onSuccess: (data) => {
-      toast.success("Subscription Paused", { description: data.data.message });
+      toast.success("Subscription Paused", { description: data.message });
       queryClient.invalidateQueries({ queryKey: ['subscription'] });
       onClose();
     },
-    onError: (e: ApiError) => toast.error("Failed", { description: e.response?.data?.message })
+    onError: (e: ApiError) => toast.error("Failed", { description: e.message })
   });
 
-  const resumeMutation = useMutation({
-    mutationFn: () => api.post('/user/subscription/resume'),
+  const resumeMutation = useMutation<
+    { data: SubscriptionWithRelations; message: string },
+    ApiError
+  >({
+    mutationFn: async () => {
+      const response = await api.post<{ data: SubscriptionWithRelations; message: string }>(
+        '/user/subscription/resume'
+      );
+      return response.data;
+    },
     onSuccess: () => {
       toast.success("Welcome Back!", { description: "Subscription resumed." });
       queryClient.invalidateQueries({ queryKey: ['subscription'] });
       onClose();
     },
-    onError: (e: ApiError) => toast.error("Failed", { description: e.response?.data?.message })
+    onError: (e: ApiError) => toast.error("Failed", { description: e.message })
   });
 
-  const cancelMutation = useMutation({
-    mutationFn: (reason: string) => api.post('/user/subscription/cancel', { reason }),
+  const cancelMutation = useMutation<
+    { data: SubscriptionWithRelations; message: string },
+    ApiError,
+    string
+  >({
+    mutationFn: async (reason: string) => {
+      const response = await api.post<{ data: SubscriptionWithRelations; message: string }>(
+        '/user/subscription/cancel',
+        { reason } as CancelSubscriptionPayload
+      );
+      return response.data;
+    },
     onSuccess: (data) => {
-      toast.success("Subscription Cancelled", { description: data.data.message });
+      toast.success("Subscription Cancelled", { description: data.message });
       queryClient.invalidateQueries({ queryKey: ['subscription'] });
       onClose();
     },
-    onError: (e: ApiError) => toast.error("Failed", { description: e.response?.data?.message })
+    onError: (e: ApiError) => toast.error("Failed", { description: e.message })
   });
 
   return (
@@ -103,6 +145,7 @@ export function ManageSubscriptionModal({ isOpen, onClose, currentPlanId, plans,
             <TabsContent value="change" className="space-y-4 py-4">
                 <div className="space-y-2">
                 <Label>Select New Plan</Label>
+                {/* ✅ CORRECT: Using plan.name and plan.monthly_amount for display only */}
                 <Select value={selectedPlan} onValueChange={setSelectedPlan}>
                     <SelectTrigger><SelectValue placeholder="Choose a plan" /></SelectTrigger>
                     <SelectContent>

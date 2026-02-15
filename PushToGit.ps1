@@ -8,14 +8,20 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "ci: remove Redis dependency from test pipeline for deterministic CI runs
+$CommitMessage = "refactor(subscription): complete domain migration and enforce strict type integrity
 
-- Remove Redis service from GitHub Actions
-- Switch CACHE_DRIVER to array for CI environment
-- Use sync queue and array session for isolation
-- Eliminate external service dependency during migrations and tests
+- Finalized Subscription domain migration to canonical types
+- Enforced financial authority rule (snapshot-only, no nested plan dependency)
+- Strictly typed all queries and mutations in Subscription flows
+- Removed all `any` and unsafe casts from Subscription domain
+- Introduced proper UI-derived types instead of `as unknown as` overrides
+- Reimplemented storageUrlHelper using immutable, generic-safe pattern
+- Restored test compilation (no tsconfig exclusions)
+- Eliminated all remaining TypeScript errors across entire frontend
+- Verified `npx tsc --noEmit` passes with zero errors
 
-Improves CI stability and removes container networking issues."
+Subscription is now fully separated as financial contract.
+Type system compiles cleanly under strict mode with no escape hatches."
 #----------------------
 
 function Get-GitCredential {

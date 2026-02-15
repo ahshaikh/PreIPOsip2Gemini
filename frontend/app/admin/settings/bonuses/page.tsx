@@ -86,15 +86,17 @@ function ProgressiveBonusTable({ config, onChange }: ProgressiveBonusTableProps)
     const newMonths = [...months];
     newMonths[index] = parseFloat(value) || 0;
     setMonths(newMonths);
-    
+
     // Serialize back into the 'overrides' object
     const newOverrides: { [key: number]: number } = {};
     newMonths.forEach((rate, i) => {
       newOverrides[i + 1] = rate;
     });
-    
+
     onChange('progressive_config', {
-      ...config,
+      rate: config?.rate ?? 0.5,
+      start_month: config?.start_month ?? 4,
+      max_percentage: config?.max_percentage ?? 20,
       overrides: newOverrides
     });
   };
@@ -107,35 +109,50 @@ function ProgressiveBonusTable({ config, onChange }: ProgressiveBonusTableProps)
       <div className="grid grid-cols-3 gap-4">
         <div className="space-y-2">
             <Label>Base Rate (%) (Used for linear calc)</Label>
-            <Input 
-                type="number" 
+            <Input
+                type="number"
                 step="0.1"
-                value={baseRate} 
+                value={baseRate}
                 onChange={(e) => {
                     setBaseRate(parseFloat(e.target.value));
-                    onChange('progressive_config', { ...config, rate: parseFloat(e.target.value) });
+                    onChange('progressive_config', {
+                      rate: parseFloat(e.target.value),
+                      start_month: config?.start_month ?? 4,
+                      max_percentage: config?.max_percentage ?? 20,
+                      overrides: config?.overrides
+                    });
                 }}
             />
         </div>
         <div className="space-y-2">
             <Label>Start Month (For linear calc)</Label>
-            <Input 
-                type="number" 
-                value={startMonth} 
+            <Input
+                type="number"
+                value={startMonth}
                 onChange={(e) => {
                     setStartMonth(parseInt(e.target.value));
-                    onChange('progressive_config', { ...config, start_month: parseInt(e.target.value) });
+                    onChange('progressive_config', {
+                      rate: config?.rate ?? 0.5,
+                      start_month: parseInt(e.target.value),
+                      max_percentage: config?.max_percentage ?? 20,
+                      overrides: config?.overrides
+                    });
                 }}
             />
         </div>
         <div className="space-y-2">
             <Label>Max % Cap (For linear calc)</Label>
-            <Input 
-                type="number" 
-                value={maxPercent} 
+            <Input
+                type="number"
+                value={maxPercent}
                 onChange={(e) => {
                     setMaxPercent(parseInt(e.target.value));
-                    onChange('progressive_config', { ...config, max_percentage: parseInt(e.target.value) });
+                    onChange('progressive_config', {
+                      rate: config?.rate ?? 0.5,
+                      start_month: config?.start_month ?? 4,
+                      max_percentage: parseInt(e.target.value),
+                      overrides: config?.overrides
+                    });
                 }}
             />
         </div>
@@ -229,8 +246,10 @@ export default function BonusSettingsPage() {
         const configMap: BonusConfigsMap = {};
         plan.configs.forEach((c: GenericPlanConfig) => {
           // Normalize array configs on load to prevent rendering errors
-          if (['milestone_config', 'referral_tiers'].includes(c.config_key)) {
-            configMap[c.config_key] = getSafeArray(c.value as MilestoneEntryEditable[] | ReferralTierSimple[]);
+          if (c.config_key === 'milestone_config') {
+            configMap[c.config_key] = getSafeArray(c.value as MilestoneEntryEditable[]);
+          } else if (c.config_key === 'referral_tiers') {
+            configMap[c.config_key] = getSafeArray(c.value as ReferralTierSimple[]);
           } else {
             configMap[c.config_key] = c.value;
           }

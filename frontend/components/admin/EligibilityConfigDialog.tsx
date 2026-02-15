@@ -70,7 +70,7 @@ export function EligibilityConfigDialog({
       setRequireBankAccount(eligibilityConfig.require_bank_account ?? true);
       setCountriesAllowed(eligibilityConfig.countries_allowed || ['IN']);
       setCountriesBlocked(eligibilityConfig.countries_blocked || []);
-      setUseWhitelist(eligibilityConfig.countries_allowed && eligibilityConfig.countries_allowed.length > 0);
+      setUseWhitelist(!!(eligibilityConfig.countries_allowed && eligibilityConfig.countries_allowed.length > 0));
       setMinMonthlyIncome(eligibilityConfig.min_monthly_income?.toString() || '');
       setEmploymentRequired(eligibilityConfig.employment_required ?? false);
     }

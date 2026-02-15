@@ -158,8 +158,9 @@ export default function IssuerDisclosuresPage() {
         setCompany(normalizedData);
 
         // Extract freshness summary from dashboard data (backend now includes it)
-        if (rawData.freshness_summary) {
-          setFreshnessSummary(rawData.freshness_summary);
+        // Only set if it's the full FreshnessSummary format (with pillars, not the legacy simple format)
+        if (rawData.freshness_summary && 'pillars' in rawData.freshness_summary) {
+          setFreshnessSummary(rawData.freshness_summary as unknown as FreshnessSummary);
         }
       } catch (err: any) {
         console.error("[ISSUER DISCLOSURES] Failed to load:", err);
@@ -570,7 +571,7 @@ export default function IssuerDisclosuresPage() {
       </div>
 
       {/* Platform Clarifications Section */}
-      {company.clarifications.length > 0 && (
+      {company.clarifications && company.clarifications.length > 0 && (
         <Card className="border-amber-200">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

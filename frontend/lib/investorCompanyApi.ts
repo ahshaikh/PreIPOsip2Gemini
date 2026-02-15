@@ -95,6 +95,9 @@ export interface InvestorCompanyDetail extends InvestorCompany {
     text: string;
     required: boolean;
   }>;
+
+  // Material change diff URL (for showing what changed)
+  material_change_diff_url?: string;
 }
 
 export interface WalletBalance {
