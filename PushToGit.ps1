@@ -8,31 +8,30 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "refactor(bonus-config): strict TS cleanup + enforce backend-only financial authority
+$CommitMessage = "refactor(wallet): enforce integer-only accounting, ledger-based reconciliation, and deterministic admin idempotency
 
-Phase 1 – ConfigBonus Module Hardening:
-- Removed all `any`, unsafe casts, and Record<string, unknown> leakage
-- Replaced stringly-typed config access with typed helpers
-- Fixed implicit any and strict-null issues
-- Eliminated unsafe index signatures
-- Ensured strict TypeScript build passes (npx tsc --noEmit)
+Financial Integrity Hardening:
 
-Phase 2 – Architectural Consolidation:
-- Deleted unused frontend bonusDomain engine
-- Removed client-side BonusSnapshot conversion logic
-- Removed unused discriminated union bonus types
-- Enforced backend BonusCalculatorService as single financial authority
-- Marked bonusCalculations.ts as ADMIN PREVIEW ONLY
-- Added explicit financial authority documentation in README
+- Removed all decimal monetary columns (fund_locks.amount, ledger_lines.amount)
+- Enforced BIGINT paise storage across wallet, transactions, and ledger_lines
+- Eliminated float setters from all virtual monetary accessors (read-only rupee views)
+- Updated double-entry logic to use amount_paise with exact integer comparison
+- Implemented wallet:reconcile artisan command
+  - Reconciles wallet.balance_paise against double-entry ledger (authoritative source)
+  - Scheduled daily execution with failure alerting
+- Migrated reconciliation logic to use ledger_lines (not transactions)
+- Replaced time-based admin idempotency with deterministic business-intent hashing
+- Added support for client-provided UUID idempotency keys
+- Enforced service-level and DB-level duplicate prevention
 
 Architectural Outcome:
-- No dual bonus calculation engines
-- No client-side payout-critical computation
-- Subscription remains immutable financial contract
-- Bonus snapshot integrity enforced server-side
-- Strict TypeScript compilation remains clean
+- Integer-only monetary arithmetic (no float math paths)
+- Ledger is single source of financial truth
+- Append-only accounting with exact paise reconciliation
+- Deterministic admin adjustment idempotency
+- Daily automated wallet-ledger drift detection
 
-Next domain: Wallet hardening (ledger integrity & atomicity)."
+Prepares system for Payment domain hardening (external boundary integrity)."
 #----------------------
 
 function Get-GitCredential {

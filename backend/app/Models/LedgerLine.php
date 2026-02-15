@@ -48,13 +48,34 @@ class LedgerLine extends Model
         'ledger_entry_id',
         'ledger_account_id',
         'direction',
-        'amount',
+        'amount_paise',
     ];
 
     protected $casts = [
-        'amount' => 'decimal:2',
+        'amount_paise' => 'integer',
         'created_at' => 'datetime',
     ];
+
+    /**
+     * Virtual rupee accessor for backward compatibility.
+     */
+    protected $appends = ['amount'];
+
+    /**
+     * Virtual amount (₹) backed by amount_paise.
+     * READ-ONLY: For display/API serialization only.
+     *
+     * ⚠️ FINANCIAL INTEGRITY: No setter provided.
+     * All writes MUST use amount_paise directly to prevent float math.
+     * Services must write: ['amount_paise' => $integerValue]
+     */
+    protected function amount(): \Illuminate\Database\Eloquent\Casts\Attribute
+    {
+        return \Illuminate\Database\Eloquent\Casts\Attribute::make(
+            get: fn ($value, $attributes) =>
+                ($attributes['amount_paise'] ?? 0) / 100,
+        );
+    }
 
     /**
      * Boot method for model event handling
@@ -63,10 +84,11 @@ class LedgerLine extends Model
     {
         // Validate on creation
         static::creating(function (LedgerLine $line) {
-            // Amount must be positive
-            if ($line->amount <= 0) {
+            // Amount must be positive (check paise value)
+            $amountPaise = $line->amount_paise ?? 0;
+            if ($amountPaise <= 0) {
                 throw new \RuntimeException(
-                    'Ledger line amount must be positive. Got: ' . $line->amount
+                    'Ledger line amount_paise must be positive. Got: ' . $amountPaise
                 );
             }
 
@@ -161,19 +183,22 @@ class LedgerLine extends Model
      *
      * For ASSET/EXPENSE accounts: DEBIT is positive, CREDIT is negative
      * For LIABILITY/EQUITY/INCOME accounts: CREDIT is positive, DEBIT is negative
+     *
+     * Returns rupee value (amount_paise / 100) for backward compatibility.
      */
     public function getSignedAmountAttribute(): float
     {
         $account = $this->account;
+        $amountRupees = $this->amount_paise / 100;
 
         if (!$account) {
-            return $this->amount;
+            return $amountRupees;
         }
 
         $isIncrease = ($account->isDebitNormal() && $this->isDebit()) ||
                       ($account->isCreditNormal() && $this->isCredit());
 
-        return $isIncrease ? $this->amount : -$this->amount;
+        return $isIncrease ? $amountRupees : -$amountRupees;
     }
 
     /**
@@ -184,8 +209,9 @@ class LedgerLine extends Model
         $account = $this->account;
         $accountName = $account ? $account->name : 'Unknown';
         $action = $this->isDebit() ? 'Dr' : 'Cr';
+        $amountRupees = $this->amount_paise / 100;
 
-        return "{$action} {$accountName}: ₹" . number_format($this->amount, 2);
+        return "{$action} {$accountName}: ₹" . number_format($amountRupees, 2);
     }
 
     // =========================================================================

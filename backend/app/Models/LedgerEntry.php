@@ -175,44 +175,51 @@ class LedgerEntry extends Model
      * Check if this entry is balanced (debits = credits).
      *
      * THIS IS THE FUNDAMENTAL INVARIANT OF DOUBLE-ENTRY ACCOUNTING.
+     *
+     * Uses amount_paise (BIGINT) for exact integer comparison.
      */
     public function isBalanced(): bool
     {
         $totals = $this->lines()
-            ->selectRaw('direction, SUM(amount) as total')
+            ->selectRaw('direction, SUM(amount_paise) as total')
             ->groupBy('direction')
             ->pluck('total', 'direction')
             ->toArray();
 
-        $debits = (float) ($totals[LedgerAccount::DIRECTION_DEBIT] ?? 0);
-        $credits = (float) ($totals[LedgerAccount::DIRECTION_CREDIT] ?? 0);
+        $debitsPaise = (int) ($totals[LedgerAccount::DIRECTION_DEBIT] ?? 0);
+        $creditsPaise = (int) ($totals[LedgerAccount::DIRECTION_CREDIT] ?? 0);
 
-        // Use bccomp for precise decimal comparison
-        return bccomp((string) $debits, (string) $credits, 2) === 0;
+        // Integer comparison - exact match required
+        return $debitsPaise === $creditsPaise;
     }
 
     /**
-     * Get total debits for this entry.
+     * Get total debits for this entry (in rupees for display).
      */
     public function getTotalDebitsAttribute(): float
     {
-        return (float) $this->lines()
+        $totalPaise = (int) $this->lines()
             ->where('direction', LedgerAccount::DIRECTION_DEBIT)
-            ->sum('amount');
+            ->sum('amount_paise');
+
+        return $totalPaise / 100;
     }
 
     /**
-     * Get total credits for this entry.
+     * Get total credits for this entry (in rupees for display).
      */
     public function getTotalCreditsAttribute(): float
     {
-        return (float) $this->lines()
+        $totalPaise = (int) $this->lines()
             ->where('direction', LedgerAccount::DIRECTION_CREDIT)
-            ->sum('amount');
+            ->sum('amount_paise');
+
+        return $totalPaise / 100;
     }
 
     /**
      * Get the imbalance amount (should always be 0 for valid entries).
+     * Returns rupee value for display.
      */
     public function getImbalanceAttribute(): float
     {

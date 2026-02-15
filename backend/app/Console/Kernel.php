@@ -16,6 +16,7 @@ use App\Console\Commands\ProcessPendingWebhooks;
 use App\Console\Commands\ProcessProfitShareDistribution;
 use App\Console\Commands\ReleaseExpiredFundLocks; // FIX 18
 use App\Console\Commands\ReconcileBalances; // FIX 32
+use App\Console\Commands\WalletReconcileCommand; // V-PRECISION-2026
 use App\Services\DisclosureFreshnessService;
 
 class Kernel extends ConsoleKernel
@@ -78,6 +79,16 @@ class Kernel extends ConsoleKernel
                  ->dailyAt('02:00')
                  ->withoutOverlapping()
                  ->onOneServer();
+
+        // V-PRECISION-2026: Wallet-Ledger Reconciliation daily at 2:30 AM
+        // Compares wallet.balance_paise against double-entry ledger SUM
+        // Returns non-zero exit code on discrepancy (triggers CI/monitoring alerts)
+        // Read-only operation - safe for production
+        $schedule->command(WalletReconcileCommand::class)
+                 ->dailyAt('02:30')
+                 ->withoutOverlapping()
+                 ->onOneServer()
+                 ->emailOutputOnFailure(config('mail.admin_email'));
 
         // FRESHNESS MODEL: Daily disclosure freshness refresh at 3 AM
         // Recomputes freshness_state for all approved disclosures

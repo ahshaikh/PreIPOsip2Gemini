@@ -263,13 +263,120 @@ class AdminActionConstraintService
     }
 
     /**
+     * Generate deterministic idempotency key for admin action.
+     *
+     * ⚠️ CRITICAL: NO TIME COMPONENT
+     *
+     * Format: "adj:{action_type}:{deterministic_hash}"
+     *
+     * The hash is computed from:
+     * - action_type
+     * - target entity (wallet_id, user_id, etc.)
+     * - amount (if financial)
+     * - business intent identifiers
+     *
+     * This ensures identical business intents generate identical keys,
+     * regardless of WHEN the request is made.
+     *
+     * For explicit client-controlled idempotency, accept UUID from request.
+     *
+     * @param string $actionType
+     * @param array $metadata Must include business identifiers (wallet_id, user_id, amount, etc.)
+     * @param string|null $clientIdempotencyKey Optional UUID from request layer
+     * @return string
+     */
+    public function generateIdempotencyKey(
+        string $actionType,
+        array $metadata,
+        ?string $clientIdempotencyKey = null
+    ): string {
+        // If client provides explicit idempotency key, use it directly
+        // This is the preferred pattern for API consumers
+        if ($clientIdempotencyKey !== null && $this->isValidUuid($clientIdempotencyKey)) {
+            return "client:{$clientIdempotencyKey}";
+        }
+
+        // Compute deterministic hash from business identifiers
+        // Sort keys to ensure consistent ordering
+        ksort($metadata);
+
+        // Extract only business-critical fields for hashing
+        $hashableFields = [];
+
+        // Always include action type
+        $hashableFields['action'] = $actionType;
+
+        // Include target identifiers
+        foreach (['user_id', 'wallet_id', 'transaction_id', 'payment_id', 'subscription_id'] as $field) {
+            if (isset($metadata[$field])) {
+                $hashableFields[$field] = $metadata[$field];
+            }
+        }
+
+        // Include amount if present (critical for financial operations)
+        if (isset($metadata['amount'])) {
+            // Normalize to paise integer to avoid float issues
+            $hashableFields['amount_paise'] = is_numeric($metadata['amount'])
+                ? (int) round($metadata['amount'] * 100)
+                : $metadata['amount'];
+        }
+        if (isset($metadata['amount_paise'])) {
+            $hashableFields['amount_paise'] = (int) $metadata['amount_paise'];
+        }
+
+        // Include adjustment direction/type if present
+        foreach (['adjustment_type', 'direction', 'reason_code'] as $field) {
+            if (isset($metadata[$field])) {
+                $hashableFields[$field] = $metadata[$field];
+            }
+        }
+
+        $deterministicHash = hash('sha256', json_encode($hashableFields));
+
+        return "adj:{$actionType}:" . substr($deterministicHash, 0, 32);
+    }
+
+    /**
+     * Validate UUID format.
+     *
+     * @param string $uuid
+     * @return bool
+     */
+    private function isValidUuid(string $uuid): bool
+    {
+        return preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $uuid) === 1;
+    }
+
+    /**
+     * Check if an admin action has already been executed.
+     *
+     * @param string $idempotencyKey
+     * @return bool
+     */
+    public function isAlreadyExecuted(string $idempotencyKey): bool
+    {
+        return DB::table('admin_action_audit')
+            ->where('idempotency_key', $idempotencyKey)
+            ->where('status', 'completed')
+            ->exists();
+    }
+
+    /**
      * Execute admin action with constraint validation
+     *
+     * V-PRECISION-2026: Deterministic idempotency enforcement.
+     * Duplicate admin actions are blocked at database level (unique constraint).
+     *
+     * Idempotency is based on BUSINESS INTENT, not time:
+     * - Same target + same amount + same action = same idempotency key
+     * - Retries at any time will be blocked if original succeeded
      *
      * @param string $actionType
      * @param callable $action
      * @param User $admin
      * @param string $justification
-     * @param array $metadata
+     * @param array $metadata Must include business identifiers (user_id, wallet_id, amount, etc.)
+     * @param string|null $clientIdempotencyKey Optional UUID from client for explicit control
      * @return mixed
      * @throws \RuntimeException
      */
@@ -278,8 +385,26 @@ class AdminActionConstraintService
         callable $action,
         User $admin,
         string $justification,
-        array $metadata = []
+        array $metadata = [],
+        ?string $clientIdempotencyKey = null
     ) {
+        // V-PRECISION-2026: Generate DETERMINISTIC idempotency key (NO TIME COMPONENT)
+        $idempotencyKey = $this->generateIdempotencyKey($actionType, $metadata, $clientIdempotencyKey);
+
+        if ($this->isAlreadyExecuted($idempotencyKey)) {
+            Log::warning("ADMIN ACTION BLOCKED: Duplicate action detected", [
+                'idempotency_key' => $idempotencyKey,
+                'action_type' => $actionType,
+                'admin_id' => $admin->id,
+                'metadata' => $metadata,
+            ]);
+
+            throw new \RuntimeException(
+                "Duplicate action detected. This exact adjustment (same target, same amount) " .
+                "has already been applied. Verify the target state before creating a new adjustment."
+            );
+        }
+
         // Log action attempt
         Log::info("ADMIN ACTION ATTEMPT", [
             'action_type' => $actionType,
@@ -287,12 +412,14 @@ class AdminActionConstraintService
             'admin_name' => $admin->name,
             'justification' => $justification,
             'metadata' => $metadata,
+            'idempotency_key' => $idempotencyKey,
         ]);
 
-        // Create audit record BEFORE execution
+        // Create audit record BEFORE execution with idempotency key
         $auditId = DB::table('admin_action_audit')->insertGetId([
             'admin_id' => $admin->id,
             'action_type' => $actionType,
+            'idempotency_key' => $idempotencyKey,
             'justification' => $justification,
             'metadata' => json_encode($metadata),
             'status' => 'pending',

@@ -28,7 +28,12 @@
       "Bash(npm run lint:*)",
       "Bash(npx eslint:*)",
       "Bash(cd:*)",
-      "Bash(tee:*)"
+      "Bash(tee:*)",
+      "Bash(for f in app/Models/LedgerLine.php app/Models/LedgerEntry.php app/Models/FundLock.php app/Services/DoubleEntryLedgerService.php app/Services/AdminActionConstraintService.php app/Console/Commands/WalletReconcileCommand.php app/Console/Kernel.php)",
+      "Bash(do php -l \"$f\")",
+      "Bash(done)",
+      "Bash(for f in database/migrations/2026_02_16_*.php)",
+      "Bash(for f in app/Models/LedgerLine.php app/Models/FundLock.php app/Models/Wallet.php app/Services/AdminActionConstraintService.php app/Console/Commands/WalletReconcileCommand.php)"
     ]
   }
 }

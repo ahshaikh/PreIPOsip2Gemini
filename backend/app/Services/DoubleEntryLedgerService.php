@@ -1232,11 +1232,14 @@ class DoubleEntryLedgerService
 
         $account = $this->getAccount($accountCode);
 
+        // Convert rupees to paise for atomic integer storage
+        $amountPaise = (int) round($amount * 100);
+
         return LedgerLine::create([
             'ledger_entry_id' => $entry->id,
             'ledger_account_id' => $account->id,
             'direction' => $direction,
-            'amount' => $amount,
+            'amount_paise' => $amountPaise,
         ]);
     }
 

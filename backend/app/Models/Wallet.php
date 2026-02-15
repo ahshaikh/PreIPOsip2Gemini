@@ -59,46 +59,41 @@ class Wallet extends Model
     ];
 
     // ------------------------------------------------------------------
-    // Virtual Accessors & Mutators (Rupees ↔ Paise)
+    // Virtual Accessors (Rupees - READ-ONLY)
     // ------------------------------------------------------------------
 
     /**
      * Virtual balance (₹) backed by balance_paise.
+     * READ-ONLY: For display/API serialization only.
      *
-     * Allows legacy code to read/write:
-     *   $wallet->balance
+     * ⚠️ FINANCIAL INTEGRITY: No setter provided.
+     * All balance mutations MUST go through WalletService which uses
+     * increment('balance_paise') / decrement('balance_paise') for atomic math.
+     *
+     * Direct writes to balance are FORBIDDEN. Use:
+     *   WalletService::deposit() or WalletService::withdraw()
      */
     protected function balance(): Attribute
     {
         return Attribute::make(
-            // Getter: Paise → Rupees
             get: fn ($value, $attributes) =>
                 ($attributes['balance_paise'] ?? 0) / 100,
-
-            // Setter: Rupees → Paise
-            set: fn ($value) => [
-                'balance_paise' => (int) round($value * 100),
-            ],
         );
     }
 
     /**
      * Virtual locked_balance (₹) backed by locked_balance_paise.
+     * READ-ONLY: For display/API serialization only.
      *
-     * Allows legacy code to read/write:
-     *   $wallet->locked_balance
+     * ⚠️ FINANCIAL INTEGRITY: No setter provided.
+     * All locked balance mutations MUST go through WalletService which uses
+     * increment('locked_balance_paise') / decrement('locked_balance_paise').
      */
     protected function lockedBalance(): Attribute
     {
         return Attribute::make(
-            // Getter: Paise → Rupees
             get: fn ($value, $attributes) =>
                 ($attributes['locked_balance_paise'] ?? 0) / 100,
-
-            // Setter: Rupees → Paise
-            set: fn ($value) => [
-                'locked_balance_paise' => (int) round($value * 100),
-            ],
         );
     }
 
