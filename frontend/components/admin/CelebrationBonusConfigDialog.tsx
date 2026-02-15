@@ -124,7 +124,15 @@ export function CelebrationBonusConfigDialog({
     ];
   };
 
-  const addPresetMilestone = (preset: any) => {
+  // Type for preset milestone data
+  interface PresetMilestone {
+    name: string;
+    type: string;
+    threshold: number;
+    bonus: number;
+  }
+
+  const addPresetMilestone = (preset: PresetMilestone) => {
     const milestone: Milestone = {
       name: preset.name,
       type: preset.type as Milestone['type'],
@@ -208,7 +216,7 @@ export function CelebrationBonusConfigDialog({
                   </div>
                   <div className="space-y-2">
                     <Label>Milestone Type</Label>
-                    <Select value={newType} onValueChange={(value: any) => setNewType(value)}>
+                    <Select value={newType} onValueChange={(value: Milestone['type']) => setNewType(value)}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -243,7 +251,7 @@ export function CelebrationBonusConfigDialog({
                         placeholder="500"
                         className="flex-1"
                       />
-                      <Select value={newBonusType} onValueChange={(value: any) => setNewBonusType(value)}>
+                      <Select value={newBonusType} onValueChange={(value: 'fixed' | 'percentage') => setNewBonusType(value)}>
                         <SelectTrigger className="w-[100px]">
                           <SelectValue />
                         </SelectTrigger>

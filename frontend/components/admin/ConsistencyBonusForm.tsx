@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Plus, Trash2, Zap, Award } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { validateConsistencyConfig, calculateConsistencyBonus, formatCurrency } from '@/lib/bonusCalculations';
-import type { ConsistencyConfig } from '@/lib/bonusCalculations';
+import type { ConsistencyConfig } from '@/types/plan';
 
 interface ConsistencyBonusFormProps {
   value: Partial<ConsistencyConfig>;
@@ -26,7 +26,7 @@ export function ConsistencyBonusForm({ value, onChange }: ConsistencyBonusFormPr
 
   const errors = validateConsistencyConfig(config);
 
-  const handleChange = (field: keyof ConsistencyConfig, val: any) => {
+  const handleChange = <K extends keyof ConsistencyConfig>(field: K, val: ConsistencyConfig[K]) => {
     onChange({ ...config, [field]: val });
   };
 

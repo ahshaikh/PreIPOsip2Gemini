@@ -1,8 +1,16 @@
 /**
  * Bonus Calculations Library
  *
- * Client-side bonus calculation functions for preview and estimation.
- * Mirrors the backend BonusCalculatorService logic for UI previews.
+ * ⚠️ ADMIN PREVIEW ONLY ⚠️
+ * Not authoritative for financial payouts.
+ * Backend BonusCalculatorService is the single source of truth.
+ *
+ * This library provides client-side bonus calculations ONLY for:
+ * - Admin plan template preview (BonusPreview.tsx)
+ * - "What-if" estimations before subscription creation
+ *
+ * All user-facing financial values MUST come from backend APIs.
+ * Frontend NEVER computes payout-critical values.
  *
  * Types are re-exported from the canonical plan types module.
  */

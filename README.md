@@ -718,6 +718,20 @@ DB::transaction(function() use ($user, $amount) {
     BonusTransaction::create([...]);
 });
 ```
+
+### 9. Financial Calculation Authority
+> **All user financial values are computed server-side.**
+> **Frontend never computes payout-critical values.**
+
+The backend `BonusCalculatorService` is the single source of truth for all bonus calculations.
+Frontend libraries like `bonusCalculations.ts` exist ONLY for admin preview purposes (plan template editing).
+User-facing pages must always display values returned by backend APIs, never client-side computations.
+
+This architecture prevents:
+- Calculation divergence between frontend and backend
+- Financial display errors from client-side rounding/logic bugs
+- Security vulnerabilities from client-side financial logic
+
 ---
 
 ## TESTING CHECKLIST

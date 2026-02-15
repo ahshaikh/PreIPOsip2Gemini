@@ -16,13 +16,13 @@ import { useState, useEffect } from "react";
 import { Plus, Trash2, Save } from "lucide-react";
 import type {
   AdminPlan,
-  GenericPlanConfig,
   ProgressiveConfig,
   MilestoneEntryEditable,
   ReferralTierSimple,
   CelebrationBonusConfig,
   LuckyDrawConfig,
 } from "@/types/plan";
+import { getTypedConfig } from "@/types/plan";
 
 // API error type for mutations
 type ApiError = Error & { response?: { data?: { message?: string } } };
@@ -30,6 +30,7 @@ type ApiError = Error & { response?: { data?: { message?: string } } };
 /**
  * Bonus configs map - local state structure for editing
  * Keys correspond to config_key in plan_configs table
+ * Uses strict typing for known config keys
  */
 interface BonusConfigsMap {
   progressive_config?: ProgressiveConfig;
@@ -37,7 +38,6 @@ interface BonusConfigsMap {
   referral_tiers?: ReferralTierSimple[];
   celebration_bonus_config?: CelebrationBonusConfig;
   lucky_draw_entries?: LuckyDrawConfig;
-  [key: string]: unknown; // Allow other keys from backend
 }
 
 /**
@@ -88,8 +88,8 @@ function ProgressiveBonusTable({ config, onChange }: ProgressiveBonusTableProps)
     setMonths(newMonths);
 
     // Serialize back into the 'overrides' object
-    const newOverrides: { [key: number]: number } = {};
-    newMonths.forEach((rate, i) => {
+    const newOverrides: Record<number, number> = {};
+    newMonths.forEach((rate: number, i: number) => {
       newOverrides[i + 1] = rate;
     });
 
@@ -242,18 +242,37 @@ export default function BonusSettingsPage() {
     if (selectedPlanId && plans) {
       const plan = plans.find((p: AdminPlan) => p.id.toString() === selectedPlanId);
       if (plan) {
-        // Transform the array of config objects into a key-value map
+        // Transform the array of config objects into a key-value map using typed helpers
         const configMap: BonusConfigsMap = {};
-        plan.configs.forEach((c: GenericPlanConfig) => {
-          // Normalize array configs on load to prevent rendering errors
-          if (c.config_key === 'milestone_config') {
-            configMap[c.config_key] = getSafeArray(c.value as MilestoneEntryEditable[]);
-          } else if (c.config_key === 'referral_tiers') {
-            configMap[c.config_key] = getSafeArray(c.value as ReferralTierSimple[]);
-          } else {
-            configMap[c.config_key] = c.value;
-          }
-        });
+
+        // Extract typed configs using getTypedConfig helper
+        const progressiveConfig = getTypedConfig(plan.configs, 'progressive_config');
+        if (progressiveConfig) {
+          configMap.progressive_config = progressiveConfig;
+        }
+
+        const milestoneConfig = getTypedConfig(plan.configs, 'milestone_config');
+        if (milestoneConfig) {
+          configMap.milestone_config = getSafeArray<MilestoneEntryEditable>(
+            milestoneConfig as MilestoneEntryEditable[]
+          );
+        }
+
+        const referralTiers = getTypedConfig(plan.configs, 'referral_tiers');
+        if (referralTiers) {
+          configMap.referral_tiers = getSafeArray<ReferralTierSimple>(referralTiers);
+        }
+
+        const celebrationConfig = getTypedConfig(plan.configs, 'celebration_bonus_config');
+        if (celebrationConfig) {
+          configMap.celebration_bonus_config = celebrationConfig;
+        }
+
+        const luckyDrawConfig = getTypedConfig(plan.configs, 'lucky_draw_entries');
+        if (luckyDrawConfig) {
+          configMap.lucky_draw_entries = luckyDrawConfig;
+        }
+
         setConfigs(configMap);
       }
     }
@@ -274,13 +293,24 @@ export default function BonusSettingsPage() {
     mutation.mutate(configs);
   };
 
-  // Generic handler for simple fields (celebration_bonus_config, lucky_draw_entries)
-  const updateConfig = (key: keyof BonusConfigsMap, field: string, value: number) => {
+  // Handler for celebration_bonus_config updates
+  const updateCelebrationConfig = (field: keyof CelebrationBonusConfig, value: number) => {
     setConfigs((prev: BonusConfigsMap) => ({
       ...prev,
-      [key]: {
-        ...(prev[key] as Record<string, unknown> || {}),
+      celebration_bonus_config: {
+        birthday_amount: prev.celebration_bonus_config?.birthday_amount ?? 0,
+        anniversary_amount: prev.celebration_bonus_config?.anniversary_amount ?? 0,
         [field]: value
+      }
+    }));
+  };
+
+  // Handler for lucky_draw_entries updates
+  const updateLuckyDrawConfig = (value: number) => {
+    setConfigs((prev: BonusConfigsMap) => ({
+      ...prev,
+      lucky_draw_entries: {
+        count: value
       }
     }));
   };
@@ -474,18 +504,18 @@ export default function BonusSettingsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Birthday Bonus (₹)</Label>
-                  <Input 
-                    type="number" 
-                    value={configs.celebration_bonus_config?.birthday_amount || 0} 
-                    onChange={(e) => updateConfig('celebration_bonus_config', 'birthday_amount', parseFloat(e.target.value))}
+                  <Input
+                    type="number"
+                    value={configs.celebration_bonus_config?.birthday_amount || 0}
+                    onChange={(e) => updateCelebrationConfig('birthday_amount', parseFloat(e.target.value))}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Anniversary Bonus (₹)</Label>
-                  <Input 
-                    type="number" 
-                    value={configs.celebration_bonus_config?.anniversary_amount || 0} 
-                    onChange={(e) => updateConfig('celebration_bonus_config', 'anniversary_amount', parseFloat(e.target.value))}
+                  <Input
+                    type="number"
+                    value={configs.celebration_bonus_config?.anniversary_amount || 0}
+                    onChange={(e) => updateCelebrationConfig('anniversary_amount', parseFloat(e.target.value))}
                   />
                 </div>
               </div>
@@ -503,10 +533,10 @@ export default function BonusSettingsPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>Entries per Payment</Label>
-                <Input 
-                  type="number" 
-                  value={configs.lucky_draw_entries?.count || 1} 
-                  onChange={(e) => updateConfig('lucky_draw_entries', 'count', parseInt(e.target.value))}
+                <Input
+                  type="number"
+                  value={configs.lucky_draw_entries?.count || 1}
+                  onChange={(e) => updateLuckyDrawConfig(parseInt(e.target.value))}
                 />
               </div>
             </CardContent>

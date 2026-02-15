@@ -8,20 +8,31 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "refactor(subscription): complete domain migration and enforce strict type integrity
+$CommitMessage = "refactor(bonus-config): strict TS cleanup + enforce backend-only financial authority
 
-- Finalized Subscription domain migration to canonical types
-- Enforced financial authority rule (snapshot-only, no nested plan dependency)
-- Strictly typed all queries and mutations in Subscription flows
-- Removed all `any` and unsafe casts from Subscription domain
-- Introduced proper UI-derived types instead of `as unknown as` overrides
-- Reimplemented storageUrlHelper using immutable, generic-safe pattern
-- Restored test compilation (no tsconfig exclusions)
-- Eliminated all remaining TypeScript errors across entire frontend
-- Verified `npx tsc --noEmit` passes with zero errors
+Phase 1 – ConfigBonus Module Hardening:
+- Removed all `any`, unsafe casts, and Record<string, unknown> leakage
+- Replaced stringly-typed config access with typed helpers
+- Fixed implicit any and strict-null issues
+- Eliminated unsafe index signatures
+- Ensured strict TypeScript build passes (npx tsc --noEmit)
 
-Subscription is now fully separated as financial contract.
-Type system compiles cleanly under strict mode with no escape hatches."
+Phase 2 – Architectural Consolidation:
+- Deleted unused frontend bonusDomain engine
+- Removed client-side BonusSnapshot conversion logic
+- Removed unused discriminated union bonus types
+- Enforced backend BonusCalculatorService as single financial authority
+- Marked bonusCalculations.ts as ADMIN PREVIEW ONLY
+- Added explicit financial authority documentation in README
+
+Architectural Outcome:
+- No dual bonus calculation engines
+- No client-side payout-critical computation
+- Subscription remains immutable financial contract
+- Bonus snapshot integrity enforced server-side
+- Strict TypeScript compilation remains clean
+
+Next domain: Wallet hardening (ledger integrity & atomicity)."
 #----------------------
 
 function Get-GitCredential {

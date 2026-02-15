@@ -22,7 +22,7 @@ import { useState } from "react";
 import { Plus, PlusCircle, Edit, Trash2, Copy, Users, IndianRupee, TrendingUp, Star, Calendar, Eye, MoreHorizontal, Gift, ShieldCheck, Sparkles, PartyPopper, Tag } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BonusConfigDialog } from "@/components/admin/BonusConfigDialog";
+import { BonusConfigDialog, type BonusConfigInput, type BonusConfigOutput } from "@/components/admin/BonusConfigDialog";
 import { EligibilityConfigDialog } from "@/components/admin/EligibilityConfigDialog";
 import { AdvancedFeaturesDialog } from "@/components/admin/AdvancedFeaturesDialog";
 import { ProfitSharingConfigDialog } from "@/components/admin/ProfitSharingConfigDialog";
@@ -43,7 +43,7 @@ interface AdminPlanWithConfigs extends AdminPlan {
   discountConfig?: unknown;
 }
 type AdminPlanWithConfigMap = Omit<AdminPlan, 'configs'> & {
-  configs: Record<string, unknown>;
+  configs: BonusConfigInput;
 };
 // Helper to format date for input
 const formatDateForInput = (date: string | null) => {
@@ -180,7 +180,7 @@ export default function PlanManagerPage() {
 
   // Bonus Configuration Mutation
   const bonusConfigMutation = useMutation({
-    mutationFn: ({ planId, configs }: { planId: number; configs: Record<string, unknown> }) =>
+    mutationFn: ({ planId, configs }: { planId: number; configs: BonusConfigOutput }) =>
       api.put(`/admin/plans/${planId}`, { configs }),
     onSuccess: () => {
       toast.success("Bonus configuration saved successfully!");
@@ -398,7 +398,7 @@ export default function PlanManagerPage() {
   setBonusConfigOpen(true);
 };
 
-  const handleSaveBonusConfig = (configs: Record<string, unknown>) => {
+  const handleSaveBonusConfig = (configs: BonusConfigOutput) => {
     if (!bonusConfigPlan) return;
     bonusConfigMutation.mutate({ planId: bonusConfigPlan.id, configs });
   };

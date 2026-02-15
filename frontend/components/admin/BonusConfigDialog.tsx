@@ -23,26 +23,47 @@ import { ConsistencyBonusForm } from './ConsistencyBonusForm';
 import { formatCurrencyINR } from '@/lib/utils';
 import type { ProgressiveConfig, MilestoneEntry, ConsistencyConfig, WelcomeBonusConfig } from '@/types/plan';
 
+/**
+ * Input config shape for bonus configuration dialog
+ * Maps config keys to their typed values
+ */
+export interface BonusConfigInput {
+  welcome_bonus?: { enabled?: boolean; amount?: number };
+  progressive_config?: Partial<ProgressiveConfig>;
+  milestone_config?: MilestoneEntry[];
+  consistency_config?: Partial<ConsistencyConfig>;
+}
+
+/**
+ * Output config shape for saving bonus configuration
+ */
+export interface BonusConfigOutput {
+  welcome_bonus: { enabled: boolean; amount: number };
+  progressive_config: Partial<ProgressiveConfig>;
+  milestone_config: MilestoneEntry[];
+  consistency_config: Partial<ConsistencyConfig>;
+}
+
 interface BonusConfigDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   planName: string;
   monthlyAmount: number;
   durationMonths: number;
-  configs: Record<string, unknown>;
-  onSave: (configs: Record<string, unknown>) => void;
+  configs: BonusConfigInput;
+  onSave: (configs: BonusConfigOutput) => void;
   isSaving?: boolean;
 }
 
-// Helper to parse initial config values
-function parseInitialConfigs(configs: Record<string, unknown>) {
-  const welcomeBonus = (configs?.welcome_bonus as { enabled?: boolean; amount?: number }) || {};
+// Helper to parse initial config values with proper typing
+function parseInitialConfigs(configs: BonusConfigInput) {
+  const welcomeBonus = configs.welcome_bonus ?? { enabled: false, amount: 0 };
   return {
     welcomeEnabled: welcomeBonus.enabled ?? false,
     welcomeAmount: welcomeBonus.amount?.toString() || '',
-    progressive: (configs?.progressive_config as Partial<ProgressiveConfig>) || {},
-    milestones: (configs?.milestone_config as MilestoneEntry[]) || [],
-    consistency: (configs?.consistency_config as Partial<ConsistencyConfig>) || {},
+    progressive: configs.progressive_config ?? {},
+    milestones: configs.milestone_config ?? [],
+    consistency: configs.consistency_config ?? {},
   };
 }
 
@@ -99,8 +120,8 @@ export function BonusConfigDialog({
     };
   }, [welcomeBonusEnabled, welcomeBonusAmount, progressiveConfig, milestones, consistencyConfig]);
 
-  // Build save configs
-  const buildSaveConfigs = useCallback(() => {
+  // Build save configs with proper typing
+  const buildSaveConfigs = useCallback((): BonusConfigOutput => {
     return {
       welcome_bonus: {
         enabled: welcomeBonusEnabled,

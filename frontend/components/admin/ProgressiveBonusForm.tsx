@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Plus, Trash2, TrendingUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { validateProgressiveConfig, getProgressiveBonusSchedule, formatCurrency } from '@/lib/bonusCalculations';
-import type { ProgressiveConfig } from '@/lib/bonusCalculations';
+import type { ProgressiveConfig } from '@/types/plan';
 
 interface ProgressiveBonusFormProps {
   value: Partial<ProgressiveConfig>;
@@ -30,7 +30,7 @@ export function ProgressiveBonusForm({ value, onChange, paymentAmount = 5000, du
 
   const errors = validateProgressiveConfig(config);
 
-  const handleChange = (field: keyof ProgressiveConfig, val: any) => {
+  const handleChange = <K extends keyof ProgressiveConfig>(field: K, val: ProgressiveConfig[K]) => {
     onChange({ ...config, [field]: val });
   };
 

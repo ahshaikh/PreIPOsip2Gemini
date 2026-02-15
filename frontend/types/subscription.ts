@@ -22,8 +22,8 @@ import type {
   ReferralTierSimple,
   CelebrationBonusConfig,
   LuckyDrawConfig,
-  BillingCycle,
 } from './plan';
+
 
 // ============================================================================
 // ENUMS & PRIMITIVES
@@ -125,6 +125,11 @@ export interface SubscriptionBase {
   // V-CONTRACT-HARDENING: Immutable Bonus Config Snapshots
   // These represent the contractual bonus terms at subscription creation time
   // MUST NEVER be modified after config_snapshot_at is set
+  //
+  // ARCHITECTURAL NOTE:
+  // These fields are for display/reference only on the frontend.
+  // All bonus calculations are performed server-side by BonusCalculatorService.
+  // Frontend NEVER computes payout-critical values.
   progressive_config: ProgressiveConfig | null;
   milestone_config: MilestoneConfig | null;
   consistency_config: ConsistencyConfig | null;
@@ -339,14 +344,16 @@ export function getMonthlyAmount(
 /**
  * Type guard to check if an object is a valid SubscriptionBase
  */
-export function isSubscription(obj: any): obj is SubscriptionBase {
+export function isSubscription(obj: unknown): obj is SubscriptionBase {
+  if (typeof obj !== 'object' || obj === null) {
+    return false;
+  }
+  const record = obj as Record<string, unknown>;
   return (
-    obj &&
-    typeof obj === 'object' &&
-    typeof obj.id === 'number' &&
-    typeof obj.user_id === 'number' &&
-    typeof obj.plan_id === 'number' &&
-    typeof obj.status === 'string'
+    typeof record.id === 'number' &&
+    typeof record.user_id === 'number' &&
+    typeof record.plan_id === 'number' &&
+    typeof record.status === 'string'
   );
 }
 
