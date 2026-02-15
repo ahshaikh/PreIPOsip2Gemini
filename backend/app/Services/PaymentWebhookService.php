@@ -44,23 +44,70 @@ class PaymentWebhookService
 
     /**
      * Handle a standard one-time payment success via Webhook.
+     *
+     * V-PAYMENT-INTEGRITY-2026: Added amount validation for one-time payments.
+     * The webhook amount MUST match the original order amount.
      */
     public function handleSuccessfulPayment(array $payload)
     {
         $orderId = $payload['order_id'] ?? null;
         $paymentId = $payload['id'] ?? null;
-
-        // Note: We don't return early here based on simple existence check anymore.
-        // We let fulfillPayment handle the idempotency safely with locks.
+        $webhookAmountPaise = $payload['amount'] ?? null;
 
         $payment = Payment::where('gateway_order_id', $orderId)->first();
 
-        if ($payment) {
-            // MODULE 8 FIX: Call the shared, locked fulfillment method
-            $this->fulfillPayment($payment, $paymentId);
-        } else {
+        if (!$payment) {
             Log::warning("Payment record not found for order: $orderId");
+            return;
         }
+
+        // V-PAYMENT-INTEGRITY-2026: Amount validation for one-time payments
+        if ($webhookAmountPaise !== null) {
+            $this->validateOneTimePaymentAmount($payment, $webhookAmountPaise, $paymentId);
+        }
+
+        // MODULE 8 FIX: Call the shared, locked fulfillment method
+        $this->fulfillPayment($payment, $paymentId);
+    }
+
+    /**
+     * V-PAYMENT-INTEGRITY-2026: Validate one-time payment amount against order.
+     *
+     * @param Payment $payment
+     * @param int $webhookAmountPaise Amount from webhook in paise
+     * @param string $paymentId Gateway payment ID for logging
+     * @throws \RuntimeException If amounts don't match
+     */
+    private function validateOneTimePaymentAmount(
+        Payment $payment,
+        int $webhookAmountPaise,
+        string $paymentId
+    ): void {
+        // Get expected amount from payment record (in paise)
+        $expectedAmountPaise = $payment->amount_paise ?? (int) round($payment->amount * 100);
+
+        // Strict comparison (no tolerance for financial amounts)
+        if ($webhookAmountPaise !== $expectedAmountPaise) {
+            Log::channel('financial_contract')->critical('ONE-TIME PAYMENT AMOUNT MISMATCH', [
+                'payment_id' => $payment->id,
+                'gateway_payment_id' => $paymentId,
+                'expected_amount_paise' => $expectedAmountPaise,
+                'webhook_amount_paise' => $webhookAmountPaise,
+                'difference_paise' => abs($expectedAmountPaise - $webhookAmountPaise),
+                'action' => 'PAYMENT_REJECTED',
+            ]);
+
+            throw new \RuntimeException(
+                "Payment amount mismatch: expected {$expectedAmountPaise} paise, " .
+                "received {$webhookAmountPaise} paise. Payment #{$payment->id} rejected."
+            );
+        }
+
+        Log::channel('financial_contract')->debug('One-time payment amount validated', [
+            'payment_id' => $payment->id,
+            'amount_paise' => $expectedAmountPaise,
+            'validation' => 'PASSED',
+        ]);
     }
 
     /**
@@ -238,57 +285,106 @@ class PaymentWebhookService
      * Handle Refund Processed
      *
      * V-AUDIT-MODULE4-003 (HIGH) - Implemented Chargeback/Refund Reversal Logic
-     * Previously only marked payment as refunded without reversing business operations.
+     * V-PAYMENT-INTEGRITY-2026: Added refund amount validation and bounds checking
      *
-     * Now performs complete reversal:
-     * 1. Reverses share allocation (returns units to inventory pool)
-     * 2. Credits wallet with refunded amount
-     * 3. Resets subscription consecutive payment counter
-     * 4. Marks payment as refunded
+     * Performs:
+     * 1. Validates refund amount does not exceed credited amount
+     * 2. Tracks partial vs full refunds
+     * 3. Reverses share allocation (if full refund)
+     * 4. Credits wallet with refunded amount
+     * 5. Updates payment refund tracking
      *
-     * This ensures financial and inventory consistency after refunds/chargebacks.
+     * CRITICAL: Refund amount cannot exceed payment amount.
      */
     public function handleRefundProcessed(array $payload)
     {
-        $paymentId = $payload['payment_id'];
-        $refundAmount = ($payload['amount'] ?? 0) / 100; // Convert paise to rupees
+        $gatewayPaymentId = $payload['payment_id'];
+        $refundAmountPaise = (int) ($payload['amount'] ?? 0);
+        $refundGatewayId = $payload['refund_id'] ?? null;
 
-        $payment = Payment::where('gateway_payment_id', $paymentId)->first();
+        $payment = Payment::where('gateway_payment_id', $gatewayPaymentId)->first();
 
         if (!$payment) {
-            Log::warning("Refund received for unknown payment: $paymentId");
+            Log::warning("Refund received for unknown payment: $gatewayPaymentId");
             return;
         }
 
-        // Skip if already refunded (idempotency)
-        if ($payment->status === 'refunded') {
-            Log::info("Payment {$payment->id} already refunded. Skipping.");
+        // V-PAYMENT-INTEGRITY-2026: Idempotency check using refund_gateway_id
+        if ($refundGatewayId && $payment->refund_gateway_id === $refundGatewayId) {
+            Log::info("Refund {$refundGatewayId} already processed for Payment {$payment->id}. Skipping.");
             return;
         }
 
-        // CRITICAL: Perform full reversal in a transaction
-        DB::transaction(function () use ($payment, $refundAmount) {
+        // V-PAYMENT-INTEGRITY-2026: Check if payment can be refunded
+        if ($payment->status === Payment::STATUS_REFUNDED) {
+            Log::info("Payment {$payment->id} already fully refunded. Skipping.");
+            return;
+        }
 
-            // 1. Reverse Share Allocation (returns units to inventory pool)
-            // This uses AllocationService::reverseAllocation() to undo the investment
-            $allocationService = app(AllocationService::class);
-            $allocationService->reverseAllocation($payment, 'Payment refunded via gateway');
+        // V-PAYMENT-INTEGRITY-2026: Validate refund amount doesn't exceed remaining
+        $refundableAmountPaise = $payment->getRefundableAmountPaise();
+        if ($refundAmountPaise > $refundableAmountPaise) {
+            Log::critical('REFUND AMOUNT EXCEEDS PAYMENT', [
+                'payment_id' => $payment->id,
+                'gateway_payment_id' => $gatewayPaymentId,
+                'payment_amount_paise' => $payment->amount_paise,
+                'already_refunded_paise' => $payment->refund_amount_paise ?? 0,
+                'refundable_amount_paise' => $refundableAmountPaise,
+                'attempted_refund_paise' => $refundAmountPaise,
+            ]);
 
-            // 2. Credit wallet with refunded amount (if amount available)
-            if ($refundAmount > 0 && $payment->user) {
+            throw new \RuntimeException(
+                "Refund amount ({$refundAmountPaise} paise) exceeds refundable amount " .
+                "({$refundableAmountPaise} paise) for Payment #{$payment->id}"
+            );
+        }
+
+        $refundAmountRupees = $refundAmountPaise / 100;
+        $isFullRefund = ($refundAmountPaise === $refundableAmountPaise);
+
+        // CRITICAL: Perform refund in a transaction
+        DB::transaction(function () use (
+            $payment,
+            $refundAmountPaise,
+            $refundAmountRupees,
+            $refundGatewayId,
+            $isFullRefund
+        ) {
+            // Update refund tracking FIRST (before any operations that might fail)
+            $newTotalRefundPaise = ($payment->refund_amount_paise ?? 0) + $refundAmountPaise;
+            $newStatus = $isFullRefund ? Payment::STATUS_REFUNDED : $payment->status;
+
+            $payment->forceFill([
+                'refund_amount_paise' => $newTotalRefundPaise,
+                'refund_gateway_id' => $refundGatewayId,
+                'refunded_at' => now(),
+                'status' => $newStatus,
+            ])->saveQuietly(); // Bypass state machine for refund tracking
+
+            // 1. Reverse Share Allocation ONLY if full refund
+            if ($isFullRefund) {
+                $allocationService = app(AllocationService::class);
+                $allocationService->reverseAllocation($payment, 'Full refund via gateway');
+            }
+
+            // 2. Credit wallet with refunded amount
+            if ($refundAmountRupees > 0 && $payment->user) {
                 $this->walletService->deposit(
                     $payment->user,
-                    (string) $refundAmount, // Convert to string for precision
+                    (string) $refundAmountRupees,
                     'refund',
-                    "Refund for Payment #{$payment->id}",
+                    ($isFullRefund ? "Full refund" : "Partial refund") . " for Payment #{$payment->id}",
                     $payment
                 );
 
-                Log::info("Wallet credited ₹{$refundAmount} for refund on Payment {$payment->id}");
+                Log::info("Wallet credited ₹{$refundAmountRupees} for refund on Payment {$payment->id}", [
+                    'is_full_refund' => $isFullRefund,
+                    'total_refunded_paise' => $newTotalRefundPaise,
+                ]);
             }
 
-            // 3. Reset subscription consecutive payment counter (if applicable)
-            if ($payment->subscription) {
+            // 3. Reset subscription consecutive payment counter (only for full refund)
+            if ($isFullRefund && $payment->subscription) {
                 $subscription = $payment->subscription;
                 $subscription->consecutive_payments_count = 0;
                 $subscription->save();
@@ -296,17 +392,25 @@ class PaymentWebhookService
                 Log::info("Reset consecutive payment counter for Subscription #{$subscription->id}");
             }
 
-            // 4. Mark payment as refunded
-            $payment->update(['status' => 'refunded']);
-
-            Log::info("Payment {$payment->id} fully reversed and marked as refunded.");
+            Log::info("Payment {$payment->id} refund processed", [
+                'refund_amount_paise' => $refundAmountPaise,
+                'total_refunded_paise' => $newTotalRefundPaise,
+                'is_full_refund' => $isFullRefund,
+                'new_status' => $newStatus,
+            ]);
         });
     }
 
     /**
      * Fulfill a successful payment.
-     * * MODULE 8 FIX: This method is now public and concurrency-safe.
-     * It uses an atomic lock to prevent race conditions between the 
+     *
+     * V-PAYMENT-INTEGRITY-2026: ATOMIC WALLET CREDIT
+     * - Wallet credit MUST happen inside the same transaction as status update
+     * - ProcessSuccessfulPaymentJob dispatched AFTER transaction commits
+     * - Uses afterCommit() to ensure job only runs if transaction succeeds
+     *
+     * MODULE 8 FIX: This method is public and concurrency-safe.
+     * It uses an atomic lock to prevent race conditions between the
      * Controller (user verification) and Webhook (server verification).
      *
      * @param Payment $payment
@@ -316,15 +420,13 @@ class PaymentWebhookService
     public function fulfillPayment(Payment $payment, string $gatewayPaymentId): bool
     {
         // 1. Acquire Atomic Lock (10 seconds)
-        // This prevents the Controller and Webhook from running this logic simultaneously
         $lock = Cache::lock("payment_fulfillment_{$payment->id}", 10);
 
         try {
             // Blocking wait for 5 seconds to acquire lock
             if ($lock->block(5)) {
-                
+
                 // 2. Re-check Status INSIDE the lock
-                // If the other process finished, status will now be 'paid'.
                 $payment->refresh();
                 if ($payment->status === 'paid') {
                     Log::info("Payment {$payment->id} already fulfilled. Skipping.");
@@ -332,6 +434,7 @@ class PaymentWebhookService
                 }
 
                 // 3. Perform Fulfillment Transaction
+                // V-PAYMENT-INTEGRITY-2026: Wallet credit is now INSIDE transaction
                 DB::transaction(function () use ($payment, $gatewayPaymentId) {
                     $payment->update([
                         'status' => 'paid',
@@ -356,10 +459,15 @@ class PaymentWebhookService
                     }
                     $sub->save();
 
-                    // 4. Dispatch Critical Business Logic
-                    // (Allocating shares, calculating bonuses)
-                    ProcessSuccessfulPaymentJob::dispatch($payment);
+                    // V-PAYMENT-INTEGRITY-2026: CRITICAL - Wallet credit INSIDE transaction
+                    // This ensures payment status and wallet credit are atomic
+                    $this->creditWalletAtomically($payment);
                 });
+
+                // 4. Dispatch non-critical jobs AFTER transaction commits
+                // These jobs handle bonus calculation, referrals, notifications
+                // If they fail, the payment is still valid (wallet already credited)
+                ProcessSuccessfulPaymentJob::dispatch($payment)->afterCommit();
 
                 Log::info("Payment {$payment->id} fulfilled successfully.");
                 return true;
@@ -373,6 +481,51 @@ class PaymentWebhookService
         } finally {
             $lock->release();
         }
+    }
+
+    /**
+     * V-PAYMENT-INTEGRITY-2026: Credit wallet atomically within transaction.
+     *
+     * This method MUST be called inside a DB::transaction().
+     * It directly credits the wallet without dispatching a job.
+     *
+     * @param Payment $payment
+     * @return void
+     */
+    private function creditWalletAtomically(Payment $payment): void
+    {
+        $user = $payment->user;
+
+        if (!$user) {
+            Log::error("Cannot credit wallet: Payment #{$payment->id} has no user");
+            throw new \RuntimeException("Payment #{$payment->id} has no associated user");
+        }
+
+        // Check if already credited (idempotency)
+        $existingCredit = DB::table('transactions')
+            ->where('reference_type', Payment::class)
+            ->where('reference_id', $payment->id)
+            ->where('type', 'deposit')
+            ->exists();
+
+        if ($existingCredit) {
+            Log::info("Wallet already credited for Payment #{$payment->id}. Skipping.");
+            return;
+        }
+
+        // Credit wallet using WalletService (already handles lockForUpdate)
+        $amountPaise = $payment->amount_paise ?? (int) round($payment->amount * 100);
+        $amountRupees = $amountPaise / 100;
+
+        $this->walletService->deposit(
+            $user,
+            $amountRupees,
+            \App\Enums\TransactionType::DEPOSIT,
+            "Payment received for SIP installment #{$payment->id}",
+            $payment
+        );
+
+        Log::info("ATOMIC WALLET CREDIT: Payment #{$payment->id}: ₹{$amountRupees} credited to wallet");
     }
 
     private function checkIfOnTime(Subscription $subscription): bool

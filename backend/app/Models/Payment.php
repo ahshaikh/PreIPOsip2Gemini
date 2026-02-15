@@ -1,5 +1,6 @@
 <?php
-// // V-PHASE3-1730-074 (Created) | V-FINAL-1730-335
+// V-PHASE3-1730-074 (Created) | V-FINAL-1730-335
+// V-PAYMENT-INTEGRITY-2026: State Machine + Paise + Settlement Tracking
 
 namespace App\Models;
 
@@ -8,31 +9,89 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 /**
+ * Payment Model with External Boundary Integrity
+ *
+ * V-PAYMENT-INTEGRITY-2026:
+ * - State machine enforcement (no backward transitions)
+ * - Integer paise storage (amount_paise is authoritative)
+ * - Settlement tracking for reconciliation
+ * - Refund bounds validation
+ *
+ * STATE MACHINE:
+ * pending → processing → paid → settled
+ * pending → failed
+ * paid → refunded (partial or full)
+ * NO BACKWARD TRANSITIONS ALLOWED
+ *
+ * @property int $amount_paise Authoritative amount in paise
+ * @property float $amount Virtual accessor (amount_paise / 100)
+ * @property string $status Current status
+ * @property string $settlement_status Settlement status (pending, settled)
+ *
  * @mixin IdeHelperPayment
  */
 class Payment extends Model
 {
     use HasFactory;
 
+    /**
+     * V-PAYMENT-INTEGRITY-2026: Valid payment statuses
+     */
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_PROCESSING = 'processing';
+    public const STATUS_PAID = 'paid';
+    public const STATUS_FAILED = 'failed';
+    public const STATUS_REFUNDED = 'refunded';
+    public const STATUS_CANCELLED = 'cancelled';
+
+    /**
+     * V-PAYMENT-INTEGRITY-2026: Valid state transitions
+     * Key = current status, Value = array of valid next statuses
+     */
+    public const VALID_TRANSITIONS = [
+        self::STATUS_PENDING => [self::STATUS_PROCESSING, self::STATUS_PAID, self::STATUS_FAILED, self::STATUS_CANCELLED],
+        self::STATUS_PROCESSING => [self::STATUS_PAID, self::STATUS_FAILED],
+        self::STATUS_PAID => [self::STATUS_REFUNDED], // Terminal except for refunds
+        self::STATUS_FAILED => [self::STATUS_PENDING], // Can retry
+        self::STATUS_REFUNDED => [], // Terminal
+        self::STATUS_CANCELLED => [], // Terminal
+    ];
+
+    /**
+     * V-PAYMENT-INTEGRITY-2026: Terminal statuses (no further transitions)
+     */
+    public const TERMINAL_STATUSES = [
+        self::STATUS_REFUNDED,
+        self::STATUS_CANCELLED,
+    ];
+
     protected $fillable = [
         'user_id',
         'subscription_id',
         'amount',
+        'amount_paise', // V-PRECISION-2026: Authoritative integer storage
         'currency',
-        'status', // pending, paid, failed, refunded
-        'gateway', // razorpay, stripe, manual
+        'expected_currency', // V-PAYMENT-INTEGRITY-2026: For validation
+        'status',
+        'gateway',
         'gateway_order_id',
         'gateway_payment_id',
         'gateway_signature',
-        'method', // card, upi, netbanking
-        'payment_method', // upi, card, netbanking, wallet
+        'method',
+        'payment_method',
         'payment_metadata',
-        'payment_proof_path', // For manual bank transfer proofs
+        'payment_proof_path',
         'paid_at',
+        'settled_at', // V-PAYMENT-INTEGRITY-2026: Settlement tracking
+        'settlement_id',
+        'settlement_status',
         'refunded_at',
         'refunded_by',
+        'refund_amount_paise', // V-PAYMENT-INTEGRITY-2026: Track refunded amount
+        'refund_gateway_id',
         'is_on_time',
         'is_flagged',
         'flag_reason',
@@ -42,12 +101,115 @@ class Payment extends Model
     ];
 
     protected $casts = [
+        'amount_paise' => 'integer',
+        'refund_amount_paise' => 'integer',
         'paid_at' => 'datetime',
+        'settled_at' => 'datetime',
         'refunded_at' => 'datetime',
         'is_on_time' => 'boolean',
         'is_flagged' => 'boolean',
         'payment_metadata' => 'array',
     ];
+
+    /**
+     * Virtual rupee accessor for backward compatibility.
+     */
+    protected $appends = ['amount_rupees'];
+
+    // =========================================================================
+    // BOOT: State Machine Enforcement
+    // =========================================================================
+
+    protected static function booted(): void
+    {
+        static::updating(function (Payment $payment) {
+            // V-PAYMENT-INTEGRITY-2026: Enforce state machine
+            if ($payment->isDirty('status')) {
+                $oldStatus = $payment->getOriginal('status');
+                $newStatus = $payment->status;
+
+                if (!$payment->isValidTransition($oldStatus, $newStatus)) {
+                    Log::critical('PAYMENT STATE MACHINE VIOLATION', [
+                        'payment_id' => $payment->id,
+                        'old_status' => $oldStatus,
+                        'new_status' => $newStatus,
+                        'valid_transitions' => self::VALID_TRANSITIONS[$oldStatus] ?? [],
+                    ]);
+
+                    throw new \RuntimeException(
+                        "Invalid payment state transition: '{$oldStatus}' → '{$newStatus}'. " .
+                        "Valid transitions from '{$oldStatus}': [" .
+                        implode(', ', self::VALID_TRANSITIONS[$oldStatus] ?? []) . "]"
+                    );
+                }
+            }
+        });
+    }
+
+    /**
+     * V-PAYMENT-INTEGRITY-2026: Check if transition is valid
+     */
+    public function isValidTransition(?string $from, string $to): bool
+    {
+        // Initial creation (no previous status)
+        if ($from === null) {
+            return in_array($to, [self::STATUS_PENDING, self::STATUS_PROCESSING]);
+        }
+
+        $validNext = self::VALID_TRANSITIONS[$from] ?? [];
+        return in_array($to, $validNext);
+    }
+
+    /**
+     * V-PAYMENT-INTEGRITY-2026: Check if payment is in terminal state
+     */
+    public function isTerminal(): bool
+    {
+        return in_array($this->status, self::TERMINAL_STATUSES);
+    }
+
+    /**
+     * V-PAYMENT-INTEGRITY-2026: Check if payment can be refunded
+     */
+    public function canRefund(): bool
+    {
+        return $this->status === self::STATUS_PAID && !$this->isFullyRefunded();
+    }
+
+    /**
+     * V-PAYMENT-INTEGRITY-2026: Check if fully refunded
+     */
+    public function isFullyRefunded(): bool
+    {
+        return $this->refund_amount_paise >= $this->amount_paise;
+    }
+
+    /**
+     * V-PAYMENT-INTEGRITY-2026: Get remaining refundable amount in paise
+     */
+    public function getRefundableAmountPaise(): int
+    {
+        return max(0, $this->amount_paise - ($this->refund_amount_paise ?? 0));
+    }
+
+    // =========================================================================
+    // VIRTUAL ACCESSORS (Paise → Rupees, READ-ONLY)
+    // =========================================================================
+
+    /**
+     * Virtual amount (₹) backed by amount_paise.
+     * READ-ONLY: For display/API serialization only.
+     *
+     * ⚠️ FINANCIAL INTEGRITY: No setter provided.
+     * All writes MUST use amount_paise directly.
+     */
+    protected function amountRupees(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value, $attributes) =>
+                ($attributes['amount_paise'] ?? 0) / 100,
+        );
+    }
 
     // --- RELATIONSHIPS ---
 

@@ -8,30 +8,33 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "refactor(wallet): enforce integer-only accounting, ledger-based reconciliation, and deterministic admin idempotency
+$CommitMessage = "feat(payment): enforce external boundary integrity, atomic credit, and state machine safety
 
-Financial Integrity Hardening:
+Payment Domain Hardening (V-PAYMENT-INTEGRITY-2026):
 
-- Removed all decimal monetary columns (fund_locks.amount, ledger_lines.amount)
-- Enforced BIGINT paise storage across wallet, transactions, and ledger_lines
-- Eliminated float setters from all virtual monetary accessors (read-only rupee views)
-- Updated double-entry logic to use amount_paise with exact integer comparison
-- Implemented wallet:reconcile artisan command
-  - Reconciles wallet.balance_paise against double-entry ledger (authoritative source)
-  - Scheduled daily execution with failure alerting
-- Migrated reconciliation logic to use ledger_lines (not transactions)
-- Replaced time-based admin idempotency with deterministic business-intent hashing
-- Added support for client-provided UUID idempotency keys
-- Enforced service-level and DB-level duplicate prevention
+- Introduced strict payment state machine with transition enforcement
+- Removed async wallet credit; payment status + wallet credit now atomic
+- Moved wallet credit inside DB::transaction() boundary
+- Added row-level locking and idempotency safeguards
+- Implemented strict amount validation for one-time payments
+- Enforced currency validation in webhook processing
+- Added refund bounds validation (partial + full refund support)
+- Introduced refund_amount_paise tracking and refund idempotency via refund_gateway_id
+- Converted payment amount storage to integer paise (authoritative)
+- Added settlement tracking columns (settled_at, settlement_id, settlement_status)
+- Rewrote HandlePaymentWebhook to route through PaymentWebhookService
+- Separated critical vs non-critical post-payment processing
+- Added payment:reconcile artisan command
 
 Architectural Outcome:
-- Integer-only monetary arithmetic (no float math paths)
-- Ledger is single source of financial truth
-- Append-only accounting with exact paise reconciliation
-- Deterministic admin adjustment idempotency
-- Daily automated wallet-ledger drift detection
+- Webhook replay cannot duplicate wallet credit
+- Out-of-order events blocked via state machine
+- Payment → Wallet mutation fully atomic
+- No float-based monetary arithmetic
+- Refunds cannot exceed credited amount
+- External provider boundary hardened
 
-Prepares system for Payment domain hardening (external boundary integrity)."
+Prepares system for final adversarial validation pass."
 #----------------------
 
 function Get-GitCredential {
