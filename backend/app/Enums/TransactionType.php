@@ -76,6 +76,17 @@ enum TransactionType: string
     case TDS_DEDUCTION = 'tds_deduction';
 
     /**
+     * Subscription payment - funds used for subscription fee
+     */
+    case SUBSCRIPTION_PAYMENT = 'subscription_payment';
+
+    /**
+     * V-PAYMENT-INTEGRITY-2026 HARDENING #6: Chargeback reversal
+     * Bank-initiated reversal of funds (dispute resolved in customer's favor)
+     */
+    case CHARGEBACK = 'chargeback';
+
+    /**
      * Get all transaction type values as array
      * Useful for validation rules and dropdowns
      *
@@ -114,6 +125,8 @@ enum TransactionType: string
             self::WITHDRAWAL_REQUEST,
             self::INVESTMENT,
             self::TDS_DEDUCTION,
+            self::SUBSCRIPTION_PAYMENT,
+            self::CHARGEBACK,
         ];
     }
 
@@ -135,6 +148,8 @@ enum TransactionType: string
             self::INVESTMENT => 'Investment',
             self::INTEREST => 'Interest Earned',
             self::TDS_DEDUCTION => 'TDS Deduction',
+            self::SUBSCRIPTION_PAYMENT => 'Subscription Payment',
+            self::CHARGEBACK => 'Chargeback Reversal',
         };
     }
 
@@ -175,6 +190,8 @@ enum TransactionType: string
             self::INVESTMENT => 'trending-up',
             self::INTEREST => 'percent',
             self::TDS_DEDUCTION => 'receipt',
+            self::SUBSCRIPTION_PAYMENT => 'calendar-check',
+            self::CHARGEBACK => 'alert-triangle',
         };
     }
 
@@ -187,10 +204,11 @@ enum TransactionType: string
     {
         return match($this) {
             self::DEPOSIT, self::BONUS_CREDIT, self::REFUND, self::INTEREST => 'green',
-            self::WITHDRAWAL, self::WITHDRAWAL_REQUEST, self::TDS_DEDUCTION => 'red',
+            self::WITHDRAWAL, self::WITHDRAWAL_REQUEST, self::TDS_DEDUCTION, self::SUBSCRIPTION_PAYMENT => 'red',
             self::REVERSAL => 'blue',
             self::INVESTMENT => 'purple',
             self::ADMIN_ADJUSTMENT => 'gray',
+            self::CHARGEBACK => 'orange', // Warning color - bank-initiated reversal
         };
     }
 }

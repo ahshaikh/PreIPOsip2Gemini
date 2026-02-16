@@ -4,62 +4,104 @@
  * V-PAYMENT-INTEGRITY-2026: Payment Domain Hardening
  *
  * Adds columns required for:
- * 1. Integer paise storage (amount_paise)
- * 2. Settlement tracking (settled_at, settlement_id)
- * 3. Refund tracking (refund_amount_paise, refund_id)
- * 4. Currency enforcement
+ * 1. Settlement tracking (settled_at, settlement_id)
+ * 2. Refund tracking (refund_amount_paise, refund_id)
+ * 3. Currency enforcement
+ *
+ * NOTE: amount_paise already exists from migration 2026_01_07_100003
  */
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('payments', function (Blueprint $table) {
-            // V-PRECISION-2026: Integer paise storage (authoritative)
-            $table->bigInteger('amount_paise')->nullable()->after('amount');
+        // Check which columns need to be added BEFORE the Schema::table call
+        $hasSettledAt = Schema::hasColumn('payments', 'settled_at');
+        $hasSettlementId = Schema::hasColumn('payments', 'settlement_id');
+        $hasSettlementStatus = Schema::hasColumn('payments', 'settlement_status');
+        $hasRefundAmountPaise = Schema::hasColumn('payments', 'refund_amount_paise');
+        $hasRefundGatewayId = Schema::hasColumn('payments', 'refund_gateway_id');
+        $hasExpectedCurrency = Schema::hasColumn('payments', 'expected_currency');
 
+        Schema::table('payments', function (Blueprint $table) use (
+            $hasSettledAt,
+            $hasSettlementId,
+            $hasSettlementStatus,
+            $hasRefundAmountPaise,
+            $hasRefundGatewayId,
+            $hasExpectedCurrency
+        ) {
             // Settlement tracking for reconciliation
-            $table->timestamp('settled_at')->nullable()->after('paid_at');
-            $table->string('settlement_id')->nullable()->after('settled_at')->index();
-            $table->string('settlement_status')->default('pending')->after('settlement_id');
+            if (!$hasSettledAt) {
+                $table->timestamp('settled_at')->nullable()->after('paid_at');
+            }
+            if (!$hasSettlementId) {
+                $table->string('settlement_id')->nullable()->after('settled_at')->index();
+            }
+            if (!$hasSettlementStatus) {
+                $table->string('settlement_status')->default('pending')->after('settlement_id');
+            }
 
             // Refund tracking
-            $table->bigInteger('refund_amount_paise')->default(0)->after('refunded_at');
-            $table->string('refund_gateway_id')->nullable()->after('refund_amount_paise')->index();
+            if (!$hasRefundAmountPaise) {
+                $table->bigInteger('refund_amount_paise')->default(0)->after('refunded_at');
+            }
+            if (!$hasRefundGatewayId) {
+                $table->string('refund_gateway_id')->nullable()->after('refund_amount_paise')->index();
+            }
 
             // Currency enforcement (must match expected)
-            $table->string('expected_currency', 3)->default('INR')->after('currency');
+            if (!$hasExpectedCurrency) {
+                $table->string('expected_currency', 3)->default('INR')->after('currency');
+            }
         });
 
-        // Migrate existing amount (rupees) to amount_paise
-        // Skip for SQLite (test environment)
-        if (DB::getDriverName() !== 'sqlite') {
-            DB::statement('UPDATE payments SET amount_paise = ROUND(amount * 100) WHERE amount_paise IS NULL');
-
-            // After data migration, make amount_paise NOT NULL
-            Schema::table('payments', function (Blueprint $table) {
-                $table->bigInteger('amount_paise')->nullable(false)->change();
-            });
-        }
+        Log::info('V-PAYMENT-INTEGRITY-2026: Payment integrity columns added');
     }
 
     public function down(): void
     {
-        Schema::table('payments', function (Blueprint $table) {
-            $table->dropColumn([
-                'amount_paise',
-                'settled_at',
-                'settlement_id',
-                'settlement_status',
-                'refund_amount_paise',
-                'refund_gateway_id',
-                'expected_currency',
-            ]);
+        $hasSettledAt = Schema::hasColumn('payments', 'settled_at');
+        $hasSettlementId = Schema::hasColumn('payments', 'settlement_id');
+        $hasSettlementStatus = Schema::hasColumn('payments', 'settlement_status');
+        $hasRefundAmountPaise = Schema::hasColumn('payments', 'refund_amount_paise');
+        $hasRefundGatewayId = Schema::hasColumn('payments', 'refund_gateway_id');
+        $hasExpectedCurrency = Schema::hasColumn('payments', 'expected_currency');
+
+        Schema::table('payments', function (Blueprint $table) use (
+            $hasSettledAt,
+            $hasSettlementId,
+            $hasSettlementStatus,
+            $hasRefundAmountPaise,
+            $hasRefundGatewayId,
+            $hasExpectedCurrency
+        ) {
+            // Drop indexes first
+            if ($hasSettlementId) {
+                $table->dropIndex(['settlement_id']);
+            }
+            if ($hasRefundGatewayId) {
+                $table->dropIndex(['refund_gateway_id']);
+            }
+
+            // Collect columns to drop
+            $columnsToDrop = [];
+            if ($hasSettledAt) $columnsToDrop[] = 'settled_at';
+            if ($hasSettlementId) $columnsToDrop[] = 'settlement_id';
+            if ($hasSettlementStatus) $columnsToDrop[] = 'settlement_status';
+            if ($hasRefundAmountPaise) $columnsToDrop[] = 'refund_amount_paise';
+            if ($hasRefundGatewayId) $columnsToDrop[] = 'refund_gateway_id';
+            if ($hasExpectedCurrency) $columnsToDrop[] = 'expected_currency';
+
+            if (!empty($columnsToDrop)) {
+                $table->dropColumn($columnsToDrop);
+            }
         });
     }
 };

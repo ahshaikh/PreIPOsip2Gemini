@@ -124,16 +124,47 @@ class AutoDebitService
      * V-AUDIT-MODULE7-001 (CRITICAL): Retry Logic (Called by Job).
      *
      * CRITICAL FIX: Removed simulation code (rand()) and implemented real retry logic.
+     *
+     * V-PAYMENT-INTEGRITY-2026 HARDENING #1: Retry Creates NEW Payment Record
+     * Failed payments are TERMINAL. Retry requires a NEW Payment row with new gateway_order_id.
+     * This prevents adversarial replay and maintains state machine integrity.
+     *
+     * @param Payment $failedPayment The original failed payment (used for context, NOT mutated)
+     * @return bool True if retry succeeded
      */
-    public function processRetry(Payment $payment)
+    public function processRetry(Payment $failedPayment)
     {
-        if ($payment->status === 'paid') return true;
+        // If original payment somehow succeeded, nothing to retry
+        if ($failedPayment->status === 'paid') return true;
 
-        $sub = $payment->subscription;
+        $sub = $failedPayment->subscription;
 
-        // Max retries check
-        if ($payment->retry_count >= 3) {
-            $this->suspendSubscription($sub, $payment);
+        // V-PAYMENT-INTEGRITY-2026 HARDENING #1: Count retries for CURRENT BILLING CYCLE
+        //
+        // IMPORTANT: We count payments since the billing cycle start date, NOT calendar month.
+        // This prevents the subtle bug where month boundaries reset retry counting.
+        //
+        // Billing cycle: [previous_payment_date, next_payment_date)
+        // We count all payments created AFTER the last successful payment date.
+        //
+        // If no paid payments exist, use subscription start_date as baseline.
+        $lastPaidPayment = Payment::where('subscription_id', $sub->id)
+            ->where('status', 'paid')
+            ->orderBy('paid_at', 'desc')
+            ->first();
+
+        $billingCycleStart = $lastPaidPayment
+            ? $lastPaidPayment->paid_at
+            : $sub->start_date;
+
+        $retryCount = Payment::where('subscription_id', $sub->id)
+            ->where('created_at', '>=', $billingCycleStart)
+            ->whereIn('status', ['pending', 'failed']) // Count pending and failed attempts
+            ->count();
+
+        // Max retries check (3 attempts total including original)
+        if ($retryCount >= 3) {
+            $this->suspendSubscription($sub, $failedPayment);
             return false;
         }
 
@@ -151,11 +182,34 @@ class AutoDebitService
                 config('services.razorpay.secret')
             );
 
+            // V-PAYMENT-INTEGRITY-2026 HARDENING #1: Create NEW Payment record for retry
+            // Failed payments are TERMINAL. Each retry attempt gets a NEW Payment row.
+            $retryPayment = Payment::create([
+                'user_id' => $sub->user_id,
+                'subscription_id' => $sub->id,
+                'amount' => $sub->amount ?? $sub->plan->monthly_amount,
+                'amount_paise' => (int) (($sub->amount ?? $sub->plan->monthly_amount) * 100),
+                'status' => 'pending',
+                'gateway' => 'razorpay_auto',
+                'retry_count' => $retryCount, // Track which retry attempt this is
+                'is_on_time' => false, // Retries are by definition late
+                'payment_metadata' => [
+                    'retry_of_payment_id' => $failedPayment->id,
+                    'retry_attempt' => $retryCount,
+                ],
+            ]);
+
+            Log::info("V-PAYMENT-INTEGRITY-2026: Created NEW Payment #{$retryPayment->id} for retry", [
+                'original_payment_id' => $failedPayment->id,
+                'retry_attempt' => $retryCount,
+                'subscription_id' => $sub->id,
+            ]);
+
             // Fetch the existing invoice or create a new one for retry
             $invoice = $api->invoice->create([
                 'subscription_id' => $sub->razorpay_subscription_id,
                 'type' => 'invoice',
-                'description' => "SIP Payment Retry for " . $sub->plan->name,
+                'description' => "SIP Payment Retry #{$retryCount} for " . $sub->plan->name,
                 'customer' => [
                     'email' => $sub->user->email,
                     'contact' => $sub->user->phone ?? '',
@@ -164,25 +218,25 @@ class AutoDebitService
 
             // Check if invoice was successfully paid
             if ($invoice->status === 'paid') {
-                $this->handleSuccess($payment, $sub, $invoice->payment_id);
+                $this->handleSuccess($retryPayment, $sub, $invoice->payment_id);
                 return true;
             } else {
+                // Mark the NEW retry payment as failed (it's a terminal state)
+                $retryPayment->update([
+                    'status' => 'failed',
+                    'failure_reason' => "Invoice created but payment not captured. Status: {$invoice->status}",
+                ]);
                 throw new \Exception("Retry invoice created but payment not captured. Status: {$invoice->status}");
             }
 
         } catch (\Exception $e) {
-            // Increment retry count and log failure
-            $count = $payment->retry_count + 1;
-            $payment->update([
-                'retry_count' => $count,
-                'failure_reason' => "Retry #{$count}: " . $e->getMessage()
+            Log::warning("Retry #{$retryCount} failed for Subscription #{$sub->id}: " . $e->getMessage(), [
+                'original_payment_id' => $failedPayment->id,
             ]);
 
-            Log::warning("Retry #{$count} failed for Payment #{$payment->id}: " . $e->getMessage());
-
             // Schedule next retry if under max attempts
-            if ($count < 3) {
-                RetryAutoDebitJob::dispatch($payment)->delay(now()->addDay());
+            if ($retryCount < 2) { // 2 because we'll create attempt #3 on next retry
+                RetryAutoDebitJob::dispatch($failedPayment)->delay(now()->addDay());
             }
 
             return false;

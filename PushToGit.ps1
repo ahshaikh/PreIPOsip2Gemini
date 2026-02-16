@@ -8,33 +8,46 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "feat(payment): enforce external boundary integrity, atomic credit, and state machine safety
+$CommitMessage = "feat(payment): external boundary integrity + dispute-safe structural hardening
 
-Payment Domain Hardening (V-PAYMENT-INTEGRITY-2026):
+V-PAYMENT-INTEGRITY-2026 – Finalized Payment Domain Hardening
 
-- Introduced strict payment state machine with transition enforcement
-- Removed async wallet credit; payment status + wallet credit now atomic
-- Moved wallet credit inside DB::transaction() boundary
-- Added row-level locking and idempotency safeguards
-- Implemented strict amount validation for one-time payments
-- Enforced currency validation in webhook processing
-- Added refund bounds validation (partial + full refund support)
-- Introduced refund_amount_paise tracking and refund idempotency via refund_gateway_id
-- Converted payment amount storage to integer paise (authoritative)
-- Added settlement tracking columns (settled_at, settlement_id, settlement_status)
-- Rewrote HandlePaymentWebhook to route through PaymentWebhookService
-- Separated critical vs non-critical post-payment processing
-- Added payment:reconcile artisan command
+PHASE 1 – External Boundary Integrity
+- Enforced strict state machine transitions (failed terminal)
+- Removed float fallback (amount_paise strict enforcement)
+- DB-level lockForUpdate() before status transitions
+- Atomic wallet credit inside transaction
+- Order ownership validation (gateway_order_id + user/subscription binding)
+- Settlement state enforcement (paid → settled only)
+- Webhook idempotency hardened
+- Configurable overpayment tolerance (underpayment always rejected)
 
-Architectural Outcome:
-- Webhook replay cannot duplicate wallet credit
-- Out-of-order events blocked via state machine
-- Payment → Wallet mutation fully atomic
-- No float-based monetary arithmetic
-- Refunds cannot exceed credited amount
-- External provider boundary hardened
+PHASE 2 – Structural & Dispute Lifecycle Hardening
+- Retry now creates NEW Payment record (no failed resurrection)
+- Retry counting anchored to billing-cycle boundary (not calendar month)
+- Settlement handler wrapped in DB transaction + row lock (symmetry)
+- Subscription row locked during fulfillment (race prevention)
+- Full chargeback state machine introduced:
+    paid/settled → chargeback_pending → chargeback_confirmed (terminal)
+- Chargeback confirmation fully atomic:
+    wallet reversal + allocation reversal + bonus reversal + suspension
+    (no partial financial rollback allowed)
+- Refunds restricted to {paid, settled} only
+    prevents refund-after-chargeback double reversal
 
-Prepares system for final adversarial validation pass."
+Financial Invariants Enforced:
+- Integer-only monetary model
+- One-way terminal states
+- No partial capture acceptance (underpayment rejected)
+- No calendar-coupled retry reset
+- No double reversal scenarios
+- Ledger symmetry preserved under capture, refund, and chargeback
+
+Payment domain now:
+- Concurrency-safe
+- Dispute-aware
+- Billing-cycle consistent
+- Financially atomic under adversarial conditions"
 #----------------------
 
 function Get-GitCredential {
