@@ -229,10 +229,18 @@ class Payment extends Model
 
     /**
      * V-PAYMENT-INTEGRITY-2026: Get remaining refundable amount in paise
+     *
+     * P0-FIX-3: Must subtract BOTH prior refunds AND confirmed chargebacks
+     * to prevent over-dispute (refund + chargeback > payment amount).
      */
     public function getRefundableAmountPaise(): int
     {
-        return max(0, $this->amount_paise - ($this->refund_amount_paise ?? 0));
+        $refunded = $this->refund_amount_paise ?? 0;
+
+        // P0-FIX-3: Only count confirmed chargebacks (pending chargebacks may be reversed)
+        $chargedBack = $this->isChargebackConfirmed() ? ($this->chargeback_amount_paise ?? 0) : 0;
+
+        return max(0, $this->amount_paise - $refunded - $chargedBack);
     }
 
     // =========================================================================

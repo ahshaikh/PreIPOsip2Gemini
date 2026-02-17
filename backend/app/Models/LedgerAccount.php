@@ -70,6 +70,7 @@ class LedgerAccount extends Model
     public const CODE_COST_OF_SHARES = 'COST_OF_SHARES';
     public const CODE_TDS_PAYABLE = 'TDS_PAYABLE';
     public const CODE_REFUNDS_PAYABLE = 'REFUNDS_PAYABLE';
+    public const CODE_ACCOUNTS_RECEIVABLE = 'ACCOUNTS_RECEIVABLE';
 
     protected $table = 'ledger_accounts';
 

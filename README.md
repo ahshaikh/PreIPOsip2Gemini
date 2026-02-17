@@ -815,7 +815,7 @@ CHANGE SUMMARY (for maintainers only)
     *   **Bulk Purchase Management:** Added "Inventory conservation (ensures product inventory cannot go negative)" point.
     *   **Company Portal (B2B) Features:** Added "Company Disclosure Governance (Protocol1 system for immutable, versioned disclosures with approval workflows)" point.
 -   **DATABASE ARCHITECTURE:**
-    *   Updated "Required Tables" count to 100+ (from 95+).
+    *   Updated "Required Tables" count to 200+ (from 95+).
     *   **Identity & Access Management (IAM):** Added `user_devices` and `company_users` tables. Updated count to 14.
     *   **Financial & Wallet System:** Added `investments`, `fund_locks`, `tds_deductions`, `admin_ledger_entries`, `payment_sagas`, `company_investments` tables. Updated count to 16.
     *   **Compliance & KYC:** Added `kyc_verification_notes` and `investor_risk_acknowledgements` tables. Updated count to 9.

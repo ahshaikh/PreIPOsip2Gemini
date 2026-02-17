@@ -978,65 +978,147 @@ class PaymentWebhookService
             $user = $payment->user;
             $chargebackAmountPaise = $payment->chargeback_amount_paise ?? $payment->amount_paise;
 
-            // 1. Reverse wallet credit (debit user's wallet)
-            // ATOMICITY: NO try/catch - failure rolls back entire chargeback
-            if ($user) {
-                $this->walletService->withdraw(
-                    $user,
-                    $chargebackAmountPaise,
-                    \App\Enums\TransactionType::CHARGEBACK,
-                    "Chargeback reversal for Payment #{$payment->id}",
-                    $payment,
-                    false, // lockBalance
-                    true   // allowOverdraft - chargeback MUST succeed even if insufficient balance
-                );
-
-                Log::channel('financial_contract')->info('CHARGEBACK WALLET REVERSAL', [
+            // V-DISPUTE-REMEDIATION-2026: Validate chargeback amount doesn't exceed refundable
+            // Prevents over-dispute beyond payment net amount (after any prior refunds)
+            $refundableAmountPaise = $payment->getRefundableAmountPaise();
+            if ($chargebackAmountPaise > $refundableAmountPaise) {
+                Log::channel('financial_contract')->critical('CHARGEBACK AMOUNT EXCEEDS REFUNDABLE', [
                     'payment_id' => $payment->id,
-                    'user_id' => $user->id,
-                    'amount_paise' => $chargebackAmountPaise,
+                    'chargeback_amount_paise' => $chargebackAmountPaise,
+                    'refundable_amount_paise' => $refundableAmountPaise,
+                    'payment_amount_paise' => $payment->amount_paise,
+                    'already_refunded_paise' => $payment->refund_amount_paise ?? 0,
+                ]);
+
+                throw new \RuntimeException(
+                    "Chargeback amount ({$chargebackAmountPaise} paise) exceeds remaining refundable amount " .
+                    "({$refundableAmountPaise} paise) for Payment #{$payment->id}. " .
+                    "This may indicate a duplicate reversal attempt."
+                );
+            }
+
+            // =========================================================================
+            // V-DISPUTE-REMEDIATION-2026: FULL UNWIND CHARGEBACK HANDLING
+            // =========================================================================
+            //
+            // BUSINESS RULE: A chargeback is a FORCED UNWIND, not a receivable.
+            // After Deposit → Investment → Chargeback, final state MUST be:
+            //   BANK = 0, LIABILITY = 0, INCOME = 0, Wallet = 0
+            //
+            // LEDGER FLOW:
+            //   1. recordRefund:    DEBIT SHARE_SALE_INCOME, CREDIT USER_WALLET_LIABILITY
+            //   2. recordChargeback: DEBIT USER_WALLET_LIABILITY, CREDIT BANK
+            //   Combined: INCOME -X, LIABILITY net 0, BANK -X
+            //
+            // WALLET FLOW:
+            //   Net change = investmentReversed - chargebackAmount
+            //   If investment == chargeback → net 0 → wallet unchanged
+            //   If investment < chargeback → net negative → withdraw difference
+            //
+            // This ensures ledger LIABILITY always matches operational wallet.
+            // =========================================================================
+
+            // 1. FIRST: Reverse share allocation (user loses shares)
+            // NOTE: Use reverseAllocationLegacy for Payment objects (not Investment)
+            $allocationService = app(AllocationService::class);
+            $allocationService->reverseAllocationLegacy($payment, "Chargeback confirmed: {$payment->chargeback_reason}");
+
+            // 2. Calculate investment value that was reversed
+            $investmentReversedPaise = (int) ($payment->investments()
+                ->where('is_reversed', true)
+                ->sum('value_allocated') * 100);
+
+            // 3. Create ledger entries (order matters for reconciliation)
+            $ledgerService = app(\App\Services\DoubleEntryLedgerService::class);
+
+            // 3a. Reverse revenue if investments existed
+            if ($investmentReversedPaise > 0) {
+                $revenueToReversePaise = min($investmentReversedPaise, $chargebackAmountPaise);
+                $ledgerService->recordRefund($payment->id, $revenueToReversePaise / 100);
+
+                Log::channel('financial_contract')->info('CHARGEBACK REVENUE REVERSAL', [
+                    'payment_id' => $payment->id,
+                    'investment_reversed_paise' => $investmentReversedPaise,
+                    'revenue_reversed_paise' => $revenueToReversePaise,
                 ]);
             }
 
-                // 2. Reverse share allocation
-                $allocationService = app(AllocationService::class);
-                $allocationService->reverseAllocation($payment, "Chargeback confirmed: {$payment->chargeback_reason}");
+            // 3b. Record bank clawback (always)
+            $ledgerService->recordChargeback($payment, $chargebackAmountPaise / 100);
 
-                // 3. Reverse bonuses associated with this payment
-                foreach ($payment->bonuses as $bonus) {
-                    if (!$bonus->is_reversed) {
-                        $bonus->update([
-                            'is_reversed' => true,
-                            'reversed_at' => now(),
-                            'reversal_reason' => 'Chargeback confirmed',
-                        ]);
-                    }
-                }
+            // 4. WALLET ADJUSTMENT: NET change via WalletService
+            //
+            // SIMPLE LOGIC: User loses shares (reversed) + remaining wallet balance.
+            // Net wallet change = chargeback - investmentReversed
+            //
+            // Example: Deposit 1000, Invest 600, Wallet 400, Chargeback 1000
+            // - User loses shares (600 worth reversed)
+            // - Net wallet debit = 1000 - 600 = 400
+            // - Wallet goes from 400 to 0
+            // - No receivable needed
+            //
+            // HARDENING: All wallet mutations go through WalletService.
+            // No direct $wallet->increment/decrement allowed.
+            $netWalletChangePaise = $investmentReversedPaise - $chargebackAmountPaise;
+            // netWalletChangePaise will be negative if chargeback > investment (debit needed)
+            // or positive if investment > chargeback (credit needed, rare)
 
-                // 4. Suspend subscription
-                if ($payment->subscription) {
-                    $payment->subscription->update([
-                        'status' => 'suspended',
-                        'is_auto_debit' => false,
-                        'flag_reason' => "Suspended due to chargeback on Payment #{$payment->id}",
+            if ($user && $netWalletChangePaise !== 0) {
+                // WalletService handles:
+                // - Row locking
+                // - Balance validation
+                // - Transaction record creation
+                // - Audit trail logging
+                $this->walletService->processChargebackAdjustment(
+                    $user,
+                    $netWalletChangePaise,
+                    $payment
+                );
+            }
+
+            Log::channel('financial_contract')->info('CHARGEBACK FULL UNWIND COMPLETE', [
+                'payment_id' => $payment->id,
+                'chargeback_amount_paise' => $chargebackAmountPaise,
+                'investment_reversed_paise' => $investmentReversedPaise,
+                'net_wallet_change_paise' => $netWalletChangePaise,
+                'final_wallet_paise' => $user?->wallet?->fresh()?->balance_paise,
+            ]);
+
+            // 5. Reverse bonuses associated with this payment
+            foreach ($payment->bonuses as $bonus) {
+                if (!$bonus->is_reversed) {
+                    $bonus->update([
+                        'is_reversed' => true,
+                        'reversed_at' => now(),
+                        'reversal_reason' => 'Chargeback confirmed',
                     ]);
-
-                    Log::channel('financial_contract')->warning('SUBSCRIPTION SUSPENDED DUE TO CHARGEBACK', [
-                        'subscription_id' => $payment->subscription->id,
-                        'payment_id' => $payment->id,
-                        'user_id' => $payment->user_id,
-                    ]);
                 }
+            }
 
-                Log::channel('financial_contract')->critical('CHARGEBACK PROCESSING COMPLETE', [
-                    'payment_id' => $payment->id,
-                    'chargeback_id' => $chargebackId,
-                    'amount_paise' => $chargebackAmountPaise,
-                    'wallet_reversed' => true,
-                    'allocations_reversed' => true,
-                    'subscription_suspended' => $payment->subscription_id ? true : false,
+            // 6. Suspend subscription
+            if ($payment->subscription) {
+                $payment->subscription->update([
+                    'status' => 'suspended',
+                    'is_auto_debit' => false,
+                    'flag_reason' => "Suspended due to chargeback on Payment #{$payment->id}",
                 ]);
-            });
+
+                Log::channel('financial_contract')->warning('SUBSCRIPTION SUSPENDED DUE TO CHARGEBACK', [
+                    'subscription_id' => $payment->subscription->id,
+                    'payment_id' => $payment->id,
+                    'user_id' => $payment->user_id,
+                ]);
+            }
+
+            Log::channel('financial_contract')->critical('CHARGEBACK PROCESSING COMPLETE', [
+                'payment_id' => $payment->id,
+                'chargeback_id' => $chargebackId,
+                'amount_paise' => $chargebackAmountPaise,
+                'wallet_reversed' => true,
+                'allocations_reversed' => true,
+                'subscription_suspended' => $payment->subscription_id ? true : false,
+            ]);
+        });
         // ATOMICITY: No catch block - exceptions propagate for webhook retry
         // If ANY step fails, transaction rolls back and webhook will be retried
     }

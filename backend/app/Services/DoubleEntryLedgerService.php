@@ -807,6 +807,103 @@ class DoubleEntryLedgerService
         return $entry;
     }
 
+    /**
+     * V-DISPUTE-REMEDIATION-2026: Record chargeback reversal.
+     *
+     * Chargebacks are BANK-INITIATED reversals, distinct from merchant refunds.
+     * When a chargeback is confirmed (bank ruled in customer's favor):
+     *
+     * ACCOUNTING:
+     *   DEBIT  USER_WALLET_LIABILITY   (decrease liability - we no longer owe user)
+     *   CREDIT BANK                    (decrease asset - funds returned to gateway/bank)
+     *
+     * NOTE: This is the INVERSE of a user deposit. The bank has clawed back
+     * the funds, so we reduce both:
+     * - What we owe the user (liability decreases)
+     * - Our bank balance (asset decreases)
+     *
+     * This differs from a refund which:
+     * - Reduces revenue (DEBIT SHARE_SALE_INCOME)
+     * - Increases liability (CREDIT USER_WALLET_LIABILITY)
+     *
+     * For chargebacks, the user's wallet is debited directly (via WalletService),
+     * so we decrease both sides of the equation.
+     *
+     * @param Payment $payment The payment being charged back
+     * @param float $amount Chargeback amount (in rupees)
+     * @return LedgerEntry
+     */
+    public function recordChargeback(
+        Payment $payment,
+        float $amount
+    ): LedgerEntry {
+        $this->validatePositiveAmount($amount);
+
+        $entry = $this->createEntry(
+            LedgerEntry::REF_CHARGEBACK,
+            $payment->id,
+            "Chargeback reversal for Payment #{$payment->id}: ₹" . number_format($amount, 2)
+        );
+
+        // DEBIT: Decrease User Wallet Liability (we no longer owe user this amount)
+        $this->addLine($entry, LedgerAccount::CODE_USER_WALLET_LIABILITY, 'DEBIT', $amount);
+
+        // CREDIT: Decrease Bank (funds returned to gateway/bank by chargeback)
+        $this->addLine($entry, LedgerAccount::CODE_BANK, 'CREDIT', $amount);
+
+        $this->validateBalanced($entry);
+
+        return $entry;
+    }
+
+    /**
+     * V-CHARGEBACK-HARDENING-2026: Record chargeback receivable (shortfall).
+     *
+     * When a chargeback exceeds the user's wallet balance, the shortfall
+     * becomes an accounts receivable. This entry records that the user
+     * owes the platform the shortfall amount.
+     *
+     * ACCOUNTING:
+     *   DEBIT  ACCOUNTS_RECEIVABLE      (increase asset - user owes us)
+     *   CREDIT USER_WALLET_LIABILITY    (decrease what we "owe" - actually creating negative)
+     *
+     * BUSINESS CONTEXT:
+     * - Bank has already clawed back the full chargeback amount
+     * - We debited wallet to zero (cannot go negative)
+     * - The shortfall is now a receivable from the user
+     * - This may be collected via future deposits or legal action
+     *
+     * @param Payment $payment The payment being charged back
+     * @param float $shortfallAmount Shortfall amount in rupees (what user still owes)
+     * @param int $userId User who owes the shortfall
+     * @return LedgerEntry
+     */
+    public function recordChargebackReceivable(
+        Payment $payment,
+        float $shortfallAmount,
+        int $userId
+    ): LedgerEntry {
+        $this->validatePositiveAmount($shortfallAmount);
+
+        $entry = $this->createEntry(
+            LedgerEntry::REF_CHARGEBACK_RECEIVABLE,
+            $payment->id,
+            "Chargeback shortfall receivable: User #{$userId}, Payment #{$payment->id} - ₹" . number_format($shortfallAmount, 2)
+        );
+
+        // DEBIT: Increase Accounts Receivable (user owes us)
+        $this->addLine($entry, LedgerAccount::CODE_ACCOUNTS_RECEIVABLE, 'DEBIT', $shortfallAmount);
+
+        // CREDIT: Decrease User Wallet Liability (reconciliation entry)
+        // This balances the liability side that was "over-debited" when we
+        // debited the full chargeback amount from liability in recordChargeback()
+        $this->addLine($entry, LedgerAccount::CODE_USER_WALLET_LIABILITY, 'CREDIT', $shortfallAmount);
+
+        $this->validateBalanced($entry);
+
+        return $entry;
+    }
+
     // =========================================================================
     // SUBSCRIPTION & PLATFORM OPERATIONS
     // =========================================================================

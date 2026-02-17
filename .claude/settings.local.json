@@ -33,7 +33,8 @@
       "Bash(do php -l \"$f\")",
       "Bash(done)",
       "Bash(for f in database/migrations/2026_02_16_*.php)",
-      "Bash(for f in app/Models/LedgerLine.php app/Models/FundLock.php app/Models/Wallet.php app/Services/AdminActionConstraintService.php app/Console/Commands/WalletReconcileCommand.php)"
+      "Bash(for f in app/Models/LedgerLine.php app/Models/FundLock.php app/Models/Wallet.php app/Services/AdminActionConstraintService.php app/Console/Commands/WalletReconcileCommand.php)",
+      "Bash(APP_ENV=testing php artisan migrate:fresh:*)"
     ]
   }
 }

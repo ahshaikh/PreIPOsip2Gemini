@@ -8,46 +8,40 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "feat(payment): external boundary integrity + dispute-safe structural hardening
+$CommitMessage = "feat(disputes): harden chargeback engine after dual AI audits (Gemini + Claude)
+- Conducted initial backend financial audit (Gemini) → identified structural gaps
+- Performed second adversarial audit (Claude + Gemini) → uncovered additional invariants and lifecycle issues
+- Remediated critical P0 findings in dispute/chargeback domain
 
-V-PAYMENT-INTEGRITY-2026 – Finalized Payment Domain Hardening
+Financial Corrections
+- Implement NET chargeback model:
+  net = investment_reversed - chargeback_amount
+- Reverse allocation and revenue before wallet adjustment
+- Ensure confirmed chargebacks reflect bank finality (no rollback of bank clawback)
+- Enforce atomic execution via single DB transaction
+- Remove nested transaction from reverseAllocationLegacy
+- Route all wallet mutations through WalletService
+- Block overdraft (wallet cannot go negative)
+- Add defensive receivable handling for rare shortfall edge cases
+- Preserve ledger ↔ wallet symmetry invariants
 
-PHASE 1 – External Boundary Integrity
-- Enforced strict state machine transitions (failed terminal)
-- Removed float fallback (amount_paise strict enforcement)
-- DB-level lockForUpdate() before status transitions
-- Atomic wallet credit inside transaction
-- Order ownership validation (gateway_order_id + user/subscription binding)
-- Settlement state enforcement (paid → settled only)
-- Webhook idempotency hardened
-- Configurable overpayment tolerance (underpayment always rejected)
+Safety & Integrity
+- Add row-level locking (lockForUpdate)
+- Enforce UNIQUE chargeback idempotency
+- Add integration tests for:
+  - Partial investment chargeback
+  - Concurrency replay
+  - Escalation scenarios
+  - Ledger balance invariants
 
-PHASE 2 – Structural & Dispute Lifecycle Hardening
-- Retry now creates NEW Payment record (no failed resurrection)
-- Retry counting anchored to billing-cycle boundary (not calendar month)
-- Settlement handler wrapped in DB transaction + row lock (symmetry)
-- Subscription row locked during fulfillment (race prevention)
-- Full chargeback state machine introduced:
-    paid/settled → chargeback_pending → chargeback_confirmed (terminal)
-- Chargeback confirmation fully atomic:
-    wallet reversal + allocation reversal + bonus reversal + suspension
-    (no partial financial rollback allowed)
-- Refunds restricted to {paid, settled} only
-    prevents refund-after-chargeback double reversal
+Final invariant state under NET model:
+- Wallet = 0
+- Income = 0
+- Bank = 0
+- Liability = 0
+- No artificial receivables
 
-Financial Invariants Enforced:
-- Integer-only monetary model
-- One-way terminal states
-- No partial capture acceptance (underpayment rejected)
-- No calendar-coupled retry reset
-- No double reversal scenarios
-- Ledger symmetry preserved under capture, refund, and chargeback
-
-Payment domain now:
-- Concurrency-safe
-- Dispute-aware
-- Billing-cycle consistent
-- Financially atomic under adversarial conditions"
+Dispute domain now transactionally atomic, economically correct, and production-safe."
 #----------------------
 
 function Get-GitCredential {

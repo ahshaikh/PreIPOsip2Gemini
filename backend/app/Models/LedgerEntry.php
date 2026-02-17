@@ -64,6 +64,8 @@ class LedgerEntry extends Model
     public const REF_SUBSCRIPTION_FEE = 'subscription_fee'; // Subscription fee earned by platform
     public const REF_OPERATING_EXPENSE = 'operating_expense'; // Platform operating expenses (rent, salaries, etc.)
     public const REF_PROFIT_SHARE = 'profit_share'; // Profit share distribution to users
+    public const REF_CHARGEBACK = 'chargeback'; // V-DISPUTE-REMEDIATION-2026: Bank-initiated reversal
+    public const REF_CHARGEBACK_RECEIVABLE = 'chargeback_receivable'; // V-CHARGEBACK-HARDENING-2026: User owes shortfall
 
     protected $table = 'ledger_entries';
 

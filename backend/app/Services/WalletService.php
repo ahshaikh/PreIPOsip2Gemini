@@ -313,10 +313,10 @@ class WalletService
             }
 
             // PHASE 4 SECTION 7.2: Record investment ledger entries
-            // Subscription grants entitlement (access rights of the PreIPOsip platform), 
+            // Subscription grants entitlement (access rights of the PreIPOsip platform),
             // but subscription payments do not constitute platform revenue.
             // All subscription funds remain user-owned capital until used for investments.
-            
+
             if ($type === TransactionType::INVESTMENT && $status === 'completed') {
                 $cashAmountPaise = $amountPaise - $bonusAmountPaise;
 
@@ -349,6 +349,37 @@ class WalletService
                     'bonus_amount_paise' => $bonusAmountPaise,
                     'cash_amount_paise' => $cashAmountPaise,
                 ]);
+            }
+
+            // V-DISPUTE-REMEDIATION-2026: Record chargeback in double-entry ledger
+            // Chargebacks are BANK-INITIATED reversals that reduce both:
+            // - USER_WALLET_LIABILITY (we no longer owe user)
+            // - BANK (funds clawed back by gateway)
+            //
+            // This MUST be recorded inside the transaction to ensure atomicity.
+            // If ledger entry fails, the entire withdrawal is rolled back.
+            if ($type === TransactionType::CHARGEBACK && $status === 'completed') {
+                // Reference must be a Payment for chargebacks
+                $payment = $reference instanceof Payment ? $reference : null;
+
+                if ($payment) {
+                    $amountRupees = $amountPaise / 100;
+                    $this->ledgerService->recordChargeback($payment, $amountRupees);
+
+                    Log::channel('financial_contract')->info('V-DISPUTE-REMEDIATION-2026: Chargeback ledger entry recorded', [
+                        'user_id' => $user->id,
+                        'payment_id' => $payment->id,
+                        'transaction_id' => $transaction->id,
+                        'amount_paise' => $amountPaise,
+                    ]);
+                } else {
+                    Log::channel('financial_contract')->warning('V-DISPUTE-REMEDIATION-2026: Chargeback without Payment reference - ledger entry skipped', [
+                        'user_id' => $user->id,
+                        'transaction_id' => $transaction->id,
+                        'amount_paise' => $amountPaise,
+                        'reference_type' => $reference ? get_class($reference) : null,
+                    ]);
+                }
             }
 
             return $transaction;
@@ -470,6 +501,168 @@ class WalletService
                 'reason' => $reason,
             ]);
         });
+    }
+
+    /**
+     * V-CHARGEBACK-HARDENING-2026: Process chargeback wallet adjustment.
+     *
+     * This method handles wallet adjustments during chargeback processing.
+     * It supports both debits (when chargeback > investment) and credits
+     * (when investment > chargeback, rare partial chargeback scenario).
+     *
+     * ATOMICITY: This method MUST be called within an existing DB::transaction().
+     * It does NOT start its own transaction to ensure atomic execution with
+     * the chargeback ledger entries.
+     *
+     * OVERDRAFT POLICY: Overdraft is NOT allowed. If the debit exceeds wallet
+     * balance, wallet is debited to ZERO and shortfall is returned for the
+     * caller to record as receivable. Transaction MUST commit (no rollback).
+     *
+     * LEDGER NOTE: This method does NOT create ledger entries. The caller
+     * (handleChargebackConfirmed) is responsible for recordRefund(),
+     * recordChargeback(), and recordChargebackReceivable() calls.
+     *
+     * @param User $user The user whose wallet to adjust
+     * @param int $netChangePaise Net change in paise (negative = debit, positive = credit)
+     * @param Payment $payment The payment being charged back (for audit trail)
+     * @return array{transaction: Transaction|null, shortfall_paise: int} Result with optional shortfall
+     * @throws \RuntimeException If wallet cannot be found
+     */
+    public function processChargebackAdjustment(
+        User $user,
+        int $netChangePaise,
+        Payment $payment
+    ): array {
+        if ($netChangePaise === 0) {
+            // No adjustment needed (most common: full unwind where investment == chargeback)
+            Log::channel('financial_contract')->debug('Chargeback wallet adjustment: no change needed', [
+                'user_id' => $user->id,
+                'payment_id' => $payment->id,
+            ]);
+            return ['transaction' => null, 'shortfall_paise' => 0];
+        }
+
+        // CRITICAL: Acquire row-level lock on wallet
+        $wallet = $user->wallet()
+            ->lockForUpdate()
+            ->first();
+
+        if (!$wallet) {
+            throw new \RuntimeException("Wallet not found for user #{$user->id} during chargeback adjustment");
+        }
+
+        $balanceBefore = $wallet->balance_paise;
+
+        if ($netChangePaise < 0) {
+            // DEBIT: Chargeback exceeds investment reversal
+            // User owes more than what was returned from investment reversal
+            $debitAmount = abs($netChangePaise);
+            $shortfallPaise = 0;
+            $actualDebitPaise = $debitAmount;
+
+            // V-CHARGEBACK-HARDENING-2026: NO OVERDRAFT - DEBIT TO ZERO
+            // Chargeback MUST complete (bank finality). If insufficient balance:
+            // 1. Debit wallet to zero
+            // 2. Record shortfall as receivable (handled by caller)
+            if ($wallet->balance_paise < $debitAmount) {
+                $shortfallPaise = $debitAmount - $wallet->balance_paise;
+                $actualDebitPaise = $wallet->balance_paise; // Only debit what's available
+
+                Log::channel('financial_contract')->warning('CHARGEBACK SHORTFALL: Wallet insufficient', [
+                    'user_id' => $user->id,
+                    'payment_id' => $payment->id,
+                    'wallet_balance_paise' => $wallet->balance_paise,
+                    'required_debit_paise' => $debitAmount,
+                    'actual_debit_paise' => $actualDebitPaise,
+                    'shortfall_paise' => $shortfallPaise,
+                    'action' => 'DEBIT_TO_ZERO_RECORD_RECEIVABLE',
+                ]);
+
+                // Create escalation record for admin review
+                \App\Models\AuditLog::create([
+                    'action' => 'chargeback.shortfall.receivable_created',
+                    'actor_id' => $user->id,
+                    'actor_type' => User::class,
+                    'description' => "Chargeback shortfall: User owes ₹" . ($shortfallPaise / 100) . " for Payment #{$payment->id}",
+                    'metadata' => [
+                        'payment_id' => $payment->id,
+                        'user_id' => $user->id,
+                        'wallet_balance_paise' => $wallet->balance_paise,
+                        'required_debit_paise' => $debitAmount,
+                        'actual_debit_paise' => $actualDebitPaise,
+                        'shortfall_paise' => $shortfallPaise,
+                        'chargeback_gateway_id' => $payment->chargeback_gateway_id,
+                    ],
+                ]);
+            }
+
+            // Debit wallet (to zero if insufficient)
+            $transaction = null;
+            if ($actualDebitPaise > 0) {
+                $wallet->decrement('balance_paise', $actualDebitPaise);
+                $wallet->refresh();
+
+                $transaction = $wallet->transactions()->create([
+                    'user_id' => $user->id,
+                    'type' => TransactionType::CHARGEBACK->value,
+                    'status' => 'completed',
+                    'amount_paise' => $actualDebitPaise,
+                    'balance_before_paise' => $balanceBefore,
+                    'balance_after_paise' => $wallet->balance_paise,
+                    'description' => $shortfallPaise > 0
+                        ? "Chargeback (partial - shortfall ₹" . ($shortfallPaise / 100) . " recorded as receivable) for Payment #{$payment->id}"
+                        : "Chargeback adjustment for Payment #{$payment->id}",
+                    'reference_type' => Payment::class,
+                    'reference_id' => $payment->id,
+                ]);
+
+                Log::channel('financial_contract')->info('CHARGEBACK WALLET DEBIT via WalletService', [
+                    'user_id' => $user->id,
+                    'payment_id' => $payment->id,
+                    'requested_debit_paise' => $debitAmount,
+                    'actual_debit_paise' => $actualDebitPaise,
+                    'shortfall_paise' => $shortfallPaise,
+                    'balance_before' => $balanceBefore,
+                    'balance_after' => $wallet->balance_paise,
+                ]);
+            }
+
+            return ['transaction' => $transaction, 'shortfall_paise' => $shortfallPaise];
+        } else {
+            // CREDIT: Investment reversal exceeds chargeback (partial chargeback)
+            // User gets back the excess from investment reversal
+            $creditAmount = $netChangePaise;
+
+            $wallet->increment('balance_paise', $creditAmount);
+            $wallet->refresh();
+
+            // Runtime invariant check
+            if ($wallet->balance_paise < 0) {
+                throw new \RuntimeException('Invariant violation: negative balance after chargeback credit');
+            }
+
+            $transaction = $wallet->transactions()->create([
+                'user_id' => $user->id,
+                'type' => TransactionType::REFUND->value, // Credit uses REFUND type
+                'status' => 'completed',
+                'amount_paise' => $creditAmount,
+                'balance_before_paise' => $balanceBefore,
+                'balance_after_paise' => $wallet->balance_paise,
+                'description' => "Chargeback partial restoration for Payment #{$payment->id}",
+                'reference_type' => Payment::class,
+                'reference_id' => $payment->id,
+            ]);
+
+            Log::channel('financial_contract')->info('CHARGEBACK WALLET CREDIT via WalletService', [
+                'user_id' => $user->id,
+                'payment_id' => $payment->id,
+                'credit_paise' => $creditAmount,
+                'balance_before' => $balanceBefore,
+                'balance_after' => $wallet->balance_paise,
+            ]);
+
+            return ['transaction' => $transaction, 'shortfall_paise' => 0];
+        }
     }
 
     /**

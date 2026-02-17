@@ -317,21 +317,21 @@ class AllocationService
      */
     public function reverseAllocationLegacy(Payment $payment, string $reason): void
     {
-        DB::transaction(function () use ($payment, $reason) {
-            $investments = $payment->investments()->where('is_reversed', false)->get();
+        // NOTE: No DB::transaction here - caller is responsible for transaction context
+        // This method is typically called from handleChargebackConfirmed which already wraps in transaction
+        $investments = $payment->investments()->where('is_reversed', false)->get();
 
-            foreach ($investments as $investment) {
-                $purchase = $investment->bulkPurchase()->lockForUpdate()->first();
-                if ($purchase) {
-                    $purchase->increment('value_remaining', $investment->value_allocated);
-                }
-
-                $investment->update([
-                    'is_reversed' => true,
-                    'reversed_at' => now(),
-                    'reversal_reason' => $reason
-                ]);
+        foreach ($investments as $investment) {
+            $purchase = $investment->bulkPurchase()->lockForUpdate()->first();
+            if ($purchase) {
+                $purchase->increment('value_remaining', $investment->value_allocated);
             }
-        });
+
+            $investment->update([
+                'is_reversed' => true,
+                'reversed_at' => now(),
+                'reversal_reason' => $reason
+            ]);
+        }
     }
 }
