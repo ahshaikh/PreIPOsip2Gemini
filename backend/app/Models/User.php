@@ -1,5 +1,5 @@
 <?php
-// V-PHASE1-1730-008 (Created) | V-FINAL-1730-321 | V-FINAL-1730-394 (Notif Prefs Added) | V-FINAL-1730-468 (2FA Added) | V-AUDIT-FIX-REFACTOR (Relationships Added)
+// V-PHASE1-1730-008 (Created) | V-FINAL-1730-321 | V-FINAL-1730-394 (Notif Prefs Added) | V-FINAL-1730-468 (2FA Added) | V-AUDIT-FIX-REFACTOR (Relationships Added) | V-DISPUTE-RISK-2026-001 (Risk Fields)
 
 namespace App\Models;
 
@@ -45,6 +45,11 @@ class User extends Authenticatable
         'is_blacklisted',
         'is_anonymized',
         'anonymized_at',
+        // Risk profile fields (V-DISPUTE-RISK-2026-001)
+        'risk_score',
+        'is_blocked',
+        'blocked_reason',
+        'last_risk_update_at',
     ];
 
     protected $hidden = [
@@ -61,6 +66,10 @@ class User extends Authenticatable
         'password' => 'hashed',
         'two_factor_confirmed_at' => 'datetime',
         'two_factor_recovery_codes' => 'array',
+        // Risk profile casts (V-DISPUTE-RISK-2026-001)
+        'risk_score' => 'integer',
+        'is_blocked' => 'boolean',
+        'last_risk_update_at' => 'datetime',
     ];
 
     protected $appends = [

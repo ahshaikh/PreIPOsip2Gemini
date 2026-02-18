@@ -607,6 +607,16 @@ Route::prefix('v1')->group(function () {
 
                 // GAP 33: State machine integrity verification
                 Route::get('verify-integrity/{investmentId}', [App\Http\Controllers\Api\Admin\DisputeSnapshotController::class, 'verifyIntegrity']);
+
+                // V-DISPUTE-RISK-2026-010: Dispute Management API (read-only)
+                Route::get('/', [App\Http\Controllers\Api\Admin\DisputeController::class, 'index']);
+                Route::get('/overview', [App\Http\Controllers\Api\Admin\DisputeController::class, 'overview']);
+                Route::get('/chargebacks', [App\Http\Controllers\Api\Admin\DisputeController::class, 'chargebacks']);
+                Route::get('/blocked-users', [App\Http\Controllers\Api\Admin\DisputeController::class, 'blockedUsers']);
+                Route::get('/{id}', [App\Http\Controllers\Api\Admin\DisputeController::class, 'show'])->where('id', '[0-9]+');
+                Route::get('/{id}/ledger', [App\Http\Controllers\Api\Admin\DisputeController::class, 'ledger'])->where('id', '[0-9]+');
+                Route::get('/{id}/risk', [App\Http\Controllers\Api\Admin\DisputeController::class, 'risk'])->where('id', '[0-9]+');
+                Route::get('/{id}/audit', [App\Http\Controllers\Api\Admin\DisputeController::class, 'audit'])->where('id', '[0-9]+');
             });
 
             // Scheduled Reports Management

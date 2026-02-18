@@ -11,6 +11,7 @@ use App\Jobs\SendPaymentFailedEmailJob;
 use App\Notifications\PaymentFailed;
 use App\Services\AllocationService; // V-AUDIT-MODULE4-003: For refund reversal
 use App\Exceptions\PaymentAmountMismatchException;
+use App\Events\ChargebackConfirmed; // V-DISPUTE-RISK-2026-003
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache; // Added for Atomic Locks
@@ -1110,6 +1111,18 @@ class PaymentWebhookService
                 ]);
             }
 
+            // V-DISPUTE-RISK-2026-003: Dispatch ChargebackConfirmed event
+            // Triggers risk scoring update and potential user blocking
+            // INSIDE transaction for atomicity with financial reversals
+            if ($user) {
+                ChargebackConfirmed::dispatch(
+                    $payment,
+                    $user,
+                    $chargebackAmountPaise,
+                    $payment->chargeback_reason
+                );
+            }
+
             Log::channel('financial_contract')->critical('CHARGEBACK PROCESSING COMPLETE', [
                 'payment_id' => $payment->id,
                 'chargeback_id' => $chargebackId,
@@ -1117,6 +1130,7 @@ class PaymentWebhookService
                 'wallet_reversed' => true,
                 'allocations_reversed' => true,
                 'subscription_suspended' => $payment->subscription_id ? true : false,
+                'risk_event_dispatched' => $user !== null,
             ]);
         });
         // ATOMICITY: No catch block - exceptions propagate for webhook retry

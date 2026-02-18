@@ -1,5 +1,5 @@
 <?php
-// V-REMEDIATE-1730-165 (Created) | V-FINAL-1730-280 | V-FINAL-1730-385 (SLA Job Added) | V-FINAL-1730-427 (Draw Job Added) | V-FINAL-1730-431 (Sitemap Added) | V-FINAL-1730-496 (Price Job Added) | V-AUDIT-FIX-SCHEDULER-SAFETY
+// V-REMEDIATE-1730-165 (Created) | V-FINAL-1730-280 | V-FINAL-1730-385 (SLA Job Added) | V-FINAL-1730-427 (Draw Job Added) | V-FINAL-1730-431 (Sitemap Added) | V-FINAL-1730-496 (Price Job Added) | V-AUDIT-FIX-SCHEDULER-SAFETY | V-DISPUTE-RISK-2026-008 (Dispute Stats Cache)
 
 namespace App\Console;
 
@@ -17,6 +17,8 @@ use App\Console\Commands\ProcessProfitShareDistribution;
 use App\Console\Commands\ReleaseExpiredFundLocks; // FIX 18
 use App\Console\Commands\ReconcileBalances; // FIX 32
 use App\Console\Commands\WalletReconcileCommand; // V-PRECISION-2026
+use App\Console\Commands\WarmDisputeStatsCache; // V-DISPUTE-RISK-2026
+use App\Console\Commands\AggregateDailyDisputeSnapshots; // V-DISPUTE-RISK-2026
 use App\Services\DisclosureFreshnessService;
 
 class Kernel extends ConsoleKernel
@@ -102,6 +104,22 @@ class Kernel extends ConsoleKernel
             ->onOneServer()
             ->name('disclosure-freshness-refresh')
             ->description('Refresh disclosure freshness states and record vitality snapshots');
+
+        // V-DISPUTE-RISK-2026-008: Warm dispute stats cache hourly
+        // Pre-computes dispute/chargeback statistics for admin dashboard
+        // Ensures fresh data is always available without blocking requests
+        $schedule->command(WarmDisputeStatsCache::class)
+                 ->hourly()
+                 ->withoutOverlapping()
+                 ->onOneServer();
+
+        // V-DISPUTE-RISK-2026-009: Aggregate daily dispute snapshots at 2 AM
+        // Creates immutable daily records for trend analysis and reporting
+        // Must run after midnight to capture full previous day data
+        $schedule->command(AggregateDailyDisputeSnapshots::class)
+                 ->dailyAt('02:00')
+                 ->withoutOverlapping()
+                 ->onOneServer();
     }
 
     /**

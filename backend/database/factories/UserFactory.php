@@ -63,7 +63,7 @@ class UserFactory extends Factory
             // Create the 3 critical relations for every user
             UserProfile::firstOrCreate(['user_id' => $user->id]);
             UserKyc::firstOrCreate(['user_id' => $user->id]);
-            Wallet::firstOrCreate(['user_id' => $user->id], ['balance' => 0]);
+            Wallet::firstOrCreate(['user_id' => $user->id], ['balance_paise' => 0, 'locked_balance_paise' => 0]);
         });
     }
 }

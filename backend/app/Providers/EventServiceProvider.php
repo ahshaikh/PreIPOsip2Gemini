@@ -3,7 +3,9 @@
 namespace App\Providers;
 
 use App\Events\DisclosureApproved;
+use App\Events\ChargebackConfirmed;
 use App\Listeners\CheckTierPromotionOnDisclosureApproval;
+use App\Listeners\UpdateUserRiskProfile;
 use App\Models\{BulkPurchase, Company, CompanyDisclosure, DisclosureVersion, Withdrawal};
 use App\Observers\{BulkPurchaseObserver, CompanyObserver, CompanyDisclosureObserver, DisclosureVersionObserver, WithdrawalObserver};
 use Illuminate\Auth\Events\Registered;
@@ -25,6 +27,10 @@ class EventServiceProvider extends ServiceProvider
         // STORY 3.2: Automatic tier promotion on disclosure approval
         DisclosureApproved::class => [
             CheckTierPromotionOnDisclosureApproval::class,
+        ],
+        // V-DISPUTE-RISK-2026-003: Risk profile update on chargeback
+        ChargebackConfirmed::class => [
+            UpdateUserRiskProfile::class,
         ],
     ];
 

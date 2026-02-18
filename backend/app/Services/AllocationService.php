@@ -1,10 +1,13 @@
 <?php
 /**
  * V-AUDIT-REFACTOR-2025 | V-ATOMIC-INVENTORY | V-BUCKET-FILL-FIFO
+ * V-DISPUTE-RISK-2026-006: Added RiskGuard integration
+ *
  * Refactored to address Module 5 Audit Gaps:
  * 1. Atomic Locks: Uses lockForUpdate() to prevent race conditions during multi-batch allocation.
  * 2. Data Integrity: Enforces strict DB transactions for the "Bucket Fill" algorithm.
  * 3. Fractional Logic: Handles whole vs fractional shares at the engine level with automated refunds.
+ * 4. Risk Guard: Blocked users cannot receive share allocations.
  */
 
 namespace App\Services;
@@ -16,8 +19,10 @@ use App\Models\ActivityLog;
 use App\Services\InventoryService;
 use App\Services\WalletService;
 use App\Services\InventoryConservationService;
+use App\Services\RiskGuardService;
 use App\Enums\InvestmentSource;
 use App\Enums\TransactionType;
+use App\Exceptions\RiskBlockedException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 
@@ -26,15 +31,18 @@ class AllocationService
     protected $inventoryService;
     protected $walletService;
     protected $conservationService;
+    protected $riskGuard;
 
     public function __construct(
         InventoryService $inventoryService,
         WalletService $walletService,
-        InventoryConservationService $conservationService
+        InventoryConservationService $conservationService,
+        RiskGuardService $riskGuard
     ) {
         $this->inventoryService = $inventoryService;
         $this->walletService = $walletService;
         $this->conservationService = $conservationService;
+        $this->riskGuard = $riskGuard;
     }
 
     /**
@@ -42,6 +50,7 @@ class AllocationService
      *
      * [ORCHESTRATION-COMPATIBLE]: Used by saga-based allocation
      * [CONSERVATION-ENFORCED]: Integrates with InventoryConservationService
+     * [RISK-GUARDED]: Blocked users cannot receive allocations (V-DISPUTE-RISK-2026-006)
      *
      * @param \App\Models\User $user
      * @param \App\Models\Product $product
@@ -50,12 +59,22 @@ class AllocationService
      * @param string $source
      * @param bool $allowFractional
      * @return bool Success status
+     * @throws RiskBlockedException If user is risk-blocked
      */
     public function allocateShares($user, $product, float $amount, $investment, string $source = 'investment', bool $allowFractional = true): bool
     {
         if ($amount <= 0) {
             return false;
         }
+
+        // V-DISPUTE-RISK-2026-006: Risk Guard - Block allocations to risk-blocked users
+        // This check happens BEFORE any DB transaction to prevent partial mutations
+        $this->riskGuard->assertUserCanInvest($user, 'share_allocation', [
+            'product_id' => $product->id,
+            'amount' => $amount,
+            'investment_id' => $investment->id ?? null,
+            'source' => $source,
+        ]);
 
         return DB::transaction(function () use ($user, $product, $amount, $investment, $source, $allowFractional) {
 
@@ -148,7 +167,10 @@ class AllocationService
      * Legacy: Allocate shares using Payment object (FIFO algorithm)
      *
      * [AUDIT FIX]: Added lockForUpdate() to prevent two users from claiming the same fragmented batch.
+     * [RISK-GUARDED]: Blocked users cannot receive allocations (V-DISPUTE-RISK-2026-006)
      * [DEPRECATED]: Use allocateShares(user, product, amount, investment, ...) for new code
+     *
+     * @throws RiskBlockedException If user is risk-blocked
      */
     public function allocateSharesLegacy(Payment $payment, float $totalInvestmentValue, string $source = null)
     {
@@ -157,6 +179,14 @@ class AllocationService
         }
 
         $user = $payment->user;
+
+        // V-DISPUTE-RISK-2026-006: Risk Guard - Block allocations to risk-blocked users
+        // This check happens BEFORE any DB transaction to prevent partial mutations
+        $this->riskGuard->assertUserCanInvest($user, 'share_allocation_legacy', [
+            'payment_id' => $payment->id,
+            'amount' => $totalInvestmentValue,
+        ]);
+
         $source = $source ?? InvestmentSource::INVESTMENT_AND_BONUS->value;
         $allowFractional = setting('allow_fractional_shares', true);
 

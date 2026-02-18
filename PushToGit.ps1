@@ -8,40 +8,30 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "feat(disputes): harden chargeback engine after dual AI audits (Gemini + Claude)
-- Conducted initial backend financial audit (Gemini) → identified structural gaps
-- Performed second adversarial audit (Claude + Gemini) → uncovered additional invariants and lifecycle issues
-- Remediated critical P0 findings in dispute/chargeback domain
+$CommitMessage = "chore(disputes): finalize backend hardening, pass safety checklist, isolate test env
 
-Financial Corrections
-- Implement NET chargeback model:
-  net = investment_reversed - chargeback_amount
-- Reverse allocation and revenue before wallet adjustment
-- Ensure confirmed chargebacks reflect bank finality (no rollback of bank clawback)
-- Enforce atomic execution via single DB transaction
-- Remove nested transaction from reverseAllocationLegacy
-- Route all wallet mutations through WalletService
-- Block overdraft (wallet cannot go negative)
-- Add defensive receivable handling for rare shortfall edge cases
-- Preserve ledger ↔ wallet symmetry invariants
+- Completed full backend remediation across dispute & risk domain (Phases 1–9)
+- Enforced NET chargeback model with atomic execution
+- Verified ledger invariants and wallet symmetry
+- Implemented event-driven risk scoring with investment blocking
+- Added Redis-backed overview cache with hourly warmup
+- Implemented nightly dispute analytics aggregation
+- Secured admin dispute API layer with pagination and RBAC
+- Executed full backend safety checklist validation
 
-Safety & Integrity
-- Add row-level locking (lockForUpdate)
-- Enforce UNIQUE chargeback idempotency
-- Add integration tests for:
-  - Partial investment chargeback
-  - Concurrency replay
-  - Escalation scenarios
-  - Ledger balance invariants
+Test Infrastructure Fix:
+- Corrected phpunit.xml XML comment violations
+- Switched test environment to SQLite in-memory database
+- Fully isolated tests from main development database
+- Eliminated MySQL savepoint instability
+- Ensured deterministic and disposable test execution
 
-Final invariant state under NET model:
-- Wallet = 0
-- Income = 0
-- Bank = 0
-- Liability = 0
-- No artificial receivables
-
-Dispute domain now transactionally atomic, economically correct, and production-safe."
+Backend dispute engine is now:
+- Financially consistent
+- Transactionally atomic
+- Risk-enforced
+- Test-isolated
+- Production-ready (backend layer)"
 #----------------------
 
 function Get-GitCredential {

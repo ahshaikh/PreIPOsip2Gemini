@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- V-FINAL-1730-312 -->
+<!-- V-FINAL-1730-312 - TEST ENVIRONMENT ISOLATED VIA SQLITE IN-MEMORY -->
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
          bootstrap="vendor/autoload.php"
@@ -11,32 +11,64 @@
          beStrictAboutChangesToGlobalState="true"
          beStrictAboutOutputDuringTests="true"
 >
+
+    <!-- TEST SUITES -->
     <testsuites>
         <testsuite name="Unit">
             <directory>./tests/Unit</directory>
         </testsuite>
+
         <testsuite name="Feature">
             <directory>./tests/Feature</directory>
         </testsuite>
     </testsuites>
+
+    <!-- SOURCE COVERAGE -->
     <source>
         <include>
             <directory>./app</directory>
         </include>
     </source>
-    <php>
-        <!--
-          These variables override your .env file ONLY during tests.
-          This tells Laravel to use a fast, in-memory database
-          and prevents test data from touching your real database.
-        -->
-        <env name="APP_ENV" value="testing"/>
-        <env name="BCRYPT_ROUNDS" value="4"/>
-        <env name="CACHE_DRIVER" value="array"/>
 
+    <!-- TEST ENVIRONMENT OVERRIDES -->
+    <php>
+
+        <!-- APPLICATION ENVIRONMENT
+        Forces Laravel into testing mode.
+        Ensures no production configuration is used.
+        -->
+
+        <env name="APP_ENV" value="testing"/>
+
+        <!-- DATABASE CONFIGURATION (CRITICAL)
+        Use SQLite in-memory database for tests.
+        This ensures:
+        - Complete isolation from your main 'preipo' database
+        - No accidental data loss
+        - Deterministic test execution
+        - No MySQL savepoint issues
+        - Automatic fresh schema per test run
+        -->
+
+        <env name="DB_CONNECTION" value="sqlite"/>
+        <env name="DB_DATABASE" value=":memory:"/>
+
+        <!-- PERFORMANCE OPTIMIZATIONS
+        Reduce bcrypt rounds for faster tests.
+        -->
+
+        <env name="BCRYPT_ROUNDS" value="4"/>
+
+        <!-- CACHE / SESSION / QUEUE SAFETY
+        Prevent external systems from being used.
+        Ensure tests remain fully in-memory and synchronous.
+        -->
+
+        <env name="CACHE_DRIVER" value="array"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
+
     </php>
 </phpunit>
