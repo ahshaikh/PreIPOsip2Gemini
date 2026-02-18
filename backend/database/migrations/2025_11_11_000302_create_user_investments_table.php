@@ -15,11 +15,15 @@ return new class extends Migration
             $table->foreignId('product_id')->constrained()->onDelete('restrict');
             $table->foreignId('payment_id')->constrained()->onDelete('cascade');
             $table->foreignId('bulk_purchase_id')->constrained()->onDelete('restrict');
+
+	    $table->index(['user_id', 'product_id']);
+	    $table->index('payment_id');
+	    $table->index('bulk_purchase_id');
             
             $table->decimal('units_allocated', 14, 4);
             $table->decimal('value_allocated', 14, 2); // Face value
             $table->string('source'); // 'investment' or 'bonus'
-            
+        
             $table->timestamps();
         });
     }

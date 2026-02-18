@@ -8,33 +8,17 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "chore(schema): canonicalize migrations for deterministic rebuild & CI safety
+$CommitMessage = "refactor(migrations): canonicalize schema and eliminate legacy drift
 
-Migration Hardening Summary:
+- Removed defensive Schema::hasColumn / hasTable / indexExists patterns
+- Consolidated duplicate deal_approvals create migrations
+- Eliminated transitional decimal → paise wallet migration
+- Removed legacy performance index patch migration
+- Cleaned obsolete investment_id / is_reversed references
+- Resolved FK/index ownership conflicts (withdrawals, user_investments)
+- Ensured deterministic migrate:fresh execution for test isolation
 
-- Removed all defensive Schema::hasColumn / hasTable guards from core schema migrations
-- Eliminated non-deterministic conditional index creation logic
-- Removed redundant and duplicate index ownership across migrations
-- Corrected foreign key → index → column drop order in down() methods
-- Fixed FK-backed index drop failures (MySQL 1091 / 1553 errors)
-- Removed redundant standalone lifecycle_state index (covered by composite index)
-- Rewrote Phase 5 snapshot migration to avoid cross-migration column ownership
-- Canonicalized deal_approvals approval tracking migration
-- Replaced manual index naming with framework-generated index conventions
-- Ensured migrate:fresh succeeds deterministically
-- Verified tests run against isolated preipo_test database
-- Restored proper Laravel bootstrapping in TestCase (parent::setUp())
-
-Result:
-
-- Schema is now reproducible from a clean database
-- Full migrate:fresh works without SQL errors
-- CI-safe migration chain
-- No schema drift masking
-- Test environment isolation confirmed
-
-Backend migration layer upgraded from patch-based evolution
-to canonical deterministic schema architecture."
+Migration layer is now canonical, deterministic, and fresh-rebuild safe."
 #----------------------
 
 function Get-GitCredential {

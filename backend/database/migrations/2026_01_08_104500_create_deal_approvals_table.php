@@ -4,114 +4,120 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-/**
- * Migration: Create deal_approvals Table
- *
- * PROTOCOL 1 ANALYSIS:
- * - Error indicates deal_approvals table EXISTS but missing columns
- * - However, no migration creates this table in repo
- * - Table was likely created manually or in uncommitted migration
- *
- * SOLUTION:
- * - Create complete deal_approvals table with all required columns
- * - Include approved_at, approved_by for analytics queries
- * - Follow platform's approval workflow pattern (matches withdrawals, campaigns)
- *
- * PURPOSE:
- * - Track deal approval workflow from submission → review → approved/rejected
- * - Audit trail for compliance (who approved, when, why)
- * - Analytics dashboard (approvals over time, avg processing time)
- *
- * SCHEMA RATIONALE:
- * - deal_id: Links to deals table for deal details
- * - submitted_by: Company user requesting approval
- * - reviewed_by: Admin who reviewed
- * - approved_by/rejected_by: Admin who made final decision
- * - status: pending/under_review/approved/rejected
- * - notes: Reason for rejection or approval comments
- */
+// * Migration: Create deal_approvals Table
+// *
+// * PROTOCOL 1 ANALYSIS:
+// * - Error indicates deal_approvals table EXISTS but missing columns
+// * - However, no migration creates this table in repo
+// * - Table was likely created manually or in uncommitted migration
+// *
+// * SOLUTION:
+// * - Create complete deal_approvals table with all required columns
+// * - Include approved_at, approved_by for analytics queries
+// * - Follow platform's approval workflow pattern (matches withdrawals, campaigns)
+// *
+// * PURPOSE:
+// * - Track deal approval workflow from submission to publication
+// * - Enable multi-stage approval process with SLA tracking
+// * - Support approval analytics and compliance reporting
+// * - Integrate with company version snapshots at approval
+// *
+// * SCHEMA RATIONALE:
+// * - deal_id: Links to deals table for deal details
+// * - submitted_by: Company user requesting approval
+// * - reviewed_by: Admin who reviewed
+// * - approved_by/rejected_by: Admin who made final decision
+// * - status: pending/under_review/approved/rejected
+// * - notes: Reason for rejection or approval comments
+
 return new class extends Migration
 {
     public function up(): void
     {
-        // Only create if table doesn't already exist
-        if (!Schema::hasTable('deal_approvals')) {
-            Schema::create('deal_approvals', function (Blueprint $table) {
-                $table->id();
+        Schema::create('deal_approvals', function (Blueprint $table) {
+            $table->id();
 
-                // Deal reference
-                $table->foreignId('deal_id')
-                    ->constrained('deals')
-                    ->onDelete('cascade')
-                    ->comment('Reference to the deal being approved');
+            $table->foreignId('deal_id')
+                ->constrained('deals')
+                ->onDelete('cascade');
 
-                // Workflow tracking
-                $table->enum('status', ['pending', 'under_review', 'approved', 'rejected'])
-                    ->default('pending')
-                    ->index()
-                    ->comment('Current approval status');
+            $table->enum('status', [
+                'draft',
+                'pending_review',
+                'under_review',
+                'approved',
+                'rejected',
+                'published',
+                'archived'
+            ])->default('draft');
 
-                // User tracking
-                $table->foreignId('submitted_by')
-                    ->constrained('users')
-                    ->onDelete('cascade')
-                    ->comment('Company user who submitted for approval');
+            // Workflow timestamps
+            $table->timestamp('submitted_at')->nullable();
+            $table->timestamp('review_started_at')->nullable();
+            $table->timestamp('reviewed_at')->nullable();
+            $table->timestamp('approved_at')->nullable();
+            $table->timestamp('rejected_at')->nullable();
+            $table->timestamp('published_at')->nullable();
 
-                $table->foreignId('reviewed_by')
-                    ->nullable()
-                    ->constrained('users')
-                    ->onDelete('set null')
-                    ->comment('Admin who started reviewing');
+            // User tracking
+            $table->foreignId('submitter_id')->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
 
-                // PROTOCOL 1 FIX: Add review_started_at timestamp
-                // EXECUTION PATH: /admin/deal-approvals/analytics queries this column
-                // SQL: WHERE reviewed_by IS NOT NULL AND review_started_at BETWEEN...
-                $table->timestamp('review_started_at')
-                    ->nullable()
-                    ->index() // Analytics queries filter by this column
-                    ->comment('Timestamp when review was started by admin');
+            $table->foreignId('reviewer_id')->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
 
-                $table->foreignId('approved_by')
-                    ->nullable()
-                    ->constrained('users')
-                    ->onDelete('set null')
-                    ->comment('Admin who approved the deal');
+            $table->foreignId('approver_id')->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
 
-                $table->timestamp('approved_at')
-                    ->nullable()
-                    ->index() // Critical for analytics queries
-                    ->comment('Timestamp when deal was approved');
+            $table->foreignId('rejected_by')->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
 
-                $table->foreignId('rejected_by')
-                    ->nullable()
-                    ->constrained('users')
-                    ->onDelete('set null')
-                    ->comment('Admin who rejected the deal');
+            $table->foreignId('publisher_id')->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
 
-                $table->timestamp('rejected_at')
-                    ->nullable()
-                    ->comment('Timestamp when deal was rejected');
+            // Notes & decisions
+            $table->text('submission_notes')->nullable();
+            $table->text('review_notes')->nullable();
+            $table->text('rejection_reason')->nullable();
+            $table->json('checklist_items')->nullable();
 
-                // Audit and notes
-                $table->text('submission_notes')->nullable()->comment('Notes from submitter');
-                $table->text('review_notes')->nullable()->comment('Internal admin review notes');
-                $table->text('decision_notes')->nullable()->comment('Reason for approval/rejection');
+            // SLA & analytics
+            $table->integer('sla_hours')->default(168);
+            $table->timestamp('sla_deadline')->nullable();
+            $table->boolean('is_overdue')->default(false);
+            $table->integer('days_pending')->nullable();
 
-                // Compliance and metadata
-                $table->json('checklist')->nullable()->comment('Approval checklist items');
-                $table->integer('priority')->default(3)->comment('1=High, 2=Medium, 3=Low');
-                $table->timestamp('deadline')->nullable()->comment('Target review deadline');
+            // Snapshot linkage
+            $table->foreignId('company_version_id')->nullable()
+                ->constrained('company_versions')
+                ->nullOnDelete();
 
-                // Standard timestamps and soft deletes
-                $table->timestamps();
-                $table->softDeletes();
+            $table->boolean('snapshot_created')->default(false);
 
-                // Additional indexes for common queries
-                $table->index('status');
-                $table->index('created_at');
-                $table->index(['status', 'approved_at']); // For analytics: approved deals in date range
-            });
-        }
+            // Priority & metadata
+            $table->enum('priority', ['low', 'normal', 'high', 'urgent'])
+                ->default('normal');
+
+            $table->boolean('is_expedited')->default(false);
+            $table->text('expedited_reason')->nullable();
+
+            $table->json('compliance_checks')->nullable();
+            $table->json('metadata')->nullable();
+
+            $table->timestamps();
+            $table->softDeletes();
+
+            // Purposeful composite indexes
+            $table->index(['status', 'sla_deadline']);
+            $table->index(['status', 'submitted_at']);
+            $table->index(['deal_id', 'status']);
+            $table->index(['status', 'approved_at']);
+        });
     }
 
     public function down(): void
@@ -119,3 +125,4 @@ return new class extends Migration
         Schema::dropIfExists('deal_approvals');
     }
 };
+
