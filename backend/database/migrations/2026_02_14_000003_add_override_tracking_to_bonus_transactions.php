@@ -35,9 +35,15 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('bonus_transactions', function (Blueprint $table) {
+	    
+	    // Drop foreign key FIRST
+	    $table->dropForeign(['override_id']);
+
+            // Then drop indexes
             $table->dropIndex('idx_override_applied');
             $table->dropIndex('idx_override_id');
-            $table->dropForeign(['override_id']);
+            
+            // Then drop columns
             $table->dropColumn([
                 'override_applied',
                 'override_id',

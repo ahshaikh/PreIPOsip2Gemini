@@ -88,11 +88,8 @@ class ContractHardeningTest extends TestCase
         $this->snapshotService = app(SubscriptionConfigSnapshotService::class);
     }
 
-    // =========================================================================
     // SUBSCRIPTION SNAPSHOT TESTS
-    // =========================================================================
 
-    /** @test */
     public function subscription_snapshot_captures_all_bonus_configs()
     {
         $subscription = Subscription::create([
@@ -126,7 +123,6 @@ class ContractHardeningTest extends TestCase
         $this->assertEquals(500, $subscription->welcome_bonus_config['amount']);
     }
 
-    /** @test */
     public function subscription_snapshot_generates_version_hash()
     {
         $subscription = Subscription::create([
@@ -151,7 +147,6 @@ class ContractHardeningTest extends TestCase
         $this->assertTrue($this->snapshotService->verifyConfigIntegrity($subscription));
     }
 
-    /** @test */
     public function subscription_snapshot_is_immutable_after_creation()
     {
         $subscription = Subscription::create([
@@ -185,11 +180,8 @@ class ContractHardeningTest extends TestCase
         $this->assertEquals($originalVersion, $subscription->config_snapshot_version);
     }
 
-    // =========================================================================
     // PLAN GUARDRAIL TESTS
-    // =========================================================================
 
-    /** @test */
     public function plan_bonus_config_cannot_be_edited_with_active_subscriptions()
     {
         // Create an active subscription
@@ -222,7 +214,6 @@ class ContractHardeningTest extends TestCase
         $response->assertJsonPath('blocked_configs.0', 'progressive_config');
     }
 
-    /** @test */
     public function plan_non_bonus_config_can_be_edited_with_active_subscriptions()
     {
         // Create an active subscription
@@ -251,7 +242,6 @@ class ContractHardeningTest extends TestCase
         ]);
     }
 
-    /** @test */
     public function plan_bonus_config_can_be_edited_without_active_subscriptions()
     {
         // No subscriptions exist
@@ -277,11 +267,8 @@ class ContractHardeningTest extends TestCase
         $this->assertEquals(1.0, $config['rate']);
     }
 
-    // =========================================================================
     // REGULATORY OVERRIDE TESTS
-    // =========================================================================
 
-    /** @test */
     public function regulatory_override_can_be_created_with_proper_audit_fields()
     {
         $response = $this->actingAs($this->admin, 'sanctum')
@@ -318,7 +305,6 @@ class ContractHardeningTest extends TestCase
         ]);
     }
 
-    /** @test */
     public function regulatory_override_requires_regulatory_reference()
     {
         $response = $this->actingAs($this->admin, 'sanctum')
@@ -335,7 +321,6 @@ class ContractHardeningTest extends TestCase
         $response->assertJsonValidationErrors(['regulatory_reference']);
     }
 
-    /** @test */
     public function regulatory_override_can_be_revoked_with_audit_trail()
     {
         // Create an override first
@@ -362,11 +347,8 @@ class ContractHardeningTest extends TestCase
         $this->assertFalse($override->isActive());
     }
 
-    // =========================================================================
     // BONUS CALCULATION WITH OVERRIDE TESTS
-    // =========================================================================
 
-    /** @test */
     public function bonus_calculation_uses_subscription_snapshot_not_plan_config()
     {
         // Create subscription with snapshotted config
@@ -401,7 +383,6 @@ class ContractHardeningTest extends TestCase
         $this->assertEquals(0.5, $subscription->progressive_config['rate']);
     }
 
-    /** @test */
     public function bonus_transaction_records_override_when_applied()
     {
         // Create subscription with snapshot
@@ -456,11 +437,8 @@ class ContractHardeningTest extends TestCase
         }
     }
 
-    // =========================================================================
     // OVERRIDE RESOLUTION TESTS
-    // =========================================================================
 
-    /** @test */
     public function expired_override_is_not_applied()
     {
         // Create expired override
@@ -485,7 +463,6 @@ class ContractHardeningTest extends TestCase
         $this->assertCount(0, $activeOverrides);
     }
 
-    /** @test */
     public function revoked_override_is_not_applied()
     {
         // Create and revoke an override
@@ -511,7 +488,6 @@ class ContractHardeningTest extends TestCase
         $this->assertCount(0, $activeOverrides);
     }
 
-    /** @test */
     public function most_recent_override_takes_precedence()
     {
         // Create two active overrides

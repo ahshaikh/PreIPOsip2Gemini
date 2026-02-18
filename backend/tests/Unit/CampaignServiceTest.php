@@ -46,7 +46,6 @@ class CampaignServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
     public function it_validates_campaign_code_successfully()
     {
         $campaign = $this->campaignService->validateCampaignCode('TEST100');
@@ -55,7 +54,6 @@ class CampaignServiceTest extends TestCase
         $this->assertEquals('TEST100', $campaign->code);
     }
 
-    /** @test */
     public function it_returns_null_for_invalid_campaign_code()
     {
         $campaign = $this->campaignService->validateCampaignCode('INVALID_CODE');
@@ -63,7 +61,6 @@ class CampaignServiceTest extends TestCase
         $this->assertNull($campaign);
     }
 
-    /** @test */
     public function it_checks_campaign_is_applicable_for_valid_conditions()
     {
         $result = $this->campaignService->isApplicable($this->campaign, $this->user, 1500.00);
@@ -72,7 +69,6 @@ class CampaignServiceTest extends TestCase
         $this->assertNull($result['reason']);
     }
 
-    /** @test */
     public function it_rejects_unapproved_campaign()
     {
         $this->campaign->update(['approved_at' => null]);
@@ -83,7 +79,6 @@ class CampaignServiceTest extends TestCase
         $this->assertStringContainsString('not yet approved', $result['reason']);
     }
 
-    /** @test */
     public function it_rejects_inactive_campaign()
     {
         $this->campaign->update(['is_active' => false]);
@@ -94,7 +89,6 @@ class CampaignServiceTest extends TestCase
         $this->assertStringContainsString('paused', $result['reason']);
     }
 
-    /** @test */
     public function it_rejects_campaign_that_has_not_started()
     {
         $this->campaign->update(['start_at' => now()->addDay()]);
@@ -105,7 +99,6 @@ class CampaignServiceTest extends TestCase
         $this->assertStringContainsString('not started yet', $result['reason']);
     }
 
-    /** @test */
     public function it_rejects_expired_campaign()
     {
         $this->campaign->update(['end_at' => now()->subDay()]);
@@ -116,7 +109,6 @@ class CampaignServiceTest extends TestCase
         $this->assertStringContainsString('expired', $result['reason']);
     }
 
-    /** @test */
     public function it_rejects_campaign_when_global_usage_limit_reached()
     {
         $this->campaign->update(['usage_count' => 10, 'usage_limit' => 10]);
@@ -127,7 +119,6 @@ class CampaignServiceTest extends TestCase
         $this->assertStringContainsString('usage limit has been reached', $result['reason']);
     }
 
-    /** @test */
     public function it_rejects_campaign_when_user_usage_limit_reached()
     {
         // Create a usage record for this user
@@ -149,7 +140,6 @@ class CampaignServiceTest extends TestCase
         $this->assertStringContainsString('already used this campaign', $result['reason']);
     }
 
-    /** @test */
     public function it_rejects_campaign_when_minimum_investment_not_met()
     {
         $result = $this->campaignService->isApplicable($this->campaign, $this->user, 500.00);
@@ -158,7 +148,6 @@ class CampaignServiceTest extends TestCase
         $this->assertStringContainsString('Minimum investment', $result['reason']);
     }
 
-    /** @test */
     public function it_calculates_fixed_amount_discount_correctly()
     {
         $discount = $this->campaignService->calculateDiscount($this->campaign, 1500.00);
@@ -166,7 +155,6 @@ class CampaignServiceTest extends TestCase
         $this->assertEquals(100.00, $discount);
     }
 
-    /** @test */
     public function it_calculates_percentage_discount_correctly()
     {
         $this->campaign->update([
@@ -180,7 +168,6 @@ class CampaignServiceTest extends TestCase
         $this->assertEquals(100.00, $discount);
     }
 
-    /** @test */
     public function it_applies_maximum_discount_cap_for_percentage_discount()
     {
         $this->campaign->update([
@@ -196,7 +183,6 @@ class CampaignServiceTest extends TestCase
         $this->assertEquals(150.00, $discount);
     }
 
-    /** @test */
     public function it_ensures_discount_does_not_exceed_amount()
     {
         $this->campaign->update([
@@ -209,7 +195,6 @@ class CampaignServiceTest extends TestCase
         $this->assertEquals(300.00, $discount);
     }
 
-    /** @test */
     public function it_applies_campaign_successfully()
     {
         $investment = Investment::factory()->create([
@@ -241,7 +226,6 @@ class CampaignServiceTest extends TestCase
         $this->assertEquals(1, $this->campaign->fresh()->usage_count);
     }
 
-    /** @test */
     public function it_prevents_duplicate_campaign_application()
     {
         $investment = Investment::factory()->create([
@@ -272,7 +256,6 @@ class CampaignServiceTest extends TestCase
         $this->assertEquals(1, CampaignUsage::where('campaign_id', $this->campaign->id)->count());
     }
 
-    /** @test */
     public function it_stores_campaign_snapshot_on_application()
     {
         $investment = Investment::factory()->create([
@@ -295,7 +278,6 @@ class CampaignServiceTest extends TestCase
         $this->assertEquals('Test Campaign', $snapshot['title']);
     }
 
-    /** @test */
     public function it_gets_user_usage_count()
     {
         // Create usage records
@@ -318,7 +300,6 @@ class CampaignServiceTest extends TestCase
         $this->assertEquals(3, $count);
     }
 
-    /** @test */
     public function it_gets_campaign_statistics()
     {
         // Create multiple usage records
@@ -344,7 +325,6 @@ class CampaignServiceTest extends TestCase
         $this->assertEquals(100.00, $stats['average_discount']);
     }
 
-    /** @test */
     public function it_approves_campaign_successfully()
     {
         $draftCampaign = Campaign::create([
@@ -364,7 +344,6 @@ class CampaignServiceTest extends TestCase
         $this->assertEquals($approver->id, $draftCampaign->fresh()->approved_by);
     }
 
-    /** @test */
     public function it_activates_campaign_successfully()
     {
         $this->campaign->update(['is_active' => false]);
@@ -375,7 +354,6 @@ class CampaignServiceTest extends TestCase
         $this->assertTrue($this->campaign->fresh()->is_active);
     }
 
-    /** @test */
     public function it_pauses_campaign_successfully()
     {
         $result = $this->campaignService->pauseCampaign($this->campaign);
@@ -384,7 +362,6 @@ class CampaignServiceTest extends TestCase
         $this->assertFalse($this->campaign->fresh()->is_active);
     }
 
-    /** @test */
     public function it_gets_applicable_campaigns_for_user()
     {
         // Create multiple campaigns

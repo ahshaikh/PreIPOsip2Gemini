@@ -15,7 +15,7 @@ class WalletFactory extends Factory
         return [
             'user_id' => User::factory(),
             'balance' => $this->faker->randomFloat(2, 0, 100000),
-            'locked_balance' => $this->faker->randomFloat(2, 0, 10000),
+            'locked_balance_paise' => $this->faker->randomFloat(2, 0, 10000),
         ];
     }
 
@@ -23,7 +23,7 @@ class WalletFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'balance' => 0,
-            'locked_balance' => 0,
+            'locked_balance_paise' => 0,
         ]);
     }
 }

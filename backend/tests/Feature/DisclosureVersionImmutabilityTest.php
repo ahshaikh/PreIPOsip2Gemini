@@ -9,21 +9,19 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
-/**
- * PHASE 1 REMEDIATION - DisclosureVersion Immutability Tests
- *
- * Tests that DisclosureVersionObserver properly enforces immutability:
- * 1. Blocks all update attempts
- * 2. Blocks all delete attempts
- * 3. Blocks force delete attempts
- * 4. Logs security violations
- * 5. Auto-locks on creation
- */
+//  * PHASE 1 REMEDIATION - DisclosureVersion Immutability Tests
+//  *
+//  * Tests that DisclosureVersionObserver properly enforces immutability:
+//  * 1. Blocks all update attempts
+//  * 2. Blocks all delete attempts
+//  * 3. Blocks force delete attempts
+//  * 4. Logs security violations
+//  * 5. Auto-locks on creation
+
 class DisclosureVersionImmutabilityTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
     public function version_is_auto_locked_on_creation()
     {
         $version = DisclosureVersion::factory()->create([
@@ -35,7 +33,6 @@ class DisclosureVersionImmutabilityTest extends TestCase
         $this->assertNotNull($version->fresh()->locked_at);
     }
 
-    /** @test */
     public function cannot_update_version_disclosure_data()
     {
         $version = DisclosureVersion::factory()->create([
@@ -54,7 +51,6 @@ class DisclosureVersionImmutabilityTest extends TestCase
         $this->assertEquals(['original' => 'data'], $version->fresh()->disclosure_data);
     }
 
-    /** @test */
     public function cannot_update_version_hash()
     {
         $originalHash = hash('sha256', 'original');
@@ -71,7 +67,6 @@ class DisclosureVersionImmutabilityTest extends TestCase
         $this->assertEquals($originalHash, $version->fresh()->version_hash);
     }
 
-    /** @test */
     public function cannot_update_version_number()
     {
         $version = DisclosureVersion::factory()->create([
@@ -86,7 +81,6 @@ class DisclosureVersionImmutabilityTest extends TestCase
         $this->assertEquals(1, $version->fresh()->version_number);
     }
 
-    /** @test */
     public function cannot_update_approved_at_timestamp()
     {
         $originalTime = now()->subDays(10);
@@ -103,7 +97,6 @@ class DisclosureVersionImmutabilityTest extends TestCase
         $this->assertEquals($originalTime->timestamp, $version->fresh()->approved_at->timestamp);
     }
 
-    /** @test */
     public function cannot_delete_version()
     {
         $version = DisclosureVersion::factory()->create();
@@ -114,7 +107,6 @@ class DisclosureVersionImmutabilityTest extends TestCase
         $this->assertDatabaseHas('disclosure_versions', ['id' => $version->id]);
     }
 
-    /** @test */
     public function cannot_force_delete_version()
     {
         $version = DisclosureVersion::factory()->create();
@@ -125,7 +117,6 @@ class DisclosureVersionImmutabilityTest extends TestCase
         $this->assertDatabaseHas('disclosure_versions', ['id' => $version->id]);
     }
 
-    /** @test */
     public function update_attempt_logs_critical_security_violation()
     {
         Log::spy();
@@ -151,7 +142,6 @@ class DisclosureVersionImmutabilityTest extends TestCase
             );
     }
 
-    /** @test */
     public function delete_attempt_logs_critical_security_violation()
     {
         Log::spy();
@@ -173,7 +163,6 @@ class DisclosureVersionImmutabilityTest extends TestCase
             );
     }
 
-    /** @test */
     public function force_delete_attempt_logs_emergency_violation()
     {
         Log::spy();
@@ -195,7 +184,6 @@ class DisclosureVersionImmutabilityTest extends TestCase
             );
     }
 
-    /** @test */
     public function version_hash_integrity_can_be_verified()
     {
         $data = ['test' => 'data', 'items' => [1, 2, 3]];
@@ -209,7 +197,6 @@ class DisclosureVersionImmutabilityTest extends TestCase
         $this->assertTrue($version->verifyIntegrity());
     }
 
-    /** @test */
     public function version_hash_integrity_fails_on_data_mismatch()
     {
         $version = DisclosureVersion::factory()->create([
@@ -220,7 +207,6 @@ class DisclosureVersionImmutabilityTest extends TestCase
         $this->assertFalse($version->verifyIntegrity());
     }
 
-    /** @test */
     public function investor_visibility_can_be_marked()
     {
         $version = DisclosureVersion::factory()->create([
@@ -235,7 +221,6 @@ class DisclosureVersionImmutabilityTest extends TestCase
         $this->assertNotNull($refreshed->first_investor_view_at);
     }
 
-    /** @test */
     public function investor_view_count_can_be_incremented()
     {
         $version = DisclosureVersion::factory()->create([
@@ -249,7 +234,6 @@ class DisclosureVersionImmutabilityTest extends TestCase
         $this->assertEquals(3, $version->fresh()->investor_view_count);
     }
 
-    /** @test */
     public function incrementing_view_count_marks_as_investor_visible()
     {
         $version = DisclosureVersion::factory()->create([
@@ -265,7 +249,6 @@ class DisclosureVersionImmutabilityTest extends TestCase
         $this->assertEquals(1, $refreshed->investor_view_count);
     }
 
-    /** @test */
     public function transactions_can_be_linked_to_version()
     {
         $version = DisclosureVersion::factory()->create([
@@ -281,7 +264,6 @@ class DisclosureVersionImmutabilityTest extends TestCase
         $this->assertEquals(12346, $refreshed->linked_transactions[1]['transaction_id']);
     }
 
-    /** @test */
     public function has_linked_transactions_check_works()
     {
         $versionWithTransactions = DisclosureVersion::factory()->withTransactions()->create();
@@ -291,7 +273,6 @@ class DisclosureVersionImmutabilityTest extends TestCase
         $this->assertFalse($versionWithoutTransactions->hasLinkedTransactions());
     }
 
-    /** @test */
     public function linked_transaction_count_works()
     {
         $version = DisclosureVersion::factory()->create([
@@ -307,7 +288,6 @@ class DisclosureVersionImmutabilityTest extends TestCase
         $this->assertEquals(3, $version->fresh()->getLinkedTransactionCount());
     }
 
-    /** @test */
     public function mass_update_is_also_blocked()
     {
         $version1 = DisclosureVersion::factory()->create(['version_number' => 1]);
@@ -322,7 +302,6 @@ class DisclosureVersionImmutabilityTest extends TestCase
         $this->assertEquals(2, $version2->fresh()->version_number);
     }
 
-    /** @test */
     public function version_created_from_disclosure_is_immutable()
     {
         $disclosure = CompanyDisclosure::factory()->create([
@@ -342,7 +321,6 @@ class DisclosureVersionImmutabilityTest extends TestCase
         $this->assertFalse($result);
     }
 
-    /** @test */
     public function version_factory_creates_locked_versions()
     {
         $version = DisclosureVersion::factory()->create();

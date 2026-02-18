@@ -5,101 +5,73 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * PHASE 5 - Issue 4: Investor Snapshotting
+ * PHASE 5 - Issue 4: Investor Snapshotting (Deterministic Schema Version)
  *
  * PURPOSE:
- * Add Phase 5 fields to investment_disclosure_snapshots table.
- * Captures complete investor-facing view including public page, warnings, and acknowledgements.
+ * Extend `investment_disclosure_snapshots` with additional Phase 5
+ * investor-facing snapshot fields.
  *
- * NEW FIELDS:
- * - governance_snapshot: Governance state at snapshot (from Phase 2)
- * - public_page_view_snapshot: What investor saw on public company page
- * - acknowledgements_snapshot: Status of all acknowledgements
- * - acknowledgements_granted: Specific acknowledgements investor granted
- *
- * IMPORTANT MIGRATION NOTE (READ THIS):
+ * IMPORTANT ARCHITECTURAL NOTE:
  * ------------------------------------------------------------
- * This migration is intentionally written in a DEFENSIVE manner.
+ * This migration has been rewritten to be DETERMINISTIC.
  *
- * Reason:
- * - The table `investment_disclosure_snapshots` has already undergone
- *   multiple Phase 2 / Phase 5 evolutions.
- * - In at least one environment, `governance_snapshot` already exists,
- *   which caused a hard failure due to a duplicate column error.
+ * Previous versions used Schema::hasColumn() guards to tolerate
+ * partially-applied environments. That approach is not suitable
+ * for canonical schema rebuilds (migrate:fresh, CI, test DB).
  *
- * Strategy:
- * - Each column addition is guarded with Schema::hasColumn(...)
- * - This makes the migration:
- *     - Idempotent
- *     - Safe across dev / CI / staging / prod
- *     - Resistant to partial or out-of-order migration runs
+ * From this point forward:
+ * - Migrations must assume a clean, canonical schema.
+ * - Each migration owns only the columns it introduces.
+ * - No defensive conditional schema logic.
  *
- * RULE APPLIED:
- * - From Phase 5 onward, ALL schema-altering migrations must be defensive.
+ * Governance snapshot is handled in:
+ *   2026_01_11_000006_add_governance_snapshot_to_investments
+ *
+ * This migration ONLY manages Phase 5 additions.
+ *
+ * This guarantees:
+ * - Fresh rebuild safety
+ * - Deterministic CI behavior
+ * - Proper rollback ordering
+ * - No schema drift masking
  */
 return new class extends Migration
 {
     /**
      * Apply the migration.
      *
-     * This method adds new JSON snapshot columns to
-     * `investment_disclosure_snapshots`, but ONLY if they do not already exist.
+     * Adds Phase 5 snapshot fields capturing:
+     * - Public page view at investment time
+     * - Acknowledgement state snapshot
+     * - Specific acknowledgements granted
      */
     public function up(): void
     {
         Schema::table('investment_disclosure_snapshots', function (Blueprint $table) {
 
             /*
-             * PHASE 2 HARDENING: Governance snapshot
+             * PHASE 5 - Public Page View Snapshot
              *
-             * Stores governance-related state at the time of snapshot creation.
-             * Example payload:
-             * {
-             *   lifecycle_state,
-             *   buying_enabled,
-             *   tier_1_approved,
-             *   tier_2_approved,
-             *   tier_3_approved,
-             *   governance_state_version
-             * }
+             * Captures the COMPLETE public-facing company page as seen
+             * by the investor at the moment of investment.
              *
-             * Guarded to avoid duplicate-column failures in environments
-             * where this field was added earlier.
-             */
-            if (!Schema::hasColumn('investment_disclosure_snapshots', 'governance_snapshot')) {
-                $table->json('governance_snapshot')
-                    ->nullable()
-                    ->after('valuation_context_snapshot')
-                    ->comment(
-                        'Governance state at snapshot time: {lifecycle_state, buying_enabled, tier approvals, etc.}'
-                    );
-            }
-
-            /*
-             * PHASE 5 - Issue 4: Public page view snapshot
-             *
-             * Captures the COMPLETE public-facing company page as seen by
-             * the investor at the time of investment.
-             *
-             * This ensures:
+             * Ensures:
              * - Disclosure immutability
-             * - Auditability during disputes or regulatory review
-             * - Protection against later page changes
+             * - Regulatory defensibility
+             * - Dispute protection
              */
-            if (!Schema::hasColumn('investment_disclosure_snapshots', 'public_page_view_snapshot')) {
-                $table->json('public_page_view_snapshot')
-                    ->nullable()
-                    ->after('governance_snapshot')
-                    ->comment(
-                        'Complete public company page data investor saw: {disclosures, platform_context, warnings, etc.}'
-                    );
-            }
+            $table->json('public_page_view_snapshot')
+                ->nullable()
+                ->after('governance_snapshot')
+                ->comment(
+                    'Complete public company page data investor saw: {disclosures, platform_context, warnings, etc.}'
+                );
 
             /*
-             * PHASE 5 - Issue 4: Acknowledgements snapshot
+             * PHASE 5 - Acknowledgements Snapshot
              *
-             * Represents the system-calculated acknowledgement state at the
-             * moment of investment.
+             * System-calculated acknowledgement state at the moment
+             * of snapshot creation.
              *
              * Example payload:
              * {
@@ -108,85 +80,52 @@ return new class extends Migration
              *   expired: [],
              *   valid: ["illiquidity", "no_guarantee"]
              * }
-             *
-             * This snapshot answers:
-             * "Was the investor allowed to proceed at this moment?"
              */
-            if (!Schema::hasColumn('investment_disclosure_snapshots', 'acknowledgements_snapshot')) {
-                $table->json('acknowledgements_snapshot')
-                    ->nullable()
-                    ->after('public_page_view_snapshot')
-                    ->comment(
-                        'Status of all risk acknowledgements at snapshot time: {all_acknowledged, missing, expired, valid}'
-                    );
-            }
+            $table->json('acknowledgements_snapshot')
+                ->nullable()
+                ->after('public_page_view_snapshot')
+                ->comment(
+                    'Status of all risk acknowledgements at snapshot time'
+                );
 
             /*
-             * PHASE 5 - Issue 4: Acknowledgements granted
+             * PHASE 5 - Acknowledgements Granted
              *
-             * Records ONLY the acknowledgements explicitly granted during
-             * the investment flow that led to this snapshot.
+             * Records ONLY the acknowledgements explicitly granted
+             * during the investment flow.
              *
              * Example payload:
              * {
              *   illiquidity: 123,
              *   no_guarantee: 124
              * }
-             *
-             * Where values reference investor_risk_acknowledgements IDs.
-             *
-             * This provides:
-             * - Fine-grained traceability
-             * - Legal defensibility
-             * - Clear linkage between consent and investment action
              */
-            if (!Schema::hasColumn('investment_disclosure_snapshots', 'acknowledgements_granted')) {
-                $table->json('acknowledgements_granted')
-                    ->nullable()
-                    ->after('acknowledgements_snapshot')
-                    ->comment(
-                        'Specific acknowledgements investor granted during investment flow: {acknowledgement_type: acknowledgement_id}'
-                    );
-            }
+            $table->json('acknowledgements_granted')
+                ->nullable()
+                ->after('acknowledgements_snapshot')
+                ->comment(
+                    'Specific acknowledgements investor granted during investment flow'
+                );
         });
     }
 
     /**
      * Reverse the migration.
      *
-     * IMPORTANT:
-     * - Column drops are also guarded.
-     * - This prevents rollback failures in environments where
-     *   only a subset of these columns exist.
+     * Drops ONLY the columns introduced in this migration.
+     *
+     * Governance snapshot rollback remains owned by:
+     * 2026_01_11_000006_add_governance_snapshot_to_investments
      */
     public function down(): void
     {
         Schema::table('investment_disclosure_snapshots', function (Blueprint $table) {
 
-            /*
-             * Collect only columns that actually exist before attempting
-             * to drop them. This keeps rollbacks safe and predictable.
-             */
-            $columnsToDrop = [];
-
-            foreach ([
-                'governance_snapshot',
+            $table->dropColumn([
                 'public_page_view_snapshot',
                 'acknowledgements_snapshot',
                 'acknowledgements_granted',
-            ] as $column) {
-                if (Schema::hasColumn('investment_disclosure_snapshots', $column)) {
-                    $columnsToDrop[] = $column;
-                }
-            }
-
-            /*
-             * Drop columns only if at least one exists.
-             * Avoids SQL errors in partially-applied environments.
-             */
-            if (!empty($columnsToDrop)) {
-                $table->dropColumn($columnsToDrop);
-            }
+            ]);
         });
     }
 };

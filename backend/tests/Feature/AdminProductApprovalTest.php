@@ -27,7 +27,6 @@ class AdminProductApprovalTest extends TestCase
         $this->user = User::factory()->create();
     }
 
-    /** @test */
     public function non_admins_cannot_access_approval_endpoints()
     {
         $product = Product::factory()->create(['status' => 'submitted']);
@@ -45,7 +44,6 @@ class AdminProductApprovalTest extends TestCase
              ->assertStatus(403);
     }
 
-    /** @test */
     public function guests_cannot_access_approval_endpoints()
     {
         $product = Product::factory()->create(['status' => 'submitted']);
@@ -56,7 +54,6 @@ class AdminProductApprovalTest extends TestCase
     }
 
 
-    /** @test */
     public function it_returns_only_submitted_products()
     {
         Product::factory()->create(['status' => 'submitted', 'name' => 'Submitted Product']);
@@ -71,7 +68,6 @@ class AdminProductApprovalTest extends TestCase
         $response->assertJsonFragment(['name' => 'Submitted Product']);
     }
 
-    /** @test */
     public function it_can_approve_a_submitted_product()
     {
         $product = Product::factory()->create(['status' => 'submitted']);
@@ -91,7 +87,6 @@ class AdminProductApprovalTest extends TestCase
         ]);
     }
 
-    /** @test */
     public function it_cannot_approve_a_non_submitted_product()
     {
         $product = Product::factory()->create(['status' => 'draft']);
@@ -103,7 +98,6 @@ class AdminProductApprovalTest extends TestCase
         $this->assertDatabaseHas('products', ['id' => $product->id, 'status' => 'draft']);
     }
 
-    /** @test */
     public function it_can_reject_a_submitted_product()
     {
         $product = Product::factory()->create(['status' => 'submitted']);
@@ -126,7 +120,6 @@ class AdminProductApprovalTest extends TestCase
         ]);
     }
 
-    /** @test */
     public function it_cannot_reject_a_non_submitted_product()
     {
         $product = Product::factory()->create(['status' => 'approved']);
@@ -140,7 +133,6 @@ class AdminProductApprovalTest extends TestCase
         $this->assertDatabaseHas('products', ['id' => $product->id, 'status' => 'approved']);
     }
 
-    /** @test */
     public function rejection_requires_a_reason()
     {
         $product = Product::factory()->create(['status' => 'submitted']);

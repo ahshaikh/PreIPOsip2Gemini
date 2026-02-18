@@ -13,29 +13,26 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-/**
- * EPIC 4 - Lock Commercial Boundaries: Compliance Tests
- *
- * These tests verify the governance-grade fixes for:
- * - GAP 1: Inventory Creation With Financial Atomicity
- * - GAP 3: Inventory Sufficiency Enforcement at Model Level
- * - GAP 4: Platform Ledger Linkage
- *
- * INVARIANTS TESTED:
- * 1. No inventory may exist without corresponding platform ledger debit
- * 2. No deal may be created/activated without sufficient inventory
- * 3. Ledger entries are immutable (no updates, no deletes)
- * 4. Hard failure over false success
- */
+
+//  * EPIC 4 - Lock Commercial Boundaries: Compliance Tests
+//  *
+//  * These tests verify the governance-grade fixes for:
+//  * - GAP 1: Inventory Creation With Financial Atomicity
+//  * - GAP 3: Inventory Sufficiency Enforcement at Model Level
+//  * - GAP 4: Platform Ledger Linkage
+//  *
+//  * INVARIANTS TESTED:
+//  * 1. No inventory may exist without corresponding platform ledger debit
+//  * 2. No deal may be created/activated without sufficient inventory
+//  * 3. Ledger entries are immutable (no updates, no deletes)
+//  * 4. Hard failure over false success
+
 class Epic4FinancialAtomicityTest extends TestCase
 {
     use RefreshDatabase;
 
-    // =========================================================================
-    // GAP 4: PLATFORM LEDGER ENTRY IMMUTABILITY
-    // =========================================================================
+// <!-- GAP 4: PLATFORM LEDGER ENTRY IMMUTABILITY -->
 
-    /** @test */
     public function platform_ledger_entry_cannot_be_updated()
     {
         // Create a ledger entry
@@ -60,7 +57,6 @@ class Epic4FinancialAtomicityTest extends TestCase
         ]);
     }
 
-    /** @test */
     public function platform_ledger_entry_cannot_be_deleted()
     {
         // Create a ledger entry
@@ -83,7 +79,6 @@ class Epic4FinancialAtomicityTest extends TestCase
         $entry->delete();
     }
 
-    /** @test */
     public function platform_ledger_entry_tracks_running_balance()
     {
         $service = app(PlatformLedgerService::class);
@@ -123,7 +118,6 @@ class Epic4FinancialAtomicityTest extends TestCase
         $this->assertEquals(-500000, $entry3->balance_after_paise);
     }
 
-    /** @test */
     public function platform_ledger_debit_requires_positive_amount()
     {
         $service = app(PlatformLedgerService::class);
@@ -139,7 +133,6 @@ class Epic4FinancialAtomicityTest extends TestCase
         );
     }
 
-    /** @test */
     public function platform_ledger_prevents_double_reversal()
     {
         $service = app(PlatformLedgerService::class);
@@ -174,11 +167,8 @@ class Epic4FinancialAtomicityTest extends TestCase
         );
     }
 
-    // =========================================================================
-    // GAP 1: BULK PURCHASE CREATION WITH LEDGER ATOMICITY
-    // =========================================================================
+//<!-- GAP 1: BULK PURCHASE CREATION WITH LEDGER ATOMICITY -->
 
-    /** @test */
     public function bulk_purchase_controller_creates_ledger_entry_atomically()
     {
         // Create required related models
@@ -226,7 +216,6 @@ class Epic4FinancialAtomicityTest extends TestCase
         }
     }
 
-    /** @test */
     public function bulk_purchase_has_proven_capital_movement_helper()
     {
         // Create bulk purchase with ledger entry
@@ -281,11 +270,8 @@ class Epic4FinancialAtomicityTest extends TestCase
         $this->assertFalse($bulkPurchaseNoLedger->hasProvenCapitalMovement());
     }
 
-    // =========================================================================
-    // GAP 3: DEAL INVENTORY SUFFICIENCY AT MODEL LEVEL
-    // =========================================================================
+//<!-- GAP 3: DEAL INVENTORY SUFFICIENCY AT MODEL LEVEL -->
 
-    /** @test */
     public function deal_creation_fails_without_inventory()
     {
         // Create product with NO inventory
@@ -309,7 +295,6 @@ class Epic4FinancialAtomicityTest extends TestCase
         ]);
     }
 
-    /** @test */
     public function deal_creation_succeeds_with_inventory()
     {
         // Create product WITH inventory
@@ -349,7 +334,6 @@ class Epic4FinancialAtomicityTest extends TestCase
         $this->assertEquals('draft', $deal->status);
     }
 
-    /** @test */
     public function deal_activation_fails_without_inventory()
     {
         // Create product WITH inventory initially
@@ -401,7 +385,6 @@ class Epic4FinancialAtomicityTest extends TestCase
         $deal->update(['status' => 'active']);
     }
 
-    /** @test */
     public function deal_activation_fails_when_max_investment_exceeds_inventory()
     {
         // Create product with limited inventory
@@ -445,7 +428,6 @@ class Epic4FinancialAtomicityTest extends TestCase
         $deal->update(['status' => 'active']);
     }
 
-    /** @test */
     public function deal_inventory_check_is_enforced_at_model_level_not_controller()
     {
         // This test verifies the invariant is enforced at model level
@@ -477,11 +459,8 @@ class Epic4FinancialAtomicityTest extends TestCase
         // Direct DB inserts are admin-only operations and should be avoided
     }
 
-    // =========================================================================
-    // LEDGER INTEGRITY VERIFICATION
-    // =========================================================================
+// <!-- LEDGER INTEGRITY VERIFICATION -->
 
-    /** @test */
     public function ledger_integrity_verification_detects_balance_mismatches()
     {
         $service = app(PlatformLedgerService::class);
@@ -498,7 +477,7 @@ class Epic4FinancialAtomicityTest extends TestCase
         $this->assertEmpty($result['violations']);
     }
 
-    /** @test */
+    // ** @test */
     public function ledger_summary_returns_accurate_totals()
     {
         $service = app(PlatformLedgerService::class);

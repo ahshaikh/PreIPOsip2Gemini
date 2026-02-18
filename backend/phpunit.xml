@@ -40,18 +40,10 @@
 
         <env name="APP_ENV" value="testing"/>
 
-        <!-- DATABASE CONFIGURATION (CRITICAL)
-        Use SQLite in-memory database for tests.
-        This ensures:
-        - Complete isolation from your main 'preipo' database
-        - No accidental data loss
-        - Deterministic test execution
-        - No MySQL savepoint issues
-        - Automatic fresh schema per test run
-        -->
+        <!-- DATABASE CONFIGURATION (CRITICAL) -->
 
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value=":memory:"/>
+        <env name="DB_CONNECTION" value="mysql"/>
+        <env name="DB_DATABASE" value="preipo_test"/>
 
         <!-- PERFORMANCE OPTIMIZATIONS
         Reduce bcrypt rounds for faster tests.

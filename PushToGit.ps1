@@ -8,30 +8,33 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "chore(disputes): finalize backend hardening, pass safety checklist, isolate test env
+$CommitMessage = "chore(schema): canonicalize migrations for deterministic rebuild & CI safety
 
-- Completed full backend remediation across dispute & risk domain (Phases 1–9)
-- Enforced NET chargeback model with atomic execution
-- Verified ledger invariants and wallet symmetry
-- Implemented event-driven risk scoring with investment blocking
-- Added Redis-backed overview cache with hourly warmup
-- Implemented nightly dispute analytics aggregation
-- Secured admin dispute API layer with pagination and RBAC
-- Executed full backend safety checklist validation
+Migration Hardening Summary:
 
-Test Infrastructure Fix:
-- Corrected phpunit.xml XML comment violations
-- Switched test environment to SQLite in-memory database
-- Fully isolated tests from main development database
-- Eliminated MySQL savepoint instability
-- Ensured deterministic and disposable test execution
+- Removed all defensive Schema::hasColumn / hasTable guards from core schema migrations
+- Eliminated non-deterministic conditional index creation logic
+- Removed redundant and duplicate index ownership across migrations
+- Corrected foreign key → index → column drop order in down() methods
+- Fixed FK-backed index drop failures (MySQL 1091 / 1553 errors)
+- Removed redundant standalone lifecycle_state index (covered by composite index)
+- Rewrote Phase 5 snapshot migration to avoid cross-migration column ownership
+- Canonicalized deal_approvals approval tracking migration
+- Replaced manual index naming with framework-generated index conventions
+- Ensured migrate:fresh succeeds deterministically
+- Verified tests run against isolated preipo_test database
+- Restored proper Laravel bootstrapping in TestCase (parent::setUp())
 
-Backend dispute engine is now:
-- Financially consistent
-- Transactionally atomic
-- Risk-enforced
-- Test-isolated
-- Production-ready (backend layer)"
+Result:
+
+- Schema is now reproducible from a clean database
+- Full migrate:fresh works without SQL errors
+- CI-safe migration chain
+- No schema drift masking
+- Test environment isolation confirmed
+
+Backend migration layer upgraded from patch-based evolution
+to canonical deterministic schema architecture."
 #----------------------
 
 function Get-GitCredential {

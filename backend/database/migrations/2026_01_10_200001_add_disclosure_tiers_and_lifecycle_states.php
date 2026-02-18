@@ -104,7 +104,7 @@ return new class extends Migration
                 ->comment('When all Tier 3 modules were approved');
 
             // Indexes for lifecycle queries
-            $table->index('lifecycle_state', 'idx_companies_lifecycle_state');
+            // $table->index('lifecycle_state', 'idx_companies_lifecycle_state');
             $table->index(['lifecycle_state', 'buying_enabled'], 'idx_companies_lifecycle_buying');
             $table->index('suspended_at', 'idx_companies_suspended');
         });
@@ -185,16 +185,17 @@ return new class extends Migration
         });
 
         Schema::table('companies', function (Blueprint $table) {
-            // Drop indexes
-            $table->dropIndex('idx_companies_lifecycle_state');
-            $table->dropIndex('idx_companies_lifecycle_buying');
-            $table->dropIndex('idx_companies_suspended');
 
-            // Drop foreign keys
+            // Drop foreign keys FIRST
             $table->dropForeign(['lifecycle_state_changed_by']);
             $table->dropForeign(['suspended_by']);
 
-            // Drop columns
+            // Then drop indexes
+            // $table->dropIndex('idx_companies_lifecycle_state');
+            $table->dropIndex('idx_companies_lifecycle_buying');
+            $table->dropIndex('idx_companies_suspended');
+
+            // Then drop columns
             $table->dropColumn([
                 'lifecycle_state',
                 'lifecycle_state_changed_at',

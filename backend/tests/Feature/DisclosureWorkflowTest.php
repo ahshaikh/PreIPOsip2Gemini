@@ -12,17 +12,16 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-/**
- * PHASE 1 REMEDIATION - Disclosure Workflow Tests
- *
- * Tests critical disclosure workflows:
- * 1. Submit disclosure for review
- * 2. Admin approves disclosure
- * 3. Admin rejects disclosure
- * 4. Request clarifications
- * 5. Answer clarifications
- * 6. Version creation on approval
- */
+//  * PHASE 1 REMEDIATION - Disclosure Workflow Tests
+//  *
+//  * Tests critical disclosure workflows:
+//  * 1. Submit disclosure for review
+//  * 2. Admin approves disclosure
+//  * 3. Admin rejects disclosure
+//  * 4. Request clarifications
+//  * 5. Answer clarifications
+//  * 6. Version creation on approval
+
 class DisclosureWorkflowTest extends TestCase
 {
     use RefreshDatabase;
@@ -45,7 +44,6 @@ class DisclosureWorkflowTest extends TestCase
         $this->module = DisclosureModule::factory()->businessModel()->create();
     }
 
-    /** @test */
     public function disclosure_can_be_submitted_for_review()
     {
         // Create complete disclosure (100%)
@@ -72,7 +70,6 @@ class DisclosureWorkflowTest extends TestCase
         ]);
     }
 
-    /** @test */
     public function cannot_submit_incomplete_disclosure()
     {
         $disclosure = CompanyDisclosure::factory()->create([
@@ -88,7 +85,6 @@ class DisclosureWorkflowTest extends TestCase
         $disclosure->submit($this->companyUser->id);
     }
 
-    /** @test */
     public function cannot_submit_locked_disclosure()
     {
         $disclosure = CompanyDisclosure::factory()->create([
@@ -105,7 +101,6 @@ class DisclosureWorkflowTest extends TestCase
         $disclosure->submit($this->companyUser->id);
     }
 
-    /** @test */
     public function admin_can_approve_disclosure()
     {
         $disclosure = CompanyDisclosure::factory()->submitted()->create([
@@ -138,7 +133,6 @@ class DisclosureWorkflowTest extends TestCase
         ]);
     }
 
-    /** @test */
     public function approval_creates_immutable_version_snapshot()
     {
         $disclosureData = [
@@ -167,7 +161,6 @@ class DisclosureWorkflowTest extends TestCase
         $this->assertEquals(hash('sha256', json_encode($disclosureData)), $version->version_hash);
     }
 
-    /** @test */
     public function admin_can_reject_disclosure()
     {
         $disclosure = CompanyDisclosure::factory()->submitted()->create([
@@ -192,7 +185,6 @@ class DisclosureWorkflowTest extends TestCase
         ]);
     }
 
-    /** @test */
     public function admin_can_request_clarifications()
     {
         $disclosure = CompanyDisclosure::factory()->submitted()->create([
@@ -223,7 +215,6 @@ class DisclosureWorkflowTest extends TestCase
         ]);
     }
 
-    /** @test */
     public function company_can_answer_clarification()
     {
         $clarification = DisclosureClarification::factory()->create([
@@ -247,7 +238,6 @@ class DisclosureWorkflowTest extends TestCase
         $this->assertNotNull($refreshed->supporting_documents);
     }
 
-    /** @test */
     public function admin_can_accept_clarification_answer()
     {
         $clarification = DisclosureClarification::factory()->answered()->create([
@@ -263,7 +253,6 @@ class DisclosureWorkflowTest extends TestCase
         $this->assertEquals('Explanation is satisfactory', $refreshed->resolution_notes);
     }
 
-    /** @test */
     public function admin_can_dispute_clarification_answer()
     {
         $clarification = DisclosureClarification::factory()->answered()->create([
@@ -278,7 +267,6 @@ class DisclosureWorkflowTest extends TestCase
         $this->assertNotNull($refreshed->resolved_at);
     }
 
-    /** @test */
     public function disclosure_data_can_be_updated_when_not_locked()
     {
         $disclosure = CompanyDisclosure::factory()->draft()->create([
@@ -299,7 +287,6 @@ class DisclosureWorkflowTest extends TestCase
         $this->assertNotNull($refreshed->last_modified_at);
     }
 
-    /** @test */
     public function cannot_update_locked_disclosure_data()
     {
         $disclosure = CompanyDisclosure::factory()->approved()->create([
@@ -314,7 +301,6 @@ class DisclosureWorkflowTest extends TestCase
         $disclosure->updateDisclosureData(['test' => 'data'], $this->companyUser->id);
     }
 
-    /** @test */
     public function version_number_increments_on_subsequent_approvals()
     {
         $disclosure = CompanyDisclosure::factory()->create([
@@ -341,7 +327,6 @@ class DisclosureWorkflowTest extends TestCase
         $this->assertEquals(2, $version->version_number);
     }
 
-    /** @test */
     public function disclosure_has_pending_clarifications_check()
     {
         $disclosure = CompanyDisclosure::factory()->create([
@@ -360,7 +345,6 @@ class DisclosureWorkflowTest extends TestCase
         $this->assertTrue($disclosure->hasPendingClarifications());
     }
 
-    /** @test */
     public function disclosure_all_clarifications_answered_check()
     {
         $disclosure = CompanyDisclosure::factory()->create([
@@ -392,7 +376,6 @@ class DisclosureWorkflowTest extends TestCase
         $this->assertFalse($disclosure->allClarificationsAnswered());
     }
 
-    /** @test */
     public function disclosure_approval_tracks_sla()
     {
         $approval = DisclosureApproval::factory()->create([
@@ -405,7 +388,6 @@ class DisclosureWorkflowTest extends TestCase
         $this->assertTrue($approval->fresh()->sla_due_date->isPast());
     }
 
-    /** @test */
     public function cannot_approve_disclosure_with_open_clarifications()
     {
         // Create submitted disclosure
@@ -427,7 +409,6 @@ class DisclosureWorkflowTest extends TestCase
         $disclosure->approve($this->admin->id, 'Attempting to approve');
     }
 
-    /** @test */
     public function can_approve_disclosure_when_all_clarifications_answered_and_accepted()
     {
         // Create submitted disclosure

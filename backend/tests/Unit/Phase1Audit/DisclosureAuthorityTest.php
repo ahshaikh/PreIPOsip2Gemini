@@ -13,15 +13,14 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-/**
- * PHASE 1 AUDIT: Disclosure Authority Tests
- *
- * These tests verify the critical invariants enforced by Phase 1 audit fixes:
- * 1. Approved disclosures are immutable
- * 2. Investors only see approved disclosures
- * 3. Disclosure data comes from locked versions, not mutable disclosure records
- * 4. Invariant violations cause hard failures, not silent skips
- */
+// * PHASE 1 AUDIT: Disclosure Authority Tests
+// *
+// * These tests verify the critical invariants enforced by Phase 1 audit fixes:
+// * 1. Approved disclosures are immutable
+// * 2. Investors only see approved disclosures
+// * 3. Disclosure data comes from locked versions, not mutable disclosure records
+// * 4. Invariant violations cause hard failures, not silent skips
+
 class DisclosureAuthorityTest extends TestCase
 {
     use RefreshDatabase;
@@ -43,11 +42,8 @@ class DisclosureAuthorityTest extends TestCase
         ]);
     }
 
-    // =========================================================================
     // TEST: DISCLOSURE VERSION IMMUTABILITY
-    // =========================================================================
 
-    /** @test */
     public function disclosure_version_data_fields_cannot_be_modified(): void
     {
         // Create an approved disclosure with version
@@ -68,7 +64,6 @@ class DisclosureAuthorityTest extends TestCase
         $this->assertEquals($originalData, $version->disclosure_data);
     }
 
-    /** @test */
     public function disclosure_version_cannot_be_deleted(): void
     {
         $disclosure = $this->createApprovedDisclosure();
@@ -85,7 +80,6 @@ class DisclosureAuthorityTest extends TestCase
         $this->assertDatabaseHas('disclosure_versions', ['id' => $versionId]);
     }
 
-    /** @test */
     public function disclosure_version_metadata_can_be_updated(): void
     {
         $disclosure = $this->createApprovedDisclosure();
@@ -105,11 +99,8 @@ class DisclosureAuthorityTest extends TestCase
         $this->assertTrue($version->was_investor_visible);
     }
 
-    // =========================================================================
     // TEST: APPROVED DISCLOSURE IMMUTABILITY
-    // =========================================================================
 
-    /** @test */
     public function approved_disclosure_data_cannot_be_modified(): void
     {
         $disclosure = $this->createApprovedDisclosure();
@@ -127,7 +118,6 @@ class DisclosureAuthorityTest extends TestCase
         $this->assertEquals($originalData, $disclosure->disclosure_data);
     }
 
-    /** @test */
     public function approved_disclosure_status_cannot_be_changed(): void
     {
         $disclosure = $this->createApprovedDisclosure();
@@ -144,7 +134,6 @@ class DisclosureAuthorityTest extends TestCase
         $this->assertEquals('approved', $disclosure->status);
     }
 
-    /** @test */
     public function approved_disclosure_internal_notes_can_be_updated(): void
     {
         $disclosure = $this->createApprovedDisclosure();
@@ -161,11 +150,8 @@ class DisclosureAuthorityTest extends TestCase
         $this->assertEquals('Updated admin notes', $disclosure->internal_notes);
     }
 
-    // =========================================================================
     // TEST: INVESTOR VISIBLE DATA ACCESSOR
-    // =========================================================================
 
-    /** @test */
     public function investor_visible_data_returns_immutable_version_data(): void
     {
         $disclosure = $this->createApprovedDisclosure();
@@ -180,7 +166,6 @@ class DisclosureAuthorityTest extends TestCase
         );
     }
 
-    /** @test */
     public function investor_visible_data_throws_for_approved_without_version(): void
     {
         // Create approved disclosure without setting current_version_id
@@ -201,7 +186,6 @@ class DisclosureAuthorityTest extends TestCase
         $_ = $disclosure->investor_visible_data;
     }
 
-    /** @test */
     public function investor_visible_data_returns_null_for_draft(): void
     {
         $disclosure = CompanyDisclosure::create([
@@ -217,11 +201,8 @@ class DisclosureAuthorityTest extends TestCase
         $this->assertNull($disclosure->investor_visible_data);
     }
 
-    // =========================================================================
     // TEST: APPROVED DISCLOSURE REPOSITORY
-    // =========================================================================
 
-    /** @test */
     public function repository_only_returns_approved_disclosures(): void
     {
         // Create disclosures in various states
@@ -236,7 +217,6 @@ class DisclosureAuthorityTest extends TestCase
         $this->assertCount(1, $result);
     }
 
-    /** @test */
     public function repository_returns_immutable_version_data(): void
     {
         $disclosure = $this->createApprovedDisclosure();
@@ -249,7 +229,6 @@ class DisclosureAuthorityTest extends TestCase
         $this->assertEquals($versionData, $result[$disclosure->id]['data']);
     }
 
-    /** @test */
     public function repository_throws_for_approved_without_version(): void
     {
         // Create invalid state: approved without version
@@ -271,11 +250,8 @@ class DisclosureAuthorityTest extends TestCase
         $repository->getApprovedDisclosuresForInvestor($this->company->id);
     }
 
-    // =========================================================================
     // TEST: VERSION HASH INTEGRITY
-    // =========================================================================
 
-    /** @test */
     public function version_integrity_can_be_verified(): void
     {
         $disclosure = $this->createApprovedDisclosure();
@@ -285,7 +261,6 @@ class DisclosureAuthorityTest extends TestCase
         $this->assertTrue($version->verifyIntegrity());
     }
 
-    /** @test */
     public function tampered_version_fails_integrity_check(): void
     {
         $disclosure = $this->createApprovedDisclosure();
@@ -302,9 +277,7 @@ class DisclosureAuthorityTest extends TestCase
         $this->assertFalse($version->verifyIntegrity());
     }
 
-    // =========================================================================
     // TEST HELPERS
-    // =========================================================================
 
     protected function createApprovedDisclosure(): CompanyDisclosure
     {
