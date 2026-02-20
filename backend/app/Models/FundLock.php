@@ -139,15 +139,13 @@ class FundLock extends Model
             'released_by' => $releasedBy ?? auth()->id(),
         ]);
 
-        // Update wallet locked balance using paise for atomic decrement
-        $amountRupees = $this->amount_paise / 100;
-        $this->user->wallet->decrementLockedBalance($amountRupees);
+        // Use paise-native method for atomic decrement (no float conversion)
+        $this->user->wallet->decrementLockedBalancePaise($this->amount_paise);
 
         \Log::info('Fund lock released', [
             'lock_id' => $this->id,
             'user_id' => $this->user_id,
             'amount_paise' => $this->amount_paise,
-            'amount_rupees' => $amountRupees,
             'reason' => $reason,
         ]);
 
@@ -175,9 +173,8 @@ class FundLock extends Model
         foreach ($expired as $lock) {
             try {
                 $lock->update(['status' => 'expired']);
-                // Use amount_paise for atomic decrement
-                $amountRupees = $lock->amount_paise / 100;
-                $lock->user->wallet->decrementLockedBalance($amountRupees);
+                // Use paise-native method for atomic decrement (no float conversion)
+                $lock->user->wallet->decrementLockedBalancePaise($lock->amount_paise);
                 $count++;
             } catch (\Exception $e) {
                 \Log::error('Failed to release expired lock', [

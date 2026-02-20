@@ -106,12 +106,12 @@ class PaymentToBonusIntegrationTest extends TestCase
 
         $this->assertDatabaseHas('wallets', [
             'user_id' => $this->user->id,
-            'balance' => 10.00
+            'balance_paise' => 1000 // ₹10.00 = 1000 paise
         ]);
         $this->assertDatabaseHas('transactions', [
             'user_id' => $this->user->id,
             'type' => 'bonus_credit',
-            'amount' => 10.00
+            'amount_paise' => 1000 // ₹10.00 = 1000 paise
         ]);
     }
 

@@ -22,7 +22,11 @@ class WithdrawalTest extends TestCase
     {
         parent::setUp();
         $this->user = User::factory()->create();
-        $this->wallet = Wallet::create(['user_id' => $this->user->id, 'balance' => 10000]);
+        $this->wallet = Wallet::create([
+            'user_id' => $this->user->id,
+            'balance_paise' => 1000000, // ₹10,000 in paise
+            'locked_balance_paise' => 0
+        ]);
         $this->admin = User::factory()->create();
     }
 

@@ -132,9 +132,27 @@ class RazorpayService implements PaymentGatewayInterface
         }
     }
 
-    // V-AUDIT-MODULE4-004 (MEDIUM) - Removed unused verifyWebhookSignature() method
-    // This method was never called and duplicated logic already handled in WebhookController
-    // Webhook signature verification is properly done in the controller middleware
+    /**
+     * Verify webhook signature from Razorpay.
+     *
+     * @param string $payload Raw webhook payload
+     * @param string $signature X-Razorpay-Signature header value
+     * @param string $secret Webhook secret key
+     * @return bool True if signature is valid
+     * @throws Exception If signature verification fails
+     */
+    public function verifyWebhookSignature(string $payload, string $signature, string $secret): bool
+    {
+        $this->log("Verifying Webhook Signature");
+        try {
+            $this->api->utility->verifyWebhookSignature($payload, $signature, $secret);
+            $this->log("Webhook Signature Verified Successfully");
+            return true;
+        } catch (Exception $e) {
+            $this->log("Webhook Signature Verification Failed: " . $e->getMessage(), 'error');
+            throw $e;
+        }
+    }
 
     // --- SUBSCRIPTION / MANDATE ENGINE ---
 

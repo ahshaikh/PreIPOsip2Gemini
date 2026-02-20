@@ -8,17 +8,66 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "refactor(migrations): canonicalize schema and eliminate legacy drift
+$CommitMessage = "feat(core): canonical schema convergence + financial hardening + test stabilization
 
-- Removed defensive Schema::hasColumn / hasTable / indexExists patterns
-- Consolidated duplicate deal_approvals create migrations
-- Eliminated transitional decimal → paise wallet migration
-- Removed legacy performance index patch migration
-- Cleaned obsolete investment_id / is_reversed references
-- Resolved FK/index ownership conflicts (withdrawals, user_investments)
-- Ensured deterministic migrate:fresh execution for test isolation
+PHASES COMPLETED:
+- Migration Canonicalization
+- Financial Invariant Hardening
+- Wallet Paise Standardization
+- Event-Driven Support Refactor
+- Permission & Auth Alignment
+- Test Suite Convergence
 
-Migration layer is now canonical, deterministic, and fresh-rebuild safe."
+MAJOR CHANGES:
+
+1️⃣ Canonical Schema Enforcement
+- Removed transitional wallet/transaction paise migrations
+- Converted wallets, transactions, withdrawals to paise-only canonical model
+- Moved disclosure_tier into canonical companies schema
+- Eliminated decimal-era schema drift
+- Fixed rollback FK ordering issues (tutorials, campaign_usages, etc.)
+- Ensured migrate:fresh deterministic rebuild
+
+2️⃣ Financial System Hardening
+- Standardized monetary fields to BIGINT paise
+- Preserved invariant enforcement in domain layer
+- Restored Razorpay verifyWebhookSignature()
+- Fixed payment minimum config alignment for tests
+
+3️⃣ Constructor DI Stabilization
+- Refactored BonusCalculatorService, LuckyDrawService, SubscriptionService
+  to nullable DI with container fallback
+- Maintains strong DI while allowing direct test instantiation
+
+4️⃣ Permissions & Auth Corrections
+- Fixed PermissionsSeeder naming mismatch
+- Granted users.adjust_wallet to admin role
+- Aligned login invalid-credential response (422 vs 401)
+- Stabilized permission middleware tests
+
+5️⃣ Support Module Fixes
+- Fixed sla_hours null insertion via factory correction
+- Added TicketReplied event (missing class)
+- Ensured event-driven support flows are complete
+- Preserved load-balancing + SLA escalation logic
+
+6️⃣ Validation Alignment
+- Corrected Aadhaar regex to match test contract
+- Maintained strict PAN and IFSC validation
+
+7️⃣ Test Infrastructure Stabilization
+- Removed schema rollback fragility
+- Ensured FK-safe refresh behavior
+- Restored full suite determinism
+
+RESULT:
+- Canonical, paise-only financial schema
+- Deterministic migrations
+- Event-driven support system complete
+- Permissions aligned
+- Test suite stabilized and converging toward full green
+
+This commit finalizes canonical convergence and eliminates legacy schema entropy."
 #----------------------
 
 function Get-GitCredential {

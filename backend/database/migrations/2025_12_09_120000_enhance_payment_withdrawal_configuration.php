@@ -29,12 +29,14 @@ return new class extends Migration
         });
 
         // Add new fields to withdrawals table for fee tiers and processing (idempotent)
+        // CANONICAL-PAISE: Updated to reference paise columns
         Schema::table('withdrawals', function (Blueprint $table) {
             if (!Schema::hasColumn('withdrawals', 'priority')) {
                 $table->string('priority')->default('normal')->after('status'); // low, normal, high
             }
             if (!Schema::hasColumn('withdrawals', 'fee_breakdown')) {
-                $table->json('fee_breakdown')->nullable()->after('fee'); // Store tiered fee calculation details
+                // CANONICAL-PAISE: Changed from after('fee') to after('fee_paise')
+                $table->json('fee_breakdown')->nullable()->after('fee_paise'); // Store tiered fee calculation details
             }
             if (!Schema::hasColumn('withdrawals', 'approved_at')) {
                 $table->timestamp('approved_at')->nullable()->after('admin_id');

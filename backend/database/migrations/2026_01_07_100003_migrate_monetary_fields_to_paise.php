@@ -38,31 +38,8 @@ return new class extends Migration
         // ========================================
         // WITHDRAWALS TABLE
         // ========================================
-        if (Schema::hasTable('withdrawals')) {
-            Schema::table('withdrawals', function (Blueprint $table) {
-                if (!Schema::hasColumn('withdrawals', 'amount_paise')) {
-                    $table->bigInteger('amount_paise')->nullable()->after('amount');
-                }
-                if (!Schema::hasColumn('withdrawals', 'fee_paise')) {
-                    $table->bigInteger('fee_paise')->nullable()->after('fee');
-                }
-                if (!Schema::hasColumn('withdrawals', 'tds_deducted_paise')) {
-                    $table->bigInteger('tds_deducted_paise')->nullable()->after('tds_deducted');
-                }
-                if (!Schema::hasColumn('withdrawals', 'net_amount_paise')) {
-                    $table->bigInteger('net_amount_paise')->nullable()->after('net_amount');
-                }
-
-                $table->index('amount_paise');
-                $table->index('net_amount_paise');
-            });
-
-            // Migrate existing data
-            DB::statement('UPDATE withdrawals SET amount_paise = ROUND(amount * 100) WHERE amount_paise IS NULL');
-            DB::statement('UPDATE withdrawals SET fee_paise = ROUND(fee * 100) WHERE fee_paise IS NULL AND fee IS NOT NULL');
-            DB::statement('UPDATE withdrawals SET tds_deducted_paise = ROUND(tds_deducted * 100) WHERE tds_deducted_paise IS NULL AND tds_deducted IS NOT NULL');
-            DB::statement('UPDATE withdrawals SET net_amount_paise = ROUND(net_amount * 100) WHERE net_amount_paise IS NULL AND net_amount IS NOT NULL');
-        }
+        // CANONICAL-PAISE: Withdrawals paise columns are now in canonical create_wallets_table
+        // No action needed here - columns exist from canonical schema
 
         // ========================================
         // BULK_PURCHASES TABLE
@@ -133,18 +110,8 @@ return new class extends Migration
             });
         }
 
-        if (Schema::hasTable('withdrawals')) {
-            Schema::table('withdrawals', function (Blueprint $table) {
-                $table->dropIndex(['amount_paise']);
-                $table->dropIndex(['net_amount_paise']);
-                $table->dropColumn([
-                    'amount_paise',
-                    'fee_paise',
-                    'tds_deducted_paise',
-                    'net_amount_paise',
-                ]);
-            });
-        }
+        // CANONICAL-PAISE: Withdrawals paise columns are managed by canonical create_wallets_table
+        // Do not drop them here
 
         if (Schema::hasTable('bulk_purchases')) {
             Schema::table('bulk_purchases', function (Blueprint $table) {

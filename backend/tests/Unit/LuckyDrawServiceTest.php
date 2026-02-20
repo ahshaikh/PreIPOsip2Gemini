@@ -124,7 +124,7 @@ class LuckyDrawServiceTest extends TestCase
     public function test_distribute_prizes_to_wallets()
     {
         $user = User::factory()->create();
-        $user->wallet()->create(['balance' => 0]);
+        $user->wallet()->create(['balance_paise' => 0, 'locked_balance_paise' => 0]);
         LuckyDrawEntry::create(['user_id' => $user->id, 'lucky_draw_id' => $this->draw->id, 'payment_id' => 1, 'base_entries' => 1]);
 
         $winners = [$user->id];

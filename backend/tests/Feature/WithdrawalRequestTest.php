@@ -20,11 +20,14 @@ class WithdrawalRequestTest extends TestCase
     {
         parent::setUp();
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
-        
+
         $this->user = User::factory()->create();
         $this->user->assignRole('user');
         $this->user->kyc->update(['status' => 'verified']);
-        $this->user->wallet()->create(['balance' => 100000]); // 1 Lakh balance
+        $this->user->wallet()->create([
+            'balance_paise' => 10000000, // ₹1,00,000 (1 Lakh) in paise
+            'locked_balance_paise' => 0
+        ]);
 
         // Set rules
         Setting::create(['key' => 'min_withdrawal_amount', 'value' => 1000]);

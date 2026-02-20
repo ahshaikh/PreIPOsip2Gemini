@@ -39,12 +39,12 @@ class ProfitShareServiceTest extends TestCase
 
         // --- Setup Users (Eligible: created 4 months ago) ---
         $this->userA = User::factory()->create(['created_at' => now()->subMonths(4)]);
-        $this->userA->wallet()->create(['balance' => 0]);
+        $this->userA->wallet()->create(['balance_paise' => 0, 'locked_balance_paise' => 0]);
         $this->userA->kyc->update(['pan_number' => 'PAN-A']); // For TDS
         Subscription::factory()->create(['user_id' => $this->userA->id, 'plan_id' => $this->planA->id, 'status' => 'active']);
 
         $this->userB = User::factory()->create(['created_at' => now()->subMonths(4)]);
-        $this->userB->wallet()->create(['balance' => 0]);
+        $this->userB->wallet()->create(['balance_paise' => 0, 'locked_balance_paise' => 0]);
         $this->userB->kyc->update(['pan_number' => 'PAN-B']); // For TDS
         Subscription::factory()->create(['user_id' => $this->userB->id, 'plan_id' => $this->planB->id, 'status' => 'active']);
         
@@ -157,7 +157,7 @@ class ProfitShareServiceTest extends TestCase
         $this->service->distributeToWallets($this->period, $this->admin);
 
         // User A balance = 450
-        $this->userA->wallet->update(['balance' => 100]); // User spent the money
+        $this->userA->wallet->update(['balance_paise' => 10000]); // User spent the money - ₹100
         
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage("insufficient funds");

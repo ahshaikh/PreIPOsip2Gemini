@@ -19,7 +19,7 @@ class SupportTicketFactory extends Factory
             'category'     => $this->faker->randomElement(['other','billing','technical','account']),
             'priority'     => $this->faker->randomElement(['low','medium','high']),
             'status'       => $this->faker->randomElement(['open','pending','resolved','closed']),
-            'sla_hours'    => $this->faker->optional(0.7)->numberBetween(24,168),
+            'sla_hours'    => $this->faker->numberBetween(24,168),
             'assigned_to'  => null,
             'resolved_by'  => null,
             'resolved_at'  => null,

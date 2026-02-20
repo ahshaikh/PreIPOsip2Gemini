@@ -32,7 +32,7 @@ class PaymentWebhookServiceTest extends TestCase
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
         
         $this->user = User::factory()->create();
-        $this->user->wallet()->create(['balance' => 0]);
+        $this->user->wallet()->create(['balance_paise' => 0, 'locked_balance_paise' => 0]);
         $this->subscription = Subscription::factory()->create(['user_id' => $this->user->id]);
 
         // Mock RazorpayService

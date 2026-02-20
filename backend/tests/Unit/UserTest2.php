@@ -119,10 +119,14 @@ class UserTest extends TestCase
     public function test_user_has_wallet_relationship()
     {
         $user = User::factory()->create();
-        $wallet = Wallet::create(['user_id' => $user->id, 'balance' => 100]);
+        $wallet = Wallet::create([
+            'user_id' => $user->id,
+            'balance_paise' => 10000, // ₹100 in paise
+            'locked_balance_paise' => 0
+        ]);
 
         $this->assertTrue($user->wallet()->exists());
-        $this->assertEquals(100, $user->wallet->balance);
+        $this->assertEquals(100, $user->wallet->balance); // Virtual accessor returns rupees
     }
 
     #[\PHPUnit\Framework\Attributes\Test]

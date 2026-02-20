@@ -79,8 +79,8 @@ class ProfitShareTest extends TestCase
 
         $response->assertStatus(200);
         
-        // Check wallets credited
-        $this->assertDatabaseHas('wallets', ['balance' => 5000]); // Approx split
+        // Check wallets credited (₹5000 = 500000 paise)
+        $this->assertDatabaseHas('wallets', ['balance_paise' => 500000]); // Approx split
         
         // Check status update
         $this->assertEquals('distributed', $this->period->fresh()->status);

@@ -73,18 +73,22 @@ class BonusCalculatorService
     protected SchemaAwareOverrideResolver $overrideResolver;
     protected SubscriptionConfigSnapshotService $snapshotService;
 
+    /**
+     * Constructor with nullable DI for test compatibility.
+     * Falls back to container resolution if dependencies not provided.
+     */
     public function __construct(
-        WalletService $walletService,
-        TdsCalculationService $tdsService,
-        DoubleEntryLedgerService $ledgerService,
-        SchemaAwareOverrideResolver $overrideResolver,
-        SubscriptionConfigSnapshotService $snapshotService
+        ?WalletService $walletService = null,
+        ?TdsCalculationService $tdsService = null,
+        ?DoubleEntryLedgerService $ledgerService = null,
+        ?SchemaAwareOverrideResolver $overrideResolver = null,
+        ?SubscriptionConfigSnapshotService $snapshotService = null
     ) {
-        $this->walletService = $walletService;
-        $this->tdsService = $tdsService;
-        $this->ledgerService = $ledgerService;
-        $this->overrideResolver = $overrideResolver;
-        $this->snapshotService = $snapshotService;
+        $this->walletService = $walletService ?? app(WalletService::class);
+        $this->tdsService = $tdsService ?? app(TdsCalculationService::class);
+        $this->ledgerService = $ledgerService ?? app(DoubleEntryLedgerService::class);
+        $this->overrideResolver = $overrideResolver ?? app(SchemaAwareOverrideResolver::class);
+        $this->snapshotService = $snapshotService ?? app(SubscriptionConfigSnapshotService::class);
     }
 
     /**

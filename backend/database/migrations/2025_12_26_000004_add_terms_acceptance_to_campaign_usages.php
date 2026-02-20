@@ -31,17 +31,28 @@ return new class extends Migration
      * Reverse the migrations.
      */
     public function down(): void
-    {
-        Schema::table('campaign_usages', function (Blueprint $table) {
-            $table->dropIndex(['terms_accepted']);
-            $table->dropIndex(['disclaimer_acknowledged']);
-            $table->dropColumn([
-                'terms_accepted',
-                'terms_accepted_at',
-                'terms_acceptance_ip',
-                'disclaimer_acknowledged',
-                'disclaimer_acknowledged_at',
-            ]);
-        });
+{
+    if (!Schema::hasTable('campaign_usages')) {
+        return;
     }
+
+    Schema::table('campaign_usages', function (Blueprint $table) {
+        if (Schema::hasColumn('campaign_usages', 'terms_accepted')) {
+            $table->dropIndex(['terms_accepted']);
+        }
+
+        if (Schema::hasColumn('campaign_usages', 'disclaimer_acknowledged')) {
+            $table->dropIndex(['disclaimer_acknowledged']);
+        }
+
+        $table->dropColumn([
+            'terms_accepted',
+            'terms_accepted_at',
+            'terms_acceptance_ip',
+            'disclaimer_acknowledged',
+            'disclaimer_acknowledged_at',
+        ]);
+    });
+}
+
 };

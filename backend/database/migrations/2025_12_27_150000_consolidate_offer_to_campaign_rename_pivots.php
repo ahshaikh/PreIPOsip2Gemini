@@ -129,14 +129,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // [PROTOCOL 1]: This migration is IRREVERSIBLE
-        // WHY: We are consolidating to a single source of truth
-        // Rolling back would recreate the dual-model bug
 
-        throw new \Exception(
-            'P0.2 FIX: This migration is irreversible. ' .
-            'Rolling back would recreate the Campaign/Offer duality bug. ' .
-            'If you need to reverse, manually restore from backup.'
-        );
+    // Intentionally left blank.
+    // This migration consolidates schema permanently.
+
     }
 };

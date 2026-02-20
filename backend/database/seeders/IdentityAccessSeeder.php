@@ -340,7 +340,7 @@ class IdentityAccessSeeder extends Seeder
             Wallet::create([
                 'user_id' => $user->id,
                 'balance_paise' => $balancePaise,
-                'locked_balance' => 0,
+                'locked_balance_paise' => 0,
             ]);
         }
 

@@ -53,7 +53,7 @@ class AdminWorkflowTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_approve_and_complete_withdrawal()
     {
-        $wallet = Wallet::create(['user_id' => $this->user->id, 'balance' => 5000]);
+        $wallet = Wallet::create(['user_id' => $this->user->id, 'balance_paise' => 500000, 'locked_balance_paise' => 0]); // ₹5000
         
         // Create pending withdrawal
         $withdrawal = Withdrawal::create([

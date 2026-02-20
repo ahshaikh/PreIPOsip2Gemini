@@ -112,7 +112,7 @@ class ReconcileBalances extends Command
     }
 
     /**
-     * Check user wallet balances against transaction sums
+     * Check user wallet balances against transaction sums (PAISE-based)
      */
     private function checkUserWallets(): array
     {
@@ -121,23 +121,26 @@ class ReconcileBalances extends Command
         $users = User::has('wallet')->with('wallet')->chunk(1000, function ($userChunk) use (&$discrepancies) {
             foreach ($userChunk as $user) {
                 $wallet = $user->wallet;
-                
-                // Calculate expected balance from transactions
-                $expectedBalance = DB::table('wallet_transactions')
+
+                // Calculate expected balance from transactions (using paise)
+                $expectedBalancePaise = DB::table('transactions')
                     ->where('wallet_id', $wallet->id)
-                    ->sum('amount');
+                    ->where('status', 'completed')
+                    ->sum('amount_paise');
 
-                $actualBalance = $wallet->balance;
-                $difference = abs($actualBalance - $expectedBalance);
+                $actualBalancePaise = $wallet->balance_paise;
+                $differencePaise = abs($actualBalancePaise - $expectedBalancePaise);
 
-                // Allow 1 paise tolerance for rounding
-                if ($difference > 0.01) {
+                // No tolerance for integer paise - exact match required
+                if ($differencePaise > 0) {
                     $discrepancies[] = [
                         'user_id' => $user->id,
                         'username' => $user->username,
-                        'expected' => $expectedBalance,
-                        'actual' => $actualBalance,
-                        'difference' => $difference,
+                        'expected_paise' => $expectedBalancePaise,
+                        'actual_paise' => $actualBalancePaise,
+                        'difference_paise' => $differencePaise,
+                        'expected_rupees' => $expectedBalancePaise / 100,
+                        'actual_rupees' => $actualBalancePaise / 100,
                     ];
                 }
             }
@@ -155,7 +158,7 @@ class ReconcileBalances extends Command
     }
 
     /**
-     * Check fund locks match locked_balance in wallets
+     * Check fund locks match locked_balance_paise in wallets (PAISE-based)
      */
     private function checkFundLocks(): array
     {
@@ -164,24 +167,24 @@ class ReconcileBalances extends Command
         $users = User::has('wallet')->with('wallet')->chunk(1000, function ($userChunk) use (&$discrepancies) {
             foreach ($userChunk as $user) {
                 $wallet = $user->wallet;
-                
-                // Calculate expected locked balance from active fund locks
-                $expectedLocked = FundLock::where('user_id', $user->id)
+
+                // Calculate expected locked balance from active fund locks (using paise)
+                $expectedLockedPaise = FundLock::where('user_id', $user->id)
                     ->where('status', 'active')
-                    ->sum('amount');
+                    ->sum('amount_paise');
 
-                $actualLocked = $wallet->locked_balance;
-                $difference = abs($actualLocked - $expectedLocked);
+                $actualLockedPaise = $wallet->locked_balance_paise;
+                $differencePaise = abs($actualLockedPaise - $expectedLockedPaise);
 
-                // Allow 1 paise tolerance
-                if ($difference > 0.01) {
+                // No tolerance for integer paise - exact match required
+                if ($differencePaise > 0) {
                     $discrepancies[] = [
                         'user_id' => $user->id,
                         'username' => $user->username,
                         'wallet_id' => $wallet->id,
-                        'expected_locked' => $expectedLocked,
-                        'actual_locked' => $actualLocked,
-                        'difference' => $difference,
+                        'expected_locked_paise' => $expectedLockedPaise,
+                        'actual_locked_paise' => $actualLockedPaise,
+                        'difference_paise' => $differencePaise,
                     ];
                 }
             }
@@ -199,7 +202,7 @@ class ReconcileBalances extends Command
     }
 
     /**
-     * Fix fund lock discrepancies by recalculating from active locks
+     * Fix fund lock discrepancies by recalculating from active locks (PAISE-only)
      */
     private function fixFundLocks(array $discrepancies): int
     {
@@ -209,17 +212,17 @@ class ReconcileBalances extends Command
             try {
                 DB::transaction(function () use ($issue, &$fixed) {
                     $wallet = \App\Models\Wallet::find($issue['wallet_id']);
-                    
+
                     if ($wallet) {
+                        // Only update the canonical paise field
                         $wallet->update([
-                            'locked_balance' => $issue['expected_locked'],
-                            'locked_balance_paise' => (int) ($issue['expected_locked'] * 100),
+                            'locked_balance_paise' => $issue['expected_locked_paise'],
                         ]);
 
-                        Log::info('Fixed fund lock discrepancy', [
+                        Log::info('Fixed fund lock discrepancy (paise)', [
                             'user_id' => $issue['user_id'],
-                            'old_locked' => $issue['actual_locked'],
-                            'new_locked' => $issue['expected_locked'],
+                            'old_locked_paise' => $issue['actual_locked_paise'],
+                            'new_locked_paise' => $issue['expected_locked_paise'],
                         ]);
 
                         $fixed++;

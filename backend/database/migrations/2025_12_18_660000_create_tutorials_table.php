@@ -80,10 +80,15 @@ return new class extends Migration
     /**
      * Reverse the migrations.
      *
+     * FK-SAFE: Drop dependent tables first to avoid FK constraint violations.
+     * user_tutorial_progress has FK to tutorials, must be dropped first.
+     *
      * @return void
      */
     public function down(): void
     {
+        // FK-SAFE: Drop dependent table first
+        Schema::dropIfExists('user_tutorial_progress');
         Schema::dropIfExists('tutorials');
     }
 };

@@ -22,15 +22,18 @@ class SubscriptionService
     protected $paymentInitiationService; // [ADDED]
     protected $configSnapshotService; // V-CONTRACT-HARDENING
 
-    // [MODIFIED] Inject PaymentInitiationService and SubscriptionConfigSnapshotService
+    /**
+     * Constructor with nullable DI for test compatibility.
+     * Falls back to container resolution if dependencies not provided.
+     */
     public function __construct(
-        WalletService $walletService,
-        PaymentInitiationService $paymentInitiationService,
-        SubscriptionConfigSnapshotService $configSnapshotService
+        ?WalletService $walletService = null,
+        ?PaymentInitiationService $paymentInitiationService = null,
+        ?SubscriptionConfigSnapshotService $configSnapshotService = null
     ) {
-        $this->walletService = $walletService;
-        $this->paymentInitiationService = $paymentInitiationService;
-        $this->configSnapshotService = $configSnapshotService;
+        $this->walletService = $walletService ?? app(WalletService::class);
+        $this->paymentInitiationService = $paymentInitiationService ?? app(PaymentInitiationService::class);
+        $this->configSnapshotService = $configSnapshotService ?? app(SubscriptionConfigSnapshotService::class);
     }
 
     /**

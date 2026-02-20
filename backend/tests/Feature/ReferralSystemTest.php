@@ -30,7 +30,7 @@ class ReferralSystemTest extends TestCase
     {
         // 1. Setup Referrer (User A)
         $referrer = User::factory()->create();
-        $referrer->wallet()->create(['balance' => 0]);
+        $referrer->wallet()->create(['balance_paise' => 0, 'locked_balance_paise' => 0]);
         $plan = Plan::first(); // Get Plan A from seeder
         
         // Give Referrer a subscription (needed for multiplier)
@@ -63,10 +63,10 @@ class ReferralSystemTest extends TestCase
             'status' => 'completed'
         ]);
 
-        // B. Check Wallet Credit (Default ₹500)
+        // B. Check Wallet Credit (Default ₹500 = 50000 paise)
         $this->assertDatabaseHas('wallets', [
             'user_id' => $referrer->id,
-            'balance' => 500
+            'balance_paise' => 50000
         ]);
 
         // C. Check Bonus Transaction

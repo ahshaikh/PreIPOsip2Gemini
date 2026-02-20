@@ -41,7 +41,7 @@ class LuckyDrawTest extends TestCase
         // Create 5 entrants
         $users = User::factory()->count(5)->create();
         foreach ($users as $u) {
-            Wallet::create(['user_id' => $u->id, 'balance' => 0]);
+            Wallet::create(['user_id' => $u->id, 'balance_paise' => 0, 'locked_balance_paise' => 0]);
             LuckyDrawEntry::create([
                 'user_id' => $u->id,
                 'lucky_draw_id' => $this->draw->id,

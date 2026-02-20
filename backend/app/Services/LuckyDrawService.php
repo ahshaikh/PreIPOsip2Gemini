@@ -21,12 +21,16 @@ class LuckyDrawService
     protected TdsCalculationService $tdsService;
     protected DoubleEntryLedgerService $ledgerService;
 
+    /**
+     * Constructor with nullable DI for test compatibility.
+     * Falls back to container resolution if dependencies not provided.
+     */
     public function __construct(
-        TdsCalculationService $tdsService,
-        DoubleEntryLedgerService $ledgerService
+        ?TdsCalculationService $tdsService = null,
+        ?DoubleEntryLedgerService $ledgerService = null
     ) {
-        $this->tdsService = $tdsService;
-        $this->ledgerService = $ledgerService;
+        $this->tdsService = $tdsService ?? app(TdsCalculationService::class);
+        $this->ledgerService = $ledgerService ?? app(DoubleEntryLedgerService::class);
     }
     /**
      * Create a new draw for the current month.

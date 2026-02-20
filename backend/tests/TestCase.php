@@ -14,8 +14,14 @@ abstract class TestCase extends BaseTestCase
     protected function setUp(): void
     {
          parent::setUp();
-
+	
         // Seed the database for every test
         // $this->seed();
+    }
+    protected function refreshTestDatabase()
+    {
+        \DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        parent::refreshTestDatabase();
+        \DB::statement('SET FOREIGN_KEY_CHECKS=1;');
     }
 }

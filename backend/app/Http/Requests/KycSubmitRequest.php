@@ -19,7 +19,7 @@ class KycSubmitRequest extends FormRequest
         $panRegex = UserKyc::PAN_REGEX;
         
         // This is a simplified 12-digit regex for input, as Aadhaar can have spaces
-        $aadhaarRegex = '/^[0-9\s]{12,15}$/'; 
+        $aadhaarRegex = '/^\d{4}\s?\d{4}\s?\d{4}$/';
         
         $ifscRegex = '/^[A-Z]{4}0[A-Z0-9]{6}$/';
 

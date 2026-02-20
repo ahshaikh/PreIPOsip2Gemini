@@ -22,7 +22,11 @@ class TransactionTest extends TestCase
     {
         parent::setUp();
         $this->user = User::factory()->create();
-        $this->wallet = Wallet::create(['user_id' => $this->user->id, 'balance' => 1000]);
+        $this->wallet = Wallet::create([
+            'user_id' => $this->user->id,
+            'balance_paise' => 100000, // ₹1000 in paise
+            'locked_balance_paise' => 0
+        ]);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]

@@ -60,7 +60,7 @@ class CompleteUserJourneyTest extends TestCase
         
         $this->user = User::factory()->create();
         $this->user->assignRole('user');
-        $this->user->wallet()->create(['balance' => 0]);
+        $this->user->wallet()->create(['balance_paise' => 0, 'locked_balance_paise' => 0]);
         
         $this->plan = Plan::first();
         $this->product = Product::first();
@@ -185,7 +185,7 @@ class CompleteUserJourneyTest extends TestCase
     public function testWithdrawalRequestToCompletionFlow()
     {
         $this->user->kyc->update(['status' => 'verified']);
-        $this->user->wallet->update(['balance' => 5000]);
+        $this->user->wallet->update(['balance_paise' => 500000]); // ₹5000
         
         // 1. User requests
         $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw', [

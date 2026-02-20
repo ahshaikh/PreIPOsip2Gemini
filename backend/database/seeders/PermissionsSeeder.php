@@ -189,7 +189,7 @@ class PermissionsSeeder extends Seeder
 
         // Admin gets most permissions
         $admin->syncPermissions([
-            'users.view', 'users.edit', 'users.suspend',
+            'users.view', 'users.edit', 'users.suspend', 'users.adjust_wallet',
             'kyc.view_queue', 'kyc.approve', 'kyc.reject',
             'plans.view', 'plans.create', 'plans.edit',
             'products.view', 'products.create', 'products.edit',

@@ -41,12 +41,12 @@ class ProfitShareServiceTest extends TestCase
         // --- Setup Users ---
         // User A: Eligible
         $this->userA = User::factory()->create(['created_at' => now()->subMonths(4)]);
-        $this->userA->wallet()->create(['balance' => 0]);
+        $this->userA->wallet()->create(['balance_paise' => 0, 'locked_balance_paise' => 0]);
         Subscription::factory()->create(['user_id' => $this->userA->id, 'plan_id' => $this->planA->id, 'status' => 'active']);
 
         // User B: Eligible
         $this->userB = User::factory()->create(['created_at' => now()->subMonths(4)]);
-        $this->userB->wallet()->create(['balance' => 0]);
+        $this->userB->wallet()->create(['balance_paise' => 0, 'locked_balance_paise' => 0]);
         Subscription::factory()->create(['user_id' => $this->userB->id, 'plan_id' => $this->planB->id, 'status' => 'active']);
 
         // --- Setup Profit Share ---

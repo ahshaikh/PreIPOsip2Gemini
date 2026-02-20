@@ -73,7 +73,7 @@ class FullUserJourneyIntegrationTest extends TestCase
         $this->assertEquals('journey_user', $user->username);
 
         // ==================== STEP 2: VERIFY WALLET CREATED ====================
-        $this->assertDatabaseHas('wallets', ['user_id' => $userId, 'balance' => 0]);
+        $this->assertDatabaseHas('wallets', ['user_id' => $userId, 'balance_paise' => 0]);
 
         // ==================== STEP 3: VERIFY KYC RECORD CREATED ====================
         $this->assertDatabaseHas('user_kyc', ['user_id' => $userId, 'status' => 'pending']);
@@ -145,7 +145,7 @@ class FullUserJourneyIntegrationTest extends TestCase
         $user->assignRole('user');
         UserProfile::create(['user_id' => $user->id]);
         UserKyc::create(['user_id' => $user->id, 'status' => 'verified']);
-        Wallet::create(['user_id' => $user->id, 'balance' => 1000]);
+        Wallet::create(['user_id' => $user->id, 'balance_paise' => 100000, 'locked_balance_paise' => 0]); // ₹1000
 
         // ==================== ADMIN CREDITS USER ====================
         $response = $this->actingAs($this->admin)
@@ -191,7 +191,7 @@ class FullUserJourneyIntegrationTest extends TestCase
         // Create user with subscription
         $user = User::factory()->create();
         $user->assignRole('user');
-        Wallet::create(['user_id' => $user->id, 'balance' => 0]);
+        Wallet::create(['user_id' => $user->id, 'balance_paise' => 0, 'locked_balance_paise' => 0]);
 
         $subscription = Subscription::create([
             'user_id' => $user->id,
@@ -249,7 +249,7 @@ class FullUserJourneyIntegrationTest extends TestCase
         // Create user with 2x multiplier (e.g., from referral campaign)
         $user = User::factory()->create();
         $user->assignRole('user');
-        Wallet::create(['user_id' => $user->id, 'balance' => 0]);
+        Wallet::create(['user_id' => $user->id, 'balance_paise' => 0, 'locked_balance_paise' => 0]);
 
         $subscription = Subscription::create([
             'user_id' => $user->id,
@@ -310,7 +310,7 @@ class FullUserJourneyIntegrationTest extends TestCase
         $user->assignRole('user');
         UserProfile::create(['user_id' => $user->id]);
         UserKyc::create(['user_id' => $user->id, 'status' => 'verified']);
-        $wallet = Wallet::create(['user_id' => $user->id, 'balance' => 5000, 'locked_balance' => 0]);
+        $wallet = Wallet::create(['user_id' => $user->id, 'balance_paise' => 500000, 'locked_balance_paise' => 0]); // ₹5000
 
         $walletService = new WalletService();
 
@@ -353,7 +353,7 @@ class FullUserJourneyIntegrationTest extends TestCase
         for ($i = 0; $i < 5; $i++) {
             $user = User::factory()->create();
             $user->assignRole('user');
-            Wallet::create(['user_id' => $user->id, 'balance' => 100]);
+            Wallet::create(['user_id' => $user->id, 'balance_paise' => 10000, 'locked_balance_paise' => 0]); // ₹100
             $users[] = $user;
         }
 
@@ -403,7 +403,7 @@ class FullUserJourneyIntegrationTest extends TestCase
     {
         $user = User::factory()->create();
         $user->assignRole('user');
-        Wallet::create(['user_id' => $user->id, 'balance' => 1000]);
+        Wallet::create(['user_id' => $user->id, 'balance_paise' => 100000, 'locked_balance_paise' => 0]); // ₹1000
 
         $walletService = new WalletService();
 

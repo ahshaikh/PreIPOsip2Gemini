@@ -402,12 +402,13 @@ class ComplianceGateService
             'requirements' => $blockReason['requirements'] ?? [],
         ]);
 
-        // Store in audit_trails table for compliance reporting
-        \App\Models\AuditTrail::create([
-            'user_id' => $user->id,
+        // Store in audit_logs table for compliance reporting
+        \App\Models\AuditLog::create([
+            'actor_id' => $user->id,
+            'actor_type' => \App\Models\User::class,
             'action' => 'compliance_block',
             'description' => "Operation blocked: {$operation}",
-            'metadata' => json_encode($blockReason),
+            'metadata' => $blockReason,
             'ip_address' => request()->ip(),
         ]);
     }

@@ -62,7 +62,18 @@ class UserFactory extends Factory
         return $this->afterCreating(function (User $user) {
             // Create the 3 critical relations for every user
             UserProfile::firstOrCreate(['user_id' => $user->id]);
-            UserKyc::firstOrCreate(['user_id' => $user->id]);
+
+            // Create KYC as verified by default for test compatibility
+            // Tests can use unverified() state or manual updates if needed
+            UserKyc::firstOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'status' => 'verified',
+                    'verified_at' => now(),
+                    'submitted_at' => now()->subDays(1),
+                ]
+            );
+
             Wallet::firstOrCreate(['user_id' => $user->id], ['balance_paise' => 0, 'locked_balance_paise' => 0]);
         });
     }

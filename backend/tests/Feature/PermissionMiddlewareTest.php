@@ -23,7 +23,7 @@ class PermissionMiddlewareTest extends TestCase
         parent::setUp();
         // Seed roles AND permissions
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
-        $this->seed(\Database\Seeders\PermissionSeeder::class);
+        $this->seed(\Database\Seeders\PermissionsSeeder::class);
         
         $this->adminUser = User::factory()->create();
         $this->adminUser->assignRole('admin'); // Assign base 'admin' role

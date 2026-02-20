@@ -27,7 +27,11 @@ class UserWithdrawalEndpointTest extends TestCase
         $this->user = User::factory()->create();
         $this->user->assignRole('user');
         $this->user->kyc->update(['status' => 'verified']);
-        $this->wallet = Wallet::create(['user_id' => $this->user->id, 'balance' => 10000]); // 10k balance
+        $this->wallet = Wallet::create([
+            'user_id' => $this->user->id,
+            'balance_paise' => 1000000, // ₹10,000 in paise
+            'locked_balance_paise' => 0
+        ]);
         
         Setting::create(['key' => 'min_withdrawal_amount', 'value' => 1000]);
     }

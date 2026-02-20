@@ -43,7 +43,7 @@ class ProcessCelebrationBonusesTest extends TestCase
 
         // --- Setup User A (Birthday Today, 2-Year Anniversary Today) ---
         $this->userA = User::factory()->create();
-        $this->userA->wallet()->create(['balance' => 0]);
+        $this->userA->wallet()->create(['balance_paise' => 0, 'locked_balance_paise' => 0]);
         UserProfile::create([
             'user_id' => $this->userA->id,
             'dob' => '1990-11-15' // Birthday is Nov 15
@@ -57,7 +57,7 @@ class ProcessCelebrationBonusesTest extends TestCase
 
         // --- Setup User B (No events today) ---
         $this->userB = User::factory()->create();
-        $this->userB->wallet()->create(['balance' => 0]);
+        $this->userB->wallet()->create(['balance_paise' => 0, 'locked_balance_paise' => 0]);
         UserProfile::create(['user_id' => $this->userB->id, 'dob' => '1985-01-01']);
         Subscription::factory()->create([
             'user_id' => $this->userB->id,

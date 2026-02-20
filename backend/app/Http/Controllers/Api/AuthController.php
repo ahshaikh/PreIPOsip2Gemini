@@ -108,7 +108,7 @@ class AuthController extends Controller
         if (! $user || ! Hash::check($input['password'], $user->password)) {
             RateLimiter::hit($throttleKey);
             Log::error('[AUDIT-BACKEND] CP-2: Invalid Credentials', ['login' => $loginField]);
-            return response()->json(['message' => 'Invalid credentials.'], 401);
+            return response()->json(['message' => 'Invalid credentials.'], 422);
         }
 
         RateLimiter::clear($throttleKey);

@@ -35,7 +35,11 @@ class AdminUserControllerTest extends TestCase
         $this->user->assignRole('user');
         UserProfile::create(['user_id' => $this->user->id, 'first_name' => 'John', 'last_name' => 'Doe']);
         UserKyc::create(['user_id' => $this->user->id, 'status' => 'pending', 'pan_number' => 'ABCDE1234F']);
-        Wallet::create(['user_id' => $this->user->id, 'balance' => 5000, 'locked_balance' => 500]);
+        Wallet::create([
+            'user_id' => $this->user->id,
+            'balance_paise' => 500000, // ₹5000 in paise
+            'locked_balance_paise' => 50000 // ₹500 in paise
+        ]);
     }
 
     // ==================== INDEX TESTS ====================
@@ -614,7 +618,7 @@ class AdminUserControllerTest extends TestCase
         $users = User::factory()->count(2)->create();
         foreach ($users as $u) {
             $u->assignRole('user');
-            Wallet::create(['user_id' => $u->id, 'balance' => 0]);
+            Wallet::create(['user_id' => $u->id, 'balance_paise' => 0, 'locked_balance_paise' => 0]);
         }
 
         $response = $this->actingAs($this->admin)

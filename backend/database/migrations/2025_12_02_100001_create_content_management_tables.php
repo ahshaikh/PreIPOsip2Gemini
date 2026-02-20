@@ -160,6 +160,14 @@ return new class extends Migration
             $table->boolean('is_featured')->default(false);
             $table->enum('status', ['active', 'inactive'])->default('active');
 
+            // CANONICAL: disclosure_tier for company visibility tiers
+            $table->enum('disclosure_tier', [
+                'tier_0_pending',
+                'tier_1_upcoming',
+                'tier_2_live',
+                'tier_3_featured'
+            ])->default('tier_0_pending')->index();
+
             $table->timestamps();
             $table->softDeletes();
 

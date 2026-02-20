@@ -12,6 +12,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use App\Enums\TransactionType;
+use App\Services\WalletService;
+use App\Models\Transaction;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Wallet Model
@@ -56,6 +60,9 @@ class Wallet extends Model
     protected $appends = [
         'balance',
         'locked_balance',
+        'available_balance_paise',
+        'total_deposited',
+        'total_withdrawn',
     ];
 
     // ------------------------------------------------------------------
@@ -98,13 +105,156 @@ class Wallet extends Model
     }
 
     /**
-     * Available balance (₹).
-     * FIX 18: Now accounts for locked funds
+     * Available balance in PAISE (canonical integer).
+     * Invariant 4: available_balance_paise = balance_paise - locked_balance_paise
+     *
+     * ⚠️ Use this for all internal calculations.
+     */
+    protected function availableBalancePaise(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value, $attributes) =>
+                max(0, ($attributes['balance_paise'] ?? 0) - ($attributes['locked_balance_paise'] ?? 0))
+        );
+    }
+
+    /**
+     * Available balance (₹) - derived from paise.
+     * READ-ONLY: For display/API serialization only.
      */
     protected function availableBalance(): Attribute
     {
         return Attribute::make(
-            get: fn () => max(0, $this->balance - $this->locked_balance)
+            get: fn () => $this->available_balance_paise / 100
+        );
+    }
+
+    /**
+     * Total deposited amount (₹) - sum of all credit transactions.
+     * READ-ONLY: For display/API serialization only.
+     *
+     * Uses paise internally and converts to rupees.
+     */
+    protected function totalDeposited(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                $creditTypes = array_map(
+                    fn ($type) => $type->value,
+                    TransactionType::credits()
+                );
+
+                $totalPaise = $this->transactions()
+                    ->whereIn('type', $creditTypes)
+                    ->where('status', 'completed')
+                    ->sum('amount_paise');
+
+                return $totalPaise / 100;
+            }
+        );
+    }
+
+    /**
+     * Total withdrawn amount (₹) - sum of all debit transactions.
+     * READ-ONLY: For display/API serialization only.
+     *
+     * Returns positive value representing total debited.
+     * Uses paise internally and converts to rupees.
+     */
+    protected function totalWithdrawn(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                $debitTypes = array_map(
+                    fn ($type) => $type->value,
+                    TransactionType::debits()
+                );
+
+                $totalPaise = $this->transactions()
+                    ->whereIn('type', $debitTypes)
+                    ->where('status', 'completed')
+                    ->sum('amount_paise');
+
+                return $totalPaise / 100;
+            }
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // Domain Methods (Thin Wrappers - Delegate to WalletService)
+    // ------------------------------------------------------------------
+
+    /**
+     * Deposit funds into wallet.
+     *
+     * DOMAIN CONTRACT: Accepts rupees for backward compatibility.
+     * Internally converts to paise and delegates to WalletService
+     * for compliance enforcement and ledger recording.
+     *
+     * @param int|float $amountRupees Amount in rupees
+     * @param TransactionType|string $type Transaction type
+     * @param string $description Transaction description
+     * @param Model|null $reference Optional reference model
+     * @param bool $bypassComplianceCheck Only for internal operations (e.g., bonus)
+     * @return Transaction
+     */
+    public function deposit(
+        int|float $amountRupees,
+        TransactionType|string $type,
+        string $description = '',
+        ?Model $reference = null,
+        bool $bypassComplianceCheck = false
+    ): Transaction {
+        // Delegate to WalletService for compliance enforcement
+        $service = app(WalletService::class);
+
+        // DOMAIN CONTRACT: Force float to trigger WalletService rupee→paise conversion
+        // WalletService::normalizeAmount treats int as paise, float as rupees
+        return $service->deposit(
+            user: $this->user,
+            amount: (float) $amountRupees,
+            type: $type,
+            description: $description,
+            reference: $reference,
+            bypassComplianceCheck: $bypassComplianceCheck
+        );
+    }
+
+    /**
+     * Withdraw funds from wallet.
+     *
+     * DOMAIN CONTRACT: Accepts rupees for backward compatibility.
+     * Internally converts to paise and delegates to WalletService
+     * for compliance enforcement and ledger recording.
+     *
+     * @param int|float $amountRupees Amount in rupees
+     * @param TransactionType|string $type Transaction type
+     * @param string $description Transaction description
+     * @param Model|null $reference Optional reference model
+     * @param bool $lockBalance If true, moves funds to locked_balance instead of debiting
+     * @return Transaction
+     * @throws \RuntimeException If insufficient funds
+     */
+    public function withdraw(
+        int|float $amountRupees,
+        TransactionType|string $type,
+        string $description = '',
+        ?Model $reference = null,
+        bool $lockBalance = false
+    ): Transaction {
+        // Delegate to WalletService for compliance and ledger
+        $service = app(WalletService::class);
+
+        // DOMAIN CONTRACT: Force float to trigger WalletService rupee→paise conversion
+        // WalletService::normalizeAmount treats int as paise, float as rupees
+        return $service->withdraw(
+            user: $this->user,
+            amount: (float) $amountRupees,
+            type: $type,
+            description: $description,
+            reference: $reference,
+            lockBalance: $lockBalance,
+            allowOverdraft: false
         );
     }
 
@@ -158,36 +308,38 @@ class Wallet extends Model
         Model $lockable,
         array $metadata = []
     ): FundLock {
-        if ($amount <= 0) {
+        // Convert to paise immediately for all calculations
+        $amountPaise = (int) round($amount * 100);
+
+        if ($amountPaise <= 0) {
             throw new \InvalidArgumentException('Lock amount must be positive');
         }
 
-        if ($this->available_balance < $amount) {
+        if (!$this->hasSufficientFundsPaise($amountPaise)) {
             throw new \RuntimeException(
                 "Insufficient funds. Available: ₹{$this->available_balance}, Required: ₹{$amount}"
             );
         }
 
-        // Create lock record
+        // Create lock record (amount_paise is canonical - no decimal 'amount' field)
         $lock = FundLock::create([
             'user_id' => $this->user_id,
             'lock_type' => $lockType,
             'lockable_type' => get_class($lockable),
             'lockable_id' => $lockable->id,
-            'amount' => $amount,
-            'amount_paise' => bcmul($amount, 100),
+            'amount_paise' => $amountPaise,
             'status' => 'active',
             'locked_at' => now(),
             'locked_by' => auth()->id(),
             'metadata' => $metadata,
         ]);
 
-        // Increment locked balance
-        $this->incrementLockedBalance($amount);
+        // Increment locked balance using paise
+        $this->incrementLockedBalancePaise($amountPaise);
 
         \Log::info('Funds locked', [
             'user_id' => $this->user_id,
-            'amount' => $amount,
+            'amount_paise' => $amountPaise,
             'lock_type' => $lockType,
             'lock_id' => $lock->id,
         ]);
@@ -207,41 +359,89 @@ class Wallet extends Model
         return $lock->release(auth()->id(), $reason);
     }
 
+    // ------------------------------------------------------------------
+    // Paise-Native Methods (Canonical)
+    // ------------------------------------------------------------------
+
     /**
-     * Increment locked balance atomically
+     * Increment locked balance atomically (paise).
      *
-     * @param float $amount
+     * @param int $amountPaise
      * @return bool
      */
-    public function incrementLockedBalance(float $amount): bool
+    public function incrementLockedBalancePaise(int $amountPaise): bool
     {
-        $amountPaise = (int) bcmul($amount, 100);
+        if ($amountPaise < 0) {
+            throw new \InvalidArgumentException('Amount paise must be non-negative');
+        }
 
         return $this->increment('locked_balance_paise', $amountPaise);
     }
 
     /**
-     * Decrement locked balance atomically
+     * Decrement locked balance atomically (paise).
      *
-     * @param float $amount
+     * @param int $amountPaise
      * @return bool
      */
-    public function decrementLockedBalance(float $amount): bool
+    public function decrementLockedBalancePaise(int $amountPaise): bool
     {
-        $amountPaise = (int) bcmul($amount, 100);
+        if ($amountPaise < 0) {
+            throw new \InvalidArgumentException('Amount paise must be non-negative');
+        }
 
         return $this->decrement('locked_balance_paise', $amountPaise);
     }
 
     /**
-     * Check if sufficient funds available (considering locks)
+     * Check if sufficient funds available in paise (considering locks).
      *
-     * @param float $amount
+     * @param int $amountPaise
+     * @return bool
+     */
+    public function hasSufficientFundsPaise(int $amountPaise): bool
+    {
+        return $this->available_balance_paise >= $amountPaise;
+    }
+
+    // ------------------------------------------------------------------
+    // Rupee Wrappers (Deprecated - for backward compatibility)
+    // ------------------------------------------------------------------
+
+    /**
+     * Increment locked balance atomically (rupees).
+     *
+     * @deprecated Use incrementLockedBalancePaise() for precision
+     * @param float $amount Amount in rupees
+     * @return bool
+     */
+    public function incrementLockedBalance(float $amount): bool
+    {
+        return $this->incrementLockedBalancePaise((int) round($amount * 100));
+    }
+
+    /**
+     * Decrement locked balance atomically (rupees).
+     *
+     * @deprecated Use decrementLockedBalancePaise() for precision
+     * @param float $amount Amount in rupees
+     * @return bool
+     */
+    public function decrementLockedBalance(float $amount): bool
+    {
+        return $this->decrementLockedBalancePaise((int) round($amount * 100));
+    }
+
+    /**
+     * Check if sufficient funds available (considering locks).
+     *
+     * @deprecated Use hasSufficientFundsPaise() for precision
+     * @param float $amount Amount in rupees
      * @return bool
      */
     public function hasSufficientFunds(float $amount): bool
     {
-        return $this->available_balance >= $amount;
+        return $this->hasSufficientFundsPaise((int) round($amount * 100));
     }
 
     /*

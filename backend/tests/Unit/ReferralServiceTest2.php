@@ -34,7 +34,7 @@ class ReferralServiceTest extends TestCase
 
         // Create main user (referrer) and their subscription
         $this->referrer = User::factory()->create();
-        $this->referrer->wallet()->create(['balance' => 0]); // Ensure wallet exists
+        $this->referrer->wallet()->create(['balance_paise' => 0, 'locked_balance_paise' => 0]); // Ensure wallet exists
         $this->planA = Plan::first();
         Subscription::factory()->create([
             'user_id' => $this->referrer->id,
@@ -147,10 +147,10 @@ class ReferralServiceTest extends TestCase
         $job->handle($this->service);
         
         // 4. Assert
-        // A. Bonus Amount: 500 (base) + 1000 (campaign) = 1500
+        // A. Bonus Amount: 500 (base) + 1000 (campaign) = ₹1500 = 150000 paise
         $this->assertDatabaseHas('wallets', [
             'user_id' => $this->referrer->id,
-            'balance' => 1500
+            'balance_paise' => 150000
         ]);
         $this->assertDatabaseHas('bonus_transactions', [
             'user_id' => $this->referrer->id,

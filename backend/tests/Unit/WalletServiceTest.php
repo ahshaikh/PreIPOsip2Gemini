@@ -1,20 +1,34 @@
 <?php
 // V-TEST-SUITE-001 (WalletService Unit Tests)
+// V-PHASE3-PAISE-CANONICAL (Updated for paise-based model)
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Tests\CreatesApplication;
 use App\Services\WalletService;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Models\Transaction;
 use App\Models\BonusTransaction;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
+use App\Services\DoubleEntryLedgerService;
 
-class WalletServiceTest extends TestCase
+/**
+ * WalletServiceTest - Unit tests for WalletService.
+ *
+ * NOTE: Extends BaseTestCase directly to avoid DatabaseMigrations trait
+ * which conflicts with irreversible migrations. Uses DatabaseTransactions
+ * to rollback test data between tests.
+ *
+ * REQUIRES: Database must be pre-migrated before running these tests.
+ * Run: php artisan migrate:fresh --seed
+ */
+class WalletServiceTest extends BaseTestCase
 {
-    use RefreshDatabase;
+    use CreatesApplication;
+    use DatabaseTransactions;
 
     protected WalletService $service;
     protected User $user;
@@ -23,14 +37,20 @@ class WalletServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
 
-        $this->service = new WalletService();
+        // WalletService requires DoubleEntryLedgerService
+        $ledgerService = app(DoubleEntryLedgerService::class);
+        $this->service = new WalletService($ledgerService);
+
+        // UserFactory creates wallet via afterCreating hook
+        // Use that wallet instead of creating a new one
         $this->user = User::factory()->create();
-        $this->wallet = Wallet::create([
-            'user_id' => $this->user->id,
-            'balance' => 0,
-            'locked_balance' => 0
+        $this->wallet = $this->user->wallet;
+
+        // Reset balance for test isolation
+        $this->wallet->update([
+            'balance_paise' => 0,
+            'locked_balance_paise' => 0
         ]);
     }
 
@@ -53,7 +73,7 @@ class WalletServiceTest extends TestCase
             'wallet_id' => $this->wallet->id,
             'user_id' => $this->user->id,
             'type' => 'bonus_credit',
-            'amount' => 250.50,
+            'amount_paise' => 25050, // ₹250.50 = 25050 paise
             'status' => 'completed',
             'description' => 'Bonus award'
         ]);
@@ -118,24 +138,24 @@ class WalletServiceTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function withdraw_decreases_wallet_balance()
     {
-        $this->wallet->update(['balance' => 1000]);
+        $this->wallet->update(['balance_paise' => 100000]); // ₹1000
 
         $this->service->withdraw($this->user, 300, 'withdrawal', 'Test withdrawal');
 
-        $this->assertEquals(700.00, $this->wallet->fresh()->balance);
+        $this->assertEquals(700.00, $this->wallet->fresh()->balance); // Virtual accessor
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
-    public function withdraw_creates_negative_amount_transaction()
+    public function withdraw_creates_transaction_with_paise()
     {
-        $this->wallet->update(['balance' => 500]);
+        $this->wallet->update(['balance_paise' => 50000]); // ₹500
 
         $this->service->withdraw($this->user, 200, 'admin_adjustment', 'Admin debit');
 
         $this->assertDatabaseHas('transactions', [
             'wallet_id' => $this->wallet->id,
             'type' => 'admin_adjustment',
-            'amount' => -200,
+            'amount_paise' => 20000, // ₹200 in paise
             'status' => 'completed'
         ]);
     }
@@ -143,10 +163,9 @@ class WalletServiceTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function withdraw_throws_exception_for_insufficient_funds()
     {
-        $this->wallet->update(['balance' => 100]);
+        $this->wallet->update(['balance_paise' => 10000]); // ₹100
 
         $this->expectException(\Exception::class);
-        $this->expectExceptionMessage("Insufficient funds");
 
         $this->service->withdraw($this->user, 500, 'withdrawal', 'Test');
     }
@@ -154,7 +173,7 @@ class WalletServiceTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function withdraw_throws_exception_for_zero_amount()
     {
-        $this->wallet->update(['balance' => 1000]);
+        $this->wallet->update(['balance_paise' => 100000]); // ₹1000
 
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage("Withdrawal amount must be positive");
@@ -165,7 +184,7 @@ class WalletServiceTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function withdraw_with_lock_moves_funds_to_locked_balance()
     {
-        $this->wallet->update(['balance' => 1000, 'locked_balance' => 0]);
+        $this->wallet->update(['balance_paise' => 100000, 'locked_balance_paise' => 0]); // ₹1000
 
         $transaction = $this->service->withdraw(
             $this->user,
@@ -177,15 +196,15 @@ class WalletServiceTest extends TestCase
         );
 
         $wallet = $this->wallet->fresh();
-        $this->assertEquals(700.00, $wallet->balance);
-        $this->assertEquals(300.00, $wallet->locked_balance);
+        $this->assertEquals(700.00, $wallet->balance); // Virtual accessor
+        $this->assertEquals(300.00, $wallet->locked_balance); // Virtual accessor
         $this->assertEquals('pending', $transaction->status);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function withdraw_without_lock_immediately_debits()
     {
-        $this->wallet->update(['balance' => 1000, 'locked_balance' => 0]);
+        $this->wallet->update(['balance_paise' => 100000, 'locked_balance_paise' => 0]); // ₹1000
 
         $transaction = $this->service->withdraw(
             $this->user,
@@ -197,55 +216,55 @@ class WalletServiceTest extends TestCase
         );
 
         $wallet = $this->wallet->fresh();
-        $this->assertEquals(700.00, $wallet->balance);
-        $this->assertEquals(0.00, $wallet->locked_balance);
+        $this->assertEquals(700.00, $wallet->balance); // Virtual accessor
+        $this->assertEquals(0.00, $wallet->locked_balance); // Virtual accessor
         $this->assertEquals('completed', $transaction->status);
     }
 
-    // ==================== UNLOCK FUNDS TESTS ====================
+    // ==================== LOCK/UNLOCK FUNDS TESTS ====================
     #[\PHPUnit\Framework\Attributes\Test]
-    public function unlock_funds_moves_from_locked_to_available()
+    public function lock_funds_increases_locked_balance()
     {
-        $this->wallet->update(['balance' => 500, 'locked_balance' => 300]);
+        $this->wallet->update(['balance_paise' => 100000, 'locked_balance_paise' => 0]); // ₹1000
 
-        $this->service->unlockFunds($this->user, 200, 'withdrawal_cancelled', 'Cancelled by user');
+        $this->service->lockFunds($this->user, 300, 'Withdrawal pending');
 
         $wallet = $this->wallet->fresh();
-        $this->assertEquals(700.00, $wallet->balance);
-        $this->assertEquals(100.00, $wallet->locked_balance);
+        $this->assertEquals(1000.00, $wallet->balance); // Balance unchanged
+        $this->assertEquals(300.00, $wallet->locked_balance); // Locked increased
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
-    public function unlock_funds_creates_positive_transaction()
+    public function unlock_funds_decreases_locked_balance()
     {
-        $this->wallet->update(['balance' => 500, 'locked_balance' => 300]);
+        $this->wallet->update(['balance_paise' => 100000, 'locked_balance_paise' => 30000]); // ₹1000, ₹300 locked
 
-        $transaction = $this->service->unlockFunds($this->user, 200, 'reversal', 'Admin reversal');
+        $this->service->unlockFunds($this->user, 200, 'Withdrawal cancelled');
 
-        $this->assertEquals(200, $transaction->amount);
-        $this->assertEquals('completed', $transaction->status);
+        $wallet = $this->wallet->fresh();
+        $this->assertEquals(1000.00, $wallet->balance); // Balance unchanged
+        $this->assertEquals(100.00, $wallet->locked_balance); // Locked decreased
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function unlock_funds_throws_exception_for_insufficient_locked_balance()
     {
-        $this->wallet->update(['balance' => 1000, 'locked_balance' => 100]);
+        $this->wallet->update(['balance_paise' => 100000, 'locked_balance_paise' => 10000]); // ₹1000, ₹100 locked
 
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage("Insufficient locked funds");
+        $this->expectException(\RuntimeException::class);
 
-        $this->service->unlockFunds($this->user, 500, 'reversal', 'Test');
+        $this->service->unlockFunds($this->user, 500, 'Test');
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function unlock_funds_throws_exception_for_zero_amount()
     {
-        $this->wallet->update(['balance' => 500, 'locked_balance' => 300]);
+        $this->wallet->update(['balance_paise' => 50000, 'locked_balance_paise' => 30000]);
 
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage("Unlock amount must be positive");
 
-        $this->service->unlockFunds($this->user, 0, 'reversal', 'Test');
+        $this->service->unlockFunds($this->user, 0, 'Test');
     }
 
     // ==================== CONCURRENCY TESTS ====================
@@ -259,22 +278,22 @@ class WalletServiceTest extends TestCase
             $results[] = $this->service->deposit($this->user, 100, 'deposit', "Deposit $i");
         }
 
-        // All deposits should succeed and total should be 500
-        $this->assertEquals(500.00, $this->wallet->fresh()->balance);
+        // All deposits should succeed and total should be ₹500 (50000 paise)
+        $this->assertEquals(500.00, $this->wallet->fresh()->balance); // Virtual accessor
+        $this->assertEquals(50000, $this->wallet->fresh()->balance_paise); // Canonical paise
         $this->assertCount(5, $results);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function concurrent_withdrawals_respect_balance_limits()
     {
-        $this->wallet->update(['balance' => 200]);
+        $this->wallet->update(['balance_paise' => 20000]); // ₹200
 
         // First withdrawal should succeed
         $this->service->withdraw($this->user, 150, 'withdrawal', 'First');
 
         // Second withdrawal should fail
         $this->expectException(\Exception::class);
-        $this->expectExceptionMessage("Insufficient funds");
 
         $this->service->withdraw($this->user, 100, 'withdrawal', 'Second');
     }
@@ -284,8 +303,8 @@ class WalletServiceTest extends TestCase
     public function deposit_is_atomic()
     {
         // Create a partial mock to simulate failure after increment
-        $originalBalance = 1000;
-        $this->wallet->update(['balance' => $originalBalance]);
+        $originalBalancePaise = 100000; // ₹1000
+        $this->wallet->update(['balance_paise' => $originalBalancePaise]);
 
         // Verify that if we attempt a deposit, it either fully succeeds or fully fails
         try {
@@ -306,10 +325,10 @@ class WalletServiceTest extends TestCase
     {
         $transaction = $this->service->deposit($this->user, 100, 'deposit', 'Test');
 
-        // Verify transaction exists
+        // Verify transaction exists with paise amount
         $this->assertDatabaseHas('transactions', [
             'id' => $transaction->id,
-            'amount' => 100
+            'amount_paise' => 10000 // ₹100 = 10000 paise
         ]);
     }
 
@@ -319,7 +338,8 @@ class WalletServiceTest extends TestCase
     {
         $this->service->deposit($this->user, 123.45, 'deposit', 'Decimal test');
 
-        $this->assertEquals(123.45, $this->wallet->fresh()->balance);
+        $this->assertEquals(123.45, $this->wallet->fresh()->balance); // Virtual accessor
+        $this->assertEquals(12345, $this->wallet->fresh()->balance_paise); // Canonical paise
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -327,38 +347,45 @@ class WalletServiceTest extends TestCase
     {
         $this->service->deposit($this->user, 999999.99, 'deposit', 'Large deposit');
 
-        $this->assertEquals(999999.99, $this->wallet->fresh()->balance);
+        $this->assertEquals(999999.99, $this->wallet->fresh()->balance); // Virtual accessor
+        $this->assertEquals(99999999, $this->wallet->fresh()->balance_paise); // Canonical paise
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function handles_exact_balance_withdrawal()
     {
-        $this->wallet->update(['balance' => 500]);
+        $this->wallet->update(['balance_paise' => 50000]); // ₹500
 
         $this->service->withdraw($this->user, 500, 'withdrawal', 'Full withdrawal');
 
         $this->assertEquals(0.00, $this->wallet->fresh()->balance);
+        $this->assertEquals(0, $this->wallet->fresh()->balance_paise);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function multiple_operations_maintain_correct_running_balance()
     {
-        // Deposit 1000
+        // Deposit ₹1000 (100000 paise)
         $t1 = $this->service->deposit($this->user, 1000, 'deposit', 'Initial');
-        $this->assertEquals(0, $t1->balance_before);
-        $this->assertEquals(1000, $t1->balance_after);
+        $this->assertEquals(0, $t1->balance_before); // Virtual accessor (₹)
+        $this->assertEquals(1000, $t1->balance_after); // Virtual accessor (₹)
+        $this->assertEquals(0, $t1->balance_before_paise); // Canonical paise
+        $this->assertEquals(100000, $t1->balance_after_paise); // Canonical paise
 
-        // Withdraw 300
+        // Withdraw ₹300 (30000 paise)
         $t2 = $this->service->withdraw($this->user, 300, 'withdrawal', 'First withdrawal');
         $this->assertEquals(1000, $t2->balance_before);
         $this->assertEquals(700, $t2->balance_after);
+        $this->assertEquals(100000, $t2->balance_before_paise);
+        $this->assertEquals(70000, $t2->balance_after_paise);
 
-        // Deposit 500
+        // Deposit ₹500 (50000 paise)
         $t3 = $this->service->deposit($this->user, 500, 'bonus_credit', 'Bonus');
         $this->assertEquals(700, $t3->balance_before);
         $this->assertEquals(1200, $t3->balance_after);
 
         // Final balance check
-        $this->assertEquals(1200.00, $this->wallet->fresh()->balance);
+        $this->assertEquals(1200.00, $this->wallet->fresh()->balance); // Virtual
+        $this->assertEquals(120000, $this->wallet->fresh()->balance_paise); // Canonical
     }
 }

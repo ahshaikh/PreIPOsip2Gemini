@@ -46,26 +46,29 @@ class UserWithdrawalController extends Controller
             'processed_at' => now(),
         ]);
 
-        // If amount was locked, unlock it back to balance
-        if ($withdrawal->status === 'pending') {
-            $wallet = $user->wallet;
-            if ($wallet) {
-                $wallet->decrement('locked_balance', $withdrawal->amount);
-                $wallet->increment('balance', $withdrawal->amount);
+        // If amount was locked, unlock it (release locked funds)
+        // Note: The status was already 'pending' before we updated it to 'cancelled' above
+        $wallet = $user->wallet;
+        if ($wallet && $withdrawal->funds_locked) {
+            $amountPaise = (int) round($withdrawal->amount * 100);
+            $balanceBeforePaise = $wallet->balance_paise;
 
-                // Create transaction record
-                $wallet->transactions()->create([
-                    'user_id' => $user->id,
-                    'type' => 'withdrawal_cancelled',
-                    'status' => 'completed',
-                    'amount' => $withdrawal->amount,
-                    'balance_before' => $wallet->balance - $withdrawal->amount,
-                    'balance_after' => $wallet->balance,
-                    'description' => "Withdrawal request #{$withdrawal->id} cancelled",
-                    'reference_type' => Withdrawal::class,
-                    'reference_id' => $withdrawal->id,
-                ]);
-            }
+            // Atomically decrement locked_balance_paise (release lock)
+            $wallet->decrement('locked_balance_paise', $amountPaise);
+            $wallet->refresh();
+
+            // Create transaction record using paise fields
+            $wallet->transactions()->create([
+                'user_id' => $user->id,
+                'type' => 'withdrawal_cancelled',
+                'status' => 'completed',
+                'amount_paise' => $amountPaise,
+                'balance_before_paise' => $balanceBeforePaise,
+                'balance_after_paise' => $wallet->balance_paise,
+                'description' => "Withdrawal request #{$withdrawal->id} cancelled - funds unlocked",
+                'reference_type' => Withdrawal::class,
+                'reference_id' => $withdrawal->id,
+            ]);
         }
 
         return response()->json([

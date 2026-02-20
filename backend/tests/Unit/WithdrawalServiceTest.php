@@ -26,13 +26,17 @@ class WithdrawalServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new WithdrawalService();
+        $this->service = app(WithdrawalService::class);
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
-        
+
         $this->user = User::factory()->create();
         $this->user->kyc->update(['status' => 'verified']);
-        $this->wallet = Wallet::create(['user_id' => $this->user->id, 'balance' => 5000]);
-        
+        $this->wallet = Wallet::create([
+            'user_id' => $this->user->id,
+            'balance_paise' => 500000, // ₹5000 in paise
+            'locked_balance_paise' => 0
+        ]);
+
         $this->admin = User::factory()->create();
         $this->admin->assignRole('admin');
 
