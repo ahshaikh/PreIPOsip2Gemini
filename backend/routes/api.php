@@ -866,6 +866,12 @@ Route::prefix('v1')->group(function () {
             Route::put('/bulk-purchases/config/low-stock', [BulkPurchaseController::class, 'updateLowStockConfig'])->middleware('permission:products.edit');
             Route::get('/bulk-purchases/reorder/suggestions', [BulkPurchaseController::class, 'reorderSuggestions'])->middleware('permission:products.view');
 
+            // V-AUDIT-FIX-2026: Inventory Traceability Reports
+            Route::get('/inventory/{bulkPurchaseId}/trace', [App\Http\Controllers\Api\Admin\InventoryTraceabilityController::class, 'traceBulkPurchase'])->middleware('permission:products.view');
+            Route::get('/products/{productId}/inventory/trace', [App\Http\Controllers\Api\Admin\InventoryTraceabilityController::class, 'traceProduct'])->middleware('permission:products.view');
+            Route::get('/inventory/summary', [App\Http\Controllers\Api\Admin\InventoryTraceabilityController::class, 'platformSummary'])->middleware('permission:products.view');
+            Route::post('/inventory/reconcile', [App\Http\Controllers\Api\Admin\InventoryTraceabilityController::class, 'dispatchReconciliation'])->middleware('permission:products.edit');
+
             // CMS & Settings
             Route::apiResource('/pages', PageController::class)->middleware('permission:settings.manage_cms');
             Route::get('/pages/{page}/analyze', [PageController::class, 'analyze'])->middleware('permission:settings.manage_cms');
@@ -1396,6 +1402,16 @@ Route::prefix('v1')->group(function () {
             Route::get('/companies/{company}', [App\Http\Controllers\Api\Admin\AuditDashboardController::class, 'showCompany']);
             Route::get('/actions', [App\Http\Controllers\Api\Admin\AuditDashboardController::class, 'listActions']);
             Route::get('/actions/{action}', [App\Http\Controllers\Api\Admin\AuditDashboardController::class, 'showAction']);
+
+            // V-AUDIT-FIX-2026: Snapshot Integrity Verification
+            Route::get('/snapshots/{snapshotId}/verify', [App\Http\Controllers\Api\Admin\SnapshotIntegrityController::class, 'verifySnapshot']);
+            Route::get('/companies/{companyId}/snapshots/verify', [App\Http\Controllers\Api\Admin\SnapshotIntegrityController::class, 'verifyCompanySnapshots']);
+            Route::post('/snapshots/audit', [App\Http\Controllers\Api\Admin\SnapshotIntegrityController::class, 'dispatchAudit']);
+            Route::get('/snapshots/audit/summary', [App\Http\Controllers\Api\Admin\SnapshotIntegrityController::class, 'auditSummary']);
+
+            // V-AUDIT-FIX-2026: Platform Context Snapshot Comparison
+            Route::get('/platform-snapshots/compare', [App\Http\Controllers\Api\Admin\SnapshotIntegrityController::class, 'comparePlatformSnapshots']);
+            Route::get('/companies/{companyId}/platform-snapshots', [App\Http\Controllers\Api\Admin\SnapshotIntegrityController::class, 'getPlatformSnapshotHistory']);
         });
 
         // ========================================================================

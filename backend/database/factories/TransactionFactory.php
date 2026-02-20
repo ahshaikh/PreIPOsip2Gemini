@@ -1,11 +1,13 @@
 <?php
+// V-FACTORY (Created for comprehensive test coverage)
+// V-CANONICAL-PAISE-2026: Updated for paise-only schema
+// V-AUDIT-FIX-2026: Fixed reference_id to always create valid model references
 
 namespace Database\Factories;
 
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Wallet;
-use App\Models\Subscription;
 use App\Models\Payment;
 use App\Models\UserInvestment;
 use App\Models\Withdrawal;
@@ -18,38 +20,86 @@ class TransactionFactory extends Factory
 
     public function definition(): array
     {
-        // Random reference type
-        $referenceType = $this->faker->randomElement([
-            'payment',
-            'withdrawal',
-            'investment',
-            'bonus',
-            'refund',
-        ]);
-
-        // Assign a matching reference_id safely
-        $referenceId = match ($referenceType) {
-            'payment'     => Payment::inRandomOrder()->value('id') ?? 1,
-            'withdrawal'  => Withdrawal::inRandomOrder()->value('id') ?? 1,
-            'investment'  => UserInvestment::inRandomOrder()->value('id') ?? 1,
-            'bonus'       => 1, // You may create a Bonus model later
-            'refund'      => Payment::inRandomOrder()->value('id') ?? 1,
-            default       => 1,
-        };
+        // V-AUDIT-FIX-2026: Default to 'bonus' which doesn't require a related model
+        // Use specific state methods to create transactions with proper references
+        $amountPaise = $this->faker->numberBetween(10000, 1000000); // 100 to 10000 rupees in paise
+        $balanceBeforePaise = $this->faker->numberBetween(0, 10000000);
+        $balanceAfterPaise = $balanceBeforePaise + $amountPaise;
 
         return [
-            'wallet_id'      => Wallet::factory(),
-            'user_id'        => User::inRandomOrder()->value('id') ?? 1,
-            'type'           => $referenceType, // matches reference_type logically
-            'amount'         => $this->faker->randomFloat(2, 100, 10000),
-            'balance_after'  => $this->faker->randomFloat(2, 0, 100000),
-            'description'    => $this->faker->sentence(),
-            'reference_type' => $referenceType,
-            'reference_id'   => $referenceId,
-            'transaction_id' => Str::uuid(),
-            'tds_deducted'   => 0,
-            'status'         => $this->faker->randomElement(['completed', 'pending', 'failed']),
+            'wallet_id'           => Wallet::factory(),
+            'user_id'             => User::factory(),
+            'type'                => 'bonus', // Safe default - no reference needed
+            'amount_paise'        => $amountPaise,
+            'balance_before_paise'=> $balanceBeforePaise,
+            'balance_after_paise' => $balanceAfterPaise,
+            'tds_deducted_paise'  => 0,
+            'description'         => $this->faker->sentence(),
+            'reference_type'      => 'bonus',
+            'reference_id'        => null, // V-AUDIT-FIX-2026: No reference for bonus
+            'transaction_id'      => Str::uuid(),
+            'status'              => $this->faker->randomElement(['completed', 'pending', 'failed']),
+            'is_reversed'         => false,
         ];
+    }
+
+    /**
+     * V-AUDIT-FIX-2026: Transaction linked to a payment.
+     * Creates the payment to ensure valid reference.
+     */
+    public function forPayment(): static
+    {
+        return $this->state(function (array $attributes) {
+            return [
+                'type' => 'payment',
+                'reference_type' => 'payment',
+                'reference_id' => Payment::factory(),
+            ];
+        });
+    }
+
+    /**
+     * V-AUDIT-FIX-2026: Transaction linked to a withdrawal.
+     * Creates the withdrawal to ensure valid reference.
+     */
+    public function forWithdrawal(): static
+    {
+        return $this->state(function (array $attributes) {
+            return [
+                'type' => 'withdrawal',
+                'reference_type' => 'withdrawal',
+                'reference_id' => Withdrawal::factory(),
+            ];
+        });
+    }
+
+    /**
+     * V-AUDIT-FIX-2026: Transaction linked to an investment.
+     * Creates the investment to ensure valid reference.
+     */
+    public function forInvestment(): static
+    {
+        return $this->state(function (array $attributes) {
+            return [
+                'type' => 'investment',
+                'reference_type' => 'investment',
+                'reference_id' => UserInvestment::factory(),
+            ];
+        });
+    }
+
+    /**
+     * V-AUDIT-FIX-2026: Refund transaction linked to original payment.
+     */
+    public function refund(): static
+    {
+        return $this->state(function (array $attributes) {
+            return [
+                'type' => 'refund',
+                'reference_type' => 'payment',
+                'reference_id' => Payment::factory(),
+            ];
+        });
     }
 
     /** Deposit transaction */

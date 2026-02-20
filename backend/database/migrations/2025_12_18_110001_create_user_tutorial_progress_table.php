@@ -15,10 +15,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Guard required for migrate:fresh and legacy schema safety
-        if (! Schema::hasTable('user_tutorial_progress')) {
-
-            Schema::create('user_tutorial_progress', function (Blueprint $table) {
+        Schema::create('user_tutorial_progress', function (Blueprint $table) {
                 $table->id();
 
                 // Relationships
@@ -50,8 +47,6 @@ return new class extends Migration
                 $table->index(['tutorial_id', 'completed']);
                 $table->index('last_activity_at');
             });
-
-        }
     }
 
     /**

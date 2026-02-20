@@ -1,6 +1,7 @@
 <?php
 /**
  * STORY 3.1: Company Disclosure Tier Service
+ * V-AUDIT-FIX-2026: Added CompanyTierChanged event dispatch
  *
  * GOVERNANCE INVARIANT:
  * This service is the SOLE AUTHORITY for changing a company's disclosure_tier.
@@ -12,6 +13,14 @@
  * 3. Actor MUST have explicit authorization
  * 4. Each promotion is a DISCRETE TRANSACTION
  *
+ * DOWNGRADE POLICY (V-AUDIT-FIX-2026):
+ * Downgrades are EXPLICITLY FORBIDDEN. This is enforced by:
+ * 1. DisclosureTier::canPromoteTo() returns false for lower tiers
+ * 2. DisclosureTierImmutabilityException::downgradeAttempt() is thrown
+ * 3. No alternative downgrade path exists in the system
+ * Rationale: Once a company reaches a disclosure tier, that represents
+ * a compliance milestone that cannot be revoked without regulatory action.
+ *
  * COMPLIANCE NOTE:
  * This service is designed for forensic/audit review.
  * Every promotion is logged with actor, timestamp, justification, and context.
@@ -21,6 +30,7 @@ namespace App\Services;
 
 use App\Enums\DisclosureTier;
 use App\Enums\DisclosureTierRequirements;
+use App\Events\CompanyTierChanged;
 use App\Exceptions\DisclosureTierImmutabilityException;
 use App\Models\Company;
 use Illuminate\Support\Facades\DB;
@@ -91,11 +101,12 @@ class CompanyDisclosureTierService
         }
 
         // Execute promotion within transaction
-        return DB::transaction(function () use ($company, $currentTier, $targetTier, $actor, $justification, $metadata) {
-            $promotedAt = now();
+        $promotedAt = now();
 
+        $company = DB::transaction(function () use ($company, $currentTier, $targetTier, $actor, $justification, $metadata, $promotedAt) {
             // Use raw query to bypass model guards
             // This is the ONLY place where direct DB update is authorized
+            // V-AUDIT-FIX-2026: Raw DB is intentional - model guards block ALL other paths
             DB::table('companies')
                 ->where('id', $company->id)
                 ->update([
@@ -106,7 +117,8 @@ class CompanyDisclosureTierService
             // Refresh model to get updated value
             $company->refresh();
 
-            // Create audit record
+            // Create audit record (WITHIN transaction for atomicity)
+            // V-AUDIT-FIX-2026: Audit log is in same transaction as tier change
             $this->logPromotion(
                 $company,
                 $currentTier,
@@ -129,6 +141,20 @@ class CompanyDisclosureTierService
 
             return $company;
         });
+
+        // V-AUDIT-FIX-2026: Dispatch event AFTER transaction commits
+        // This ensures downstream listeners see committed state
+        CompanyTierChanged::dispatch(
+            $company,
+            $currentTier,
+            $targetTier,
+            $actor,
+            $justification,
+            $metadata,
+            $promotedAt
+        );
+
+        return $company;
     }
 
     /**

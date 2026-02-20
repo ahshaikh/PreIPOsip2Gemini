@@ -12,10 +12,18 @@ use Illuminate\Support\Facades\Log;
 /**
  * PHASE 1 STABILIZATION - Issue 5: Investment Snapshot Service
  * PHASE 1 AUDIT FIX: Now uses ApprovedDisclosureRepository for authority-enforced data
+ * V-AUDIT-FIX-2026: Added integrity verification and hash algorithm documentation
  *
  * PURPOSE:
  * Captures immutable snapshot of all disclosures at investment purchase.
  * Proves exactly what investor saw when they made decision.
+ *
+ * HASH ALGORITHM (V-AUDIT-FIX-2026):
+ * - Algorithm: SHA-256
+ * - Input: JSON-encoded disclosure data (sorted keys for determinism)
+ * - Output: 64-character hex string
+ * - Usage: Each disclosure version has a version_hash computed at approval time
+ * - Verification: verifySnapshotIntegrity() recomputes and compares hashes
  *
  * PHASE 1 AUDIT REQUIREMENTS:
  * 1. ONLY capture approved disclosures (not draft, submitted, rejected, etc.)
@@ -26,6 +34,7 @@ use Illuminate\Support\Facades\Log;
  * USAGE:
  * Call captureAtPurchase() when investment is created.
  * Call getSnapshotForInvestment() for dispute resolution.
+ * Call verifySnapshotIntegrity() to detect tampering.
  */
 class InvestmentSnapshotService
 {
@@ -424,5 +433,183 @@ class InvestmentSnapshotService
             'recalculation_forbidden' => true,
             'immutability_guarantee' => 'These snapshots are permanently frozen and cannot be recalculated or mutated. This includes disclosure data, platform context, public page view, and risk acknowledgements.',
         ];
+    }
+
+    /**
+     * V-AUDIT-FIX-2026: Verify snapshot integrity
+     *
+     * Recomputes hashes for all disclosures in snapshot and compares against
+     * stored version_hash values. Detects any tampering or corruption.
+     *
+     * ALGORITHM: SHA-256 of JSON-encoded disclosure data (sorted keys)
+     *
+     * @param int $snapshotId
+     * @return array Verification result with details
+     */
+    public function verifySnapshotIntegrity(int $snapshotId): array
+    {
+        $snapshot = InvestmentDisclosureSnapshot::find($snapshotId);
+
+        if (!$snapshot) {
+            return [
+                'verified' => false,
+                'snapshot_id' => $snapshotId,
+                'error' => 'Snapshot not found',
+                'tamper_detected' => null,
+            ];
+        }
+
+        $disclosureSnapshot = $snapshot->disclosure_snapshot;
+        if (empty($disclosureSnapshot)) {
+            return [
+                'verified' => true,
+                'snapshot_id' => $snapshotId,
+                'disclosures_verified' => 0,
+                'message' => 'No disclosures in snapshot',
+                'tamper_detected' => false,
+            ];
+        }
+
+        $verificationResults = [];
+        $allValid = true;
+        $tamperedDisclosures = [];
+
+        foreach ($disclosureSnapshot as $disclosureId => $disclosureData) {
+            $storedHash = $disclosureData['version_hash'] ?? null;
+
+            if (!$storedHash) {
+                // No hash stored - cannot verify (legacy data)
+                $verificationResults[$disclosureId] = [
+                    'status' => 'no_hash',
+                    'message' => 'No version_hash stored for verification',
+                ];
+                continue;
+            }
+
+            // Recompute hash from disclosure data
+            $dataToHash = $disclosureData['data'] ?? [];
+            $computedHash = $this->computeHash($dataToHash);
+
+            $isValid = hash_equals($storedHash, $computedHash);
+
+            $verificationResults[$disclosureId] = [
+                'status' => $isValid ? 'valid' : 'tampered',
+                'stored_hash' => $storedHash,
+                'computed_hash' => $computedHash,
+                'module_code' => $disclosureData['module_code'] ?? 'unknown',
+            ];
+
+            if (!$isValid) {
+                $allValid = false;
+                $tamperedDisclosures[] = [
+                    'disclosure_id' => $disclosureId,
+                    'module_code' => $disclosureData['module_code'] ?? 'unknown',
+                    'stored_hash' => $storedHash,
+                    'computed_hash' => $computedHash,
+                ];
+            }
+        }
+
+        // Log if tampering detected
+        if (!$allValid) {
+            Log::critical('[SNAPSHOT INTEGRITY VIOLATION] Tampering detected', [
+                'snapshot_id' => $snapshotId,
+                'investment_id' => $snapshot->investment_id,
+                'company_id' => $snapshot->company_id,
+                'tampered_disclosures' => $tamperedDisclosures,
+            ]);
+        }
+
+        return [
+            'verified' => $allValid,
+            'snapshot_id' => $snapshotId,
+            'investment_id' => $snapshot->investment_id,
+            'company_id' => $snapshot->company_id,
+            'disclosures_verified' => count($verificationResults),
+            'tamper_detected' => !$allValid,
+            'tampered_disclosures' => $tamperedDisclosures,
+            'verification_details' => $verificationResults,
+            'verified_at' => now()->toIso8601String(),
+        ];
+    }
+
+    /**
+     * V-AUDIT-FIX-2026: Compute SHA-256 hash of disclosure data
+     *
+     * @param array $data Disclosure data to hash
+     * @return string 64-character hex hash
+     */
+    protected function computeHash(array $data): string
+    {
+        // Sort keys recursively for deterministic hashing
+        $sortedData = $this->sortArrayRecursively($data);
+
+        // JSON encode with consistent formatting
+        $json = json_encode($sortedData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        return hash('sha256', $json);
+    }
+
+    /**
+     * Sort array keys recursively for deterministic serialization.
+     */
+    protected function sortArrayRecursively(array $array): array
+    {
+        ksort($array);
+
+        foreach ($array as $key => $value) {
+            if (is_array($value)) {
+                $array[$key] = $this->sortArrayRecursively($value);
+            }
+        }
+
+        return $array;
+    }
+
+    /**
+     * V-AUDIT-FIX-2026: Verify all snapshots for a company
+     *
+     * Bulk verification for audit purposes.
+     *
+     * @param int $companyId
+     * @return array Summary of verification results
+     */
+    public function verifyAllSnapshotsForCompany(int $companyId): array
+    {
+        $snapshots = InvestmentDisclosureSnapshot::where('company_id', $companyId)->get();
+
+        $results = [
+            'company_id' => $companyId,
+            'total_snapshots' => $snapshots->count(),
+            'verified' => 0,
+            'tampered' => 0,
+            'errors' => 0,
+            'details' => [],
+        ];
+
+        foreach ($snapshots as $snapshot) {
+            $result = $this->verifySnapshotIntegrity($snapshot->id);
+
+            if ($result['verified']) {
+                $results['verified']++;
+            } elseif ($result['tamper_detected']) {
+                $results['tampered']++;
+                $results['details'][] = [
+                    'snapshot_id' => $snapshot->id,
+                    'investment_id' => $snapshot->investment_id,
+                    'status' => 'tampered',
+                    'tampered_disclosures' => $result['tampered_disclosures'],
+                ];
+            } else {
+                $results['errors']++;
+                $results['details'][] = [
+                    'snapshot_id' => $snapshot->id,
+                    'status' => 'error',
+                    'error' => $result['error'] ?? 'Unknown error',
+                ];
+            }
+        }
+
+        return $results;
     }
 }

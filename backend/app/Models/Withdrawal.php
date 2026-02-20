@@ -19,10 +19,10 @@ class Withdrawal extends Model
     protected $fillable = [
         'user_id',
         'wallet_id',
-        'amount',
-        'fee',
-        'tds_deducted',
-        'net_amount',
+        'amount_paise',
+        'fee_paise',
+        'tds_deducted_paise',
+        'net_amount_paise',
         'status',
         'priority',
         'fee_breakdown',
@@ -42,15 +42,22 @@ class Withdrawal extends Model
     protected $casts = [
         'bank_details' => 'json',
         'fee_breakdown' => 'json',
-        'amount' => 'decimal:2',
-        'fee' => 'decimal:2',
-        'tds_deducted' => 'decimal:2',
-        'net_amount' => 'decimal:2',
+        'amount_paise' => 'integer',
+        'fee_paise' => 'integer',
+        'tds_deducted_paise' => 'integer',
+        'net_amount_paise' => 'integer',
         'approved_at' => 'datetime',
         'processed_at' => 'datetime',
         'funds_locked' => 'boolean', // FIX 18
         'funds_locked_at' => 'datetime', // FIX 18
         'funds_unlocked_at' => 'datetime', // FIX 18
+    ];
+
+    protected $appends = [
+        'amount',
+        'fee',
+        'tds_deducted',
+        'net_amount',
     ];
 
     /**
@@ -59,16 +66,50 @@ class Withdrawal extends Model
     protected static function booted()
     {
         static::saving(function ($withdrawal) {
-            if ($withdrawal->amount <= 0) {
+            if (($withdrawal->amount_paise ?? 0) <= 0) {
                 throw new \InvalidArgumentException("Withdrawal amount must be positive.");
             }
-            if (empty($withdrawal->tds_deducted)) {
-                $withdrawal->tds_deducted = 0;
+            if (empty($withdrawal->tds_deducted_paise)) {
+                $withdrawal->tds_deducted_paise = 0;
             }
-            
-            // Auto-calculate Net Amount
-            $withdrawal->net_amount = $withdrawal->amount - $withdrawal->fee - $withdrawal->tds_deducted;
+
+            // Auto-calculate Net Amount (paise)
+            $withdrawal->net_amount_paise = $withdrawal->amount_paise - ($withdrawal->fee_paise ?? 0) - ($withdrawal->tds_deducted_paise ?? 0);
         });
+    }
+
+    // --- VIRTUAL ACCESSORS (PAISE -> RUPEES) ---
+
+    protected function amount(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value, $attributes) =>
+                ($attributes['amount_paise'] ?? 0) / 100
+        );
+    }
+
+    protected function fee(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value, $attributes) =>
+                ($attributes['fee_paise'] ?? 0) / 100
+        );
+    }
+
+    protected function tdsDeducted(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value, $attributes) =>
+                ($attributes['tds_deducted_paise'] ?? 0) / 100
+        );
+    }
+
+    protected function netAmount(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value, $attributes) =>
+                ($attributes['net_amount_paise'] ?? 0) / 100
+        );
     }
 
     // --- RELATIONSHIPS ---

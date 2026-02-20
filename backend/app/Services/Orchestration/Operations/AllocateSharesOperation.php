@@ -4,6 +4,7 @@ namespace App\Services\Orchestration\Operations;
 
 use App\Services\Orchestration\Saga\SagaContext;
 use App\Services\AllocationService;
+use App\Exceptions\InsufficientInventoryException;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -32,7 +33,8 @@ class AllocateSharesOperation implements OperationInterface
         try {
             // Allocate shares synchronously
             // This replaces ProcessAllocationJob (no more async failures!)
-            $allocationSuccess = $this->allocationService->allocateShares(
+            // GAP 2 FIX: Now throws InsufficientInventoryException instead of returning false
+            $this->allocationService->allocateShares(
                 $this->user,
                 $this->investment->product,
                 $this->investment->final_amount,
@@ -40,19 +42,6 @@ class AllocateSharesOperation implements OperationInterface
                 'investment',
                 setting('allow_fractional_shares', true)
             );
-
-            if (!$allocationSuccess) {
-                // Insufficient inventory - this is a business failure, not exception
-                Log::warning("OPERATION: Allocation failed - insufficient inventory", [
-                    'investment_id' => $this->investment->id,
-                    'amount' => $this->investment->final_amount,
-                ]);
-
-                return OperationResult::failure(
-                    'Insufficient inventory to fulfill allocation',
-                    ['inventory_depleted' => true]
-                );
-            }
 
             // Get allocated investments for compensation
             $allocatedInvestments = $this->investment->userInvestments;
@@ -67,6 +56,20 @@ class AllocateSharesOperation implements OperationInterface
                 'user_investments_count' => $allocatedInvestments->count(),
                 'total_units' => $allocatedInvestments->sum('units_allocated'),
             ]);
+
+        } catch (InsufficientInventoryException $e) {
+            // GAP 2 FIX: Catch typed exception for insufficient inventory
+            Log::warning("OPERATION: Allocation failed - insufficient inventory", [
+                'investment_id' => $this->investment->id,
+                'amount' => $this->investment->final_amount,
+                'available' => $e->getAvailable(),
+                'requested' => $e->getRequested(),
+            ]);
+
+            return OperationResult::failure(
+                'Insufficient inventory to fulfill allocation',
+                ['inventory_depleted' => true]
+            );
 
         } catch (\Throwable $e) {
             Log::error("OPERATION FAILED: Share allocation exception", [

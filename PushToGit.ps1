@@ -8,66 +8,76 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "feat(core): canonical schema convergence + financial hardening + test stabilization
+$CommitMessage = "feat(audit-hardening): stabilize migrations, enforce inventory invariants, close company module audit gaps
 
-PHASES COMPLETED:
-- Migration Canonicalization
-- Financial Invariant Hardening
-- Wallet Paise Standardization
-- Event-Driven Support Refactor
-- Permission & Auth Alignment
-- Test Suite Convergence
+SUMMARY
+--------
+Comprehensive architectural stabilization and audit remediation across
+Company, Inventory, Allocation, Snapshot, and Eligibility layers.
 
-MAJOR CHANGES:
+This commit resolves migration instability, removes dual allocation contracts,
+hardens financial invariants, and implements missing audit tooling identified
+in the Company Module Audit Report.
 
-1️⃣ Canonical Schema Enforcement
-- Removed transitional wallet/transaction paise migrations
-- Converted wallets, transactions, withdrawals to paise-only canonical model
-- Moved disclosure_tier into canonical companies schema
-- Eliminated decimal-era schema drift
-- Fixed rollback FK ordering issues (tutorials, campaign_usages, etc.)
-- Ensured migrate:fresh deterministic rebuild
+MIGRATION & SCHEMA STABILIZATION
+---------------------------------
+- Removed non-deterministic Schema::hasTable() guards
+- Fixed migration ordering to ensure parent tables created before dependents
+- Eliminated FK drop inconsistencies affecting migrate:fresh
+- Standardized paise-only monetary schema alignment
+- Ensured rollback safety and deterministic fresh rebuild
 
-2️⃣ Financial System Hardening
-- Standardized monetary fields to BIGINT paise
-- Preserved invariant enforcement in domain layer
-- Restored Razorpay verifyWebhookSignature()
-- Fixed payment minimum config alignment for tests
+INVENTORY & ALLOCATION HARDENING
+---------------------------------
+- AllocationService now consistently throws InsufficientInventoryException
+- Removed legacy return-false inventory failure paths
+- Refactored allocateSharesLegacy() to use typed exceptions
+- Eliminated phantom Product stub in global shortage handling
+- InsufficientInventoryException now supports nullable Product (clean contract)
+- Added explicit isGlobalShortage() indicator for audit clarity
 
-3️⃣ Constructor DI Stabilization
-- Refactored BonusCalculatorService, LuckyDrawService, SubscriptionService
-  to nullable DI with container fallback
-- Maintains strong DI while allowing direct test instantiation
+ELIGIBILITY & TOCTOU PROTECTION
+--------------------------------
+- Added commit-time buy eligibility re-verification
+- Wrapped enforcement behind config flag for test isolation
+- Introduced config/eligibility.php
+- Added ENFORCE_ELIGIBILITY_AT_COMMIT toggle for .env.testing
+- Ensured transaction rollback safety (no partial mutation risk)
 
-4️⃣ Permissions & Auth Corrections
-- Fixed PermissionsSeeder naming mismatch
-- Granted users.adjust_wallet to admin role
-- Aligned login invalid-credential response (422 vs 401)
-- Stabilized permission middleware tests
+AUDIT GAP REMEDIATION
+---------------------
+- Implemented InventoryReconciliationJob
+- Implemented SnapshotIntegrityAuditJob
+- Added verifySnapshotIntegrity() and hash documentation (SHA-256)
+- Fixed platform snapshot time-gap vulnerability
+- Added InventoryTraceabilityReportService (audit-ready JSON output)
+- Dispatched CompanyTierChanged event post-transaction commit
+- Strengthened disclosure-tier governance flow
 
-5️⃣ Support Module Fixes
-- Fixed sla_hours null insertion via factory correction
-- Added TicketReplied event (missing class)
-- Ensured event-driven support flows are complete
-- Preserved load-balancing + SLA escalation logic
+FACTORY STABILIZATION
+---------------------
+- ProductFactory default set to inactive (no implicit inventory side effects)
+- Added explicit activeWithInventory() and legacyActive() states
+- Added WithdrawalFactory state coverage (approved, processed, rejected)
+- Adjusted TransactionFactory defaults for deterministic test behavior
 
-6️⃣ Validation Alignment
-- Corrected Aadhaar regex to match test contract
-- Maintained strict PAN and IFSC validation
+ROUTE & MIDDLEWARE VALIDATION
+-----------------------------
+- Verified audit and inventory routes under sanctum + admin role guards
+- Ensured no route guard leakage into web middleware
 
-7️⃣ Test Infrastructure Stabilization
-- Removed schema rollback fragility
-- Ensured FK-safe refresh behavior
-- Restored full suite determinism
+ARCHITECTURAL IMPACT
+--------------------
+- No weakening of financial invariants
+- No modification to DoubleEntryLedgerService core logic
+- No alteration of FIFO allocation logic
+- No mutation of wallet service invariants
+- Deterministic migrate:fresh restored
+- Inventory conservation contract strengthened
 
-RESULT:
-- Canonical, paise-only financial schema
-- Deterministic migrations
-- Event-driven support system complete
-- Permissions aligned
-- Test suite stabilized and converging toward full green
-
-This commit finalizes canonical convergence and eliminates legacy schema entropy."
+This commit transitions the Company Module from Production-Ready
+to Audit-Hardened while preserving financial correctness and
+ledger symmetry guarantees."
 #----------------------
 
 function Get-GitCredential {

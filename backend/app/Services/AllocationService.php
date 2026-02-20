@@ -23,6 +23,7 @@ use App\Services\RiskGuardService;
 use App\Enums\InvestmentSource;
 use App\Enums\TransactionType;
 use App\Exceptions\RiskBlockedException;
+use App\Exceptions\InsufficientInventoryException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 
@@ -51,6 +52,7 @@ class AllocationService
      * [ORCHESTRATION-COMPATIBLE]: Used by saga-based allocation
      * [CONSERVATION-ENFORCED]: Integrates with InventoryConservationService
      * [RISK-GUARDED]: Blocked users cannot receive allocations (V-DISPUTE-RISK-2026-006)
+     * [V-AUDIT-FIX-2026]: Explicit pre-allocation balance check with typed exception
      *
      * @param \App\Models\User $user
      * @param \App\Models\Product $product
@@ -60,6 +62,7 @@ class AllocationService
      * @param bool $allowFractional
      * @return bool Success status
      * @throws RiskBlockedException If user is risk-blocked
+     * @throws InsufficientInventoryException If insufficient inventory
      */
     public function allocateShares($user, $product, float $amount, $investment, string $source = 'investment', bool $allowFractional = true): bool
     {
@@ -76,25 +79,37 @@ class AllocationService
             'source' => $source,
         ]);
 
+        // V-AUDIT-FIX-2026: Explicit pre-allocation balance check BEFORE transaction
+        // This provides clear exception typing for callers
+        $this->assertSufficientInventory($product, $amount, $source);
+
         return DB::transaction(function () use ($user, $product, $amount, $investment, $source, $allowFractional) {
 
             // CONSERVATION CHECK: Verify allocation won't violate conservation law
             $canAllocate = $this->conservationService->canAllocate($product, $amount);
             if (!$canAllocate['can_allocate']) {
                 Log::warning("ALLOCATION BLOCKED: Conservation check failed", $canAllocate);
-                return false;
+                // V-AUDIT-FIX-2026: Throw typed exception instead of returning false
+                throw InsufficientInventoryException::forProduct(
+                    $product,
+                    $amount,
+                    $canAllocate['available'] ?? 0,
+                    $source
+                );
             }
 
             // Lock inventory for this product (prevents concurrent allocation)
             $batches = $this->conservationService->lockInventoryForAllocation($product);
 
-            if ($batches->sum('value_remaining') < $amount) {
+            $available = $batches->sum('value_remaining');
+            if ($available < $amount) {
                 Log::warning("ALLOCATION BLOCKED: Insufficient inventory", [
                     'product_id' => $product->id,
                     'requested' => $amount,
-                    'available' => $batches->sum('value_remaining'),
+                    'available' => $available,
                 ]);
-                return false;
+                // V-AUDIT-FIX-2026: Throw typed exception instead of returning false
+                throw InsufficientInventoryException::forProduct($product, $amount, $available, $source);
             }
 
             $remainingNeeded = $amount;
@@ -169,8 +184,10 @@ class AllocationService
      * [AUDIT FIX]: Added lockForUpdate() to prevent two users from claiming the same fragmented batch.
      * [RISK-GUARDED]: Blocked users cannot receive allocations (V-DISPUTE-RISK-2026-006)
      * [DEPRECATED]: Use allocateShares(user, product, amount, investment, ...) for new code
+     * [V-AUDIT-FIX-2026]: Now throws InsufficientInventoryException for consistency
      *
      * @throws RiskBlockedException If user is risk-blocked
+     * @throws InsufficientInventoryException If insufficient global inventory
      */
     public function allocateSharesLegacy(Payment $payment, float $totalInvestmentValue, string $source = null)
     {
@@ -191,18 +208,25 @@ class AllocationService
         $allowFractional = setting('allow_fractional_shares', true);
 
         // [AUDIT FIX]: Wrap in transaction to ensure either ALL batches are updated or NONE.
-        $allocationSuccess = DB::transaction(function () use ($user, $payment, $totalInvestmentValue, $source, $allowFractional) {
+        DB::transaction(function () use ($user, $payment, $totalInvestmentValue, $source, $allowFractional) {
 
             // 1. Fetch available inventory batches olders first (FIFO)
             // [AUDIT FIX]: lockForUpdate() prevents other requests from reading these rows until commit.
             $batches = BulkPurchase::where('value_remaining', '>', 0)
                 ->whereHas('product', fn($q) => $q->where('status', 'active'))
                 ->orderBy('purchase_date', 'asc')
-                ->lockForUpdate() 
+                ->lockForUpdate()
                 ->get();
 
-            if ($batches->sum('value_remaining') < $totalInvestmentValue) {
-                return false; // Insufficient total global inventory
+            $available = $batches->sum('value_remaining');
+            if ($available < $totalInvestmentValue) {
+                // V-AUDIT-FIX-2026: Throw typed exception instead of return false
+                Log::warning("LEGACY ALLOCATION BLOCKED: Insufficient global inventory", [
+                    'payment_id' => $payment->id,
+                    'requested' => $totalInvestmentValue,
+                    'available' => $available,
+                ]);
+                throw InsufficientInventoryException::forGlobalInventory($totalInvestmentValue, $available, 'legacy_allocation');
             }
 
             $remainingNeeded = $totalInvestmentValue;
@@ -260,15 +284,14 @@ class AllocationService
                     $payment
                 );
             }
-
-            return true;
         });
-
-        if (!$allocationSuccess) {
-            $this->flagFailedAllocation($payment, $totalInvestmentValue);
-        }
+        // V-AUDIT-FIX-2026: Removed $allocationSuccess check - now throws exception on failure
     }
 
+    /**
+     * @deprecated V-AUDIT-FIX-2026: No longer auto-called. allocateSharesLegacy now throws exception.
+     * Kept for manual flagging if needed.
+     */
     private function flagFailedAllocation($payment, $value) {
         Log::critical("INVENTORY DEPLETION: Failed allocation for Payment #{$payment->id}");
         $payment->update([
@@ -362,6 +385,36 @@ class AllocationService
                 'reversed_at' => now(),
                 'reversal_reason' => $reason
             ]);
+        }
+    }
+
+    /**
+     * V-AUDIT-FIX-2026: Explicit pre-allocation balance check
+     *
+     * Called BEFORE transaction to provide clear exception typing.
+     * This is a fast check using sum query (not locked).
+     *
+     * @param \App\Models\Product $product
+     * @param float $amount
+     * @param string $source
+     * @throws InsufficientInventoryException
+     */
+    protected function assertSufficientInventory($product, float $amount, string $source): void
+    {
+        $available = BulkPurchase::where('product_id', $product->id)
+            ->where('value_remaining', '>', 0)
+            ->sum('value_remaining');
+
+        if ($available < $amount) {
+            Log::warning("PRE-ALLOCATION CHECK: Insufficient inventory", [
+                'product_id' => $product->id,
+                'product_name' => $product->name,
+                'requested' => $amount,
+                'available' => $available,
+                'source' => $source,
+            ]);
+
+            throw InsufficientInventoryException::forProduct($product, $amount, $available, $source);
         }
     }
 }

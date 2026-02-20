@@ -48,6 +48,10 @@ class PlatformContextSnapshotService
         DB::beginTransaction();
 
         try {
+            // V-AUDIT-FIX-2026: Capture timestamp ONCE to ensure no time gap
+            // new.valid_from == old.valid_until (exact same instant)
+            $transitionTimestamp = now();
+
             // Mark previous current snapshot as superseded
             $previousSnapshot = $this->getCurrentSnapshot($company->id);
             if ($previousSnapshot) {
@@ -55,7 +59,7 @@ class PlatformContextSnapshotService
                     ->where('id', $previousSnapshot->id)
                     ->update([
                         'is_current' => false,
-                        'valid_until' => now(),
+                        'valid_until' => $transitionTimestamp, // V-AUDIT-FIX-2026
                     ]);
             }
 
@@ -118,11 +122,13 @@ class PlatformContextSnapshotService
 
                 // Immutability
                 'is_locked' => true,
-                'locked_at' => now(),
+                'locked_at' => $transitionTimestamp,
                 'supersedes_snapshot_id' => $previousSnapshot?->id,
 
                 // Validity
-                'valid_from' => now(),
+                // V-AUDIT-FIX-2026: Use same timestamp as old snapshot's valid_until
+                // This guarantees NO time gap between snapshots
+                'valid_from' => $transitionTimestamp,
                 'valid_until' => null,
                 'is_current' => true,
 
@@ -418,6 +424,166 @@ class PlatformContextSnapshotService
                 'decision_reason' => $action->decision_reason,
                 'admin_user_id' => $action->admin_user_id,
                 'created_at' => $action->created_at,
+            ];
+        })->toArray();
+    }
+
+    /**
+     * V-AUDIT-FIX-2026: Compare two snapshots and return diff
+     *
+     * Used by admin for audit purposes to understand what changed between snapshots.
+     *
+     * @param int $snapshotId1 First (older) snapshot ID
+     * @param int $snapshotId2 Second (newer) snapshot ID
+     * @return array Diff result with changes
+     */
+    public function compareSnapshots(int $snapshotId1, int $snapshotId2): array
+    {
+        $snapshot1 = $this->getSnapshot($snapshotId1);
+        $snapshot2 = $this->getSnapshot($snapshotId2);
+
+        if (!$snapshot1 || !$snapshot2) {
+            return [
+                'error' => 'One or both snapshots not found',
+                'snapshot1_exists' => $snapshot1 !== null,
+                'snapshot2_exists' => $snapshot2 !== null,
+            ];
+        }
+
+        // Verify same company
+        if ($snapshot1->company_id !== $snapshot2->company_id) {
+            return [
+                'error' => 'Cannot compare snapshots from different companies',
+                'company_id_1' => $snapshot1->company_id,
+                'company_id_2' => $snapshot2->company_id,
+            ];
+        }
+
+        $changes = [];
+
+        // Compare governance fields
+        $governanceFields = [
+            'lifecycle_state',
+            'buying_enabled',
+            'is_suspended',
+            'is_frozen',
+            'is_under_investigation',
+        ];
+
+        foreach ($governanceFields as $field) {
+            $val1 = $snapshot1->$field ?? null;
+            $val2 = $snapshot2->$field ?? null;
+
+            if ($val1 !== $val2) {
+                $changes[] = [
+                    'field' => $field,
+                    'category' => 'governance',
+                    'old_value' => $val1,
+                    'new_value' => $val2,
+                    'is_material' => in_array($field, ['lifecycle_state', 'buying_enabled', 'is_suspended']),
+                ];
+            }
+        }
+
+        // Compare tier approvals
+        $tierFields = [
+            'tier_1_approved',
+            'tier_2_approved',
+            'tier_3_approved',
+        ];
+
+        foreach ($tierFields as $field) {
+            $val1 = $snapshot1->$field ?? null;
+            $val2 = $snapshot2->$field ?? null;
+
+            if ($val1 !== $val2) {
+                $changes[] = [
+                    'field' => $field,
+                    'category' => 'tier_approval',
+                    'old_value' => $val1,
+                    'new_value' => $val2,
+                    'is_material' => true,
+                ];
+            }
+        }
+
+        // Compare risk assessment
+        $riskFields = [
+            'platform_risk_score',
+            'risk_level',
+            'compliance_score',
+        ];
+
+        foreach ($riskFields as $field) {
+            $val1 = $snapshot1->$field ?? null;
+            $val2 = $snapshot2->$field ?? null;
+
+            if ($val1 !== $val2) {
+                $changes[] = [
+                    'field' => $field,
+                    'category' => 'risk_assessment',
+                    'old_value' => $val1,
+                    'new_value' => $val2,
+                    'is_material' => $field === 'risk_level',
+                ];
+            }
+        }
+
+        // Check for material changes flag
+        $materialChangeDetected = $snapshot2->has_material_changes ?? false;
+
+        return [
+            'snapshot_1' => [
+                'id' => $snapshotId1,
+                'snapshot_at' => $snapshot1->snapshot_at,
+                'valid_from' => $snapshot1->valid_from,
+                'valid_until' => $snapshot1->valid_until,
+            ],
+            'snapshot_2' => [
+                'id' => $snapshotId2,
+                'snapshot_at' => $snapshot2->snapshot_at,
+                'valid_from' => $snapshot2->valid_from,
+                'valid_until' => $snapshot2->valid_until,
+            ],
+            'company_id' => $snapshot1->company_id,
+            'total_changes' => count($changes),
+            'material_changes' => count(array_filter($changes, fn($c) => $c['is_material'])),
+            'material_change_flag' => $materialChangeDetected,
+            'changes' => $changes,
+            'compared_at' => now()->toIso8601String(),
+        ];
+    }
+
+    /**
+     * V-AUDIT-FIX-2026: Get snapshot history for a company
+     *
+     * Returns chronological list of all snapshots for audit trail.
+     *
+     * @param int $companyId
+     * @param int $limit
+     * @return array
+     */
+    public function getSnapshotHistory(int $companyId, int $limit = 50): array
+    {
+        $snapshots = DB::table('platform_context_snapshots')
+            ->where('company_id', $companyId)
+            ->orderBy('valid_from', 'desc')
+            ->limit($limit)
+            ->get();
+
+        return $snapshots->map(function ($snapshot) {
+            return [
+                'id' => $snapshot->id,
+                'snapshot_at' => $snapshot->snapshot_at,
+                'snapshot_trigger' => $snapshot->snapshot_trigger,
+                'valid_from' => $snapshot->valid_from,
+                'valid_until' => $snapshot->valid_until,
+                'is_current' => $snapshot->is_current,
+                'lifecycle_state' => $snapshot->lifecycle_state,
+                'buying_enabled' => $snapshot->buying_enabled,
+                'risk_level' => $snapshot->risk_level,
+                'has_material_changes' => $snapshot->has_material_changes,
+                'supersedes_snapshot_id' => $snapshot->supersedes_snapshot_id,
             ];
         })->toArray();
     }

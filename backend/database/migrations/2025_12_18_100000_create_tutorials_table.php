@@ -15,10 +15,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Guard required for migrate:fresh and legacy schema safety
-        if (! Schema::hasTable('tutorials')) {
-
-            Schema::create('tutorials', function (Blueprint $table) {
+        Schema::create('tutorials', function (Blueprint $table) {
                 $table->id();
 
                 // Basic Information
@@ -73,8 +70,6 @@ return new class extends Migration
                 $table->index(['status', 'is_active']);
                 $table->index(['is_featured', 'sort_order']);
             });
-
-        }
     }
 
     /**

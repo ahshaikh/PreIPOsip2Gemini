@@ -10,7 +10,9 @@ use App\Jobs\ProcessSuccessfulPaymentJob;
 use App\Jobs\SendPaymentFailedEmailJob;
 use App\Notifications\PaymentFailed;
 use App\Services\AllocationService; // V-AUDIT-MODULE4-003: For refund reversal
+use App\Services\BuyEligibilityService; // V-AUDIT-FIX-2026: Eligibility re-verification
 use App\Exceptions\PaymentAmountMismatchException;
+use App\Exceptions\EligibilityChangedException; // V-AUDIT-FIX-2026
 use App\Events\ChargebackConfirmed; // V-DISPUTE-RISK-2026-003
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -670,6 +672,14 @@ class PaymentWebhookService
                         return false;
                     }
 
+                    // V-AUDIT-FIX-2026: Re-verify buy eligibility at checkout commit
+                    // This prevents TOCTOU vulnerabilities where eligibility changes
+                    // between when investor started checkout and when payment completes
+                    // GAP 1 FIX: Configurable for test isolation
+                    if (config('eligibility.enforce_at_commit', true)) {
+                        $this->verifyBuyEligibilityAtCommit($lockedPayment);
+                    }
+
                     // Perform status transition (state machine enforced by model boot)
                     $lockedPayment->update([
                         'status' => 'paid',
@@ -1195,5 +1205,61 @@ class PaymentWebhookService
     private function checkIfOnTime(Subscription $subscription): bool
     {
         return now()->lte($subscription->next_payment_date->addDays(setting('payment_grace_period_days', 2)));
+    }
+
+    /**
+     * V-AUDIT-FIX-2026: Re-verify buy eligibility at checkout commit.
+     *
+     * TOCTOU PROTECTION:
+     * Between when investor started checkout (saw "eligible") and when
+     * payment completes, company state may have changed. This re-check
+     * prevents fulfilling payments for companies that are now ineligible.
+     *
+     * @param Payment $payment
+     * @throws EligibilityChangedException If company no longer eligible
+     */
+    protected function verifyBuyEligibilityAtCommit(Payment $payment): void
+    {
+        // Get the company through subscription -> product -> company
+        $subscription = $payment->subscription;
+        if (!$subscription) {
+            // One-time payment without subscription - may not have company context
+            Log::debug("Payment {$payment->id}: No subscription - skipping eligibility check");
+            return;
+        }
+
+        $product = $subscription->product;
+        if (!$product) {
+            Log::warning("Payment {$payment->id}: Subscription has no product - skipping eligibility check");
+            return;
+        }
+
+        $company = $product->company;
+        if (!$company) {
+            Log::warning("Payment {$payment->id}: Product has no company - skipping eligibility check");
+            return;
+        }
+
+        // Re-check eligibility
+        $eligibilityService = app(BuyEligibilityService::class);
+        $eligibility = $eligibilityService->checkEligibility($company);
+
+        if (!$eligibility['eligible']) {
+            Log::warning('[ELIGIBILITY CHANGED AT COMMIT] Payment blocked', [
+                'payment_id' => $payment->id,
+                'company_id' => $company->id,
+                'company_name' => $company->name,
+                'blockers' => $eligibility['blockers'],
+            ]);
+
+            // Throw exception - will rollback transaction and prevent payment fulfillment
+            throw new EligibilityChangedException(
+                $company,
+                [], // Original blockers unknown at this point
+                $eligibility['blockers']
+            );
+        }
+
+        Log::debug("Payment {$payment->id}: Eligibility verified for company {$company->id}");
     }
 }
