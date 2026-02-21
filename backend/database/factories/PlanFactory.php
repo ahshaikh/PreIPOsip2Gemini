@@ -12,8 +12,12 @@ class PlanFactory extends Factory
 
     public function definition(): array
     {
+        // V-FIX-PLAN-FACTORY-2026: Use UUID suffix for truly unique slugs
+        // faker->unique()->numberBetween(1, 100) has limited range and resets between tests,
+        // causing duplicate slug errors when tests run in random order.
         $names = ['Bronze SIP', 'Silver SIP', 'Gold SIP', 'Platinum SIP', 'Diamond SIP'];
-        $name = $this->faker->randomElement($names) . ' ' . $this->faker->unique()->numberBetween(1, 100);
+        $uniqueSuffix = substr(md5(uniqid(mt_rand(), true)), 0, 8);
+        $name = $this->faker->randomElement($names) . ' ' . $uniqueSuffix;
 
         return [
             'name' => $name,

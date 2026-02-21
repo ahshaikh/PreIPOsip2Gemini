@@ -38,7 +38,8 @@
       "Bash(APP_ENV=testing php artisan test:*)",
       "Bash(DB_DATABASE=preipo_test php artisan migrate:*)",
       "Bash(DB_DATABASE=preipo_test php artisan migrate:fresh:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(xargs:*)"
     ]
   }
 }

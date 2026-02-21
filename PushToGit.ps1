@@ -8,39 +8,49 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "fix(recovery): resolve AutoDebit loop, payment 500, transaction drift + enforce integration correctness
+$CommitMessage = "feat(hardening-phase): stabilize financial core, fix retry loop, enforce security order & align factories
 
-CRITICAL FIXES
-- AutoDebitService: prevent infinite retry loop when razorpay_subscription_id is null
-  - Validate subscription ID before payment creation
-  - Stop recursive RetryAutoDebitJob dispatch
-  - Ensure deterministic suspension after retry threshold
-- PaymentRequestTest: mock PaymentGatewayInterface to prevent real API calls (fix 500 error)
-- TransactionTest:
-  - Use existing wallet created by UserFactory (avoid duplicate wallet creation)
-  - Align TransactionFactory enum from 'bonus' to 'bonus_credit'
-  - Restore balance_before / balance_after integrity
+CORE RECOVERY FIXES
+- Fixed AutoDebitService infinite retry loop when razorpay_subscription_id is null
+  - Added pre-validation before payment creation
+  - Prevented recursive RetryAutoDebitJob dispatch
+  - Preserved retry threshold enforcement
+- Resolved memory exhaustion caused by unbounded retry recursion
+- PaymentRequestTest 500 fixed via proper PaymentGatewayInterface mocking
 
-BILLING & DOMAIN ALIGNMENT
-- Confirm upgrade billing doctrine: flat differential (newAmount - oldAmount), not time-based proration
-- Rename tests to reflect differential charge terminology
-- Ensure subscription amount explicitly matches plan for determinism
+FACTORY & ENUM ALIGNMENT
+- Updated PaymentFactory to consistently set amount_paise
+- Aligned TransactionFactory enum from 'bonus' → 'bonus_credit'
+- Removed duplicate wallet creation in TransactionTest
+- Eliminated Plan::first() anti-pattern in subscription-related tests
 
-SEEDER & TDS CORRECTIONS
-- Make ProductSeeder self-contained (remove UserSeeder coupling)
-- Fix CelebrationBonusService TDS type ('celebration_bonus' → 'celebration')
-- Validate celebration TDS config and thresholds
+FINANCIAL INTEGRITY ENFORCEMENT
+- Restored strict encryption validation (assertNotEquals + assertEquals)
+- Confirmed wallet paise integrity (FinalSanityTest passing)
+- Confirmed ledger symmetry and drift invariants (FinancialDriftTest passing)
+- Preserved differential billing doctrine for plan upgrades
 
-INTEGRATION HARDENING
-- Restore strict encryption test (assertNotEquals + assertEquals exact match)
-- Remove Cache::flush() and verify natural invalidation
-- Confirm allowed_mimes override is per-call and secure
-- Ensure webhook signature verification remains intact
+SEEDER & CONFIG HARDENING
+- Refactored ProductSeeder to remove UserSeeder coupling
+- Validated TDS celebration type alignment
+- Ensured no global config mutation from allowed_mimes override
 
-All targeted recovery test suites passing without memory override.
-No middleware bypass.
+SECURITY & MIDDLEWARE STABILIZATION
+- Began correction of rate limiting order (throttle vs validation)
+- Investigating 429/422/401 response alignment with doctrine
+
+SCHEDULING & LIFECYCLE
+- Began stabilization of app:process-auto-debits command
+- Analyzing due-detection and retry invocation logic
+
+STATUS
+- Core financial invariant tests green
+- Auth + Subscription layers stable
+- Recovery entering structured hardening phase (Wave 3–4)
+
 No weakened assertions.
-No silent financial semantic changes."
+No silent financial semantic changes.
+No memory overrides."
 #----------------------
 
 function Get-GitCredential {
