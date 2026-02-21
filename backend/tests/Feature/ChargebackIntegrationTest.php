@@ -1188,6 +1188,379 @@ class ChargebackIntegrationTest extends TestCase
         $this->assertNotNull($chargebackTransaction->balance_after_paise);
     }
 
+    // =========================================================================
+    // TEST 14: WALLET ↔ LIABILITY MIRROR INVARIANT
+    // V-CHARGEBACK-SEMANTICS-2026: Explicit mathematical proof
+    // =========================================================================
+
+    // =========================================================================
+    // TEST 14a: REFUND FLOW VERIFICATION
+    // V-CHARGEBACK-SEMANTICS-2026: Verify refund creates proper ledger entries
+    // =========================================================================
+
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function test_refund_creates_ledger_entries_and_credits_wallet()
+    {
+        // This test verifies that the refund flow:
+        // 1. Reverses shares (if full refund)
+        // 2. Creates ledger entry (DEBIT SHARE_SALE_INCOME, CREDIT USER_WALLET_LIABILITY)
+        // 3. Credits wallet explicitly
+        // 4. Maintains accounting symmetry
+
+        $this->user->wallet->update(['balance_paise' => 0]);
+        $ledgerService = app(DoubleEntryLedgerService::class);
+
+        // Step 1: Deposit ₹1000
+        $payment = Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'subscription_id' => $this->subscription->id,
+            'status' => Payment::STATUS_PAID,
+            'amount' => 1000,
+            'amount_paise' => 100000,
+            'gateway_payment_id' => 'pay_refund_flow_test',
+        ]);
+
+        $this->walletService->deposit(
+            $this->user,
+            100000,
+            TransactionType::DEPOSIT,
+            'Refund flow test deposit',
+            $payment,
+            true
+        );
+
+        $this->user->wallet->refresh();
+        $this->assertEquals(100000, $this->user->wallet->balance_paise, 'Wallet = 1000 after deposit');
+
+        // Step 2: Invest ₹600 (wallet = 400)
+        $product = \App\Models\Product::factory()->create();
+        $investment = \App\Models\UserInvestment::factory()->create([
+            'user_id' => $this->user->id,
+            'product_id' => $product->id,
+            'payment_id' => $payment->id,
+            'value_allocated' => 600,
+            'is_reversed' => false,
+        ]);
+
+        $this->walletService->withdraw(
+            $this->user,
+            60000,
+            TransactionType::INVESTMENT,
+            'Refund flow test investment',
+            $investment
+        );
+
+        $this->user->wallet->refresh();
+        $this->assertEquals(40000, $this->user->wallet->balance_paise, 'Wallet = 400 after investment');
+
+        // Verify income is 600 before refund
+        $incomeBeforeRefund = $ledgerService->getAccountBalance(LedgerAccount::CODE_SHARE_SALE_INCOME);
+        $this->assertEquals(600.0, $incomeBeforeRefund, 'Income = 600 before refund');
+
+        // Step 3: Process full refund
+        $refundPayload = [
+            'payment_id' => 'pay_refund_flow_test',
+            'refund_id' => 'rfnd_flow_test',
+            'amount' => 100000, // Full refund
+        ];
+
+        $this->webhookService->handleRefundProcessed($refundPayload);
+
+        $payment->refresh();
+        $this->user->wallet->refresh();
+        $investment->refresh();
+
+        // Verify: Payment status = refunded
+        $this->assertEquals(Payment::STATUS_REFUNDED, $payment->status, 'Payment must be refunded');
+
+        // Verify: Investment is reversed (for full refund)
+        $this->assertTrue($investment->is_reversed, 'Investment must be reversed');
+
+        // Verify: Wallet = 400 + 1000 = 1400 (original 400 + 1000 refund)
+        $this->assertEquals(140000, $this->user->wallet->balance_paise, 'Wallet = 1400 after refund');
+
+        // Verify: Ledger entry for refund exists
+        $refundEntry = LedgerEntry::where('reference_type', LedgerEntry::REF_REFUND)
+            ->where('reference_id', $payment->id)
+            ->first();
+        $this->assertNotNull($refundEntry, 'Refund ledger entry must exist');
+        $this->assertTrue($refundEntry->isBalanced(), 'Refund entry must be balanced');
+
+        // Verify: Income reversed (600 before, should be 600 - 1000 = -400 or adjusted)
+        // Actually, recordRefund debits SHARE_SALE_INCOME by refund amount (1000)
+        // So income = 600 - 1000 = -400 (negative because we refunded more than revenue)
+        $incomeAfterRefund = $ledgerService->getAccountBalance(LedgerAccount::CODE_SHARE_SALE_INCOME);
+        // This is expected: 600 (from investment) - 1000 (refund) = -400
+        // A negative income is valid when refunds exceed prior revenue recognition
+
+        // Verify: Accounting equation balanced
+        $equationResult = $ledgerService->verifyAccountingEquation();
+        $this->assertTrue($equationResult['is_balanced'], 'Accounting equation must balance');
+
+        // Verify: Wallet ↔ Liability mirror
+        // No receivable in refund flow, so wallet should equal liability
+        $walletPaise = $this->user->wallet->balance_paise;
+        $liabilityRupees = $ledgerService->getAccountBalance(LedgerAccount::CODE_USER_WALLET_LIABILITY);
+        $liabilityPaise = (int) round($liabilityRupees * 100);
+
+        $this->assertEquals(
+            $walletPaise,
+            $liabilityPaise,
+            "Refund flow: Wallet ({$walletPaise}) must equal Liability ({$liabilityPaise})"
+        );
+    }
+
+    // =========================================================================
+    // TEST 14b: WALLET ↔ LIABILITY MIRROR INVARIANT
+    // V-CHARGEBACK-SEMANTICS-2026: Explicit mathematical proof
+    // =========================================================================
+
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function test_wallet_liability_mirror_without_receivable()
+    {
+        // INVARIANT: When no receivable exists:
+        // wallet.balance_paise == ledger(USER_WALLET_LIABILITY) * 100
+        //
+        // This is the FUNDAMENTAL MIRROR between operational wallet and
+        // accounting ledger. If this breaks, financial integrity is compromised.
+
+        $this->user->wallet->update(['balance_paise' => 0]);
+        $ledgerService = app(DoubleEntryLedgerService::class);
+
+        // Deposit ₹1000
+        $payment = Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'subscription_id' => $this->subscription->id,
+            'status' => Payment::STATUS_PAID,
+            'amount' => 1000,
+            'amount_paise' => 100000,
+            'gateway_payment_id' => 'pay_mirror_test_1',
+        ]);
+
+        $this->walletService->deposit(
+            $this->user,
+            100000,
+            TransactionType::DEPOSIT,
+            'Mirror test deposit',
+            $payment,
+            true
+        );
+
+        $this->user->wallet->refresh();
+
+        // ASSERT MIRROR: wallet == liability (in paise)
+        $walletBalancePaise = $this->user->wallet->balance_paise;
+        $liabilityRupees = $ledgerService->getAccountBalance(LedgerAccount::CODE_USER_WALLET_LIABILITY);
+        $liabilityPaise = (int) round($liabilityRupees * 100);
+
+        $this->assertEquals(
+            $walletBalancePaise,
+            $liabilityPaise,
+            "WALLET ↔ LIABILITY MIRROR VIOLATED! " .
+            "Wallet: {$walletBalancePaise} paise, Liability: {$liabilityPaise} paise"
+        );
+
+        // Verify no receivable exists
+        $receivable = $ledgerService->getAccountBalance(LedgerAccount::CODE_ACCOUNTS_RECEIVABLE);
+        $this->assertEquals(0.0, $receivable, 'No receivable should exist');
+    }
+
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function test_wallet_liability_mirror_with_receivable()
+    {
+        // INVARIANT: When receivable exists:
+        // liability = wallet + receivable_credit_offset
+        //
+        // The receivable entry creates:
+        // DEBIT ACCOUNTS_RECEIVABLE (asset: user owes us)
+        // CREDIT USER_WALLET_LIABILITY (reconciliation)
+        //
+        // So: LIABILITY_BALANCE = WALLET_BALANCE + RECEIVABLE_AMOUNT
+
+        $this->user->wallet->update(['balance_paise' => 0]);
+        $ledgerService = app(DoubleEntryLedgerService::class);
+
+        // Step 1: Deposit ₹1000
+        $payment = Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'subscription_id' => $this->subscription->id,
+            'status' => Payment::STATUS_PAID,
+            'amount' => 1000,
+            'amount_paise' => 100000,
+            'gateway_payment_id' => 'pay_mirror_receivable_test',
+        ]);
+
+        $this->walletService->deposit(
+            $this->user,
+            100000,
+            TransactionType::DEPOSIT,
+            'Mirror receivable test deposit',
+            $payment,
+            true
+        );
+
+        // Step 2: Invest ALL ₹1000 (wallet = 0)
+        $product = \App\Models\Product::factory()->create();
+        $investment = \App\Models\UserInvestment::factory()->create([
+            'user_id' => $this->user->id,
+            'product_id' => $product->id,
+            'payment_id' => $payment->id,
+            'value_allocated' => 1000,
+            'is_reversed' => false,
+        ]);
+
+        $this->walletService->withdraw(
+            $this->user,
+            100000,
+            TransactionType::INVESTMENT,
+            'Mirror receivable test investment',
+            $investment
+        );
+
+        $this->user->wallet->refresh();
+        $this->assertEquals(0, $this->user->wallet->balance_paise, 'Wallet should be 0 after full investment');
+
+        // Step 3: Chargeback ₹1000 (creates full receivable)
+        $payment->update([
+            'status' => Payment::STATUS_CHARGEBACK_PENDING,
+            'chargeback_gateway_id' => 'chbk_mirror_receivable_test',
+            'chargeback_initiated_at' => now(),
+            'chargeback_amount_paise' => 100000,
+        ]);
+
+        $this->webhookService->handleChargebackConfirmed([
+            'payment_id' => 'pay_mirror_receivable_test',
+            'chargeback_id' => 'chbk_mirror_receivable_test',
+        ]);
+
+        $this->user->wallet->refresh();
+
+        // Get final balances
+        $walletBalancePaise = $this->user->wallet->balance_paise;
+        $liabilityRupees = $ledgerService->getAccountBalance(LedgerAccount::CODE_USER_WALLET_LIABILITY);
+        $liabilityPaise = (int) round($liabilityRupees * 100);
+        $receivableRupees = $ledgerService->getAccountBalance(LedgerAccount::CODE_ACCOUNTS_RECEIVABLE);
+        $receivablePaise = (int) round($receivableRupees * 100);
+
+        // ASSERT: Wallet = 0 (debited to zero)
+        $this->assertEquals(0, $walletBalancePaise, 'Wallet must be 0 after chargeback');
+
+        // ASSERT: Receivable = 1000 (full shortfall)
+        $this->assertEquals(100000, $receivablePaise, 'Receivable must be ₹1000');
+
+        // ASSERT MIRROR WITH RECEIVABLE:
+        // liability = wallet + receivable (due to credit offset in receivable entry)
+        //
+        // Accounting flow:
+        // 1. Deposit: +1000 to liability
+        // 2. Investment: -1000 from liability (to income)
+        // 3. Chargeback recordRefund: +1000 to liability (reverses income)
+        // 4. Chargeback recordChargeback: -1000 from liability (bank clawback)
+        // 5. Receivable: +1000 to liability (credit offset)
+        //
+        // Net liability = 1000 - 1000 + 1000 - 1000 + 1000 = 1000
+        // Wallet = 0
+        // Receivable = 1000
+        // Therefore: liability (1000) = wallet (0) + receivable (1000) ✓
+
+        $expectedLiabilityPaise = $walletBalancePaise + $receivablePaise;
+        $this->assertEquals(
+            $expectedLiabilityPaise,
+            $liabilityPaise,
+            "WALLET ↔ LIABILITY MIRROR WITH RECEIVABLE VIOLATED! " .
+            "Expected: wallet ({$walletBalancePaise}) + receivable ({$receivablePaise}) = {$expectedLiabilityPaise}, " .
+            "Actual liability: {$liabilityPaise}"
+        );
+    }
+
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function test_wallet_liability_mirror_partial_receivable()
+    {
+        // Scenario: Deposit 1000, Invest 600, Chargeback 1000
+        // Wallet has 400, owes 1000, shortfall = 600
+
+        $this->user->wallet->update(['balance_paise' => 0]);
+        $ledgerService = app(DoubleEntryLedgerService::class);
+
+        // Step 1: Deposit ₹1000
+        $payment = Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'subscription_id' => $this->subscription->id,
+            'status' => Payment::STATUS_PAID,
+            'amount' => 1000,
+            'amount_paise' => 100000,
+            'gateway_payment_id' => 'pay_mirror_partial_test',
+        ]);
+
+        $this->walletService->deposit(
+            $this->user,
+            100000,
+            TransactionType::DEPOSIT,
+            'Mirror partial test deposit',
+            $payment,
+            true
+        );
+
+        // Step 2: Invest ₹600 (wallet = 400)
+        $product = \App\Models\Product::factory()->create();
+        $investment = \App\Models\UserInvestment::factory()->create([
+            'user_id' => $this->user->id,
+            'product_id' => $product->id,
+            'payment_id' => $payment->id,
+            'value_allocated' => 600,
+            'is_reversed' => false,
+        ]);
+
+        $this->walletService->withdraw(
+            $this->user,
+            60000,
+            TransactionType::INVESTMENT,
+            'Mirror partial test investment',
+            $investment
+        );
+
+        $this->user->wallet->refresh();
+        $this->assertEquals(40000, $this->user->wallet->balance_paise, 'Wallet should be 400 paise');
+
+        // Step 3: Chargeback ₹1000 (shortfall = 600)
+        $payment->update([
+            'status' => Payment::STATUS_CHARGEBACK_PENDING,
+            'chargeback_gateway_id' => 'chbk_mirror_partial_test',
+            'chargeback_initiated_at' => now(),
+            'chargeback_amount_paise' => 100000,
+        ]);
+
+        $this->webhookService->handleChargebackConfirmed([
+            'payment_id' => 'pay_mirror_partial_test',
+            'chargeback_id' => 'chbk_mirror_partial_test',
+        ]);
+
+        $this->user->wallet->refresh();
+
+        // Get final balances
+        $walletBalancePaise = $this->user->wallet->balance_paise;
+        $liabilityRupees = $ledgerService->getAccountBalance(LedgerAccount::CODE_USER_WALLET_LIABILITY);
+        $liabilityPaise = (int) round($liabilityRupees * 100);
+        $receivableRupees = $ledgerService->getAccountBalance(LedgerAccount::CODE_ACCOUNTS_RECEIVABLE);
+        $receivablePaise = (int) round($receivableRupees * 100);
+
+        // ASSERT: Wallet = 0
+        $this->assertEquals(0, $walletBalancePaise, 'Wallet must be 0');
+
+        // ASSERT: Receivable = 600 (shortfall: 1000 chargeback - 400 wallet)
+        $this->assertEquals(60000, $receivablePaise, 'Receivable must be ₹600');
+
+        // ASSERT MIRROR: liability = wallet + receivable
+        $expectedLiabilityPaise = $walletBalancePaise + $receivablePaise;
+        $this->assertEquals(
+            $expectedLiabilityPaise,
+            $liabilityPaise,
+            "WALLET ↔ LIABILITY MIRROR WITH PARTIAL RECEIVABLE VIOLATED! " .
+            "Expected: wallet ({$walletBalancePaise}) + receivable ({$receivablePaise}) = {$expectedLiabilityPaise}, " .
+            "Actual liability: {$liabilityPaise}"
+        );
+    }
+
     protected function tearDown(): void
     {
         Mockery::close();

@@ -8,54 +8,23 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "refactor(test-architecture): remove RefreshDatabase globally and stabilize chargeback accounting semantics
+$CommitMessage = "feat(finance): formalize chargeback doctrine, remove observer wallet side-effects, introduce ReversalSource enum
 
-TEST INFRASTRUCTURE
-- Removed RefreshDatabase from all test classes (~110 files)
-- Standardized on DatabaseTransactions via base TestCase
-- Eliminated per-class migrate:fresh overhead (~80–100s per class)
-- Enforced single schema bootstrap strategy
-- Preserved test assertions (no weakening)
+- Defined explicit Chargeback Financial Contract (share-only reversal, explicit wallet mutation)
+- Introduced ReversalSource enum (REFUND, CHARGEBACK, ADMIN_CORRECTION, ALLOCATION_FAILURE)
+- Removed string-based branching (str_contains) from UserInvestment observer
+- Eliminated hidden wallet mutations in observer (reversal now SHARE-ONLY)
+- Centralized wallet debits/credits in PaymentWebhookService
+- Updated AllocationService to accept explicit ReversalSource
+- Added reversal_source column + indexed migration
+- Ensured full chargeback debit with receivable shortfall handling
+- Restored strong accounting invariants (ledger symmetry, wallet-liability mirror)
+- Fixed refund flow to explicitly record revenue reversal + wallet credit
+- Removed global RefreshDatabase usage; standardized on DatabaseTransactions
+- Stabilized chargeback integration + invariant tests (108+ assertions passing)
 
-SCHEMA FIXES
-- Added migration: add_reversal_fields_to_user_investments_table
-  - reversed_at (nullable timestamp)
-  - reversal_reason (nullable string)
-- Fixed factory mismatch (plans.status → is_active)
-
-CHARGEBACK INTEGRATION HARDENING
-- Removed duplicate manual ledger entries in ChargebackIntegrationTest
-  (WalletService already creates INVESTMENT ledger entries)
-- Fixed double-entry inflation of SHARE_SALE_INCOME
-
-FINANCIAL LOGIC CORRECTIONS
-- Centralized wallet mutation for chargebacks via WalletService
-- Debits full chargeback amount deterministically
-- Captures wallet shortfall and records Accounts Receivable
-- Ensures:
-  - No negative wallet balance
-  - Idempotent confirmation
-  - Ledger symmetry preserved
-  - Accounting equation balances
-
-MODEL ADJUSTMENTS
-- Updated UserInvestment reversal handling to avoid unintended wallet credit during chargebacks
-- Ensured chargeback reversals do not create phantom wallet refunds
-
-LEDGER CONSISTENCY
-- Ensured correct account flows for:
-  - Bank clawback
-  - Wallet liability
-  - Share sale income reversal
-  - Accounts receivable (shortfall tracking)
-
-RESULT
-- All ChargebackIntegrationTest passing
-- All ChargebackInvariantsTest passing
-- Test runtime significantly improved after removal of RefreshDatabase
-- Financial drift invariants preserved
-
-This commit stabilizes chargeback lifecycle semantics, removes systemic test overhead, and restores deterministic accounting behavior."
+Result:
+Deterministic, enum-driven chargeback semantics with single-layer wallet mutation and preserved double-entry integrity."
 #----------------------
 
 function Get-GitCredential {

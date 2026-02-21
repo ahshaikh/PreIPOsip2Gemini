@@ -29,6 +29,7 @@ use App\Models\{Payment, SagaExecution, Transaction, BonusTransaction, UserInves
 use App\Services\{WalletService, AllocationService, TdsCalculationService, DoubleEntryLedgerService};
 use Illuminate\Support\Facades\{DB, Log};
 use App\Enums\TransactionType;
+use App\Enums\ReversalSource;
 
 class PaymentAllocationSaga
 {
@@ -393,11 +394,12 @@ class PaymentAllocationSaga
             $investment = UserInvestment::find($investmentId);
             if ($investment && !$investment->is_reversed) {
                 DB::transaction(function () use ($investment) {
-                    // Mark as reversed
+                    // V-CHARGEBACK-SEMANTICS-2026: Mark as reversed with explicit source
                     $investment->update([
                         'is_reversed' => true,
                         'reversed_at' => now(),
                         'reversal_reason' => 'Payment allocation saga compensation',
+                        'reversal_source' => ReversalSource::ALLOCATION_FAILURE->value,
                     ]);
 
                     // Restore inventory

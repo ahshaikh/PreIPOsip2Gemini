@@ -24,7 +24,7 @@ class UserInvestment extends Model
     protected $fillable = [
         'user_id', 'product_id', 'payment_id', 'subscription_id',
         'bulk_purchase_id', 'units_allocated', 'value_allocated',
-        'status', 'is_reversed', 'reversed_at', 'reversal_reason', 'source'
+        'status', 'is_reversed', 'reversed_at', 'reversal_reason', 'reversal_source', 'source'
     ];
 
     /**
@@ -103,63 +103,32 @@ class UserInvestment extends Model
             }
         });
 
-        // FIX 46: Create compensating wallet transaction when investment is reversed
+        // V-CHARGEBACK-SEMANTICS-2026: Investment reversal is SHARE-ONLY
+        //
+        // FINANCIAL CONTRACT:
+        // Investment reversal returns shares to inventory. Period.
+        // Wallet implications are handled EXPLICITLY by the calling service:
+        // - Refund flow (handleRefundProcessed): Credits wallet AFTER reversal
+        // - Chargeback flow (handleChargebackConfirmed): Debits wallet AFTER reversal
+        //
+        // This observer MUST NOT mutate wallet. Doing so creates:
+        // 1. Hidden side effects (not visible in service layer)
+        // 2. Dual mutation layers (observer + service)
+        // 3. Need for brittle string-based branching (str_contains)
+        //
+        // REMOVED: Automatic wallet credit on reversal
+        // REASON: Violates single-responsibility, creates implicit behavior
         static::updated(function ($investment) {
-            // Check if is_reversed just changed from false to true
+            // Log reversal for audit trail (NO WALLET MUTATION)
             if ($investment->wasChanged('is_reversed') && $investment->is_reversed) {
-                // V-AUDIT-FIX-2026: Skip wallet credit for CHARGEBACK reversals
-                // For chargebacks, the user loses their shares AND owes the chargeback amount.
-                // The wallet credit would incorrectly reduce what the user owes.
-                // Chargeback reversals are identified by reversal_reason containing "Chargeback".
-                $reason = $investment->reversal_reason ?? '';
-                if (str_contains($reason, 'Chargeback')) {
-                    \Log::info('Investment reversal for chargeback - skipping wallet credit', [
-                        'investment_id' => $investment->id,
-                        'user_id' => $investment->user_id,
-                        'value_allocated' => $investment->value_allocated,
-                        'reason' => $reason,
-                    ]);
-                    return; // No wallet credit for chargebacks
-                }
-
-                try {
-                    // Get WalletService and create refund transaction
-                    $walletService = app(\App\Services\WalletService::class);
-
-                    // Bypass compliance check since this is a reversal (internal operation)
-                    $transaction = $walletService->deposit(
-                        user: $investment->user,
-                        amount: $investment->value_allocated,
-                        type: \App\Enums\TransactionType::REFUND,
-                        description: "Investment reversal refund - Investment #{$investment->id}" .
-                                   ($investment->reversal_reason ? " - Reason: {$investment->reversal_reason}" : ""),
-                        reference: $investment,
-                        bypassComplianceCheck: true
-                    );
-
-                    \Log::info('Investment reversal compensation created', [
-                        'investment_id' => $investment->id,
-                        'user_id' => $investment->user_id,
-                        'refund_amount' => $investment->value_allocated,
-                        'transaction_id' => $transaction->id,
-                        'reason' => $investment->reversal_reason,
-                    ]);
-                } catch (\Exception $e) {
-                    \Log::error('Failed to create investment reversal compensation', [
-                        'investment_id' => $investment->id,
-                        'user_id' => $investment->user_id,
-                        'amount' => $investment->value_allocated,
-                        'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString(),
-                    ]);
-
-                    // Re-throw the exception to prevent silent failures
-                    throw new \RuntimeException(
-                        "Failed to create reversal refund for investment #{$investment->id}: {$e->getMessage()}",
-                        0,
-                        $e
-                    );
-                }
+                \Log::info('Investment reversed (share-only, no wallet mutation)', [
+                    'investment_id' => $investment->id,
+                    'user_id' => $investment->user_id,
+                    'value_allocated' => $investment->value_allocated,
+                    'reversal_reason' => $investment->reversal_reason,
+                    'reversal_source' => $investment->reversal_source,
+                    'note' => 'Wallet implications handled by calling service',
+                ]);
             }
         });
     }

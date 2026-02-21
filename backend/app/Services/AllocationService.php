@@ -22,6 +22,7 @@ use App\Services\InventoryConservationService;
 use App\Services\RiskGuardService;
 use App\Enums\InvestmentSource;
 use App\Enums\TransactionType;
+use App\Enums\ReversalSource;
 use App\Exceptions\RiskBlockedException;
 use App\Exceptions\InsufficientInventoryException;
 use Illuminate\Support\Facades\Log;
@@ -337,11 +338,13 @@ class AllocationService
                     ]);
                 }
 
-                // Mark as reversed
+                // V-CHARGEBACK-SEMANTICS-2026: Mark as reversed with explicit source
+                // Default to REFUND for non-legacy reversal method
                 $userInvestment->update([
                     'is_reversed' => true,
                     'reversed_at' => now(),
                     'reversal_reason' => $reason,
+                    'reversal_source' => ReversalSource::REFUND->value,
                 ]);
             }
 
@@ -366,10 +369,28 @@ class AllocationService
     /**
      * Legacy: Reverse allocations using Payment object
      *
-     * [DEPRECATED]: Use reverseAllocation(investment, reason) for new code
+     * V-CHARGEBACK-SEMANTICS-2026: Now accepts ReversalSource enum for explicit semantics.
+     *
+     * FINANCIAL CONTRACT:
+     * This method is SHARE-ONLY. It returns shares to inventory and marks
+     * investments as reversed. It does NOT mutate wallet.
+     *
+     * Wallet implications are handled by the CALLING SERVICE:
+     * - handleRefundProcessed(): Credits wallet AFTER calling this method
+     * - handleChargebackConfirmed(): Debits wallet AFTER calling this method
+     *
+     * @param Payment $payment The payment whose investments to reverse
+     * @param string $reason Human-readable reason for audit trail
+     * @param ReversalSource|null $source Explicit reversal source (default: REFUND for backward compat)
      */
-    public function reverseAllocationLegacy(Payment $payment, string $reason): void
-    {
+    public function reverseAllocationLegacy(
+        Payment $payment,
+        string $reason,
+        ?ReversalSource $source = null
+    ): void {
+        // Default to REFUND for backward compatibility with existing callers
+        $source = $source ?? ReversalSource::REFUND;
+
         // NOTE: No DB::transaction here - caller is responsible for transaction context
         // This method is typically called from handleChargebackConfirmed which already wraps in transaction
         $investments = $payment->investments()->where('is_reversed', false)->get();
@@ -380,12 +401,22 @@ class AllocationService
                 $purchase->increment('value_remaining', $investment->value_allocated);
             }
 
+            // V-CHARGEBACK-SEMANTICS-2026: Store explicit reversal source
             $investment->update([
                 'is_reversed' => true,
                 'reversed_at' => now(),
-                'reversal_reason' => $reason
+                'reversal_reason' => $reason,
+                'reversal_source' => $source->value,
             ]);
         }
+
+        \Illuminate\Support\Facades\Log::info('ALLOCATION REVERSAL COMPLETE (share-only)', [
+            'payment_id' => $payment->id,
+            'investments_reversed' => $investments->count(),
+            'total_value_restored' => $investments->sum('value_allocated'),
+            'reversal_source' => $source->value,
+            'note' => 'Wallet mutations handled by calling service',
+        ]);
     }
 
     /**

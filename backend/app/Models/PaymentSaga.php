@@ -16,6 +16,7 @@
 
 namespace App\Models;
 
+use App\Enums\ReversalSource;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -291,11 +292,12 @@ class PaymentSaga extends Model
                     $bulkPurchase->increment('value_remaining', $investment->value_allocated);
                 }
 
-                // Mark investment as reversed
+                // V-CHARGEBACK-SEMANTICS-2026: Mark investment as reversed with explicit source
                 $investment->update([
                     'is_reversed' => true,
                     'reversed_at' => now(),
                     'reversal_reason' => "Saga rollback #{$this->id}",
+                    'reversal_source' => ReversalSource::ALLOCATION_FAILURE->value,
                 ]);
             }
         }

@@ -11,6 +11,7 @@ use App\Jobs\SendPaymentFailedEmailJob;
 use App\Notifications\PaymentFailed;
 use App\Services\AllocationService; // V-AUDIT-MODULE4-003: For refund reversal
 use App\Services\BuyEligibilityService; // V-AUDIT-FIX-2026: Eligibility re-verification
+use App\Enums\ReversalSource; // V-CHARGEBACK-SEMANTICS-2026: Explicit reversal source
 use App\Exceptions\PaymentAmountMismatchException;
 use App\Exceptions\EligibilityChangedException; // V-AUDIT-FIX-2026
 use App\Events\ChargebackConfirmed; // V-DISPUTE-RISK-2026-003
@@ -575,17 +576,34 @@ class PaymentWebhookService
             ])->saveQuietly(); // Bypass state machine for refund tracking
 
             // 1. Reverse Share Allocation ONLY if full refund
+            // V-CHARGEBACK-SEMANTICS-2026: Use explicit ReversalSource::REFUND
+            // This reversal is SHARE-ONLY - wallet credit happens below
             if ($isFullRefund) {
                 $allocationService = app(AllocationService::class);
-                $allocationService->reverseAllocation($payment, 'Full refund via gateway');
+                $allocationService->reverseAllocationLegacy(
+                    $payment,
+                    'Full refund via gateway',
+                    ReversalSource::REFUND
+                );
             }
 
-            // 2. Credit wallet with refunded amount
+            // 2. Credit wallet with refunded amount AND create ledger entries
+            // V-CHARGEBACK-SEMANTICS-2026: Refund must create proper ledger entries
+            // to maintain accounting symmetry and wallet ↔ liability mirror
             if ($refundAmountRupees > 0 && $payment->user) {
+                // 2a. Create ledger entry for revenue reversal
+                // DEBIT SHARE_SALE_INCOME (reverse revenue recognition)
+                // CREDIT USER_WALLET_LIABILITY (we owe user the refund amount)
+                $ledgerService = app(\App\Services\DoubleEntryLedgerService::class);
+                $ledgerService->recordRefund($payment->id, $refundAmountRupees);
+
+                // 2b. Credit wallet (operational wallet update)
+                // Note: This does NOT create a ledger entry because type is REFUND
+                // The ledger entry was created above via recordRefund()
                 $this->walletService->deposit(
                     $payment->user,
                     (string) $refundAmountRupees,
-                    'refund',
+                    \App\Enums\TransactionType::REFUND,
                     ($isFullRefund ? "Full refund" : "Partial refund") . " for Payment #{$payment->id}",
                     $payment
                 );
@@ -593,6 +611,7 @@ class PaymentWebhookService
                 Log::info("Wallet credited ₹{$refundAmountRupees} for refund on Payment {$payment->id}", [
                     'is_full_refund' => $isFullRefund,
                     'total_refunded_paise' => $newTotalRefundPaise,
+                    'ledger_entry_created' => true,
                 ]);
             }
 
@@ -1061,30 +1080,59 @@ class PaymentWebhookService
             }
 
             // =========================================================================
-            // V-DISPUTE-REMEDIATION-2026: FULL UNWIND CHARGEBACK HANDLING
+            // V-CHARGEBACK-SEMANTICS-2026: FINANCIAL CONTRACT FOR CHARGEBACKS
             // =========================================================================
             //
-            // BUSINESS RULE: A chargeback is a FORCED UNWIND, not a receivable.
-            // After Deposit → Investment → Chargeback, final state MUST be:
+            // DEFINITIONS:
+            //   D = Deposit (user payment to platform)
+            //   I = Investment (user's shares allocated)
+            //   W = Wallet (user's spendable balance)
+            //   C = Chargeback (bank-initiated reversal)
+            //
+            // INVARIANTS:
+            //   1. Investment reversal is SHARE-ONLY (no wallet mutation)
+            //   2. Wallet mutations are EXPLICIT in this service layer
+            //   3. Wallet balance >= 0 (no overdraft allowed)
+            //   4. Shortfall = max(0, C - W) becomes ACCOUNTS_RECEIVABLE
+            //   5. Accounting equation MUST balance after all operations
+            //
+            // BUSINESS RULE: A chargeback is a FORCED UNWIND.
+            //   - User loses shares unconditionally
+            //   - User owes FULL chargeback amount (bank already clawed it back)
+            //   - If wallet insufficient, shortfall recorded as receivable
+            //
+            // FLOW:
+            //   1. Reverse share allocation (SHARE-ONLY, via ReversalSource::CHARGEBACK)
+            //   2. Reverse revenue recognition (recordRefund if investments existed)
+            //   3. Record bank clawback (recordChargeback)
+            //   4. Debit wallet (full chargeback amount, to zero if insufficient)
+            //   5. If shortfall: Record receivable (recordChargebackReceivable)
+            //
+            // LEDGER ENTRIES:
+            //   recordRefund:    DEBIT SHARE_SALE_INCOME, CREDIT USER_WALLET_LIABILITY
+            //   recordChargeback: DEBIT USER_WALLET_LIABILITY, CREDIT BANK
+            //   recordReceivable: DEBIT ACCOUNTS_RECEIVABLE, CREDIT USER_WALLET_LIABILITY
+            //
+            // FINAL STATE (clean unwind, no investment):
             //   BANK = 0, LIABILITY = 0, INCOME = 0, Wallet = 0
             //
-            // LEDGER FLOW:
-            //   1. recordRefund:    DEBIT SHARE_SALE_INCOME, CREDIT USER_WALLET_LIABILITY
-            //   2. recordChargeback: DEBIT USER_WALLET_LIABILITY, CREDIT BANK
-            //   Combined: INCOME -X, LIABILITY net 0, BANK -X
+            // FINAL STATE (with investment + shortfall):
+            //   BANK = 0, INCOME = 0, Wallet = 0, RECEIVABLE = shortfall
+            //   LIABILITY has offsetting credit from receivable entry
             //
-            // WALLET FLOW:
-            //   Net change = investmentReversed - chargebackAmount
-            //   If investment == chargeback → net 0 → wallet unchanged
-            //   If investment < chargeback → net negative → withdraw difference
-            //
-            // This ensures ledger LIABILITY always matches operational wallet.
             // =========================================================================
 
             // 1. FIRST: Reverse share allocation (user loses shares)
-            // NOTE: Use reverseAllocationLegacy for Payment objects (not Investment)
+            // V-CHARGEBACK-SEMANTICS-2026: Pass explicit ReversalSource::CHARGEBACK
+            // This ensures the reversal is recorded with proper source for audit trail.
+            // The reversal is SHARE-ONLY - no wallet mutation in AllocationService.
+            // Wallet debit happens BELOW via processChargebackAdjustment().
             $allocationService = app(AllocationService::class);
-            $allocationService->reverseAllocationLegacy($payment, "Chargeback confirmed: {$payment->chargeback_reason}");
+            $allocationService->reverseAllocationLegacy(
+                $payment,
+                "Chargeback confirmed: {$payment->chargeback_reason}",
+                ReversalSource::CHARGEBACK
+            );
 
             // 2. Calculate investment value that was reversed
             $investmentReversedPaise = (int) ($payment->investments()
