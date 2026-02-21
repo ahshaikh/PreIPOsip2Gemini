@@ -3,7 +3,6 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\LuckyDraw;
@@ -12,8 +11,6 @@ use App\Models\Wallet;
 
 class LuckyDrawTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $admin;
     protected $draw;
 

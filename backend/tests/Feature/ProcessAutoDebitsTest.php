@@ -3,7 +3,6 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use App\Services\AutoDebitService;
 use App\Models\User;
@@ -17,8 +16,6 @@ use Mockery\MockInterface;
 
 class ProcessAutoDebitsTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $serviceMock;
 
     protected function setUp(): void

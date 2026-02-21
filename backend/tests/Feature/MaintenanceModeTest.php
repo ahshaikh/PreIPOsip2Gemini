@@ -6,13 +6,10 @@ namespace Tests\Unit;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Setting;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 
 class MaintenanceModeTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $user;
     protected $admin;
 

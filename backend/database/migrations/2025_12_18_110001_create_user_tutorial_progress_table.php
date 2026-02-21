@@ -45,7 +45,6 @@ return new class extends Migration
                 // Indexes for performance
                 $table->index(['user_id', 'completed']);
                 $table->index(['tutorial_id', 'completed']);
-                $table->index('last_activity_at');
             });
     }
 

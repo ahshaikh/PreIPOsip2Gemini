@@ -7,14 +7,11 @@ use Tests\TestCase;
 use App\Models\User;
 use App\Models\SupportTicket;
 use App\Models\SupportMessage;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 
 class SupportTicketTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $user;
     protected $admin;
 

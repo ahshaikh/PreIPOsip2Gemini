@@ -3,7 +3,6 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Plan;
@@ -13,8 +12,6 @@ use Illuminate\Support\Facades\Log;
 
 class PermissionMiddlewareTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $adminUser;
     protected $plan;
 

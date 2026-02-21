@@ -7,13 +7,10 @@ use Tests\TestCase;
 use App\Services\SupportService;
 use App\Models\User;
 use App\Models\SupportTicket;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Carbon\Carbon;
 
 class SupportServiceTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $service;
     protected $user;
     protected $admin;

@@ -13,14 +13,11 @@ use App\Models\ReferralCampaign;
 use App\Models\BonusTransaction;
 use App\Models\Transaction;
 use App\Jobs\ProcessReferralJob;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\DB;
 
 class ReferralServiceTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $service;
     protected $referrer;
     protected $planA;

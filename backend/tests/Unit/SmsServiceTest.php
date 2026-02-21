@@ -7,14 +7,11 @@ use Tests\TestCase;
 use App\Services\SmsService;
 use App\Models\User;
 use App\Models\SmsLog;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 
 class SmsServiceTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $service;
     protected $user;
 

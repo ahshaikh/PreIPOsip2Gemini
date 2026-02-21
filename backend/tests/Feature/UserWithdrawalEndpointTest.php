@@ -3,7 +3,6 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Wallet;
@@ -14,8 +13,6 @@ use Illuminate\Support\Facades\Notification;
 
 class UserWithdrawalEndpointTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $user;
     protected $wallet;
 

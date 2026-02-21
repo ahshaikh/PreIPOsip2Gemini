@@ -3,7 +3,6 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\SupportTicket;
@@ -14,8 +13,6 @@ use Illuminate\Http\UploadedFile;
 
 class UserSupportEndpointsTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $user;
     protected $otherUser;
     protected $admin;

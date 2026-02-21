@@ -5,7 +5,6 @@ namespace Tests\Unit;
 
 use Tests\TestCase;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 // We'd typically use a framework-specific test case, e.g., WebTestCase
 // use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 

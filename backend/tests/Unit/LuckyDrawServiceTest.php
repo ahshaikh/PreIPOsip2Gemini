@@ -11,14 +11,11 @@ use App\Models\Subscription;
 use App\Models\Payment;
 use App\Models\LuckyDraw;
 use App\Models\LuckyDrawEntry;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Carbon\Carbon;
 
 class LuckyDrawServiceTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $service;
     protected $plan;
     protected $draw;

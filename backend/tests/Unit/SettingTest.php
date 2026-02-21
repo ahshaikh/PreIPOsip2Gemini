@@ -6,15 +6,12 @@ namespace Tests\Unit;
 use Tests\TestCase;
 use App\Models\Setting;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Database\QueryException;
 
 class SettingTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $admin;
 
     protected function setUp(): void

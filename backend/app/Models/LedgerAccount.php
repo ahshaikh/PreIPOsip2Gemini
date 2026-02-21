@@ -140,14 +140,16 @@ class LedgerAccount extends Model
      */
     public function getBalanceAttribute(): float
     {
+        // V-AUDIT-FIX-2026: Column is amount_paise (bigint), not amount (decimal)
         $totals = $this->ledgerLines()
-            ->selectRaw('direction, SUM(amount) as total')
+            ->selectRaw('direction, SUM(amount_paise) as total')
             ->groupBy('direction')
             ->pluck('total', 'direction')
             ->toArray();
 
-        $debits = (float) ($totals[self::DIRECTION_DEBIT] ?? 0);
-        $credits = (float) ($totals[self::DIRECTION_CREDIT] ?? 0);
+        // Convert from paise to rupees for balance
+        $debits = (float) (($totals[self::DIRECTION_DEBIT] ?? 0) / 100);
+        $credits = (float) (($totals[self::DIRECTION_CREDIT] ?? 0) / 100);
 
         // Normal balance determines calculation direction
         if ($this->isDebitNormal()) {

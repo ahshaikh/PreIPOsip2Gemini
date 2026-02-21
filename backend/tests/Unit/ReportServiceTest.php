@@ -10,13 +10,10 @@ use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\Payment;
 use App\Models\BonusTransaction;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Carbon\Carbon;
 
 class ReportServiceTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $service;
 
     protected function setUp(): void

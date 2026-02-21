@@ -6,12 +6,8 @@ namespace Tests\Feature;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\ReferralCampaign;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-
 class ReferralCampaignControllerTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected User $admin;
     protected User $user;
 

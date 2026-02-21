@@ -7,13 +7,10 @@ use Tests\TestCase;
 use App\Services\OtpService;
 use App\Models\User;
 use App\Models\Otp;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Carbon\Carbon;
 
 class OtpServiceTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $service;
     protected $user;
 

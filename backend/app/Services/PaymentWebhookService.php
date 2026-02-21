@@ -977,20 +977,62 @@ class PaymentWebhookService
                 return;
             }
 
-            // Idempotency: Already confirmed
+            // V-AUDIT-FIX-2026: Idempotency check - already confirmed is a no-op
+            // This MUST be checked first, before any validation or state mutation
             if ($payment->isChargebackConfirmed()) {
                 Log::info("Payment {$payment->id} chargeback already confirmed. Skipping.");
                 return;
             }
 
-            // Confirm the chargeback
-            $payment->confirmChargeback();
+            // V-AUDIT-FIX-2026: Handle orphan payments gracefully
+            // Orphan payments can occur when:
+            // - user_id is null (violates current schema but possible via corruption)
+            // - user_id points to soft-deleted user ($payment->user returns null)
+            // - user_id points to non-existent user (FK violation, possible via drift)
+            // Do NOT throw - just log and skip financial reversals
+            if (!$payment->user) {
+                Log::channel('financial_contract')->warning('CHARGEBACK FOR ORPHAN PAYMENT', [
+                    'payment_id' => $payment->id,
+                    'user_id' => $payment->user_id,
+                    'gateway_payment_id' => $gatewayPaymentId,
+                    'chargeback_id' => $chargebackId,
+                    'action' => 'Skipping - no user to reverse funds from',
+                ]);
+                // Still mark as confirmed to prevent retry loops
+                $payment->forceFill([
+                    'status' => Payment::STATUS_CHARGEBACK_CONFIRMED,
+                    'chargeback_confirmed_at' => now(),
+                ])->saveQuietly();
+                return;
+            }
+
+            // V-AUDIT-FIX-2026: Auto-transition from paid/settled if initiation webhook was missed
+            // Real-world scenario: Gateway sends confirmation before/without initiation webhook
+            // The handler must be robust to out-of-order webhook delivery
+            if ($payment->canChargeback()) {
+                Log::channel('financial_contract')->warning('CHARGEBACK CONFIRMATION WITHOUT INITIATION', [
+                    'payment_id' => $payment->id,
+                    'current_status' => $payment->status,
+                    'chargeback_id' => $chargebackId,
+                    'action' => 'Auto-transitioning to chargeback_pending before confirmation',
+                ]);
+
+                $payment->markAsChargebackPending(
+                    $chargebackId ?? 'cb_auto_' . uniqid(),
+                    'Auto-initiated: confirmation received without initiation webhook',
+                    $payment->amount_paise
+                );
+                $payment->refresh();
+            }
 
             $user = $payment->user;
             $chargebackAmountPaise = $payment->chargeback_amount_paise ?? $payment->amount_paise;
 
-            // V-DISPUTE-REMEDIATION-2026: Validate chargeback amount doesn't exceed refundable
-            // Prevents over-dispute beyond payment net amount (after any prior refunds)
+            // V-AUDIT-FIX-2026: Validate chargeback amount BEFORE state transition
+            // CRITICAL: This must happen BEFORE confirmChargeback() because
+            // getRefundableAmountPaise() uses isChargebackConfirmed() to determine
+            // if the current chargeback should be counted. If we validate AFTER
+            // state change, it double-counts and always fails.
             $refundableAmountPaise = $payment->getRefundableAmountPaise();
             if ($chargebackAmountPaise > $refundableAmountPaise) {
                 Log::channel('financial_contract')->critical('CHARGEBACK AMOUNT EXCEEDS REFUNDABLE', [
@@ -1006,6 +1048,16 @@ class PaymentWebhookService
                     "({$refundableAmountPaise} paise) for Payment #{$payment->id}. " .
                     "This may indicate a duplicate reversal attempt."
                 );
+            }
+
+            // V-AUDIT-FIX-2026: NOW transition state (after validation passes)
+            // confirmChargeback() is idempotent - returns false if already confirmed
+            $stateChanged = $payment->confirmChargeback();
+            if (!$stateChanged) {
+                // Race condition: Another process confirmed between our check and transition
+                // This is safe - just return early
+                Log::info("Payment {$payment->id} chargeback confirmed by concurrent process. Skipping.");
+                return;
             }
 
             // =========================================================================
@@ -1057,34 +1109,47 @@ class PaymentWebhookService
             // 3b. Record bank clawback (always)
             $ledgerService->recordChargeback($payment, $chargebackAmountPaise / 100);
 
-            // 4. WALLET ADJUSTMENT: NET change via WalletService
+            // 4. WALLET ADJUSTMENT: Debit FULL chargeback amount via WalletService
             //
-            // SIMPLE LOGIC: User loses shares (reversed) + remaining wallet balance.
-            // Net wallet change = chargeback - investmentReversed
+            // V-AUDIT-FIX-2026: Investment reversal (via UserInvestment::booted observer)
+            // ALREADY credits the wallet with $investmentReversedPaise. Therefore, we must
+            // debit the FULL chargeback amount, not just the difference.
             //
             // Example: Deposit 1000, Invest 600, Wallet 400, Chargeback 1000
-            // - User loses shares (600 worth reversed)
-            // - Net wallet debit = 1000 - 600 = 400
-            // - Wallet goes from 400 to 0
-            // - No receivable needed
+            // 1. Investment reversal: wallet credited +600 → wallet = 1000
+            // 2. Chargeback debit: -1000 → wallet = 0
             //
             // HARDENING: All wallet mutations go through WalletService.
             // No direct $wallet->increment/decrement allowed.
-            $netWalletChangePaise = $investmentReversedPaise - $chargebackAmountPaise;
-            // netWalletChangePaise will be negative if chargeback > investment (debit needed)
-            // or positive if investment > chargeback (credit needed, rare)
+            $netWalletChangePaise = -$chargebackAmountPaise;
+            // Always debit the full chargeback amount (negative value = debit)
 
+            $shortfallPaise = 0;
             if ($user && $netWalletChangePaise !== 0) {
                 // WalletService handles:
                 // - Row locking
                 // - Balance validation
                 // - Transaction record creation
                 // - Audit trail logging
-                $this->walletService->processChargebackAdjustment(
+                $result = $this->walletService->processChargebackAdjustment(
                     $user,
                     $netWalletChangePaise,
                     $payment
                 );
+                $shortfallPaise = $result['shortfall_paise'] ?? 0;
+            }
+
+            // V-AUDIT-FIX-2026: Record receivable for shortfall (user owes us money)
+            // This happens when wallet balance < chargeback amount
+            if ($shortfallPaise > 0 && $user) {
+                $ledgerService->recordChargebackReceivable($payment, $shortfallPaise / 100, $user->id);
+
+                Log::channel('financial_contract')->info('CHARGEBACK RECEIVABLE RECORDED', [
+                    'payment_id' => $payment->id,
+                    'shortfall_paise' => $shortfallPaise,
+                    'shortfall_rupees' => $shortfallPaise / 100,
+                    'user_id' => $user->id,
+                ]);
             }
 
             Log::channel('financial_contract')->info('CHARGEBACK FULL UNWIND COMPLETE', [

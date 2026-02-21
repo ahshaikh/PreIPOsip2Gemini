@@ -9,7 +9,6 @@ use App\Models\PlatformLedgerEntry;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\PlatformLedgerService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -29,8 +28,6 @@ use Tests\TestCase;
 
 class Epic4FinancialAtomicityTest extends TestCase
 {
-    use RefreshDatabase;
-
 // <!-- GAP 4: PLATFORM LEDGER ENTRY IMMUTABILITY -->
 
     public function platform_ledger_entry_cannot_be_updated()

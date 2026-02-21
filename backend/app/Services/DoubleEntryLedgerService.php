@@ -839,6 +839,8 @@ class DoubleEntryLedgerService
     ): LedgerEntry {
         $this->validatePositiveAmount($amount);
 
+        // Ledger entries use SEMANTIC reference types (event type), not polymorphic model classes
+        // Semantic > polymorphic for financial audit trail
         $entry = $this->createEntry(
             LedgerEntry::REF_CHARGEBACK,
             $payment->id,
@@ -1214,25 +1216,21 @@ class DoubleEntryLedgerService
      */
     public function verifyAccountingEquation(): array
     {
+        // Note: ofType() already returns a Collection, no need for ->get()
         $assets = LedgerAccount::ofType(LedgerAccount::TYPE_ASSET)
-            ->get()
             ->sum(fn($a) => $a->balance);
 
         $liabilities = LedgerAccount::ofType(LedgerAccount::TYPE_LIABILITY)
-            ->get()
             ->sum(fn($a) => $a->balance);
 
         $equity = LedgerAccount::ofType(LedgerAccount::TYPE_EQUITY)
-            ->get()
             ->sum(fn($a) => $a->balance);
 
         // Include retained earnings (net income)
         $income = LedgerAccount::ofType(LedgerAccount::TYPE_INCOME)
-            ->get()
             ->sum(fn($a) => $a->balance);
 
         $expenses = LedgerAccount::ofType(LedgerAccount::TYPE_EXPENSE)
-            ->get()
             ->sum(fn($a) => $a->balance);
 
         $netIncome = $income - $expenses;

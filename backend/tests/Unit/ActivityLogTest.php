@@ -6,13 +6,10 @@ namespace Tests\Unit;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\ActivityLog;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Carbon\Carbon;
 
 class ActivityLogTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $user;
 
     protected function setUp(): void

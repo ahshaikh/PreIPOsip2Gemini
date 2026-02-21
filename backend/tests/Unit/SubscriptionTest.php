@@ -8,13 +8,10 @@ use App\Models\User;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\Payment;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Carbon\Carbon;
 
 class SubscriptionTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $user;
     protected $plan;
 

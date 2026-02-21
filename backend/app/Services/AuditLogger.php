@@ -179,7 +179,7 @@ class AuditLogger
      */
     protected static function detectActorType(): string
     {
-        if (auth()->guard('company')->check()) {
+        if (auth()->guard('company_api')->check()) {
             return 'company_user';
         } elseif (auth()->check()) {
             return 'admin';

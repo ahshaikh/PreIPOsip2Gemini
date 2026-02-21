@@ -1,4 +1,4 @@
-// database/migrations/2026_02_20_000001_enforce_unsigned_value_remaining.php
+<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;

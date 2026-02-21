@@ -14,13 +14,10 @@ use App\Models\PlanRegulatoryOverride;
 use App\Models\BonusTransaction;
 use App\Services\SubscriptionConfigSnapshotService;
 use App\Services\BonusCalculatorService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 
 class ContractHardeningTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected User $user;
     protected Plan $plan;
     protected Admin $admin;

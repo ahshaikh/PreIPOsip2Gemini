@@ -8,14 +8,11 @@ use App\Services\VerificationService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Razorpay\Api\Api;
 use Mockery;
 
 class VerificationServiceTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $service;
 
     protected function setUp(): void

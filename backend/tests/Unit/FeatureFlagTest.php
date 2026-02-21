@@ -6,13 +6,10 @@ namespace Tests\Unit;
 use Tests\TestCase;
 use App\Models\FeatureFlag;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Database\QueryException;
 
 class FeatureFlagTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $user1;
     protected $user2;
 

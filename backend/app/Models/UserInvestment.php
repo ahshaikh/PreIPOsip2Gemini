@@ -11,6 +11,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 
@@ -19,6 +20,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
  */
 class UserInvestment extends Model
 {
+    use HasFactory;
     protected $fillable = [
         'user_id', 'product_id', 'payment_id', 'subscription_id',
         'bulk_purchase_id', 'units_allocated', 'value_allocated',
@@ -105,6 +107,21 @@ class UserInvestment extends Model
         static::updated(function ($investment) {
             // Check if is_reversed just changed from false to true
             if ($investment->wasChanged('is_reversed') && $investment->is_reversed) {
+                // V-AUDIT-FIX-2026: Skip wallet credit for CHARGEBACK reversals
+                // For chargebacks, the user loses their shares AND owes the chargeback amount.
+                // The wallet credit would incorrectly reduce what the user owes.
+                // Chargeback reversals are identified by reversal_reason containing "Chargeback".
+                $reason = $investment->reversal_reason ?? '';
+                if (str_contains($reason, 'Chargeback')) {
+                    \Log::info('Investment reversal for chargeback - skipping wallet credit', [
+                        'investment_id' => $investment->id,
+                        'user_id' => $investment->user_id,
+                        'value_allocated' => $investment->value_allocated,
+                        'reason' => $reason,
+                    ]);
+                    return; // No wallet credit for chargebacks
+                }
+
                 try {
                     // Get WalletService and create refund transaction
                     $walletService = app(\App\Services\WalletService::class);

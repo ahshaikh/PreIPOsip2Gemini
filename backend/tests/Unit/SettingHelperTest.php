@@ -7,7 +7,6 @@ use Tests\TestCase;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\SmsService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Database\QueryException;
@@ -15,8 +14,6 @@ use Illuminate\Support\Facades\DB;
 
 class SettingHelperTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $admin;
 
     protected function setUp(): void

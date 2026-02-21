@@ -6,14 +6,11 @@ namespace Tests\Unit;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Referral;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 
 class ReferralTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $referrer;
     protected $referee;
 

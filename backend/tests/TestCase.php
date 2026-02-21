@@ -3,17 +3,16 @@
 namespace Tests;
 
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 
 abstract class TestCase extends BaseTestCase
 {
     use CreatesApplication;
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     protected function setUp(): void
     {
-         parent::setUp();
+        parent::setUp();
 
         // Seed the database for every test
         // $this->seed();

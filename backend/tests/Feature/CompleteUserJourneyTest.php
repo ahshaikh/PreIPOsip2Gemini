@@ -3,7 +3,6 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Plan;
@@ -37,8 +36,6 @@ use Illuminate\Http\UploadedFile;
 
 class CompleteUserJourneyTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $admin;
     protected $user;
     protected $plan;

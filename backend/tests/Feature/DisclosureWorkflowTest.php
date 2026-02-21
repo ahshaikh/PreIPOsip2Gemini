@@ -9,7 +9,6 @@ use App\Models\DisclosureClarification;
 use App\Models\DisclosureModule;
 use App\Models\DisclosureVersion;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 //  * PHASE 1 REMEDIATION - Disclosure Workflow Tests
@@ -24,8 +23,6 @@ use Tests\TestCase;
 
 class DisclosureWorkflowTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected User $companyUser;
     protected User $admin;
     protected Company $company;

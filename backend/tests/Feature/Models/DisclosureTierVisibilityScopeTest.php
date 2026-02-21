@@ -13,14 +13,11 @@ use App\Models\Company;
 use App\Models\Product;
 use App\Scopes\PublicVisibilityScope;
 use App\Scopes\ProductPublicVisibilityScope;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class DisclosureTierVisibilityScopeTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected Company $companyPending;
     protected Company $companyUpcoming;
     protected Company $companyLive;

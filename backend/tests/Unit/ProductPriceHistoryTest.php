@@ -6,13 +6,10 @@ namespace Tests\Unit;
 use Tests\TestCase;
 use App\Models\Product;
 use App\Models\ProductPriceHistory;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Carbon\Carbon;
 
 class ProductPriceHistoryTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $product;
 
     protected function setUp(): void

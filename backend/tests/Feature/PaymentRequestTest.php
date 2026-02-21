@@ -8,12 +8,8 @@ use App\Models\User;
 use App\Models\Payment;
 use App\Models\Subscription;
 use App\Models\Setting;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-
 class PaymentRequestTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $user;
     protected $otherUser;
     protected $payment;

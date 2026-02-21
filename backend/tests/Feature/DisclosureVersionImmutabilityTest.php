@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\CompanyDisclosure;
 use App\Models\DisclosureVersion;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
@@ -20,8 +19,6 @@ use Tests\TestCase;
 
 class DisclosureVersionImmutabilityTest extends TestCase
 {
-    use RefreshDatabase;
-
     public function version_is_auto_locked_on_creation()
     {
         $version = DisclosureVersion::factory()->create([

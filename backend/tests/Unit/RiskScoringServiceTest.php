@@ -10,12 +10,8 @@ use App\Models\User;
 use App\Models\Payment;
 use App\Models\Dispute;
 use App\Models\Company;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-
 class RiskScoringServiceTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected RiskScoringService $service;
     protected User $user;
 

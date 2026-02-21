@@ -8,12 +8,8 @@ use Tests\TestCase;
 use App\Services\RiskGuardService;
 use App\Exceptions\RiskBlockedException;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-
 class RiskGuardServiceTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected RiskGuardService $guard;
 
     protected function setUp(): void

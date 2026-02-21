@@ -396,8 +396,18 @@ class Payment extends Model
      *
      * @throws \RuntimeException If chargeback is not pending
      */
-    public function confirmChargeback(): void
+    /**
+     * V-AUDIT-FIX-2026: Returns true if state transition occurred, false if already confirmed (idempotent).
+     */
+    public function confirmChargeback(): bool
     {
+        // V-AUDIT-FIX-2026: Idempotent - already confirmed is OK (no-op)
+        // This prevents duplicate webhook processing from throwing exceptions
+        if ($this->isChargebackConfirmed()) {
+            Log::info("Payment #{$this->id} chargeback already confirmed. Skipping state transition.");
+            return false;
+        }
+
         if (!$this->isChargebackPending()) {
             Log::critical('CHARGEBACK CONFIRMATION VIOLATION', [
                 'payment_id' => $this->id,
@@ -422,6 +432,8 @@ class Payment extends Model
             'user_id' => $this->user_id,
             'action_required' => 'WALLET_AND_BONUS_REVERSAL',
         ]);
+
+        return true;
     }
 
     /**

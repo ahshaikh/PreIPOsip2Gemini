@@ -44,7 +44,7 @@ class ProductFactory extends Factory
             'auto_update_price' => false,
             'min_investment' => $this->faker->randomElement([1000, 5000, 10000, 25000]),
             'expected_ipo_date' => $this->faker->dateTimeBetween('+6 months', '+2 years')->format('Y-m-d'),
-            'status' => 'inactive', // GAP 3 FIX: Default to inactive to prevent implicit investability
+            'status' => 'draft', // V-AUDIT-FIX-2026: New products must start with 'draft' per Product model lifecycle
             'sebi_approval_number' => 'SEBI/' . $this->faker->numerify('####/####'),
             'sebi_approval_date' => $this->faker->dateTimeBetween('-1 year', 'now')->format('Y-m-d'),
             'is_featured' => $this->faker->boolean(30),

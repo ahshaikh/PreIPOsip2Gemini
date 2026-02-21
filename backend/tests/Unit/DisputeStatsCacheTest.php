@@ -10,13 +10,10 @@ use App\Models\Dispute;
 use App\Models\Payment;
 use App\Models\User;
 use App\Models\Company;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 
 class DisputeStatsCacheTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected DisputeStatsCache $cacheService;
 
     protected function setUp(): void

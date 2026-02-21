@@ -8,76 +8,54 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "feat(audit-hardening): stabilize migrations, enforce inventory invariants, close company module audit gaps
+$CommitMessage = "refactor(test-architecture): remove RefreshDatabase globally and stabilize chargeback accounting semantics
 
-SUMMARY
---------
-Comprehensive architectural stabilization and audit remediation across
-Company, Inventory, Allocation, Snapshot, and Eligibility layers.
+TEST INFRASTRUCTURE
+- Removed RefreshDatabase from all test classes (~110 files)
+- Standardized on DatabaseTransactions via base TestCase
+- Eliminated per-class migrate:fresh overhead (~80–100s per class)
+- Enforced single schema bootstrap strategy
+- Preserved test assertions (no weakening)
 
-This commit resolves migration instability, removes dual allocation contracts,
-hardens financial invariants, and implements missing audit tooling identified
-in the Company Module Audit Report.
+SCHEMA FIXES
+- Added migration: add_reversal_fields_to_user_investments_table
+  - reversed_at (nullable timestamp)
+  - reversal_reason (nullable string)
+- Fixed factory mismatch (plans.status → is_active)
 
-MIGRATION & SCHEMA STABILIZATION
----------------------------------
-- Removed non-deterministic Schema::hasTable() guards
-- Fixed migration ordering to ensure parent tables created before dependents
-- Eliminated FK drop inconsistencies affecting migrate:fresh
-- Standardized paise-only monetary schema alignment
-- Ensured rollback safety and deterministic fresh rebuild
+CHARGEBACK INTEGRATION HARDENING
+- Removed duplicate manual ledger entries in ChargebackIntegrationTest
+  (WalletService already creates INVESTMENT ledger entries)
+- Fixed double-entry inflation of SHARE_SALE_INCOME
 
-INVENTORY & ALLOCATION HARDENING
----------------------------------
-- AllocationService now consistently throws InsufficientInventoryException
-- Removed legacy return-false inventory failure paths
-- Refactored allocateSharesLegacy() to use typed exceptions
-- Eliminated phantom Product stub in global shortage handling
-- InsufficientInventoryException now supports nullable Product (clean contract)
-- Added explicit isGlobalShortage() indicator for audit clarity
+FINANCIAL LOGIC CORRECTIONS
+- Centralized wallet mutation for chargebacks via WalletService
+- Debits full chargeback amount deterministically
+- Captures wallet shortfall and records Accounts Receivable
+- Ensures:
+  - No negative wallet balance
+  - Idempotent confirmation
+  - Ledger symmetry preserved
+  - Accounting equation balances
 
-ELIGIBILITY & TOCTOU PROTECTION
---------------------------------
-- Added commit-time buy eligibility re-verification
-- Wrapped enforcement behind config flag for test isolation
-- Introduced config/eligibility.php
-- Added ENFORCE_ELIGIBILITY_AT_COMMIT toggle for .env.testing
-- Ensured transaction rollback safety (no partial mutation risk)
+MODEL ADJUSTMENTS
+- Updated UserInvestment reversal handling to avoid unintended wallet credit during chargebacks
+- Ensured chargeback reversals do not create phantom wallet refunds
 
-AUDIT GAP REMEDIATION
----------------------
-- Implemented InventoryReconciliationJob
-- Implemented SnapshotIntegrityAuditJob
-- Added verifySnapshotIntegrity() and hash documentation (SHA-256)
-- Fixed platform snapshot time-gap vulnerability
-- Added InventoryTraceabilityReportService (audit-ready JSON output)
-- Dispatched CompanyTierChanged event post-transaction commit
-- Strengthened disclosure-tier governance flow
+LEDGER CONSISTENCY
+- Ensured correct account flows for:
+  - Bank clawback
+  - Wallet liability
+  - Share sale income reversal
+  - Accounts receivable (shortfall tracking)
 
-FACTORY STABILIZATION
----------------------
-- ProductFactory default set to inactive (no implicit inventory side effects)
-- Added explicit activeWithInventory() and legacyActive() states
-- Added WithdrawalFactory state coverage (approved, processed, rejected)
-- Adjusted TransactionFactory defaults for deterministic test behavior
+RESULT
+- All ChargebackIntegrationTest passing
+- All ChargebackInvariantsTest passing
+- Test runtime significantly improved after removal of RefreshDatabase
+- Financial drift invariants preserved
 
-ROUTE & MIDDLEWARE VALIDATION
------------------------------
-- Verified audit and inventory routes under sanctum + admin role guards
-- Ensured no route guard leakage into web middleware
-
-ARCHITECTURAL IMPACT
---------------------
-- No weakening of financial invariants
-- No modification to DoubleEntryLedgerService core logic
-- No alteration of FIFO allocation logic
-- No mutation of wallet service invariants
-- Deterministic migrate:fresh restored
-- Inventory conservation contract strengthened
-
-This commit transitions the Company Module from Production-Ready
-to Audit-Hardened while preserving financial correctness and
-ledger symmetry guarantees."
+This commit stabilizes chargeback lifecycle semantics, removes systemic test overhead, and restores deterministic accounting behavior."
 #----------------------
 
 function Get-GitCredential {

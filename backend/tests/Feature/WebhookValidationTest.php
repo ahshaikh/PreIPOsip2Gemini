@@ -3,7 +3,6 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Payment;
@@ -13,8 +12,6 @@ use Illuminate\Support\Facades\Config;
 
 class WebhookValidationTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $user;
     protected $subscription;
     protected $webhookSecret = 'test_webhook_secret_key';

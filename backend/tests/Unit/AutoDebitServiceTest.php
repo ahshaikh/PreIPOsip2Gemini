@@ -9,7 +9,6 @@ use App\Models\User;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\Payment;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use App\Jobs\RetryAutoDebitJob;
 use App\Jobs\SendPaymentReminderJob;
@@ -18,8 +17,6 @@ use Carbon\Carbon;
 
 class AutoDebitServiceTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $service;
     protected $plan;
     protected $user;

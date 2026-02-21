@@ -8,13 +8,10 @@ use App\Models\User;
 use App\Models\Subscription;
 use App\Models\Payment;
 use App\Models\BonusTransaction;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Validator;
 
 class BonusTransactionTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $user;
     protected $sub;
     protected $payment;

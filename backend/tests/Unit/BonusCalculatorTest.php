@@ -9,12 +9,8 @@ use App\Models\User;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\Payment;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-
 class BonusCalculatorTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $service;
     protected $plan;
     protected $subscription;

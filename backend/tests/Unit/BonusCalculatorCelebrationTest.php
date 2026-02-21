@@ -10,13 +10,10 @@ use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\CelebrationEvent;
 use App\Models\Setting;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Carbon\Carbon;
 
 class BonusCalculatorCelebrationTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $planA;
     protected $planB;
     protected $userA;

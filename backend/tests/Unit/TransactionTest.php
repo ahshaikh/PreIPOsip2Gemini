@@ -7,14 +7,11 @@ use Tests\TestCase;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Models\Transaction;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
 
 class TransactionTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $user;
     protected $wallet;
 

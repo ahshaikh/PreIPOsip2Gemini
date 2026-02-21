@@ -11,15 +11,12 @@ use App\Models\Wallet;
 use App\Models\Subscription;
 use App\Models\Referral;
 use App\Models\Plan;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
 
 class UserTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected function setUp(): void
     {
         parent::setUp();

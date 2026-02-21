@@ -9,12 +9,8 @@ use App\Models\User;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\Referral;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-
 class ReferralServiceTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $service;
     protected $referrer;
     protected $planA;

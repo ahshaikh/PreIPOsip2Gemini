@@ -6,13 +6,10 @@ namespace Tests\Unit;
 use Tests\TestCase;
 use App\Models\Plan;
 use App\Models\PlanConfig;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Database\QueryException;
 
 class PlanConfigTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $plan;
 
     protected function setUp(): void

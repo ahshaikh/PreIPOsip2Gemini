@@ -10,12 +10,8 @@ use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\Payment;
 use App\Models\Setting;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-
 class BonusCalculatorMilestoneTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $service;
     protected $plan;
     protected $subscription;

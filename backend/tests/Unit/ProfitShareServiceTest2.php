@@ -11,12 +11,8 @@ use App\Models\Subscription;
 use App\Models\ProfitShare;
 use App\Models\Wallet;
 use App\Models\Setting;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-
 class ProfitShareServiceTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $service;
     protected $planA, $planB;
     protected $userA, $userB;

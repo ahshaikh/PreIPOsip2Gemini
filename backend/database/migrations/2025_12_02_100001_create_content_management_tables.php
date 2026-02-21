@@ -218,37 +218,6 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
         });
-
-        // Tutorials
-        Schema::create('tutorials', function (Blueprint $table) {
-            $table->id();
-            $table->string('title');
-            $table->string('slug')->unique();
-            $table->text('description')->nullable();
-            $table->longText('content')->nullable();
-            $table->string('video_url')->nullable();
-            $table->string('thumbnail')->nullable();
-
-            // Tutorial specifics
-            $table->enum('difficulty', ['beginner', 'intermediate', 'advanced'])->default('beginner');
-            $table->integer('duration_minutes')->nullable();
-            $table->json('steps')->nullable(); // Array of tutorial steps
-            $table->json('resources')->nullable(); // Additional resources
-
-            // Categorization
-            $table->string('category')->nullable(); // e.g., "Getting Started", "Investment Strategies"
-            $table->json('tags')->nullable();
-
-            // Engagement
-            $table->integer('views_count')->default(0);
-            $table->integer('likes_count')->default(0);
-            $table->decimal('rating', 3, 2)->nullable();
-
-            $table->integer('sort_order')->default(0);
-            $table->enum('status', ['draft', 'published', 'archived'])->default('draft');
-            $table->timestamps();
-            $table->softDeletes();
-        });
     }
 
     /**
@@ -256,7 +225,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('tutorials');
         Schema::dropIfExists('reports');
         Schema::dropIfExists('sectors');
         Schema::dropIfExists('companies');

@@ -9,7 +9,6 @@ use App\Models\Company;
 use App\Models\DisclosureModule;
 use App\Models\User;
 use App\Repositories\ApprovedDisclosureRepository;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -23,8 +22,6 @@ use Tests\TestCase;
 
 class DisclosureAuthorityTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected Company $company;
     protected DisclosureModule $module;
     protected User $admin;

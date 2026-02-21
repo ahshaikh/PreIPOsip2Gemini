@@ -14,7 +14,6 @@ use App\Models\Payment;
 use App\Models\BonusTransaction;
 use App\Services\WalletService;
 use App\Services\BonusCalculatorService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 
 /**
@@ -23,8 +22,6 @@ use Illuminate\Support\Facades\Hash;
  */
 class FullUserJourneyIntegrationTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected User $admin;
     protected Plan $plan;
 

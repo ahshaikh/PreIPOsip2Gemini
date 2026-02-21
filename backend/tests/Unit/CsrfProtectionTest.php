@@ -5,7 +5,6 @@ namespace Tests\Unit;
 
 use Tests\TestCase;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 // use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 class CsrfProtectionTest extends TestCase // Or WebTestCase

@@ -3,7 +3,6 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Referral;
@@ -12,8 +11,6 @@ use App\Services\ReferralService;
 
 class ReferralTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $referrer;
     protected $service;
 

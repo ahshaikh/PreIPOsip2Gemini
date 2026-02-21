@@ -9,12 +9,8 @@ use App\Models\User;
 use App\Models\Product;
 use App\Models\BulkPurchase;
 use App\Models\UserInvestment;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-
 class InventoryServiceTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $service;
     protected $product;
 

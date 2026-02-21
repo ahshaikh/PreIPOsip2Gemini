@@ -21,14 +21,11 @@ use App\Models\Company;
 use App\Models\User;
 use App\Scopes\PublicVisibilityScope;
 use App\Services\CompanyDisclosureTierService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class CompanyDisclosureTierServiceTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected CompanyDisclosureTierService $service;
     protected User $adminUser;
     protected Company $company;

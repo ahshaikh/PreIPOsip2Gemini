@@ -9,14 +9,11 @@ use App\Jobs\ProcessEmailJob;
 use App\Models\User;
 use App\Models\EmailTemplate;
 use App\Models\EmailLog;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Mail;
 
 class EmailServiceTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $service;
     protected $user;
     protected $template;

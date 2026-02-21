@@ -5,13 +5,10 @@ namespace Tests\Feature;
 use Tests\TestCase;
 use App\Models\WebhookLog;
 use App\Jobs\ProcessWebhookRetryJob;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 
 class WebhookRetrySystemTest extends TestCase
 {
-    use RefreshDatabase;
-
     #[\PHPUnit\Framework\Attributes\Test]
     public function webhook_log_is_created_for_incoming_webhook()
     {

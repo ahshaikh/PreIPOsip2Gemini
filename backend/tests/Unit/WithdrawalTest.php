@@ -7,13 +7,10 @@ use Tests\TestCase;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Models\Withdrawal;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Validator;
 
 class WithdrawalTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $user;
     protected $wallet;
     protected $admin;

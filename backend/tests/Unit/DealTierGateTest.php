@@ -19,13 +19,10 @@ use App\Models\Company;
 use App\Models\Product;
 use App\Enums\DisclosureTier;
 use App\Exceptions\DealTierGateException;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 
 class DealTierGateTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $product;
     protected $admin;
 

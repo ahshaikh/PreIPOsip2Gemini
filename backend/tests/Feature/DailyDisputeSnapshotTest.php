@@ -11,13 +11,10 @@ use App\Models\Payment;
 use App\Models\User;
 use App\Models\Plan;
 use App\Models\Company;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 
 class DailyDisputeSnapshotTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected function setUp(): void
     {
         parent::setUp();
@@ -106,7 +103,7 @@ class DailyDisputeSnapshotTest extends TestCase
     public function aggregate_command_creates_per_plan_snapshots()
     {
         $snapshotDate = now()->subDay()->toDateString();
-        $plan = Plan::factory()->create(['status' => 'active']);
+        $plan = Plan::factory()->create(['is_active' => true]);
 
         // Run aggregation command
         Artisan::call('dispute:aggregate-snapshots', [

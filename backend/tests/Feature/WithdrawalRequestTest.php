@@ -8,12 +8,8 @@ use App\Models\User;
 use App\Models\Wallet;
 use App\Models\Withdrawal;
 use App\Models\Setting;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-
 class WithdrawalRequestTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $user;
 
     protected function setUp(): void

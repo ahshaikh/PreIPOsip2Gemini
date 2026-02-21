@@ -8,13 +8,10 @@ use App\Services\NotificationService;
 use App\Jobs\ProcessNotificationJob;
 use App\Models\User;
 use App\Models\UserNotificationPreference;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 
 class NotificationServiceTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $service;
     protected $user;
 

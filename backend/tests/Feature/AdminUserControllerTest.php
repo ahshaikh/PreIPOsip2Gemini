@@ -11,14 +11,11 @@ use App\Models\Wallet;
 use App\Models\BonusTransaction;
 use App\Models\Subscription;
 use App\Models\Plan;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
 class AdminUserControllerTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected User $admin;
     protected User $user;
 

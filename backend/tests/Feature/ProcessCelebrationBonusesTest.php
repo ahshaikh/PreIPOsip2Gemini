@@ -3,7 +3,6 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\UserProfile;
@@ -14,8 +13,6 @@ use Illuminate\Support\Carbon;
 
 class ProcessCelebrationBonusesTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $userA;
     protected $userB;
     protected $planA;

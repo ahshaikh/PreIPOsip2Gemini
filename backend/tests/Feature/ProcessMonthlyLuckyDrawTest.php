@@ -3,7 +3,6 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\LuckyDraw;
@@ -15,8 +14,6 @@ use Mockery\MockInterface;
 
 class ProcessMonthlyLuckyDrawTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $serviceMock;
 
     protected function setUp(): void

@@ -8,12 +8,8 @@ use App\Models\User;
 use App\Models\ProfitShare;
 use App\Models\UserProfitShare;
 use App\Models\BonusTransaction;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-
 class UserProfitShareTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $user;
     protected $profitSharePeriod;
 

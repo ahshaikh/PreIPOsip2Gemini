@@ -16,12 +16,8 @@ use App\Models\Investment;
 use App\Services\AllocationService;
 use App\Services\RiskGuardService;
 use App\Exceptions\RiskBlockedException;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-
 class BlockedUserInvestmentTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected AllocationService $allocationService;
     protected RiskGuardService $riskGuard;
 

@@ -10,14 +10,11 @@ use App\Models\Wallet;
 use App\Models\Withdrawal;
 use App\Models\Setting;
 use App\Events\WithdrawalApproved;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\DB;
 
 class WithdrawalServiceTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $service;
     protected $user;
     protected $wallet;

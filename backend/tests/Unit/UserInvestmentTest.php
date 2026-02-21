@@ -8,12 +8,8 @@ use App\Models\User;
 use App\Models\Product;
 use App\Models\BulkPurchase;
 use App\Models\UserInvestment;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-
 class UserInvestmentTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $user;
     protected $product;
     protected $purchase;

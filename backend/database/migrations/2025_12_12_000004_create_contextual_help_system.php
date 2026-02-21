@@ -48,44 +48,6 @@ return new class extends Migration
             $table->index('user_role');
         });
 
-        // Interactive tutorials (step-by-step guides)
-	if (!Schema::hasTable('tutorials')) {
-        Schema::create('tutorials', function (Blueprint $table) {
-            $table->id();
-            $table->string('slug')->unique();
-            $table->string('title');
-            $table->text('description');
-            $table->string('category')->nullable(); // Getting Started, Advanced, etc.
-            $table->string('thumbnail_url')->nullable();
-
-            // Targeting
-            $table->enum('user_role', ['all', 'user', 'admin', 'company'])->default('all');
-            $table->enum('difficulty', ['beginner', 'intermediate', 'advanced'])->default('beginner');
-            $table->integer('estimated_minutes')->default(5);
-
-            // Auto-launch conditions
-            $table->boolean('auto_launch')->default(false);
-            $table->string('trigger_page')->nullable(); // URL pattern to trigger on
-            $table->json('trigger_conditions')->nullable(); // When to auto-launch
-
-            // Tracking
-            $table->integer('views_count')->default(0);
-            $table->integer('completions_count')->default(0);
-            $table->decimal('avg_completion_rate', 5, 2)->default(0);
-
-            // Order and status
-            $table->integer('sort_order')->default(0);
-            $table->boolean('is_featured')->default(false);
-            $table->boolean('is_active')->default(true);
-
-            $table->timestamps();
-
-            // Indexes
-            $table->index(['category', 'is_active']);
-            $table->index(['user_role', 'is_active']);
-            $table->index('is_featured');
-        });
-	}
         // Tutorial steps
         Schema::create('tutorial_steps', function (Blueprint $table) {
             $table->id();
@@ -124,30 +86,6 @@ return new class extends Migration
             // Indexes
             $table->index(['tutorial_id', 'step_number']);
             $table->unique(['tutorial_id', 'step_number']);
-        });
-
-        // User progress tracking
-        Schema::create('user_tutorial_progress', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->foreignId('tutorial_id')->constrained()->onDelete('cascade');
-
-            $table->integer('current_step')->default(1);
-            $table->integer('total_steps');
-            $table->boolean('completed')->default(false);
-            $table->timestamp('completed_at')->nullable();
-            $table->timestamp('started_at')->useCurrent();
-            $table->timestamp('last_activity_at')->useCurrent();
-
-            $table->integer('time_spent_seconds')->default(0); // Total time
-            $table->json('steps_completed')->default('[]'); // Array of completed step numbers
-
-            $table->timestamps();
-
-            // Indexes
-            $table->unique(['user_id', 'tutorial_id']);
-            $table->index(['user_id', 'completed']);
-            $table->index('tutorial_id');
         });
 
         // User help interactions (for analytics)
@@ -238,9 +176,7 @@ return new class extends Migration
         Schema::dropIfExists('user_dismissed_suggestions');
         Schema::dropIfExists('contextual_suggestions');
         Schema::dropIfExists('user_help_interactions');
-        Schema::dropIfExists('user_tutorial_progress');
         Schema::dropIfExists('tutorial_steps');
-        Schema::dropIfExists('tutorials');
         Schema::dropIfExists('help_tooltips');
     }
 };

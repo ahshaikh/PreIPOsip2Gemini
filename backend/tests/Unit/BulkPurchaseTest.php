@@ -9,12 +9,8 @@ use App\Models\User;
 use App\Models\Product;
 use App\Models\BulkPurchase;
 use App\Exceptions\BulkPurchaseProvenanceException;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-
 class BulkPurchaseTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $product;
     protected $admin;
 

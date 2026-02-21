@@ -7,13 +7,10 @@ use Tests\TestCase;
 use App\Models\User;
 use App\Models\Referral;
 use App\Models\ReferralCampaign;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Carbon\Carbon;
 
 class ReferralCampaignTest extends TestCase
 {
-    use RefreshDatabase;
-
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_campaign_validates_date_range()
     {

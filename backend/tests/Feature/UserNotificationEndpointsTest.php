@@ -3,15 +3,12 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use App\Models\User;
 use Illuminate\Notifications\DatabaseNotification;
 
 class UserNotificationEndpointsTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $user;
 
     protected function setUp(): void

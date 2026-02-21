@@ -7,14 +7,11 @@ use Tests\TestCase;
 use App\Models\LuckyDraw;
 use App\Models\LuckyDrawEntry;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 
 class LuckyDrawTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $user;
 
     protected function setUp(): void

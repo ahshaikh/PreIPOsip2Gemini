@@ -8,13 +8,10 @@ use App\Models\LuckyDraw;
 use App\Models\LuckyDrawEntry;
 use App\Models\User;
 use App\Models\Payment;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Database\QueryException;
 
 class LuckyDrawEntryTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $user;
     protected $draw;
 

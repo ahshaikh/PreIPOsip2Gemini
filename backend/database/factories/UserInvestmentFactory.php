@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Models\UserInvestment;
 use App\Models\User;
 use App\Models\Product;
+use App\Models\Subscription;
 use App\Models\BulkPurchase;
 use App\Models\Payment;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -23,7 +24,8 @@ class UserInvestmentFactory extends Factory
             'user_id'          => User::factory(),
             'product_id'       => Product::factory(),
             'payment_id'       => null,
-            'bulk_purchase_id' => null,
+            'subscription_id'  => Subscription::factory(), // V-AUDIT-FIX-2026: Required field (NOT NULL)
+            'bulk_purchase_id' => BulkPurchase::factory(), // V-AUDIT-FIX-2026: Required field (NOT NULL)
 
             // Required by DB
             'shares'           => $shares,
@@ -38,6 +40,7 @@ class UserInvestmentFactory extends Factory
             'status'           => 'active',
             'allocated_at'     => now(),
             'exited_at'        => null,
+            'is_reversed'      => false, // V-AUDIT-FIX-2026: Required field
         ];
     }
 

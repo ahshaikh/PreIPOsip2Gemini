@@ -9,14 +9,11 @@ use App\Models\Product;
 use App\Models\BulkPurchase;
 use App\Models\UserInvestment;
 use App\Models\ProductPriceHistory;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Validator;
 
 class ProductTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $product;
 
     protected function setUp(): void

@@ -7,14 +7,11 @@ use Tests\TestCase;
 use App\Models\User;
 use App\Models\Setting;
 use App\Services\FileUploadService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
 class ThemeSeoControllerTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected User $admin;
     protected User $user;
 

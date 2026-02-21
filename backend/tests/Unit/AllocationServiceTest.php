@@ -11,13 +11,10 @@ use App\Models\BulkPurchase;
 use App\Models\UserInvestment;
 use App\Models\Payment;
 use App\Models\Subscription;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 
 class AllocationServiceTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $service;
     protected $user;
     protected $product;

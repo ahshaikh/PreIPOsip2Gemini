@@ -7,13 +7,10 @@ use Tests\TestCase;
 use App\Models\User;
 use App\Models\UserKyc;
 use App\Models\KycDocument;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Validator;
 
 class KycDocumentTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $kyc;
     protected $admin;
 

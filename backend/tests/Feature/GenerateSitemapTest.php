@@ -3,7 +3,6 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Product;
@@ -13,8 +12,6 @@ use Illuminate\Support\Facades\File;
 
 class GenerateSitemapTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected $sitemapPath;
 
     protected function setUp(): void

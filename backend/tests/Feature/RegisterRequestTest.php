@@ -3,7 +3,6 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use App\Http\Requests\RegisterRequest;
 use Illuminate\Support\Facades\Validator;
@@ -11,8 +10,6 @@ use App\Models\User;
 
 class RegisterRequestTest extends TestCase
 {
-    use RefreshDatabase;
-
     private $rules;
 
     protected function setUp(): void

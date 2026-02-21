@@ -13,13 +13,10 @@ use App\Enums\DisclosureTier;
 use App\Exceptions\DisclosureTierImmutabilityException;
 use App\Models\Company;
 use App\Scopes\PublicVisibilityScope;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class CompanyDisclosureTierImmutabilityTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected Company $company;
 
     protected function setUp(): void

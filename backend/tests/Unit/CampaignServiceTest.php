@@ -8,13 +8,10 @@ use App\Models\CampaignUsage;
 use App\Models\User;
 use App\Models\Investment;
 use App\Services\CampaignService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 
 class CampaignServiceTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected CampaignService $campaignService;
     protected User $user;
     protected Campaign $campaign;

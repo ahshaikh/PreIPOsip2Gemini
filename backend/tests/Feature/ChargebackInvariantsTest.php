@@ -10,18 +10,16 @@ use App\Models\Payment;
 use App\Models\Wallet;
 use App\Models\Subscription;
 use App\Models\Plan;
+use App\Models\LedgerEntry;
 use App\Events\ChargebackConfirmed;
 use App\Listeners\UpdateUserRiskProfile;
 use App\Services\RiskScoringService;
 use App\Services\PaymentWebhookService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\DB;
 
 class ChargebackInvariantsTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected function setUp(): void
     {
         parent::setUp();
@@ -175,9 +173,9 @@ class ChargebackInvariantsTest extends TestCase
 
         $this->processChargeback($payment);
 
-        // Verify ledger balance
+        // Verify ledger balance - use semantic reference type (not polymorphic model class)
         $ledgerEntries = DB::table('ledger_entries')
-            ->where('reference_type', Payment::class)
+            ->where('reference_type', LedgerEntry::REF_CHARGEBACK)
             ->where('reference_id', $payment->id)
             ->get();
 
