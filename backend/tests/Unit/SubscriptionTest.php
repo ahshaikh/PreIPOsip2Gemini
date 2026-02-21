@@ -28,6 +28,9 @@ class SubscriptionTest extends TestCase
         $sub = Subscription::create([
             'user_id' => $this->user->id,
             'plan_id' => $this->plan->id,
+            'amount' => $this->plan->monthly_amount,
+            'subscription_code' => 'SUB-TEST-' . uniqid(),
+            'status' => 'active',
             'start_date' => now(),
             'end_date' => now()->addYear(),
             'next_payment_date' => now()
@@ -43,6 +46,9 @@ class SubscriptionTest extends TestCase
         $sub = Subscription::create([
             'user_id' => $this->user->id,
             'plan_id' => $this->plan->id,
+            'amount' => $this->plan->monthly_amount,
+            'subscription_code' => 'SUB-TEST-' . uniqid(),
+            'status' => 'active',
             'start_date' => now(),
             'end_date' => now()->addYear(),
             'next_payment_date' => now()

@@ -362,10 +362,12 @@ class PaymentWebhookService
         );
 
         // Amount validated - safe to create the payment record
+        // V-PAYMENT-INTEGRITY-2026: Must set amount_paise as authoritative source
         $payment = Payment::create([
             'user_id' => $subscription->user_id,
             'subscription_id' => $subscription->id,
             'amount' => $webhookAmount, // Now validated against contract
+            'amount_paise' => $webhookAmountPaise, // V-PAYMENT-INTEGRITY-2026: Integer paise required
             'status' => 'pending',
             'gateway' => 'razorpay_auto',
             'gateway_payment_id' => $paymentId,

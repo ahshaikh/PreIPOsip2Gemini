@@ -15,10 +15,24 @@ class ProductSeeder extends Seeder
     /**
      * Run the database seeds.
      * Creates dummy Pre-IPO products and inventory, ensuring they belong to a company.
+     *
+     * SEEDER INTEGRITY: Self-contained - creates required admin user if not exists.
      */
     public function run(): void
     {
-        $admin = User::where('username', 'admin')->firstOrFail();
+        // Self-contained: Create seeder admin if none exists (removes UserSeeder coupling)
+        $admin = User::where('username', 'admin')->first();
+        if (!$admin) {
+            $admin = User::create([
+                'username' => 'seeder_admin',
+                'email' => 'seeder_admin@preipo.local',
+                'mobile' => '9000000001', // Required field
+                'password' => bcrypt('seeder_password_not_for_production'),
+                'status' => 'active',
+                'email_verified_at' => now(),
+                'mobile_verified_at' => now(),
+            ]);
+        }
 
         // 2. CREATE A DUMMY COMPANY FOR SEEDING
         // Using updateOrCreate to avoid creating duplicates on re-seeding

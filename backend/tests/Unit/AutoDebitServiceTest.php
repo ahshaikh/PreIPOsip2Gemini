@@ -24,9 +24,15 @@ class AutoDebitServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // V-FIX-AUTODEBIT-MEMORY-2026: Always fake queues in auto-debit tests
+        // Without this, synchronous queue processing can cause infinite loops
+        // when Razorpay gateway is not properly mocked.
+        Queue::fake();
+
         $this->service = new AutoDebitService();
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
-        
+
         $this->user = User::factory()->create();
         $this->plan = Plan::factory()->create(['monthly_amount' => 1000]);
     }
@@ -68,9 +74,13 @@ class AutoDebitServiceTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_initiate_payment_creates_pending_payment()
     {
+        // V-FIX-AUTODEBIT-AMOUNT-2026: Explicitly set amount to match plan
+        // SubscriptionFactory uses Plan::first() for amount, which may differ
+        // from the plan_id we're passing. Explicitly set amount to ensure consistency.
         $sub = Subscription::factory()->create([
             'user_id' => $this->user->id,
             'plan_id' => $this->plan->id,
+            'amount' => $this->plan->monthly_amount,
             'next_payment_date' => now(),
             'is_auto_debit' => true
         ]);
@@ -122,20 +132,36 @@ class AutoDebitServiceTest extends TestCase
         $sub = Subscription::factory()->create([
             'user_id' => $this->user->id,
             'status' => 'active',
-            'is_auto_debit' => true
-        ]);
-        
-        $payment = Payment::factory()->create([
-            'subscription_id' => $sub->id,
-            'retry_count' => 3, // Max reached
-            'status' => 'pending'
+            'is_auto_debit' => true,
+            'start_date' => now()->subMonth(), // Ensure billing cycle start is in the past
         ]);
 
-        $this->service->processRetry($payment);
+        // V-PAYMENT-INTEGRITY-2026: processRetry counts actual payment records, not retry_count field
+        // Create 3 failed payments to trigger suspension (max is 3 attempts)
+        Payment::factory()->create([
+            'subscription_id' => $sub->id,
+            'user_id' => $this->user->id,
+            'status' => 'failed',
+            'created_at' => now()->subDays(2),
+        ]);
+        Payment::factory()->create([
+            'subscription_id' => $sub->id,
+            'user_id' => $this->user->id,
+            'status' => 'failed',
+            'created_at' => now()->subDay(),
+        ]);
+        $latestPayment = Payment::factory()->create([
+            'subscription_id' => $sub->id,
+            'user_id' => $this->user->id,
+            'status' => 'pending', // Current attempt
+            'created_at' => now(),
+        ]);
+
+        $this->service->processRetry($latestPayment);
 
         $this->assertEquals('payment_failed', $sub->fresh()->status);
         $this->assertEquals(false, $sub->fresh()->is_auto_debit);
-        
+
         Queue::assertPushed(SendPaymentFailedEmailJob::class);
     }
 

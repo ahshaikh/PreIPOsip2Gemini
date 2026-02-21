@@ -35,10 +35,11 @@ class SubscriptionLifecycleTest extends TestCase
                          ->postJson('/api/v1/user/subscription', ['plan_id' => $this->planA->id]);
 
         $response->assertStatus(201);
+        // Status is 'pending' until first payment succeeds (Free Ride fix)
         $this->assertDatabaseHas('subscriptions', [
             'user_id' => $this->user->id,
             'plan_id' => $this->planA->id,
-            'status' => 'active'
+            'status' => 'pending'
         ]);
     }
 

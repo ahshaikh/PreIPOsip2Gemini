@@ -48,6 +48,7 @@ class CompleteUserJourneyTest extends TestCase
         // Seed the core data
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
         $this->seed(\Database\Seeders\SettingsSeeder::class);
+        // ProductSeeder is now self-contained - no UserSeeder coupling required
         $this->seed(\Database\Seeders\PlanSeeder::class);
         $this->seed(\Database\Seeders\ProductSeeder::class);
         

@@ -48,6 +48,12 @@ return [
          * Default: 10%
          */
         'profit_share' => env('TDS_RATE_PROFIT_SHARE', 10.0),
+
+        /**
+         * TDS on celebration bonuses (birthday, anniversary, festival)
+         * Default: 10% (treated same as regular bonus)
+         */
+        'celebration' => env('TDS_RATE_CELEBRATION', 10.0),
     ],
 
     /*
@@ -64,6 +70,7 @@ return [
         'referral' => env('TDS_THRESHOLD_REFERRAL', 0),
         'withdrawal' => env('TDS_THRESHOLD_WITHDRAWAL', 0),
         'profit_share' => env('TDS_THRESHOLD_PROFIT_SHARE', 0),
+        'celebration' => env('TDS_THRESHOLD_CELEBRATION', 0), // Birthday/anniversary/festival bonuses
     ],
 
     /*

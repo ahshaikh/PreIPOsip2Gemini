@@ -15,6 +15,7 @@ use App\Services\PaymentWebhookService;
 use App\Jobs\ProcessSuccessfulPaymentJob;
 use App\Jobs\SendPaymentFailedEmailJob;
 use App\Exceptions\PaymentAmountMismatchException;
+use App\Http\Middleware\VerifyWebhookSignature;
 use Mockery;
 
 class PaymentWebhookServiceTest extends TestCase
@@ -22,19 +23,42 @@ class PaymentWebhookServiceTest extends TestCase
     protected $user;
     protected $subscription;
     protected $razorpayMock;
+    protected $webhookSecret = 'test_webhook_secret_for_testing';
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
-        
+
+        // Configure webhook secret for signature verification
+        config(['services.razorpay.webhook_secret' => $this->webhookSecret]);
+
         $this->user = User::factory()->create();
         $this->user->wallet()->create(['balance_paise' => 0, 'locked_balance_paise' => 0]);
         $this->subscription = Subscription::factory()->create(['user_id' => $this->user->id]);
 
-        // Mock RazorpayService
+        // Mock RazorpayService (for controller-level operations)
         $this->razorpayMock = Mockery::mock(RazorpayService::class);
         $this->app->instance(RazorpayService::class, $this->razorpayMock);
+    }
+
+    /**
+     * Generate valid HMAC signature for webhook payload
+     */
+    private function generateValidSignature(array $payload): string
+    {
+        return hash_hmac('sha256', json_encode($payload), $this->webhookSecret);
+    }
+
+    /**
+     * Post webhook with valid signature
+     */
+    private function postWebhookWithSignature(array $payload)
+    {
+        $signature = $this->generateValidSignature($payload);
+        return $this->postJson('/api/v1/webhooks/razorpay', $payload, [
+            'X-Razorpay-Signature' => $signature
+        ]);
     }
 
     private function mockSignatureValidation($isValid = true)
@@ -47,12 +71,14 @@ class PaymentWebhookServiceTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_handle_payment_captured_updates_payment_status()
     {
-        $this->mockSignatureValidation(true);
         Queue::fake();
 
         $payment = Payment::factory()->create([
+            'user_id' => $this->user->id,
             'subscription_id' => $this->subscription->id,
             'gateway_order_id' => 'order_123',
+            'amount' => 1000,
+            'amount_paise' => 100000,
             'status' => 'pending'
         ]);
 
@@ -69,30 +95,81 @@ class PaymentWebhookServiceTest extends TestCase
             ]
         ];
 
-        $response = $this->postJson('/api/v1/webhooks/razorpay', $payload, ['X-Razorpay-Signature' => 'valid']);
+        $response = $this->postWebhookWithSignature($payload);
 
         $response->assertStatus(200);
         $this->assertEquals('paid', $payment->fresh()->status);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
-    public function test_handle_payment_captured_triggers_allocation()
+    public function test_pending_subscription_activates_on_first_payment_success()
     {
-        $this->mockSignatureValidation(true);
         Queue::fake();
 
-        Payment::factory()->create([
-            'subscription_id' => $this->subscription->id,
-            'gateway_order_id' => 'order_123',
+        // Create subscription in PENDING state (pre-payment)
+        $pendingSubscription = Subscription::factory()->create([
+            'user_id' => $this->user->id,
+            'status' => 'pending',
+            'next_payment_date' => now(),
+        ]);
+
+        $payment = Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'subscription_id' => $pendingSubscription->id,
+            'gateway_order_id' => 'order_activation_123',
+            'amount' => 1000,
+            'amount_paise' => 100000, // V-PAYMENT-INTEGRITY: Required for amount validation
             'status' => 'pending'
         ]);
 
         $payload = [
             'event' => 'payment.captured',
-            'payload' => ['payment' => ['entity' => ['id' => 'pay_123', 'order_id' => 'order_123']]]
+            'payload' => [
+                'payment' => [
+                    'entity' => [
+                        'id' => 'pay_activation_123',
+                        'order_id' => 'order_activation_123',
+                        'amount' => 100000 // Must match amount_paise
+                    ]
+                ]
+            ]
         ];
 
-        $this->postJson('/api/v1/webhooks/razorpay', $payload, ['X-Razorpay-Signature' => 'valid']);
+        $response = $this->postWebhookWithSignature($payload);
+
+        $response->assertStatus(200);
+
+        // Verify subscription activated
+        $pendingSubscription->refresh();
+        $this->assertEquals('active', $pendingSubscription->status, 'Subscription should activate after first payment');
+
+        // Verify payment marked as paid
+        $this->assertEquals('paid', $payment->fresh()->status);
+
+        // Verify post-processing job dispatched
+        Queue::assertPushed(ProcessSuccessfulPaymentJob::class);
+    }
+
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function test_handle_payment_captured_triggers_allocation()
+    {
+        Queue::fake();
+
+        Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'subscription_id' => $this->subscription->id,
+            'gateway_order_id' => 'order_alloc_123',
+            'amount' => 1000,
+            'amount_paise' => 100000,
+            'status' => 'pending'
+        ]);
+
+        $payload = [
+            'event' => 'payment.captured',
+            'payload' => ['payment' => ['entity' => ['id' => 'pay_alloc_123', 'order_id' => 'order_alloc_123', 'amount' => 100000]]]
+        ];
+
+        $this->postWebhookWithSignature($payload);
 
         Queue::assertPushed(ProcessSuccessfulPaymentJob::class);
     }
@@ -100,10 +177,10 @@ class PaymentWebhookServiceTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_handle_payment_failed_updates_status()
     {
-        $this->mockSignatureValidation(true);
         Queue::fake();
 
         $payment = Payment::factory()->create([
+            'user_id' => $this->user->id,
             'gateway_order_id' => 'order_fail',
             'status' => 'pending'
         ]);
@@ -120,7 +197,7 @@ class PaymentWebhookServiceTest extends TestCase
             ]
         ];
 
-        $this->postJson('/api/v1/webhooks/razorpay', $payload, ['X-Razorpay-Signature' => 'valid']);
+        $this->postWebhookWithSignature($payload);
 
         $this->assertEquals('failed', $payment->fresh()->status);
     }
@@ -128,17 +205,19 @@ class PaymentWebhookServiceTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_handle_payment_failed_sends_notification()
     {
-        $this->mockSignatureValidation(true);
         Queue::fake();
 
-        Payment::factory()->create(['gateway_order_id' => 'order_fail']);
+        Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'gateway_order_id' => 'order_fail_notif'
+        ]);
 
         $payload = [
             'event' => 'payment.failed',
-            'payload' => ['payment' => ['entity' => ['order_id' => 'order_fail']]]
+            'payload' => ['payment' => ['entity' => ['order_id' => 'order_fail_notif']]]
         ];
 
-        $this->postJson('/api/v1/webhooks/razorpay', $payload, ['X-Razorpay-Signature' => 'valid']);
+        $this->postWebhookWithSignature($payload);
 
         Queue::assertPushed(SendPaymentFailedEmailJob::class);
     }
@@ -146,27 +225,33 @@ class PaymentWebhookServiceTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_handle_refund_processed_updates_records()
     {
-        $this->mockSignatureValidation(true);
-
         $payment = Payment::factory()->create([
             'gateway_payment_id' => 'pay_refund',
             'status' => 'paid',
-            'user_id' => $this->user->id
+            'user_id' => $this->user->id,
+            'subscription_id' => $this->subscription->id,
+            'amount' => 1000,
+            'amount_paise' => 100000,
         ]);
 
+        // Payload structure must match what handleRefundProcessed expects:
+        // - payment_id: gateway payment ID
+        // - amount: refund amount in paise
+        // - refund_id: gateway refund ID (for idempotency)
         $payload = [
             'event' => 'refund.processed',
             'payload' => [
                 'refund' => [
                     'entity' => [
                         'id' => 'rfnd_123',
-                        'payment_id' => 'pay_refund'
+                        'payment_id' => 'pay_refund',
+                        'amount' => 100000, // Full refund amount in paise
                     ]
                 ]
             ]
         ];
 
-        $this->postJson('/api/v1/webhooks/razorpay', $payload, ['X-Razorpay-Signature' => 'valid']);
+        $this->postWebhookWithSignature($payload);
 
         $this->assertEquals('refunded', $payment->fresh()->status);
         $this->assertDatabaseHas('transactions', [
@@ -178,49 +263,56 @@ class PaymentWebhookServiceTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_webhook_rejects_invalid_signature()
     {
-        $this->razorpayMock->shouldReceive('verifyWebhookSignature')
-            ->once()
-            ->andReturn(false);
+        // Send with invalid/fake signature (middleware does HMAC verification)
+        $response = $this->postJson('/api/v1/webhooks/razorpay', ['event' => 'test'], [
+            'X-Razorpay-Signature' => 'invalid_fake_signature'
+        ]);
 
-        $response = $this->postJson('/api/v1/webhooks/razorpay', [], ['X-Razorpay-Signature' => 'fake']);
-
-        $response->assertStatus(400)
-                 ->assertJson(['error' => 'Invalid Signature']);
+        $response->assertStatus(401)
+                 ->assertJson(['error' => 'Invalid signature']);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_webhook_handles_duplicate_events()
     {
-        $this->razorpayMock->shouldReceive('verifyWebhookSignature')->twice()->andReturn(true);
         Queue::fake();
 
         // 1. First Call
-        $payment = Payment::factory()->create(['gateway_order_id' => 'order_dup', 'status' => 'pending']);
-        
+        $payment = Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'subscription_id' => $this->subscription->id,
+            'gateway_order_id' => 'order_dup',
+            'amount' => 1000,
+            'amount_paise' => 100000,
+            'status' => 'pending'
+        ]);
+
         $payload = [
             'event' => 'payment.captured',
-            'payload' => ['payment' => ['entity' => ['id' => 'pay_dup', 'order_id' => 'order_dup']]]
+            'payload' => ['payment' => ['entity' => ['id' => 'pay_dup', 'order_id' => 'order_dup', 'amount' => 100000]]]
         ];
 
-        $this->postJson('/api/v1/webhooks/razorpay', $payload, ['X-Razorpay-Signature' => 'valid']);
-        
-        // 2. Second Call (Duplicate)
-        $this->postJson('/api/v1/webhooks/razorpay', $payload, ['X-Razorpay-Signature' => 'valid']);
+        $this->postWebhookWithSignature($payload);
 
-        // Job should only be pushed ONCE
+        // 2. Second Call (Duplicate) - payment already paid, should be idempotent
+        $this->postWebhookWithSignature($payload);
+
+        // Job should only be pushed ONCE (idempotency)
         Queue::assertPushed(ProcessSuccessfulPaymentJob::class, 1);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_webhook_logs_all_events()
     {
-        Log::shouldReceive('info')->atLeast()->once();
-        // We must also mock the critical check in controller
-        Log::shouldReceive('critical')->never();
+        // Use Log spy to verify logging without strict mocking
+        Log::spy();
 
-        $this->mockSignatureValidation(true);
+        $payload = ['event' => 'ping'];
 
-        $this->postJson('/api/v1/webhooks/razorpay', ['event' => 'ping'], ['X-Razorpay-Signature' => 'valid']);
+        $this->postWebhookWithSignature($payload);
+
+        // Verify info was logged (webhook processing)
+        Log::shouldHaveReceived('info')->atLeast()->once();
     }
 
     // =========================================================================

@@ -38,10 +38,11 @@ class SubscriptionTest extends TestCase
                          ]);
 
         $response->assertStatus(201);
+        // Status is 'pending' until first payment succeeds (Free Ride fix)
         $this->assertDatabaseHas('subscriptions', [
             'user_id' => $this->user->id,
             'plan_id' => $this->planA->id,
-            'status' => 'active'
+            'status' => 'pending'
         ]);
         // Ensure first payment created
         $this->assertDatabaseHas('payments', [
@@ -75,8 +76,15 @@ class SubscriptionTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function user_can_pause_subscription()
     {
+        // Explicitly set max_pause_duration_months to ensure validation passes
+        $plan = Plan::factory()->create([
+            'max_pause_duration_months' => 3,
+            'allow_pause' => true,
+        ]);
+
         $sub = Subscription::factory()->create([
             'user_id' => $this->user->id,
+            'plan_id' => $plan->id,
             'status' => 'active'
         ]);
 

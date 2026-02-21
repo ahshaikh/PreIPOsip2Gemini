@@ -34,6 +34,7 @@ class ServiceIntegrationTest extends TestCase
     {
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
         $this->seed(\Database\Seeders\SettingsSeeder::class);
+        // ProductSeeder is now self-contained - no UserSeeder coupling required
         $this->seed(\Database\Seeders\PlanSeeder::class);
         $this->seed(\Database\Seeders\ProductSeeder::class);
     }
@@ -49,7 +50,9 @@ class ServiceIntegrationTest extends TestCase
             'user_id' => $user->id,
             'subscription_id' => $sub->id,
             'status' => 'pending',
-            'gateway_order_id' => 'order_123'
+            'gateway_order_id' => 'order_123',
+            'amount' => 1000,
+            'amount_paise' => 100000, // V-PAYMENT-INTEGRITY-2026: Integer paise required
         ]);
 
         $service = $this->app->make(PaymentWebhookService::class);
@@ -68,9 +71,16 @@ class ServiceIntegrationTest extends TestCase
     public function test_email_service_queues_for_async_delivery()
     {
         Queue::fake();
-        EmailTemplate::factory()->create(['slug' => 'test.email']);
+        // Create EmailTemplate directly since no factory exists
+        EmailTemplate::create([
+            'slug' => 'test.email',
+            'name' => 'Test Email',
+            'subject' => 'Test Subject',
+            'body' => 'Test body content',
+            'is_active' => true,
+        ]);
         $user = User::factory()->create();
-        
+
         $service = $this->app->make(\App\Services\EmailService::class);
         $service->send($user, 'test.email', []);
 
@@ -78,25 +88,31 @@ class ServiceIntegrationTest extends TestCase
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
-    public function test_subscription_service_calculates_prorated_amounts()
+    public function test_subscription_service_calculates_upgrade_differential()
     {
+        // BILLING DOCTRINE: Upgrade charges use flat differential (newAmount - oldAmount)
+        // This is NOT time-based proration. See V-FINAL-1730-578 (V2.0 Proration).
         $user = User::factory()->create();
         $planA = Plan::factory()->create(['monthly_amount' => 1000]);
         $planB = Plan::factory()->create(['monthly_amount' => 4000]);
         $sub = Subscription::factory()->create([
             'user_id' => $user->id,
             'plan_id' => $planA->id,
+            'amount' => $planA->monthly_amount,
             'status' => 'active',
-            'next_payment_date' => now()->addDays(15) // Halfway
         ]);
-        
+
         $service = $this->app->make(\App\Services\SubscriptionService::class);
-        
-        // (4000-1000) / 30 * 15 = 1500
+
+        // Upgrade differential = newPlanAmount - currentPlanAmount
+        // 4000 - 1000 = 3000
         $amount = $service->upgradePlan($sub, $planB);
 
-        $this->assertEquals(1500, $amount);
-        $this->assertDatabaseHas('payments', ['amount' => 1500, 'gateway' => 'upgrade_charge']);
+        $this->assertEquals(3000, $amount);
+        $this->assertDatabaseHas('payments', [
+            'amount' => 3000,
+            'payment_type' => \App\Enums\PaymentType::UPGRADE_CHARGE->value,
+        ]);
     }
     
     #[\PHPUnit\Framework\Attributes\Test]
@@ -116,12 +132,15 @@ class ServiceIntegrationTest extends TestCase
     {
         $service = $this->app->make(FileUploadService::class);
         // We use the "eicar" standard test file name to trigger the mock scanner
-        $virusFile = UploadedFile::fake()->create('eicar.com', 100);
+        // Create with image/jpeg mime type to pass validation, name triggers virus scan
+        $virusFile = UploadedFile::fake()->create('eicar.com', 100, 'image/jpeg');
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage("Malware detected in file.");
 
-        $service->upload($virusFile);
+        $service->upload($virusFile, [
+            'allowed_mimes' => 'jpg,jpeg,png,pdf,com', // Include .com extension
+        ]);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -129,40 +148,57 @@ class ServiceIntegrationTest extends TestCase
     {
         Storage::fake('public');
         $service = $this->app->make(FileUploadService::class);
-        $file = UploadedFile::fake()->create('secret.txt', 1, 'text/plain');
-        
-        $path = $service->upload($file, [
+
+        // Create a fake JPEG image with known, identifiable content
+        // UploadedFile::fake()->image() creates valid image with proper MIME headers
+        $fakeImage = UploadedFile::fake()->image('secret.jpg', 10, 10);
+
+        // Read original content before upload for strict comparison
+        $originalContent = file_get_contents($fakeImage->getRealPath());
+
+        $path = $service->upload($fakeImage, [
             'path' => 'secure',
             'encrypt' => true
         ]);
-        
+
         // 1. Get raw content from disk
         $rawContent = Storage::disk('public')->get($path);
-        
-        // 2. Assert it is NOT the original content
-        $this->assertNotEquals('a', $rawContent);
-        
-        // 3. Assert we can decrypt it to get original content
-        $this->assertEquals('a', Crypt::decrypt($rawContent));
+
+        // 2. STRICT: Assert encrypted content is NOT the original
+        $this->assertNotEquals($originalContent, $rawContent, 'Encrypted content must differ from original');
+
+        // 3. STRICT: Assert decrypted content IS EXACTLY the original
+        $decrypted = Crypt::decrypt($rawContent);
+        $this->assertEquals($originalContent, $decrypted, 'Decrypted content must match original exactly');
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_settings_service_invalidates_cache_on_update()
     {
-        $admin = User::factory()->create();
-        $admin->assignRole('super-admin');
-        
-        Setting::create(['key' => 'test_cache', 'value' => 'old']);
-
-        // 1. Call helper, which caches 'old'
-        $this->assertEquals('old', setting('test_cache'));
-
-        // 2. Admin updates the setting
-        $this->actingAs($admin)->putJson('/api/v1/admin/settings', [
-            'settings' => [ ['key' => 'test_cache', 'value' => 'new'] ]
+        // Create required permission for admin settings endpoint
+        \Spatie\Permission\Models\Permission::firstOrCreate([
+            'name' => 'settings.edit_system',
+            'guard_name' => 'web',
         ]);
 
-        // 3. Call helper again. Cache should be busted.
-        $this->assertEquals('new', setting('test_cache'));
+        $admin = User::factory()->create();
+        $admin->assignRole('super-admin');
+        // Super-admin role must have the permission (re-sync after creating permission)
+        $admin->givePermissionTo('settings.edit_system');
+
+        Setting::create(['key' => 'test_cache_' . uniqid(), 'value' => 'old', 'type' => 'string']);
+        $testKey = Setting::latest('id')->first()->key;
+
+        // 1. Call helper, which caches 'old'
+        $this->assertEquals('old', setting($testKey));
+
+        // 2. Admin updates the setting via API - cache invalidation happens here
+        $response = $this->actingAs($admin)->putJson('/api/v1/admin/settings', [
+            'settings' => [['key' => $testKey, 'value' => 'new']]
+        ]);
+        $response->assertStatus(200);
+
+        // 3. Call helper again - cache should be naturally invalidated by controller
+        $this->assertEquals('new', setting($testKey));
     }
 }

@@ -156,8 +156,8 @@ class CelebrationBonusService
         }
 
         return DB::transaction(function () use ($user, $subscription, $milestone, $milestoneName, $bonusType, $grossBonusAmount) {
-            // 1. Calculate TDS on gross bonus
-            $tdsResult = $this->tdsService->calculate($grossBonusAmount, 'celebration_bonus');
+            // 1. Calculate TDS on gross bonus (type 'celebration' as per config/tds.php)
+            $tdsResult = $this->tdsService->calculate($grossBonusAmount, 'celebration');
 
             // 2. Create BonusTransaction record
             $bonusTxn = \App\Models\BonusTransaction::create([

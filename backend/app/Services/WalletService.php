@@ -107,10 +107,22 @@ class WalletService
         }
 
         return DB::transaction(function () use ($user, $amountPaise, $type, $description, $reference) {
-            // [AUDIT FIX]: lockForUpdate() prevents race conditions during high-volume credits.
-            $wallet = $user->wallet()
-                ->lockForUpdate()
-                ->firstOrCreate(['user_id' => $user->id]);
+            // V-FIX-WALLET-LOOKUP-2026: Fixed wallet lookup to prevent creating duplicate wallets.
+            // Use explicit query by user_id instead of relationship accessor to ensure
+            // we find the wallet regardless of relationship caching state.
+            //
+            // The previous issue: $user->wallet relationship accessor may not find existing
+            // wallet when called on fresh User instances in some contexts.
+            $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->first();
+            if (!$wallet) {
+                $wallet = Wallet::create([
+                    'user_id' => $user->id,
+                    'balance_paise' => 0,
+                    'locked_balance_paise' => 0,
+                ]);
+                // Re-acquire lock after creation
+                $wallet = Wallet::where('id', $wallet->id)->lockForUpdate()->first();
+            }
 
             $balanceBefore = $wallet->balance_paise;
 
@@ -258,9 +270,16 @@ class WalletService
             $allowOverdraft,
             $bonusAmountPaise
         ) {
-            $wallet = $user->wallet()
-                ->lockForUpdate()
-                ->firstOrCreate(['user_id' => $user->id]);
+            // V-FIX-WALLET-LOOKUP-2026: Use explicit query by user_id (see deposit method comment)
+            $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->first();
+            if (!$wallet) {
+                $wallet = Wallet::create([
+                    'user_id' => $user->id,
+                    'balance_paise' => 0,
+                    'locked_balance_paise' => 0,
+                ]);
+                $wallet = Wallet::where('id', $wallet->id)->lockForUpdate()->first();
+            }
 
             if (!$allowOverdraft && $wallet->balance_paise < $amountPaise) {
                 throw new InsufficientBalanceException($wallet->balance_paise, $amountPaise);
@@ -405,9 +424,16 @@ class WalletService
         }
 
         DB::transaction(function () use ($user, $amountPaise, $reason, $reference) {
-            $wallet = $user->wallet()
-                ->lockForUpdate()
-                ->firstOrCreate(['user_id' => $user->id]);
+            // V-FIX-WALLET-LOOKUP-2026: Use explicit query by user_id (see deposit method comment)
+            $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->first();
+            if (!$wallet) {
+                $wallet = Wallet::create([
+                    'user_id' => $user->id,
+                    'balance_paise' => 0,
+                    'locked_balance_paise' => 0,
+                ]);
+                $wallet = Wallet::where('id', $wallet->id)->lockForUpdate()->first();
+            }
 
             // Check available balance (balance - locked)
             $availableBalance = $wallet->balance_paise - $wallet->locked_balance_paise;
@@ -463,9 +489,16 @@ class WalletService
         }
 
         DB::transaction(function () use ($user, $amountPaise, $reason, $reference) {
-            $wallet = $user->wallet()
-                ->lockForUpdate()
-                ->firstOrCreate(['user_id' => $user->id]);
+            // V-FIX-WALLET-LOOKUP-2026: Use explicit query by user_id (see deposit method comment)
+            $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->first();
+            if (!$wallet) {
+                $wallet = Wallet::create([
+                    'user_id' => $user->id,
+                    'balance_paise' => 0,
+                    'locked_balance_paise' => 0,
+                ]);
+                $wallet = Wallet::where('id', $wallet->id)->lockForUpdate()->first();
+            }
 
             if ($wallet->locked_balance_paise < $amountPaise) {
                 throw new \RuntimeException(
@@ -543,10 +576,8 @@ class WalletService
         }
 
         // CRITICAL: Acquire row-level lock on wallet
-        $wallet = $user->wallet()
-            ->lockForUpdate()
-            ->first();
-
+        // V-FIX-WALLET-LOOKUP-2026: Use explicit query by user_id (see deposit method comment)
+        $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->first();
         if (!$wallet) {
             throw new \RuntimeException("Wallet not found for user #{$user->id} during chargeback adjustment");
         }
@@ -785,9 +816,16 @@ class WalletService
             $description,
             $reference
         ) {
-            $wallet = $user->wallet()
-                ->lockForUpdate()
-                ->firstOrCreate(['user_id' => $user->id]);
+            // V-FIX-WALLET-LOOKUP-2026: Use explicit query by user_id (see deposit method comment)
+            $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->first();
+            if (!$wallet) {
+                $wallet = Wallet::create([
+                    'user_id' => $user->id,
+                    'balance_paise' => 0,
+                    'locked_balance_paise' => 0,
+                ]);
+                $wallet = Wallet::where('id', $wallet->id)->lockForUpdate()->first();
+            }
 
             if ($wallet->locked_balance_paise < $amountPaise) {
                 throw new \RuntimeException(

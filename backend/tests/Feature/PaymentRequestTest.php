@@ -8,6 +8,9 @@ use App\Models\User;
 use App\Models\Payment;
 use App\Models\Subscription;
 use App\Models\Setting;
+use App\Contracts\PaymentGatewayInterface;
+use Mockery;
+
 class PaymentRequestTest extends TestCase
 {
     protected $user;
@@ -18,10 +21,21 @@ class PaymentRequestTest extends TestCase
     {
         parent::setUp();
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
-        
+
+        // V-FIX-PAYMENT-TEST-2026: Mock payment gateway for tests
+        // The real Razorpay gateway requires API credentials and makes network calls
+        $mockGateway = Mockery::mock(PaymentGatewayInterface::class);
+        $mockGateway->shouldReceive('createOrder')
+            ->andReturn(['id' => 'order_test_' . uniqid(), 'status' => 'created']);
+        $mockGateway->shouldReceive('createOrUpdatePlan')
+            ->andReturn('plan_test_' . uniqid());
+        $mockGateway->shouldReceive('createSubscription')
+            ->andReturn(['id' => 'sub_test_' . uniqid(), 'status' => 'created']);
+        $this->app->instance(PaymentGatewayInterface::class, $mockGateway);
+
         $this->user = User::factory()->create();
         $this->user->assignRole('user');
-        
+
         $this->otherUser = User::factory()->create();
         $this->otherUser->assignRole('user');
 
@@ -31,9 +45,9 @@ class PaymentRequestTest extends TestCase
             'user_id' => $this->user->id,
             'amount' => 1000
         ]);
-        
-        Setting::create(['key' => 'min_payment_amount', 'value' => 1, 'type' => 'number']);
-        Setting::create(['key' => 'max_payment_amount', 'value' => 100000, 'type' => 'number']);
+
+        Setting::updateOrCreate(['key' => 'min_payment_amount'], ['value' => 1, 'type' => 'number']);
+        Setting::updateOrCreate(['key' => 'max_payment_amount'], ['value' => 100000, 'type' => 'number']);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]

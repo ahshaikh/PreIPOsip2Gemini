@@ -224,42 +224,27 @@ class SubscriptionService
     }
 
     /**
-     * [MODIFIED] Now uses Model method for logic to ensure dates shift correctly
+     * [MODIFIED] Delegates to Model's pause() method for correct column usage
      */
     public function pauseSubscription(Subscription $subscription, int $months)
     {
         if ($subscription->status !== 'active') {
             throw new \Exception("Only active subscriptions can be paused.");
         }
-        
+
         if (!$subscription->plan->allow_pause) {
             throw new \Exception("This plan does not allow pausing.");
         }
 
-        // [AUDIT FIX] Implemented Date Shifting Logic directly
-        // This ensures dates are shifted even if the Model method is missing
-        
-        $subscription->status = 'paused';
-        $subscription->pause_months = $months;
-        $subscription->paused_at = now();
-        
-        // Critical: Shift the end date and next payment date!
-        // We use Carbon to safely add months
-        if ($subscription->end_date) {
-            $subscription->end_date = Carbon::parse($subscription->end_date)->addMonths($months);
-        }
-        
-        if ($subscription->next_payment_date) {
-            $subscription->next_payment_date = Carbon::parse($subscription->next_payment_date)->addMonths($months);
-        }
-        
-        $subscription->save();
+        // Delegate to model method which uses correct columns:
+        // pause_start_date, pause_end_date, pause_count
+        $subscription->pause($months);
 
-        return $subscription;
+        return $subscription->fresh();
     }
 
     /**
-       * [MODIFIED] Uses Model logic
+     * [MODIFIED] Delegates to Model's resume() method for correct column usage
      */
     public function resumeSubscription(Subscription $subscription)
     {
@@ -267,11 +252,10 @@ class SubscriptionService
             throw new \Exception("Subscription is not paused.");
         }
 
-        $subscription->status = 'active';
-        $subscription->pause_months = null;
-        $subscription->paused_at = null;
-        $subscription->save();
+        // Delegate to model method which uses correct columns:
+        // pause_start_date, pause_end_date
+        $subscription->resume();
 
-        return $subscription;
+        return $subscription->fresh();
     }
 }

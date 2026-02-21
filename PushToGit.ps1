@@ -8,20 +8,39 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "fix(auth): restore registration orchestration + align login lifecycle + resolve sms_logs schema drift
+$CommitMessage = "fix(recovery): resolve AutoDebit loop, payment 500, transaction drift + enforce integration correctness
 
-- Added required regulatory fields to AuthTest registration payloads
-- Standardized auth responses (401 invalid credentials, 403 non-active accounts)
-- Enforced status check before token issuance
-- Persist last_login_at via forceFill()->save()
-- Restored registration side-effects:
-  - wallet creation
-  - OTP job dispatch (email + mobile)
-- Fixed sms_logs schema mismatch (to_mobile → recipient_mobile)
-- Updated SmsService and SmsLog model accordingly
-- Added last_sent_at to Otp $fillable
+CRITICAL FIXES
+- AutoDebitService: prevent infinite retry loop when razorpay_subscription_id is null
+  - Validate subscription ID before payment creation
+  - Stop recursive RetryAutoDebitJob dispatch
+  - Ensure deterministic suspension after retry threshold
+- PaymentRequestTest: mock PaymentGatewayInterface to prevent real API calls (fix 500 error)
+- TransactionTest:
+  - Use existing wallet created by UserFactory (avoid duplicate wallet creation)
+  - Align TransactionFactory enum from 'bonus' to 'bonus_credit'
+  - Restore balance_before / balance_after integrity
 
-AuthTest fully passing."
+BILLING & DOMAIN ALIGNMENT
+- Confirm upgrade billing doctrine: flat differential (newAmount - oldAmount), not time-based proration
+- Rename tests to reflect differential charge terminology
+- Ensure subscription amount explicitly matches plan for determinism
+
+SEEDER & TDS CORRECTIONS
+- Make ProductSeeder self-contained (remove UserSeeder coupling)
+- Fix CelebrationBonusService TDS type ('celebration_bonus' → 'celebration')
+- Validate celebration TDS config and thresholds
+
+INTEGRATION HARDENING
+- Restore strict encryption test (assertNotEquals + assertEquals exact match)
+- Remove Cache::flush() and verify natural invalidation
+- Confirm allowed_mimes override is per-call and secure
+- Ensure webhook signature verification remains intact
+
+All targeted recovery test suites passing without memory override.
+No middleware bypass.
+No weakened assertions.
+No silent financial semantic changes."
 #----------------------
 
 function Get-GitCredential {

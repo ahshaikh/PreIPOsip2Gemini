@@ -64,10 +64,15 @@ class SubscriptionServiceTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_pause_subscription_validates_limit()
     {
-        $sub = Subscription::factory()->create(['status' => 'active']);
+        $plan = Plan::factory()->create(['allow_pause' => true]);
+        $sub = Subscription::factory()->create([
+            'status' => 'active',
+            'plan_id' => $plan->id,
+        ]);
 
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage("Cannot pause for more than 3 months");
+        // Model throws InvalidArgumentException for duration validation
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage("Pause duration must be between 1 and 3 months");
 
         $this->service->pauseSubscription($sub, 4);
     }
@@ -102,42 +107,38 @@ class SubscriptionServiceTest extends TestCase
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
-    public function test_upgrade_plan_calculates_prorated_amount()
+    public function test_upgrade_plan_calculates_differential_charge()
     {
-        $this->travelTo(Carbon::parse('2025-01-01'));
-
-        // Current Plan: 1000. Next Payment: Jan 31 (30 days away)
+        // BILLING DOCTRINE: Upgrade uses flat differential (newAmount - oldAmount)
+        // NOT time-based proration. See V-FINAL-1730-578 (V2.0 Proration).
+        // Current Plan: 1000
         $sub = Subscription::factory()->create([
             'user_id' => $this->user->id,
             'plan_id' => $this->plan->id,
+            'amount' => $this->plan->monthly_amount, // 1000
             'status' => 'active',
-            'next_payment_date' => Carbon::parse('2025-01-31')
         ]);
 
-        // Upgrade to 4000/mo Plan (Diff = 3000)
+        // Upgrade to 4000/mo Plan
         $newPlan = Plan::factory()->create(['monthly_amount' => 4000]);
 
-        // We are on Jan 15 (15 days used, 16 days remaining including today)
-        $this->travelTo(Carbon::parse('2025-01-15'));
-        
-        // Remaining days ~16. 
-        // Service logic simplified: diffInDays. Jan 31 - Jan 15 = 16 days.
-        // Proration: (3000 / 30) * 16 = 1600
-        
+        // Upgrade differential = newPlanAmount - currentPlanAmount
         $amount = $this->service->upgradePlan($sub, $newPlan);
 
-        // Allow small rounding diffs
-        $this->assertEquals(1600, $amount);
-        
-        // Verify adjustment payment created
+        // 4000 - 1000 = 3000
+        $this->assertEquals(3000, $amount);
+
+        // Verify upgrade payment created with correct type
         $this->assertDatabaseHas('payments', [
             'subscription_id' => $sub->id,
-            'amount' => 1600,
+            'amount' => 3000,
             'status' => 'pending',
-            'gateway' => 'adjustment'
+            'payment_type' => \App\Enums\PaymentType::UPGRADE_CHARGE->value,
         ]);
-        
-        $this->travelBack();
+
+        // Verify subscription updated to new plan
+        $this->assertEquals($newPlan->id, $sub->fresh()->plan_id);
+        $this->assertEquals(4000, $sub->fresh()->amount);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -146,6 +147,7 @@ class SubscriptionServiceTest extends TestCase
         $expensivePlan = Plan::factory()->create(['monthly_amount' => 5000]);
         $sub = Subscription::factory()->create([
             'plan_id' => $expensivePlan->id,
+            'amount' => $expensivePlan->monthly_amount, // Must explicitly set to match plan
             'status' => 'active'
         ]);
 
@@ -154,6 +156,7 @@ class SubscriptionServiceTest extends TestCase
         // FSD Rule: No refund on downgrade
         $this->assertEquals(0, $amount);
         $this->assertEquals($this->plan->id, $sub->fresh()->plan_id);
+        $this->assertEquals($this->plan->monthly_amount, $sub->fresh()->amount);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]

@@ -25,8 +25,9 @@ class TdsCalculationService
 {
     /**
      * Valid transaction types for TDS calculation
+     * V-AUDIT-FIX: Added 'celebration' for birthday/anniversary/festival bonuses
      */
-    private const VALID_TYPES = ['bonus', 'referral', 'withdrawal', 'profit_share'];
+    private const VALID_TYPES = ['bonus', 'referral', 'withdrawal', 'profit_share', 'celebration'];
 
     /**
      * [PROTOCOL 1 FIX]: Calculate TDS and return TdsResult value object.

@@ -55,6 +55,29 @@ class AutoDebitService
      */
     public function attemptAutoDebit(Subscription $sub)
     {
+        // V-FIX-AUTODEBIT-MEMORY-2026: Check Razorpay linkage BEFORE creating payment
+        // If subscription isn't linked to Razorpay, auto-debit can't work.
+        // Mark as failed and suspend, don't schedule infinite retries.
+        if (!$sub->razorpay_subscription_id) {
+            Log::warning("Subscription #{$sub->id} not linked to Razorpay. Cannot auto-debit.");
+
+            $payment = Payment::create([
+                'user_id' => $sub->user_id,
+                'subscription_id' => $sub->id,
+                'amount' => $sub->amount ?? $sub->plan->monthly_amount,
+                'status' => 'failed',
+                'gateway' => 'razorpay_auto',
+                'retry_count' => 0,
+                'is_on_time' => true,
+                'failure_reason' => 'Subscription not linked to Razorpay gateway',
+            ]);
+
+            // Disable auto-debit since it can't work without gateway linkage
+            $sub->update(['is_auto_debit' => false]);
+
+            return false;
+        }
+
         // Create Payment Record
         $payment = Payment::create([
             'user_id' => $sub->user_id,
@@ -69,10 +92,6 @@ class AutoDebitService
         try {
             // V-AUDIT-MODULE7-001: REAL RAZORPAY CHARGE LOGIC (Simulation code REMOVED)
             // Charge the subscription using Razorpay's recurring payment API
-
-            if (!$sub->razorpay_subscription_id) {
-                throw new \Exception("Subscription not linked to Razorpay. Missing razorpay_subscription_id.");
-            }
 
             // Initialize Razorpay API
             $api = new Api(
@@ -168,13 +187,18 @@ class AutoDebitService
             return false;
         }
 
+        // V-FIX-AUTODEBIT-MEMORY-2026: Check Razorpay linkage BEFORE entering try block
+        // If subscription isn't linked to Razorpay, there's no point retrying.
+        // Suspend immediately instead of infinitely retrying.
+        if (!$sub->razorpay_subscription_id) {
+            Log::warning("Subscription #{$sub->id} not linked to Razorpay. Cannot process auto-debit retry. Suspending.");
+            $this->suspendSubscription($sub, $failedPayment);
+            return false;
+        }
+
         try {
             // V-AUDIT-MODULE7-001: REAL RETRY LOGIC (Simulation code REMOVED)
             // Attempt to charge the Razorpay subscription again
-
-            if (!$sub->razorpay_subscription_id) {
-                throw new \Exception("Subscription not linked to Razorpay. Cannot retry.");
-            }
 
             // Initialize Razorpay API
             $api = new Api(

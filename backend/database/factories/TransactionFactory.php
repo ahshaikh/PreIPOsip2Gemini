@@ -20,7 +20,8 @@ class TransactionFactory extends Factory
 
     public function definition(): array
     {
-        // V-AUDIT-FIX-2026: Default to 'bonus' which doesn't require a related model
+        // V-AUDIT-FIX-2026: Default to 'bonus_credit' which doesn't require a related model
+        // V-FIX-TRANSACTION-FACTORY-2026: Use correct enum value 'bonus_credit' not 'bonus'
         // Use specific state methods to create transactions with proper references
         $amountPaise = $this->faker->numberBetween(10000, 1000000); // 100 to 10000 rupees in paise
         $balanceBeforePaise = $this->faker->numberBetween(0, 10000000);
@@ -29,14 +30,14 @@ class TransactionFactory extends Factory
         return [
             'wallet_id'           => Wallet::factory(),
             'user_id'             => User::factory(),
-            'type'                => 'bonus', // Safe default - no reference needed
+            'type'                => 'bonus_credit', // V-FIX: Use valid TransactionType enum value
             'amount_paise'        => $amountPaise,
             'balance_before_paise'=> $balanceBeforePaise,
             'balance_after_paise' => $balanceAfterPaise,
             'tds_deducted_paise'  => 0,
             'description'         => $this->faker->sentence(),
-            'reference_type'      => 'bonus',
-            'reference_id'        => null, // V-AUDIT-FIX-2026: No reference for bonus
+            'reference_type'      => 'bonus_credit',
+            'reference_id'        => null, // V-AUDIT-FIX-2026: No reference for bonus_credit
             'transaction_id'      => Str::uuid(),
             'status'              => $this->faker->randomElement(['completed', 'pending', 'failed']),
             'is_reversed'         => false,
@@ -120,12 +121,12 @@ class TransactionFactory extends Factory
         ]);
     }
 
-    /** Bonus transaction */
+    /** Bonus credit transaction */
     public function bonus(): static
     {
         return $this->state(fn(array $attributes) => [
-            'type'           => 'bonus',
-            'reference_type' => 'bonus',
+            'type'           => 'bonus_credit', // V-FIX: Use valid TransactionType enum value
+            'reference_type' => 'bonus_credit',
         ]);
     }
 
