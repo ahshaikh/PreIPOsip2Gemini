@@ -7,6 +7,8 @@ use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
 use App\Models\User;
 use App\Models\Setting;
+use App\Models\Wallet;
+use App\Jobs\SendOtpJob;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
@@ -61,7 +63,14 @@ class AuthController extends Controller
                 'last_name' => $data['last_name'],
             ]);
 
+            // Create wallet for the user
+            Wallet::create(['user_id' => $user->id]);
+
             $user->assignRole('user');
+
+            // Dispatch OTP jobs for email and mobile verification
+            SendOtpJob::dispatch($user, 'email');
+            SendOtpJob::dispatch($user, 'mobile');
 
             // Invalidate admin dashboard cache to update user counts
             \Cache::forget('admin_dashboard_v2');
@@ -108,15 +117,15 @@ class AuthController extends Controller
         if (! $user || ! Hash::check($input['password'], $user->password)) {
             RateLimiter::hit($throttleKey);
             Log::error('[AUDIT-BACKEND] CP-2: Invalid Credentials', ['login' => $loginField]);
-            return response()->json(['message' => 'Invalid credentials.'], 422);
+            return response()->json(['message' => 'Invalid credentials.'], 401);
         }
 
         RateLimiter::clear($throttleKey);
 
         // 6. Check User Status
-        if ($user->status === 'suspended' || $user->status === 'banned') {
-            Log::warning('[AUDIT-BACKEND] CP-2: Account Suspended', ['user_id' => $user->id]);
-            return response()->json(['message' => 'Account is ' . $user->status], 403);
+        if ($user->status !== 'active') {
+            Log::warning('[AUDIT-BACKEND] CP-2: Account Not Active', ['user_id' => $user->id, 'status' => $user->status]);
+            return response()->json(['message' => 'Your account is not active. Please verify or contact support.'], 403);
         }
 
         // 7. Check Global Login Setting
@@ -134,19 +143,19 @@ class AuthController extends Controller
             ]);
         }
 
-        // 9. Issue Token
-        $token = $user->createToken('auth-token')->plainTextToken;
-        
-        // Update audit info
-        $user->update([
-            'last_login_at' => now(), 
+        // 9. Update audit info (before token issuance)
+        $user->forceFill([
+            'last_login_at' => now(),
             'last_login_ip' => $request->ip()
-        ]);
+        ])->save();
+
+        // 10. Issue Token
+        $token = $user->createToken('auth-token')->plainTextToken;
 
         // [AUDIT CP-3] Inspect Payload
         // Force load roles to ensure they are sent
         $user->load('profile', 'kyc', 'roles');
-        
+
         // Helper to check what we found
         $roleNames = $user->roles->pluck('name')->toArray();
         $roleAccessor = $user->role_name ?? 'N/A';
@@ -158,7 +167,7 @@ class AuthController extends Controller
             'role_accessor' => $roleAccessor
         ]);
 
-        // 10. Return Response
+        // 11. Return Response
         return response()->json([
             'message' => 'Login successful.',
             'token' => $token,

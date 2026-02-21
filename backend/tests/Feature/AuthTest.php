@@ -30,7 +30,13 @@ class AuthTest extends TestCase
             'email' => 'new@example.com',
             'mobile' => '9000000001',
             'password' => 'Secret123!',
-            'password_confirmation' => 'Secret123!'
+            'password_confirmation' => 'Secret123!',
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'accept_terms' => true,
+            'accept_privacy' => true,
+            'accept_risk_disclosure' => true,
+            'accept_aml_kyc' => true,
         ]);
 
         $response->assertStatus(201);
@@ -49,7 +55,13 @@ class AuthTest extends TestCase
             'email' => 'wallet@example.com',
             'mobile' => '9000000002',
             'password' => 'Secret123!',
-            'password_confirmation' => 'Secret123!'
+            'password_confirmation' => 'Secret123!',
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'accept_terms' => true,
+            'accept_privacy' => true,
+            'accept_risk_disclosure' => true,
+            'accept_aml_kyc' => true,
         ]);
 
         $user = User::where('email', 'wallet@example.com')->first();
@@ -65,7 +77,13 @@ class AuthTest extends TestCase
             'email' => 'profile@example.com',
             'mobile' => '9000000003',
             'password' => 'Secret123!',
-            'password_confirmation' => 'Secret123!'
+            'password_confirmation' => 'Secret123!',
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'accept_terms' => true,
+            'accept_privacy' => true,
+            'accept_risk_disclosure' => true,
+            'accept_aml_kyc' => true,
         ]);
 
         $user = User::where('email', 'profile@example.com')->first();
@@ -80,7 +98,13 @@ class AuthTest extends TestCase
             'email' => 'ref@example.com',
             'mobile' => '9000000004',
             'password' => 'Secret123!',
-            'password_confirmation' => 'Secret123!'
+            'password_confirmation' => 'Secret123!',
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'accept_terms' => true,
+            'accept_privacy' => true,
+            'accept_risk_disclosure' => true,
+            'accept_aml_kyc' => true,
         ]);
 
         $user = User::where('email', 'ref@example.com')->first();
@@ -98,7 +122,13 @@ class AuthTest extends TestCase
             'email' => 'otp@example.com',
             'mobile' => '9000000005',
             'password' => 'Secret123!',
-            'password_confirmation' => 'Secret123!'
+            'password_confirmation' => 'Secret123!',
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'accept_terms' => true,
+            'accept_privacy' => true,
+            'accept_risk_disclosure' => true,
+            'accept_aml_kyc' => true,
         ]);
 
         // Assert that the job was pushed twice (once for email, once for mobile)
@@ -125,7 +155,13 @@ class AuthTest extends TestCase
             'mobile' => '9000000006',
             'password' => 'Secret123!',
             'password_confirmation' => 'Secret123!',
-            'referral_code' => 'VALID123'
+            'referral_code' => 'VALID123',
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'accept_terms' => true,
+            'accept_privacy' => true,
+            'accept_risk_disclosure' => true,
+            'accept_aml_kyc' => true,
         ]);
 
         $response->assertStatus(201);
@@ -143,7 +179,13 @@ class AuthTest extends TestCase
             'mobile' => '9000000007',
             'password' => 'Secret123!',
             'password_confirmation' => 'Secret123!',
-            'referral_code' => 'INVALID999'
+            'referral_code' => 'INVALID999',
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'accept_terms' => true,
+            'accept_privacy' => true,
+            'accept_risk_disclosure' => true,
+            'accept_aml_kyc' => true,
         ]);
 
         $response->assertStatus(422)
@@ -164,7 +206,7 @@ class AuthTest extends TestCase
             'login' => $user->email,
             'password' => 'WrongPassword'
         ]);
-        $response->assertStatus(422); // Validation error for credentials
+        $response->assertStatus(401); // Authentication failure
 
         // 2. Correct Password
         $response = $this->postJson('/api/v1/login', [
@@ -218,7 +260,7 @@ class AuthTest extends TestCase
             'password' => 'password'
         ]);
 
-        $response->assertStatus(422)
+        $response->assertStatus(403)
                  ->assertJsonFragment(['message' => 'Your account is not active. Please verify or contact support.']);
     }
 
@@ -235,7 +277,7 @@ class AuthTest extends TestCase
             'password' => 'password'
         ]);
 
-        $response->assertStatus(422)
+        $response->assertStatus(403)
                  ->assertJsonFragment(['message' => 'Your account is not active. Please verify or contact support.']);
     }
     

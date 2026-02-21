@@ -20,6 +20,7 @@ class Otp extends Model
         'type',
         'otp_code',
         'expires_at',
+        'last_sent_at',
     ];
 
     protected $casts = [

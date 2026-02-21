@@ -18,7 +18,6 @@ class SmsLog extends Model
     protected $fillable = [
         'user_id',
         'sms_template_id',
-        'to_mobile', // Keep for backward compatibility
         'recipient_mobile',
         'recipient_name',
         'template_slug',

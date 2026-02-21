@@ -8,23 +8,20 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "feat(finance): formalize chargeback doctrine, remove observer wallet side-effects, introduce ReversalSource enum
+$CommitMessage = "fix(auth): restore registration orchestration + align login lifecycle + resolve sms_logs schema drift
 
-- Defined explicit Chargeback Financial Contract (share-only reversal, explicit wallet mutation)
-- Introduced ReversalSource enum (REFUND, CHARGEBACK, ADMIN_CORRECTION, ALLOCATION_FAILURE)
-- Removed string-based branching (str_contains) from UserInvestment observer
-- Eliminated hidden wallet mutations in observer (reversal now SHARE-ONLY)
-- Centralized wallet debits/credits in PaymentWebhookService
-- Updated AllocationService to accept explicit ReversalSource
-- Added reversal_source column + indexed migration
-- Ensured full chargeback debit with receivable shortfall handling
-- Restored strong accounting invariants (ledger symmetry, wallet-liability mirror)
-- Fixed refund flow to explicitly record revenue reversal + wallet credit
-- Removed global RefreshDatabase usage; standardized on DatabaseTransactions
-- Stabilized chargeback integration + invariant tests (108+ assertions passing)
+- Added required regulatory fields to AuthTest registration payloads
+- Standardized auth responses (401 invalid credentials, 403 non-active accounts)
+- Enforced status check before token issuance
+- Persist last_login_at via forceFill()->save()
+- Restored registration side-effects:
+  - wallet creation
+  - OTP job dispatch (email + mobile)
+- Fixed sms_logs schema mismatch (to_mobile → recipient_mobile)
+- Updated SmsService and SmsLog model accordingly
+- Added last_sent_at to Otp $fillable
 
-Result:
-Deterministic, enum-driven chargeback semantics with single-layer wallet mutation and preserved double-entry integrity."
+AuthTest fully passing."
 #----------------------
 
 function Get-GitCredential {

@@ -26,7 +26,7 @@ class FinalSanityTest extends TestCase
         $service = app(WalletService::class);
 
         // Deposit ₹100.50 (10050 Paise)
-        $service->deposit($user, 10050, TransactionType::BONUS, 'Initial');
+        $service->deposit($user, 10050, TransactionType::BONUS_CREDIT, 'Initial');
         
         $user->refresh();
         $this->assertEquals(10050, $user->wallet->balance_paise);

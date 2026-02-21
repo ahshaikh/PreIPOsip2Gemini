@@ -30,7 +30,7 @@ class SmsService
         // 3. Create Log
         $log = SmsLog::create([
             'user_id' => $user->id,
-            'to_mobile' => $user->mobile,
+            'recipient_mobile' => $user->mobile,
             'template_slug' => $templateSlug,
             'dlt_template_id' => $dltTemplateId,
             'message' => $message,
