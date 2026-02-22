@@ -25,10 +25,14 @@ class SubscriptionFactory extends Factory
         $startDate = $this->faker->dateTimeBetween('-2 years', '-1 month');
         $duration  = $plan->duration_months;
 
+        // V-MONETARY-REFACTOR-2026: Compute amount_paise from plan
+        $amountPaise = (int) round($plan->monthly_amount * 100);
+
         return [
             'user_id' => User::factory(),
             'plan_id' => $plan->id,
-            'amount' => $plan->monthly_amount,
+            'amount_paise' => $amountPaise, // AUTHORITATIVE (if column exists)
+            'amount' => $plan->monthly_amount, // Legacy compatibility
             'subscription_code' => 'SUB-' . Str::upper(Str::random(10)),
             'status' => 'active',
             'start_date' => $startDate,
@@ -58,7 +62,7 @@ class SubscriptionFactory extends Factory
             $subscription->bonus_contract_snapshot = [
                 'plan_id'                 => $plan->id,
                 'plan_name'               => $plan->name,
-                'monthly_amount_paise'    => $plan->monthly_amount,
+                'monthly_amount_paise'    => (int) round($plan->monthly_amount * 100), // V-MONETARY-REFACTOR-2026: Paise
                 'duration_months'         => $plan->duration_months,
 
                 // Progressive

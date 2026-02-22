@@ -62,15 +62,19 @@ class WithdrawalRequest extends FormRequest
             }
 
             // Test: test_validates_withdrawal_limit_per_day
-            $maxPerDay = setting('max_withdrawal_amount_per_day', 50000);
-            
-            $withdrawnToday = Withdrawal::where('user_id', $user->id)
+            // V-MONETARY-REFACTOR-2026: Use amount_paise for database queries
+            $maxPerDayRupees = setting('max_withdrawal_amount_per_day', 50000);
+            $maxPerDayPaise = $maxPerDayRupees * 100;
+
+            $withdrawnTodayPaise = Withdrawal::where('user_id', $user->id)
                 ->where('status', '!=', 'rejected')
                 ->whereDate('created_at', today())
-                ->sum('amount');
-                
-            if (($withdrawnToday + $amount) > $maxPerDay) {
-                $validator->errors()->add('amount', "This withdrawal exceeds your daily limit of ₹{$maxPerDay}.");
+                ->sum('amount_paise');
+
+            $amountPaise = $amount * 100;
+
+            if (($withdrawnTodayPaise + $amountPaise) > $maxPerDayPaise) {
+                $validator->errors()->add('amount', "This withdrawal exceeds your daily limit of ₹{$maxPerDayRupees}.");
             }
         });
     }

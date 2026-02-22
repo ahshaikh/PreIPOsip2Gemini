@@ -165,6 +165,39 @@ class Payment extends Model
 
     protected static function booted(): void
     {
+        // V-MONETARY-REFACTOR-2026: STRICT PAISE ENFORCEMENT
+        // Payment creation MUST fail if amount_paise is missing.
+        // NO FALLBACK. NO FLOAT CONVERSION. FAIL IMMEDIATELY.
+        static::creating(function (Payment $payment) {
+            // V-MONETARY-REFACTOR-2026: amount_paise is MANDATORY - NO FALLBACK
+            if ($payment->amount_paise === null) {
+                Log::critical('PAYMENT CREATION INTEGRITY VIOLATION', [
+                    'error' => 'Payment created without amount_paise - NO FALLBACK',
+                    'amount' => $payment->amount,
+                    'amount_paise' => null,
+                    'user_id' => $payment->user_id,
+                    'subscription_id' => $payment->subscription_id,
+                ]);
+
+                throw new \RuntimeException(
+                    "Payment creation FAILED: amount_paise is REQUIRED. " .
+                    "Float fallback is PROHIBITED. Set amount_paise explicitly."
+                );
+            }
+
+            // Ensure amount_paise is positive
+            if ($payment->amount_paise <= 0) {
+                throw new \RuntimeException(
+                    "Payment creation FAILED: amount_paise must be positive. Got: {$payment->amount_paise}"
+                );
+            }
+
+            // Sync legacy amount field from paise (for backward compatibility reads)
+            if ($payment->amount === null || $payment->amount <= 0) {
+                $payment->amount = $payment->amount_paise / 100;
+            }
+        });
+
         static::updating(function (Payment $payment) {
             // V-PAYMENT-INTEGRITY-2026: Enforce state machine
             if ($payment->isDirty('status')) {

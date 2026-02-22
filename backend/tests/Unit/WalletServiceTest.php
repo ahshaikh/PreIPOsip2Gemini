@@ -11,6 +11,8 @@ use App\Models\User;
 use App\Models\Wallet;
 use App\Models\Transaction;
 use App\Models\BonusTransaction;
+use App\Models\Subscription;
+use App\Models\Payment;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use App\Services\DoubleEntryLedgerService;
@@ -113,10 +115,17 @@ class WalletServiceTest extends BaseTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function deposit_stores_reference_when_provided()
     {
+        // V-WAVE1-FIX: Create proper FK relationships instead of hardcoded IDs
+        $subscription = Subscription::factory()->create(['user_id' => $this->user->id]);
+        $payment = Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'subscription_id' => $subscription->id,
+        ]);
+
         $bonusTransaction = BonusTransaction::create([
             'user_id' => $this->user->id,
-            'subscription_id' => 1,
-            'payment_id' => 1,
+            'subscription_id' => $subscription->id,
+            'payment_id' => $payment->id,
             'type' => 'consistency',
             'amount' => 50,
             'multiplier_applied' => 1.0

@@ -1,0 +1,151 @@
+🧱 PRECONDITION — Lock the Ground
+Before Wave 1:
+- migrate:fresh passes
+- FinalSanityTest passes
+- FinancialDriftTest passes
+If either invariant test fails at any point → abort wave and fix foundation.
+Those are your non-negotiable anchors.
+
+🌊 WAVE 1 — Factory & Schema Alignment (Cascade Killer)
+Objective: Eliminate structural data drift that explodes across tests.
+
+hy first? Factories sit at the root of nearly every failure cascade.
+
+Fix:
+1. Ensure all factories respect schema truth:
+   - amount_paise always set
+   - enum values match DB exactly
+   - status defaults correct
+   - foreign keys valid
+2. Remove any:
+   - Plan::first() inside factories
+   - implicit global lookups
+3. Ensure seeders are:
+   - idempotent
+   - self-contained
+   - not dependent on order
+
+Validation:
+Run full suite.
+Cluster remaining failures.
+
+Expected result:
+Failure count drops significantly (often 25–40%).
+
+🌊 WAVE 2 — Financial Core Enforcement
+Objective: Ensure all financial math layers are airtight.
+
+Fix:
+1. Verify:
+   - balance_before
+   - balance_after
+   - wallet paise integrity
+2. Confirm:
+   - differential billing logic matches doctrine
+   - retry does not create duplicate payments
+3. Run:
+   - FinancialGuaranteesTest
+   - SnapshotIntegrityTest
+4. Reconcile:
+   - Σ(wallet balances)
+   - Σ(transactions)
+   - Σ(liabilities)
+   - Σ(receivables)
+
+No patching tests.
+Fix math or enums only.
+
+Validation:
+Drift = 0.
+No negative liabilities.
+No rounding drift.
+
+Expected result: Another major cluster disappears.
+
+🌊 WAVE 3 — Middleware & Security Ordering
+Objective: Stabilize security surface.
+
+Fix:
+1. Ensure throttle runs before validation.
+2. Confirm:
+   - 429 with correct headers
+   - 422 only within limit
+   - 401 only after validation passes
+3. Verify:
+   - signature verification not bypassed
+   - no global middleware mutation
+
+Validation:
+RateLimitingTest fully green.
+AuthTest still green.
+
+Expected result:
+Security cluster eliminated.
+
+🌊 WAVE 4 — Scheduled & Recurring Systems
+Objective: Stabilize lifecycle automation.
+
+Fix:
+1. Define retry doctrine explicitly:
+   - Does initial attempt count?
+   - Max attempts?
+   - Suspension rule?
+2. Fix app:process-auto-debits:
+   - due detection logic
+   - mandate requirement clarity
+   - grace period enforcement
+3. Validate:
+   - Multi-cycle tests
+   - Suspension tests
+   - Reminder logic
+4. Ensure:
+   - No infinite loops
+   - No Carbon recursion
+   - No queue explosion
+
+Validation:
+AutoDebitServiceTest + ProcessAutoDebitsTest fully green.
+Run full suite without memory override.
+
+Expected result: No more memory spikes. Lifecycle stable.
+
+🌊 WAVE 5 — Bonus, Referral & Institutional Invariants
+Objective: Lock high-level financial logic.
+
+Fix:
+1. Validate:
+   - Progressive bonus
+   - Milestone bonus
+   - Consistency bonus
+   - Referral multiplier
+   - Celebration bonus
+   - TDS application
+2. Confirm:
+   - BonusTransaction types align with enum
+   - TDS deducted correctly
+   - Ledger reflects gross + tax separately
+3. Run:
+   - BonusTdsIntegrationTest
+   - EdgeCaseResilienceTest
+   - CompleteUserJourneyTest
+4. Final reconciliation pass:
+   - Full lifecycle from registration → subscription → payment → bonus → allocation → withdrawal
+
+Validation:
+All institutional tests green.
+No invariant drift.
+
+---
+
+🧠 Execution Discipline
+After each wave:
+1. Run full suite.
+2. Re-cluster failures.
+3. Identify top 3 recurring root causes.
+4. Fix those only.
+5. Re-run.
+
+Never fix 10 files at once.
+Never accept green-by-weakening.
+Never move upward if lower layer unstable.
+

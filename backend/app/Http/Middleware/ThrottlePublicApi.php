@@ -47,12 +47,17 @@ class ThrottlePublicApi extends ThrottleRequests
 
     /**
      * Check if request is to auth endpoint
+     *
+     * V-HARDENING-PHASE: Fixed path matching to align with actual route definitions.
+     * Routes are defined as /api/v1/login (not /api/v1/auth/login).
+     * This ensures the strict 5 req/min limit is applied to auth endpoints.
      */
     protected function isAuthEndpoint($request): bool
     {
         return in_array($request->path(), [
-            'api/v1/auth/login',
-            'api/v1/auth/register',
+            'api/v1/login',
+            'api/v1/register',
+            'api/v1/login/2fa',
             'api/v1/company/login',
             'api/v1/company/register',
         ]);

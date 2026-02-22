@@ -23,7 +23,7 @@ class UserInvestmentFactory extends Factory
         return [
             'user_id'          => User::factory(),
             'product_id'       => Product::factory(),
-            'payment_id'       => null,
+            'payment_id'       => Payment::factory(), // V-FACTORY-FIX-2026: Required NOT NULL per migration
             'subscription_id'  => Subscription::factory(), // V-AUDIT-FIX-2026: Required field (NOT NULL)
             'bulk_purchase_id' => BulkPurchase::factory(), // V-AUDIT-FIX-2026: Required field (NOT NULL)
 

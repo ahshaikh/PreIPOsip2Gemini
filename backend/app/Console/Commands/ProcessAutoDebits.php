@@ -34,25 +34,22 @@ class ProcessAutoDebits extends Command
         $count = $dueSubs->count();
         $this->info("Found {$count} subscriptions due for payment.");
 
-        if ($count === 0) {
-            $this->info("No subscriptions to process. Exiting.");
-            return 0;
-        }
-
         // V-AUDIT-MODULE7-004: Dispatch a job for EACH subscription instead of processing inline
         // Queue workers will process these in parallel, improving throughput significantly
-        foreach ($dueSubs as $sub) {
-            ProcessSubscriptionChargeJob::dispatch($sub);
+        if ($count > 0) {
+            foreach ($dueSubs as $sub) {
+                ProcessSubscriptionChargeJob::dispatch($sub);
+            }
+            $this->info("Dispatched {$count} subscription charge jobs to queue.");
         }
 
-        $this->info("Dispatched {$count} subscription charge jobs to queue.");
-        $this->info("Queue workers will process charges in parallel.");
-
-        // 2. Send Reminders (still synchronous as these are lightweight email dispatches)
+        // 2. Send Reminders - V-HARDENING-PHASE: Always send reminders regardless of due count.
+        // Reminders are for subscriptions due in 3 days (independent of currently-due subs).
+        // A user may have 0 due today but 5 due in 3 days - reminders must still be sent.
         $reminders = $service->sendReminders();
         $this->info("Sent {$reminders} payment reminders.");
 
-        $this->info('Auto-debit process completed. Check queue for job progress.');
+        $this->info('Auto-debit process completed.');
         return 0;
     }
 }

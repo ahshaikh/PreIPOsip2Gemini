@@ -43,7 +43,7 @@ class BonusCalculatorTest extends TestCase
     {
         // Simulate Month 3 (Start month is 4)
         Payment::factory()->count(2)->create(['subscription_id' => $this->subscription->id, 'status' => 'paid']);
-        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount' => 5000, 'is_on_time' => true]);
+        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount_paise' => 500000, 'is_on_time' => true]); // ₹5000 in paise
 
         $this->service->calculateAndAwardBonuses($payment);
 
@@ -57,7 +57,7 @@ class BonusCalculatorTest extends TestCase
     {
         // Simulate Month 4
         Payment::factory()->count(3)->create(['subscription_id' => $this->subscription->id, 'status' => 'paid']);
-        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount' => 5000, 'is_on_time' => true]);
+        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount_paise' => 500000, 'is_on_time' => true]); // ₹5000 in paise
 
         $this->service->calculateAndAwardBonuses($payment);
 
@@ -76,7 +76,7 @@ class BonusCalculatorTest extends TestCase
 
         // Simulate Month 4
         Payment::factory()->count(3)->create(['subscription_id' => $this->subscription->id, 'status' => 'paid']);
-        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount' => 5000, 'is_on_time' => true]);
+        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount_paise' => 500000, 'is_on_time' => true]); // ₹5000 in paise
 
         $this->service->calculateAndAwardBonuses($payment);
 
@@ -96,7 +96,7 @@ class BonusCalculatorTest extends TestCase
         // Set consecutive payments to 12 to match requirement
         $this->subscription->update(['consecutive_payments_count' => 12]);
         
-        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount' => 5000, 'is_on_time' => true]);
+        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount_paise' => 500000, 'is_on_time' => true]); // ₹5000 in paise
 
         $this->service->calculateAndAwardBonuses($payment);
 

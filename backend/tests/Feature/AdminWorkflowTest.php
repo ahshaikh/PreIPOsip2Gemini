@@ -56,8 +56,8 @@ class AdminWorkflowTest extends TestCase
         $withdrawal = Withdrawal::create([
             'user_id' => $this->user->id,
             'wallet_id' => $wallet->id,
-            'amount' => 1000,
-            'net_amount' => 1000,
+            'amount_paise' => 100000, // ₹1000 in paise
+            'net_amount_paise' => 100000, // ₹1000 in paise
             'status' => 'pending',
             'bank_details' => ['acc' => '123']
         ]);

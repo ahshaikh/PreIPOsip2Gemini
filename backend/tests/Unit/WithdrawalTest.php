@@ -78,7 +78,7 @@ class WithdrawalTest extends TestCase
         Withdrawal::factory()->create([
             'user_id' => $this->user->id,
             'wallet_id' => $this->wallet->id,
-            'amount' => -100 // Invalid
+            'amount_paise' => -10000 // Invalid: -100 rupees in paise
         ]);
     }
 
@@ -101,10 +101,11 @@ class WithdrawalTest extends TestCase
         $withdrawal = Withdrawal::factory()->create([
             'user_id' => $this->user->id,
             'wallet_id' => $this->wallet->id,
-            'amount' => 1000,
-            'fee' => 50
+            'amount_paise' => 100000, // ₹1000 in paise
+            'fee_paise' => 5000 // ₹50 in paise
         ]);
 
+        // Accessor returns rupees (fee_paise / 100)
         $this->assertEquals(50, $withdrawal->fee);
     }
 
@@ -115,11 +116,11 @@ class WithdrawalTest extends TestCase
         $withdrawal = Withdrawal::factory()->create([
             'user_id' => $this->user->id,
             'wallet_id' => $this->wallet->id,
-            'amount' => 1000,
-            'fee' => 50
+            'amount_paise' => 100000, // ₹1000 in paise
+            'fee_paise' => 5000 // ₹50 in paise
         ]);
 
-        // 1000 (Amount) - 50 (Fee) = 950
+        // 1000 (Amount) - 50 (Fee) = 950 (net_amount accessor returns rupees)
         $this->assertEquals(950, $withdrawal->net_amount);
     }
 
@@ -129,7 +130,7 @@ class WithdrawalTest extends TestCase
         $withdrawal = Withdrawal::factory()->create([
             'user_id' => $this->user->id,
             'wallet_id' => $this->wallet->id,
-            'amount' => 1000,
+            'amount_paise' => 100000, // ₹1000 in paise
             'admin_id' => $this->admin->id
         ]);
 

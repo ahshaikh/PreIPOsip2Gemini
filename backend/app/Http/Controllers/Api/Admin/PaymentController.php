@@ -80,10 +80,13 @@ class PaymentController extends Controller
 
         try {
             DB::transaction(function () use ($user, $subscription, $validated) {
+                // V-MONETARY-REFACTOR-2026: amount_paise is MANDATORY
+                $amountPaise = (int) round($validated['amount'] * 100);
                 $payment = Payment::create([
                     'user_id' => $user->id,
                     'subscription_id' => $subscription->id,
-                    'amount' => $validated['amount'],
+                    'amount_paise' => $amountPaise, // AUTHORITATIVE
+                    'amount' => $validated['amount'], // Legacy compatibility
                     'status' => 'paid',
                     'gateway' => 'offline',
                     'gateway_payment_id' => $validated['reference_id'],

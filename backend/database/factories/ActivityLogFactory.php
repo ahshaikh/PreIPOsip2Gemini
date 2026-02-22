@@ -32,10 +32,8 @@ class ActivityLogFactory extends Factory
             'description' => $actions[$action],
             'ip_address' => $this->faker->ipv4(),
             'user_agent' => $this->faker->userAgent(),
-            'properties' => json_encode([
-                'timestamp' => now()->toISOString(),
-                'additional_info' => $this->faker->sentence(),
-            ]),
+            // NOTE: 'properties' column does NOT exist in activity_logs migration
+            // See: 2025_11_11_000105_create_activity_logs_table.php
         ];
     }
 }

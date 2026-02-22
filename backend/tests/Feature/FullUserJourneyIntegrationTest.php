@@ -94,20 +94,22 @@ class FullUserJourneyIntegrationTest extends TestCase
         ]);
 
         // ==================== STEP 6: USER CREATES SUBSCRIPTION ====================
-        $subscription = Subscription::create([
+        // V-WAVE1-FIX: Use factory to handle all required fields
+        $subscription = Subscription::factory()->create([
             'user_id' => $userId,
             'plan_id' => $this->plan->id,
-            'monthly_amount' => $this->plan->monthly_amount,
+            'amount' => $this->plan->monthly_amount,
             'status' => 'pending',
             'consecutive_payments_count' => 0,
             'bonus_multiplier' => 1.0,
-            'starts_at' => now()
         ]);
 
         // ==================== STEP 7: PROCESS FIRST PAYMENT ====================
-        $payment = Payment::create([
+        // V-WAVE1-FIX: Use factory with amount_paise (canonical)
+        $payment = Payment::factory()->create([
+            'user_id' => $userId,
             'subscription_id' => $subscription->id,
-            'amount' => 5000,
+            'amount_paise' => 500000, // ₹5000 in paise
             'status' => 'paid',
             'is_on_time' => true,
             'paid_at' => now()
@@ -190,21 +192,22 @@ class FullUserJourneyIntegrationTest extends TestCase
         $user->assignRole('user');
         Wallet::create(['user_id' => $user->id, 'balance_paise' => 0, 'locked_balance_paise' => 0]);
 
-        $subscription = Subscription::create([
+        // V-WAVE1-FIX: Use factory with correct field names
+        $subscription = Subscription::factory()->create([
             'user_id' => $user->id,
             'plan_id' => $this->plan->id,
-            'monthly_amount' => 5000,
+            'amount' => 5000,
             'status' => 'active',
             'consecutive_payments_count' => 5, // One less than milestone
             'bonus_multiplier' => 1.0,
-            'starts_at' => now()->subMonths(5)
         ]);
 
-        // Create previous payments
+        // Create previous payments using factory
         for ($i = 0; $i < 5; $i++) {
-            Payment::create([
+            Payment::factory()->create([
+                'user_id' => $user->id,
                 'subscription_id' => $subscription->id,
-                'amount' => 5000,
+                'amount_paise' => 500000, // ₹5000 in paise
                 'status' => 'paid',
                 'is_on_time' => true,
                 'paid_at' => now()->subMonths(5 - $i)
@@ -214,9 +217,10 @@ class FullUserJourneyIntegrationTest extends TestCase
         // ==================== 6TH PAYMENT - MILESTONE MONTH ====================
         $subscription->update(['consecutive_payments_count' => 6]);
 
-        $sixthPayment = Payment::create([
+        $sixthPayment = Payment::factory()->create([
+            'user_id' => $user->id,
             'subscription_id' => $subscription->id,
-            'amount' => 5000,
+            'amount_paise' => 500000, // ₹5000 in paise
             'status' => 'paid',
             'is_on_time' => true,
             'paid_at' => now()
@@ -248,21 +252,22 @@ class FullUserJourneyIntegrationTest extends TestCase
         $user->assignRole('user');
         Wallet::create(['user_id' => $user->id, 'balance_paise' => 0, 'locked_balance_paise' => 0]);
 
-        $subscription = Subscription::create([
+        // V-WAVE1-FIX: Use factory with correct field names
+        $subscription = Subscription::factory()->create([
             'user_id' => $user->id,
             'plan_id' => $this->plan->id,
-            'monthly_amount' => 5000,
+            'amount' => 5000,
             'status' => 'active',
             'consecutive_payments_count' => 4,
             'bonus_multiplier' => 2.0, // 2x multiplier!
-            'starts_at' => now()->subMonths(3)
         ]);
 
         // Create previous payments (months 1-3)
         for ($i = 0; $i < 3; $i++) {
-            Payment::create([
+            Payment::factory()->create([
+                'user_id' => $user->id,
                 'subscription_id' => $subscription->id,
-                'amount' => 5000,
+                'amount_paise' => 500000, // ₹5000 in paise
                 'status' => 'paid',
                 'is_on_time' => true,
                 'paid_at' => now()->subMonths(3 - $i)
@@ -270,9 +275,10 @@ class FullUserJourneyIntegrationTest extends TestCase
         }
 
         // ==================== 4TH PAYMENT - PROGRESSIVE STARTS ====================
-        $fourthPayment = Payment::create([
+        $fourthPayment = Payment::factory()->create([
+            'user_id' => $user->id,
             'subscription_id' => $subscription->id,
-            'amount' => 5000,
+            'amount_paise' => 500000, // ₹5000 in paise
             'status' => 'paid',
             'is_on_time' => true,
             'paid_at' => now()

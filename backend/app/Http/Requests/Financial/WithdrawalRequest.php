@@ -109,15 +109,19 @@ class WithdrawalRequest extends FormRequest
             $user = $this->user();
             $dailyLimit = (float) setting('daily_withdrawal_limit', 500000);
 
-            $todayWithdrawals = $user->withdrawals()
+            // V-MONETARY-REFACTOR-2026: Use amount_paise for database queries
+            $dailyLimitPaise = $dailyLimit * 100;
+
+            $todayWithdrawalsPaise = $user->withdrawals()
                 ->whereDate('created_at', today())
                 ->whereIn('status', ['pending', 'approved', 'completed'])
-                ->sum('amount');
+                ->sum('amount_paise');
 
-            $requestedAmount = (float) $this->amount;
+            $requestedAmountPaise = (float) $this->amount * 100;
 
-            if (($todayWithdrawals + $requestedAmount) > $dailyLimit) {
-                $remaining = max(0, $dailyLimit - $todayWithdrawals);
+            if (($todayWithdrawalsPaise + $requestedAmountPaise) > $dailyLimitPaise) {
+                $remainingPaise = max(0, $dailyLimitPaise - $todayWithdrawalsPaise);
+                $remaining = $remainingPaise / 100;
                 $validator->errors()->add(
                     'amount',
                     "Daily withdrawal limit exceeded. Remaining today: ₹" . number_format($remaining, 2)

@@ -54,7 +54,7 @@ class BonusCalculatorMilestoneTest extends TestCase
         $this->subscription->update(['consecutive_payments_count' => 11]);
 
         // Process 12th Payment
-        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount' => 1000, 'status' => 'pending']);
+        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount_paise' => 100000, 'status' => 'pending']); // ₹1000 in paise
         
         // Simulate "On Time" payment processing which increments streak to 12
         $this->subscription->increment('consecutive_payments_count'); 
@@ -75,7 +75,7 @@ class BonusCalculatorMilestoneTest extends TestCase
         Payment::factory()->count(23)->create(['subscription_id' => $this->subscription->id, 'status' => 'paid']);
         $this->subscription->update(['consecutive_payments_count' => 24]); // Streak maintained
 
-        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount' => 1000, 'status' => 'paid', 'is_on_time' => true]);
+        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount_paise' => 100000, 'status' => 'paid', 'is_on_time' => true]); // ₹1000 in paise
 
         $this->service->calculateAndAwardBonuses($payment);
 
@@ -91,7 +91,7 @@ class BonusCalculatorMilestoneTest extends TestCase
         Payment::factory()->count(35)->create(['subscription_id' => $this->subscription->id, 'status' => 'paid']);
         $this->subscription->update(['consecutive_payments_count' => 36]); 
 
-        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount' => 1000, 'status' => 'paid', 'is_on_time' => true]);
+        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount_paise' => 100000, 'status' => 'paid', 'is_on_time' => true]); // ₹1000 in paise
 
         $this->service->calculateAndAwardBonuses($payment);
 
@@ -109,7 +109,7 @@ class BonusCalculatorMilestoneTest extends TestCase
         $this->subscription->update(['consecutive_payments_count' => 1]); // Broken streak! Only 1 consecutive
 
         // 12th Payment
-        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount' => 1000, 'status' => 'paid']);
+        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount_paise' => 100000, 'status' => 'paid']); // ₹1000 in paise
 
         $this->service->calculateAndAwardBonuses($payment);
 
@@ -130,7 +130,7 @@ class BonusCalculatorMilestoneTest extends TestCase
         $subB = Subscription::factory()->create(['user_id' => $user->id, 'plan_id' => $planB->id, 'consecutive_payments_count' => 12]);
 
         Payment::factory()->count(11)->create(['subscription_id' => $subB->id, 'status' => 'paid']);
-        $payment = Payment::factory()->create(['subscription_id' => $subB->id, 'amount' => 5000, 'status' => 'paid', 'is_on_time' => true]);
+        $payment = Payment::factory()->create(['subscription_id' => $subB->id, 'amount_paise' => 500000, 'status' => 'paid', 'is_on_time' => true]); // ₹5000 in paise
 
         $this->service->calculateAndAwardBonuses($payment);
 
@@ -147,7 +147,7 @@ class BonusCalculatorMilestoneTest extends TestCase
         $this->subscription->update(['bonus_multiplier' => 2.5, 'consecutive_payments_count' => 12]);
         Payment::factory()->count(11)->create(['subscription_id' => $this->subscription->id, 'status' => 'paid']);
         
-        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount' => 1000, 'status' => 'paid', 'is_on_time' => true]);
+        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount_paise' => 100000, 'status' => 'paid', 'is_on_time' => true]); // ₹1000 in paise
 
         $this->service->calculateAndAwardBonuses($payment);
 
@@ -170,7 +170,7 @@ class BonusCalculatorMilestoneTest extends TestCase
         $this->subscription->update(['consecutive_payments_count' => 12]);
         Payment::factory()->count(11)->create(['subscription_id' => $this->subscription->id, 'status' => 'paid']);
         
-        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount' => 1000, 'status' => 'paid', 'is_on_time' => true]);
+        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount_paise' => 100000, 'status' => 'paid', 'is_on_time' => true]); // ₹1000 in paise
 
         $this->service->calculateAndAwardBonuses($payment);
 
@@ -194,7 +194,7 @@ class BonusCalculatorMilestoneTest extends TestCase
         Payment::factory()->count(5)->create(['subscription_id' => $this->subscription->id, 'status' => 'paid']);
         $this->subscription->update(['consecutive_payments_count' => 6]);
         
-        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount' => 1000, 'status' => 'paid', 'is_on_time' => true]);
+        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount_paise' => 100000, 'status' => 'paid', 'is_on_time' => true]); // ₹1000 in paise
 
         $this->service->calculateAndAwardBonuses($payment);
 
@@ -212,7 +212,7 @@ class BonusCalculatorMilestoneTest extends TestCase
         $this->subscription->update(['consecutive_payments_count' => 12]);
         Payment::factory()->count(11)->create(['subscription_id' => $this->subscription->id, 'status' => 'paid']);
         
-        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount' => 1000, 'status' => 'paid', 'is_on_time' => true]);
+        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount_paise' => 100000, 'status' => 'paid', 'is_on_time' => true]); // ₹1000 in paise
 
         $this->service->calculateAndAwardBonuses($payment);
 
@@ -225,14 +225,14 @@ class BonusCalculatorMilestoneTest extends TestCase
         // Month 12 Payment - Awards Bonus
         Payment::factory()->count(11)->create(['subscription_id' => $this->subscription->id, 'status' => 'paid']);
         $this->subscription->update(['consecutive_payments_count' => 12]);
-        $payment12 = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount' => 1000, 'status' => 'paid', 'is_on_time' => true]);
+        $payment12 = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount_paise' => 100000, 'status' => 'paid', 'is_on_time' => true]); // ₹1000 in paise
         
         $this->service->calculateAndAwardBonuses($payment12);
         $this->assertDatabaseCount('bonus_transactions', 1);
 
         // Month 13 Payment - Should NOT award Month 12 bonus again
         $this->subscription->update(['consecutive_payments_count' => 13]);
-        $payment13 = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount' => 1000, 'status' => 'paid', 'is_on_time' => true]);
+        $payment13 = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount_paise' => 100000, 'status' => 'paid', 'is_on_time' => true]); // ₹1000 in paise
         
         $this->service->calculateAndAwardBonuses($payment13);
         

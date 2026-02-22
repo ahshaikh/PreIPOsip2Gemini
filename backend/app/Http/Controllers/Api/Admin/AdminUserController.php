@@ -594,10 +594,13 @@ class AdminUserController extends Controller
         }
 
         return DB::transaction(function () use ($validated, $user, $subscription, $request) {
+            // V-MONETARY-REFACTOR-2026: amount_paise is MANDATORY
+            $amountPaise = (int) round($validated['amount'] * 100);
             $payment = Payment::create([
                 'user_id' => $user->id,
                 'subscription_id' => $subscription->id,
-                'amount' => $validated['amount'],
+                'amount_paise' => $amountPaise, // AUTHORITATIVE
+                'amount' => $validated['amount'], // Legacy compatibility
                 'status' => 'paid',
                 'payment_method' => 'admin_manual',
                 'payment_date' => now(),

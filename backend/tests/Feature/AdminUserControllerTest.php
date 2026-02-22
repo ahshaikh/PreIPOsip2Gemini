@@ -10,6 +10,7 @@ use App\Models\UserKyc;
 use App\Models\Wallet;
 use App\Models\BonusTransaction;
 use App\Models\Subscription;
+use App\Models\Payment;
 use App\Models\Plan;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -159,10 +160,17 @@ class AdminUserControllerTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function show_returns_stats_summary()
     {
+        // V-WAVE1-FIX: Create proper FK relationships instead of hardcoded IDs
+        $subscription = Subscription::factory()->create(['user_id' => $this->user->id]);
+        $payment = Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'subscription_id' => $subscription->id,
+        ]);
+
         BonusTransaction::create([
             'user_id' => $this->user->id,
-            'subscription_id' => 1,
-            'payment_id' => 1,
+            'subscription_id' => $subscription->id,
+            'payment_id' => $payment->id,
             'type' => 'consistency',
             'amount' => 100,
             'multiplier_applied' => 1.0

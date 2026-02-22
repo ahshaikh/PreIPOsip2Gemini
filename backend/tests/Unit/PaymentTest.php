@@ -30,7 +30,7 @@ class PaymentTest extends TestCase
         $payment = Payment::create([
             'user_id' => $this->user->id,
             'subscription_id' => $this->subscription->id,
-            'amount' => 1000,
+            'amount_paise' => 100000, // ₹1000 in paise
             'status' => 'pending'
         ]);
 
@@ -44,7 +44,7 @@ class PaymentTest extends TestCase
         $payment = Payment::create([
             'user_id' => $this->user->id,
             'subscription_id' => $this->subscription->id,
-            'amount' => 1000
+            'amount_paise' => 100000 // ₹1000 in paise
         ]);
 
         $this->assertInstanceOf(Subscription::class, $payment->subscription);

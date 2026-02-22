@@ -41,7 +41,8 @@ class Subscription extends Model
         'plan_id',
         'subscription_code',
         'status',
-        'amount',
+        'amount_paise', // V-MONETARY-REFACTOR-2026: Authoritative integer paise
+        'amount', // Legacy compatibility
         'start_date',
         'end_date',
         'next_payment_date',
@@ -65,6 +66,7 @@ class Subscription extends Model
         'lucky_draw_entries',
         'config_snapshot_at',
         'config_snapshot_version',
+        'bonus_contract_snapshot', // V-WAVE1-FIX: Legacy field for backward compatibility
     ];
 
     protected $casts = [
@@ -75,6 +77,7 @@ class Subscription extends Model
         'pause_end_date' => 'date',
         'cancelled_at' => 'datetime',
         'is_auto_debit' => 'boolean',
+        'amount_paise' => 'integer', // V-MONETARY-REFACTOR-2026
         'bonus_multiplier' => 'decimal:2',
         // V-CONTRACT-HARDENING: Immutable bonus config snapshots (JSON)
         'progressive_config' => 'json',
@@ -85,6 +88,7 @@ class Subscription extends Model
         'celebration_bonus_config' => 'json',
         'lucky_draw_entries' => 'json',
         'config_snapshot_at' => 'datetime',
+        'bonus_contract_snapshot' => 'json', // V-WAVE1-FIX: Legacy field for backward compatibility
     ];
 
     /**

@@ -89,8 +89,8 @@ class AutoDebitServiceTest extends TestCase
 
         $this->assertDatabaseHas('payments', [
             'subscription_id' => $sub->id,
-            'amount' => 1000,
-            // Status could be 'paid' or 'pending' (retry) depending on rand(), 
+            'amount_paise' => 100000, // ₹1000 in paise (Phase A canonicalization)
+            // Status could be 'paid' or 'pending' (retry) depending on rand(),
             // but record must exist
         ]);
     }

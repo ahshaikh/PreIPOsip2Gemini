@@ -24,10 +24,15 @@ class PaymentFactory extends Factory
      */
     public function definition(): array
     {
+        // V-MONETARY-REFACTOR-2026: amount_paise is the SINGLE SOURCE OF TRUTH
+        // All monetary values must be integer paise. No float fallback allowed.
+        $amountPaise = $this->faker->randomElement([100000, 500000, 1000000, 2500000]); // ₹1000, ₹5000, ₹10000, ₹25000 in paise
+
         return [
             'user_id' => User::factory(),
             'subscription_id' => Subscription::factory(),
-            'amount' => $this->faker->randomElement([1000, 5000, 10000, 25000]),
+            'amount_paise' => $amountPaise, // AUTHORITATIVE: Integer paise
+            'amount' => $amountPaise / 100, // Legacy field: derived from paise
             'currency' => 'INR',
             'status' => 'pending', // Default status
             'payment_type' => 'sip_installment',

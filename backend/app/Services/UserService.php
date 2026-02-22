@@ -230,10 +230,13 @@ class UserService
         if ($subscription->user_id !== $user->id) throw new \Exception('Subscription does not belong to this user');
 
         return DB::transaction(function () use ($user, $subscription, $amount, $reason, $admin) {
+            // V-MONETARY-REFACTOR-2026: amount_paise is MANDATORY
+            $amountPaise = (int) round($amount * 100);
             $payment = Payment::create([
                 'user_id' => $user->id,
                 'subscription_id' => $subscription->id,
-                'amount' => $amount,
+                'amount_paise' => $amountPaise, // AUTHORITATIVE
+                'amount' => $amount, // Legacy compatibility
                 'status' => 'paid',
                 'payment_method' => 'admin_manual',
                 'payment_date' => now(),

@@ -179,9 +179,9 @@ class SubscriptionTest extends TestCase
     {
         $sub = Subscription::factory()->create(['user_id' => $this->user->id]);
         
-        Payment::factory()->create(['subscription_id' => $sub->id, 'amount' => 1000, 'status' => 'paid']);
-        Payment::factory()->create(['subscription_id' => $sub->id, 'amount' => 2000, 'status' => 'paid']);
-        
+        Payment::factory()->create(['subscription_id' => $sub->id, 'amount_paise' => 100000, 'status' => 'paid']); // ₹1000 in paise
+        Payment::factory()->create(['subscription_id' => $sub->id, 'amount_paise' => 200000, 'status' => 'paid']); // ₹2000 in paise
+
         $this->assertEquals(3000, $sub->total_paid);
     }
 

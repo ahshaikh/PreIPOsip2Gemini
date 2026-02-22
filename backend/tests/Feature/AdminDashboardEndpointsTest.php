@@ -58,9 +58,9 @@ class AdminDashboardEndpointsTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function testDashboardShowsTotalRevenue()
     {
-        Payment::factory()->create(['status' => 'paid', 'amount' => 5000]);
-        Payment::factory()->create(['status' => 'paid', 'amount' => 3000]);
-        Payment::factory()->create(['status' => 'pending', 'amount' => 1000]); // Should not be counted
+        Payment::factory()->create(['status' => 'paid', 'amount_paise' => 500000]); // ₹5000 in paise
+        Payment::factory()->create(['status' => 'paid', 'amount_paise' => 300000]); // ₹3000 in paise
+        Payment::factory()->create(['status' => 'pending', 'amount_paise' => 100000]); // ₹1000 in paise - Should not be counted
         
         $response = $this->actingAs($this->admin)->getJson('/api/v1/admin/dashboard');
         
@@ -94,7 +94,7 @@ class AdminDashboardEndpointsTest extends TestCase
     public function testGetDashboardStatsReturnsCorrectMetrics()
     {
         // This test combines the above
-        Payment::factory()->create(['status' => 'paid', 'amount' => 1000]);
+        Payment::factory()->create(['status' => 'paid', 'amount_paise' => 100000]); // ₹1000 in paise
         UserKyc::factory()->create(['status' => 'submitted']);
         
         $response = $this->actingAs($this->admin)->getJson('/api/v1/admin/dashboard');
@@ -126,7 +126,7 @@ class AdminDashboardEndpointsTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function testDashboardChartsLoadCorrectly()
     {
-        Payment::factory()->create(['status' => 'paid', 'amount' => 1234, 'paid_at' => now()->subDays(2)]);
+        Payment::factory()->create(['status' => 'paid', 'amount_paise' => 123400, 'paid_at' => now()->subDays(2)]); // ₹1234 in paise
         User::factory()->create(['created_at' => now()->subDays(3)]);
 
         $response = $this->actingAs($this->admin)->getJson('/api/v1/admin/dashboard');

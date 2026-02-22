@@ -370,22 +370,23 @@ class WithdrawalController extends Controller
 
         $query = Withdrawal::whereBetween('created_at', [$startDate, $endDate]);
 
+        // V-MONETARY-REFACTOR-2026: Use _paise columns for database queries (paise-only schema)
         $analytics = [
             'total_withdrawals' => $query->count(),
-            'total_amount' => $query->where('status', 'completed')->sum('amount'),
-            'total_fees' => $query->where('status', 'completed')->sum('fee'),
-            'total_tds' => $query->where('status', 'completed')->sum('tds_deducted'),
-            'net_disbursed' => $query->where('status', 'completed')->sum('net_amount'),
+            'total_amount' => $query->where('status', 'completed')->sum('amount_paise') / 100,
+            'total_fees' => $query->where('status', 'completed')->sum('fee_paise') / 100,
+            'total_tds' => $query->where('status', 'completed')->sum('tds_deducted_paise') / 100,
+            'net_disbursed' => $query->where('status', 'completed')->sum('net_amount_paise') / 100,
             'by_status' => Withdrawal::whereBetween('created_at', [$startDate, $endDate])
-                ->selectRaw('status, count(*) as count, sum(amount) as total_amount, sum(net_amount) as total_net')
+                ->selectRaw('status, count(*) as count, sum(amount_paise)/100 as total_amount, sum(net_amount_paise)/100 as total_net')
                 ->groupBy('status')
                 ->get(),
             'by_priority' => Withdrawal::whereBetween('created_at', [$startDate, $endDate])
-                ->selectRaw('priority, count(*) as count, sum(amount) as total')
+                ->selectRaw('priority, count(*) as count, sum(amount_paise)/100 as total')
                 ->groupBy('priority')
                 ->get(),
             'daily_trend' => Withdrawal::whereBetween('created_at', [$startDate, $endDate])
-                ->selectRaw('DATE(created_at) as date, count(*) as count, sum(amount) as total_requested, sum(net_amount) as total_disbursed')
+                ->selectRaw('DATE(created_at) as date, count(*) as count, sum(amount_paise)/100 as total_requested, sum(net_amount_paise)/100 as total_disbursed')
                 ->groupBy('date')
                 ->orderBy('date')
                 ->get(),
@@ -395,11 +396,11 @@ class WithdrawalController extends Controller
                 ->value('hours'),
             'pending_queue' => [
                 'count' => Withdrawal::where('status', 'pending')->count(),
-                'total_amount' => Withdrawal::where('status', 'pending')->sum('amount'),
+                'total_amount' => Withdrawal::where('status', 'pending')->sum('amount_paise') / 100,
             ],
             'approved_queue' => [
                 'count' => Withdrawal::where('status', 'approved')->count(),
-                'total_amount' => Withdrawal::where('status', 'approved')->sum('amount'),
+                'total_amount' => Withdrawal::where('status', 'approved')->sum('amount_paise') / 100,
             ],
             'completion_rate' => [
                 'total_requests' => Withdrawal::whereBetween('created_at', [$startDate, $endDate])->count(),

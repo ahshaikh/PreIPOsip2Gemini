@@ -8,49 +8,38 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "feat(hardening-phase): stabilize financial core, fix retry loop, enforce security order & align factories
+$CommitMessage = "refactor(test-foundation): Wave 1 schema & factory realignment under Hardened Doctrine
 
-CORE RECOVERY FIXES
-- Fixed AutoDebitService infinite retry loop when razorpay_subscription_id is null
-  - Added pre-validation before payment creation
-  - Prevented recursive RetryAutoDebitJob dispatch
-  - Preserved retry threshold enforcement
-- Resolved memory exhaustion caused by unbounded retry recursion
-- PaymentRequestTest 500 fixed via proper PaymentGatewayInterface mocking
+Foundation First – Wave 1 (Environmental & Schema Alignment)
 
-FACTORY & ENUM ALIGNMENT
-- Updated PaymentFactory to consistently set amount_paise
-- Aligned TransactionFactory enum from 'bonus' → 'bonus_credit'
-- Removed duplicate wallet creation in TransactionTest
-- Eliminated Plan::first() anti-pattern in subscription-related tests
+• Analyzed 410+ failures from test-results-Hakim3.xml and categorized by exception class.
+• Targeted QueryException + factory-related cascade failures.
 
-FINANCIAL INTEGRITY ENFORCEMENT
-- Restored strict encryption validation (assertNotEquals + assertEquals)
-- Confirmed wallet paise integrity (FinalSanityTest passing)
-- Confirmed ledger symmetry and drift invariants (FinancialDriftTest passing)
-- Preserved differential billing doctrine for plan upgrades
+Schema / Model Alignment
+- Added JSON cast for `bonus_contract_snapshot` on Subscription model.
+- Ensured strict paise-only monetary doctrine (no float fallback).
+- Preserved ledger `direction` (no reintroduction of deprecated `type`).
+- Preserved paise canonicalization (`amount_paise` authoritative).
 
-SEEDER & CONFIG HARDENING
-- Refactored ProductSeeder to remove UserSeeder coupling
-- Validated TDS celebration type alignment
-- Ensured no global config mutation from allowed_mimes override
+Factories
+- Created LuckyDrawEntryFactory.
+- Created ProfitShareFactory.
+- Ensured PaymentFactory enforces non-null `amount_paise`.
 
-SECURITY & MIDDLEWARE STABILIZATION
-- Began correction of rate limiting order (throttle vs validation)
-- Investigating 429/422/401 response alignment with doctrine
+Test Setup Realignment (No assertion edits)
+- Replaced hardcoded FK IDs with proper factory-based relationships.
+- Migrated raw Model::create() calls to factories where required to satisfy FK + NOT NULL invariants.
+- Updated affected integration tests (FullUserJourneyIntegrationTest and related files).
 
-SCHEDULING & LIFECYCLE
-- Began stabilization of app:process-auto-debits command
-- Analyzing due-detection and retry invocation logic
+Doctrine Protection
+- No schema weakening.
+- No assertion modification.
+- No test skipping.
+- No defensive try/catch silencing.
 
-STATUS
-- Core financial invariant tests green
-- Auth + Subscription layers stable
-- Recovery entering structured hardening phase (Wave 3–4)
-
-No weakened assertions.
-No silent financial semantic changes.
-No memory overrides."
+Result
+- Eliminated structural FK and missing factory cascades.
+- Surfaced Wave 2 lifecycle/snapshot invariants for next phase."
 #----------------------
 
 function Get-GitCredential {

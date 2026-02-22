@@ -61,10 +61,15 @@ class AutoDebitService
         if (!$sub->razorpay_subscription_id) {
             Log::warning("Subscription #{$sub->id} not linked to Razorpay. Cannot auto-debit.");
 
+            // V-MONETARY-REFACTOR-2026: amount_paise is MANDATORY
+            $amountRupees = $sub->amount ?? $sub->plan->monthly_amount;
+            $amountPaise = (int) round($amountRupees * 100);
+
             $payment = Payment::create([
                 'user_id' => $sub->user_id,
                 'subscription_id' => $sub->id,
-                'amount' => $sub->amount ?? $sub->plan->monthly_amount,
+                'amount_paise' => $amountPaise, // AUTHORITATIVE
+                'amount' => $amountRupees, // Legacy compatibility
                 'status' => 'failed',
                 'gateway' => 'razorpay_auto',
                 'retry_count' => 0,
@@ -78,11 +83,16 @@ class AutoDebitService
             return false;
         }
 
+        // V-MONETARY-REFACTOR-2026: amount_paise is MANDATORY
+        $amountRupees = $sub->amount ?? $sub->plan->monthly_amount;
+        $amountPaise = (int) round($amountRupees * 100);
+
         // Create Payment Record
         $payment = Payment::create([
             'user_id' => $sub->user_id,
             'subscription_id' => $sub->id,
-            'amount' => $sub->amount ?? $sub->plan->monthly_amount, // V-AUDIT: Support custom amounts
+            'amount_paise' => $amountPaise, // AUTHORITATIVE
+            'amount' => $amountRupees, // Legacy compatibility
             'status' => 'pending',
             'gateway' => 'razorpay_auto',
             'retry_count' => 0,

@@ -27,8 +27,8 @@ class ReportServiceTest extends TestCase
     public function test_financial_summary_calculates_profit()
     {
         // 1. Revenue
-        Payment::factory()->create(['status' => 'paid', 'amount' => 5000]);
-        Payment::factory()->create(['status' => 'paid', 'amount' => 5000]);
+        Payment::factory()->create(['status' => 'paid', 'amount_paise' => 500000]); // ₹5000 in paise
+        Payment::factory()->create(['status' => 'paid', 'amount_paise' => 500000]); // ₹5000 in paise
         
         // 2. Expense
         BonusTransaction::factory()->create(['amount' => 1000]);
@@ -115,15 +115,15 @@ class ReportServiceTest extends TestCase
     {
         // User A: New user, small payment (OK)
         $userA = User::factory()->create(['created_at' => now()->subDays(2)]);
-        Payment::factory()->create(['user_id' => $userA->id, 'amount' => 1000, 'status' => 'paid']);
-        
+        Payment::factory()->create(['user_id' => $userA->id, 'amount_paise' => 100000, 'status' => 'paid']); // ₹1000 in paise
+
         // User B: Old user, large payment (OK)
         $userB = User::factory()->create(['created_at' => now()->subDays(10)]);
-        Payment::factory()->create(['user_id' => $userB->id, 'amount' => 60000, 'status' => 'paid']);
-        
+        Payment::factory()->create(['user_id' => $userB->id, 'amount_paise' => 6000000, 'status' => 'paid']); // ₹60000 in paise
+
         // User C: New user, large payment (FLAG)
         $userC = User::factory()->create(['created_at' => now()->subDays(3)]);
-        Payment::factory()->create(['user_id' => $userC->id, 'amount' => 60000, 'status' => 'paid']);
+        Payment::factory()->create(['user_id' => $userC->id, 'amount_paise' => 6000000, 'status' => 'paid']); // ₹60000 in paise
         
         $report = $this->service->getAmlReport();
 

@@ -96,10 +96,12 @@ class SubscriptionService
             ]);
 
             // V-AUDIT-MODULE5-008: Use PaymentType enum instead of magic string
+            // V-MONETARY-REFACTOR-2026: amount_paise is MANDATORY
             $payment = Payment::create([
                 'user_id' => $user->id,
                 'subscription_id' => $subscription->id,
-                'amount' => $finalAmount,
+                'amount_paise' => $amountPaise, // AUTHORITATIVE (already computed above)
+                'amount' => $finalAmount, // Legacy compatibility
                 'currency' => 'INR', // [ADDED] Default currency
                 'status' => $hasWalletFunds ? 'paid' : 'pending',
                 'payment_type' => PaymentType::SUBSCRIPTION_INITIAL->value,
@@ -165,11 +167,14 @@ class SubscriptionService
             ]);
 
             // V-AUDIT-MODULE5-008: Use PaymentType enum instead of magic string
+            // V-MONETARY-REFACTOR-2026: amount_paise is MANDATORY
             if ($proratedAmount > 0) {
+                $proratedPaise = (int) round($proratedAmount * 100);
                 Payment::create([
                     'user_id' => $subscription->user_id,
                     'subscription_id' => $subscription->id,
-                    'amount' => $proratedAmount,
+                    'amount_paise' => $proratedPaise, // AUTHORITATIVE
+                    'amount' => $proratedAmount, // Legacy compatibility
                     'status' => 'pending',
                     'payment_type' => PaymentType::UPGRADE_CHARGE->value,
                     'description' => "Pro-rata charge",
