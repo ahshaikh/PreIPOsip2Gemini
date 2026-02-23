@@ -163,12 +163,8 @@ class EdgeCaseResilienceTest extends TestCase
 
         // Process job to award bonus
         if ($payment->status === Payment::STATUS_PAID) {
-            (new ProcessSuccessfulPaymentJob($payment))->handle(
-                app(BonusCalculatorService::class),
-                app(AllocationService::class),
-                app(ReferralService::class),
-                app(WalletService::class)
-            );
+            // V-WAVE3-FIX: Use dispatchSync to let container inject IdempotencyService
+            ProcessSuccessfulPaymentJob::dispatchSync($payment);
         }
 
         $walletBefore = $this->user->wallet->fresh()->balance_paise;
@@ -252,12 +248,8 @@ class EdgeCaseResilienceTest extends TestCase
 
         // Process job
         if ($payment->status === Payment::STATUS_PAID) {
-            (new ProcessSuccessfulPaymentJob($payment))->handle(
-                app(BonusCalculatorService::class),
-                app(AllocationService::class),
-                app(ReferralService::class),
-                app(WalletService::class)
-            );
+            // V-WAVE3-FIX: Use dispatchSync to let container inject IdempotencyService
+            ProcessSuccessfulPaymentJob::dispatchSync($payment);
         }
 
         $this->user->wallet->refresh();
@@ -438,12 +430,8 @@ class EdgeCaseResilienceTest extends TestCase
 
         // Processing job may handle inventory shortage
         try {
-            (new ProcessSuccessfulPaymentJob($payment))->handle(
-                app(BonusCalculatorService::class),
-                app(AllocationService::class),
-                app(ReferralService::class),
-                app(WalletService::class)
-            );
+            // V-WAVE3-FIX: Use dispatchSync to let container inject IdempotencyService
+            ProcessSuccessfulPaymentJob::dispatchSync($payment);
         } catch (\Exception $e) {
             // Expected - inventory insufficient
         }

@@ -18,7 +18,8 @@ class VerificationServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new VerificationService();
+        // V-WAVE2-FIX: Use DI container to resolve service with KycOrchestrator dependency
+        $this->service = app(VerificationService::class);
         // We force env to 'production' for these tests to bypass the "local mock" in the service
         // and actually test the API logic (which we will mock via Http facade)
         config(['app.env' => 'production']);

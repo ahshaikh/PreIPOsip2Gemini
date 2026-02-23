@@ -8,25 +8,26 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "Wave 2: Service-layer alignment, inventory integrity fixes, and FK stabilization
+$CommitMessage = "fix(refund, bonus-engine, wallet): enforce net bonus integrity & deterministic refund reversals
 
-- Rolled back ProductFactory withoutEvents() bypass; restored valid state machine compliance
-- Fixed AllocationService inventory query to align with lifecycle states (active/approved)
-- Added explicit payment_id + subscription_id handling in UserInvestment creation
-- Updated allocateShares() signature to support payment-driven allocation
-- Removed invalid investment_id persistence (column does not exist)
-- Corrected NOT NULL violations (sector, payment_id) in failing test paths
-- Replaced direct Model::create() usages in tests with factories
-- Switched service instantiation in tests to container resolution (DI compliance)
-- Restored canonical allocateShares() usage in BlockedUserInvestmentTest
-- Updated AllocationServiceTest to use allocateSharesLegacy() where appropriate
-- Fixed DealTierGateTest inventory + sector requirements
-- Reduced failures from 373 → 346 through root-cause service corrections
+- Removed auto share-purchase from bonus flow (Option A: bonuses remain withdrawable cash)
+- Fixed double-credit issue in ProcessPaymentBonusJob (wallet credited only once)
+- Ensured wallet receives NET bonus (gross - TDS)
+- Aligned share allocation logic to use NET amount where applicable
+- Refactored refund logic to:
+  - Reverse only original bonuses (exclude reversals)
+  - Mirror gross + TDS symmetrically
+  - Reverse wallet using deterministic NET calculation
+  - Preserve double-entry ledger integrity
+- Eliminated bonus drift after refund (net impact now zero)
+- Updated PaymentToBonusIntegrationTest to assert wallet deltas via transactions instead of static balance values
+- Fixed Queue assertion misuse in edge case test
+- Stabilized state transition compliance (paid → refunded only)
 
-No assertion weakening.
-No invariant suppression.
-No schema loosening.
-Doctrine preserved."
+Result:
+- BonusTdsIntegrationTest fully passing
+- PaymentToBonusIntegrationTest stabilized (net bonus invariants enforced)
+- Wallet / ledger consistency preserved under refund + reversal scenarios"
 #----------------------
 
 function Get-GitCredential {

@@ -74,14 +74,15 @@ class PlanSeeder extends Seeder
                 ['feature_text' => 'Maximum participation in incentive programs'],
             ]);
 
-            // --- THE FIX: Use json_encode() to store as JSON strings ---
+            // V-WAVE3-FIX: Do NOT json_encode - the model's 'value' cast handles encoding
+            // Double encoding was causing plan configs to be stored/retrieved as strings
             $plan->configs()->createMany([
-                ['config_key' => 'progressive_config', 'value' => json_encode($progressiveConfig)],
-                ['config_key' => 'milestone_config', 'value' => json_encode($milestoneConfig)],
-                ['config_key' => 'consistency_config', 'value' => json_encode($consistencyConfig)],
-                ['config_key' => 'lucky_draw_entries', 'value' => json_encode(['count' => $planData['display_order'] * 2])],
-                ['config_key' => 'referral_tiers', 'value' => json_encode($defaultReferralTiers)],
-                ['config_key' => 'profit_share', 'value' => json_encode(['percentage' => ($planData['display_order'] * 5)])]
+                ['config_key' => 'progressive_config', 'value' => $progressiveConfig],
+                ['config_key' => 'milestone_config', 'value' => $milestoneConfig],
+                ['config_key' => 'consistency_config', 'value' => $consistencyConfig],
+                ['config_key' => 'lucky_draw_entries', 'value' => ['count' => $planData['display_order'] * 2]],
+                ['config_key' => 'referral_tiers', 'value' => $defaultReferralTiers],
+                ['config_key' => 'profit_share', 'value' => ['percentage' => ($planData['display_order'] * 5)]]
             ]);
         }
     }

@@ -84,12 +84,8 @@ class CompleteUserJourneyTest extends TestCase
         ]);
         
         // 2. Run the Queued Job
-        (new ProcessSuccessfulPaymentJob($payment->fresh()))->handle(
-            $this->app->make(BonusCalculatorService::class),
-            $this->app->make(AllocationService::class),
-            $this->app->make(ReferralService::class),
-            $this->app->make(WalletService::class)
-        );
+        // V-WAVE3-FIX: Use dispatchSync to let container inject IdempotencyService
+        ProcessSuccessfulPaymentJob::dispatchSync($payment->fresh());
     }
 
     #[\PHPUnit\Framework\Attributes\Test]

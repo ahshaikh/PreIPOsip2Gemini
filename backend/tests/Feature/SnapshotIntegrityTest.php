@@ -451,12 +451,8 @@ class SnapshotIntegrityTest extends TestCase
                 $payment->refresh();
                 if ($payment->status === Payment::STATUS_PAID) {
                     try {
-                        (new ProcessSuccessfulPaymentJob($payment))->handle(
-                            app(BonusCalculatorService::class),
-                            app(AllocationService::class),
-                            app(ReferralService::class),
-                            app(WalletService::class)
-                        );
+                        // V-WAVE3-FIX: Use dispatchSync to let container inject IdempotencyService
+                        ProcessSuccessfulPaymentJob::dispatchSync($payment);
                     } catch (\Exception $e) {
                         // Continue even if job fails
                     }

@@ -92,8 +92,9 @@ class ProductSeeder extends Seeder
             );
 
             // Simulate the workflow: draft -> submitted -> approved for testing
-            // Swiggy and Ola Electric will be approved
-            if (in_array($product->slug, ['swiggy', 'ola-electric'])) {
+            // V-WAVE3-FIX: Match actual seeded slugs (not old placeholders)
+            // ahshaikh and samara-electric will be approved
+            if (in_array($product->slug, ['ahshaikh', 'samara-electric'])) {
                 if ($product->status === 'draft') {
                     $product->status = 'submitted';
                     $product->save();
@@ -103,8 +104,8 @@ class ProductSeeder extends Seeder
                     $product->save();
                 }
             }
-            // PharmEasy will remain in 'submitted' state for admin review
-            else if ($product->slug === 'pharmeasy') {
+            // izrein-pharma will remain in 'submitted' state for admin review
+            else if ($product->slug === 'izrein-pharma') {
                 if ($product->status === 'draft') {
                     $product->status = 'submitted';
                     $product->save();

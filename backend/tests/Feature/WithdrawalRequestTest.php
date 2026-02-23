@@ -99,7 +99,8 @@ class WithdrawalRequestTest extends TestCase
     public function test_validates_withdrawal_limit_per_day()
     {
         // 1. First withdrawal (40,000) - OK
-        $this->service = new \App\Services\WithdrawalService(); // Need service for setup
+        // V-WAVE2-FIX: Use DI container to resolve service with dependencies
+        $this->service = app(\App\Services\WithdrawalService::class);
         $this->service->requestWithdrawal($this->user, 40000, ['account'=>'123', 'ifsc'=>'ABC']);
 
         // 2. Second withdrawal (15,000) - Should fail

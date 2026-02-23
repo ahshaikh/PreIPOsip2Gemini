@@ -148,13 +148,22 @@ class BonusCalculatorConsistencyTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_consistency_bonus_uses_configured_amounts()
     {
-        // Change config to a weird amount
-        $this->plan->configs()->first()->update([
+        // V-WAVE3-FIX: Create a plan with custom consistency config, then create subscription
+        // Per CONTRACT-HARDENING, subscription snapshots are immutable and captured at creation
+        $customPlan = Plan::factory()->create();
+        $customPlan->configs()->create([
+            'config_key' => 'consistency_config',
             'value' => ['amount_per_payment' => 123.45, 'streaks' => []]
         ]);
 
+        // Create NEW subscription - factory will snapshot the plan's config
+        $customSub = Subscription::factory()->create([
+            'user_id' => $this->subscription->user_id,
+            'plan_id' => $customPlan->id,
+        ]);
+
         $payment = Payment::factory()->create([
-            'subscription_id' => $this->subscription->id,
+            'subscription_id' => $customSub->id,
             'is_on_time' => true,
             'amount' => 1000
         ]);

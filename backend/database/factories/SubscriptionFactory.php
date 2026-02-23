@@ -64,27 +64,30 @@ class SubscriptionFactory extends Factory
 
     /**
      * V-WAVE2-FIX: Apply valid snapshot with correct hash computation
+     * V-WAVE3-FIX: Read configs from Plan when available, fall back to defaults
      */
     private function applyValidSnapshot($subscription): void
     {
         $snapshotAt = now();
+        $plan = $subscription->plan;
 
-        $progressiveConfig = [
+        // V-WAVE3-FIX: Read from plan configs if available, otherwise use defaults
+        $progressiveConfig = $plan->getConfig('progressive_config', [
             'rate' => 0.5,
             'start_month' => 4,
             'max_percentage' => 10,
-        ];
-        $milestoneConfig = [
+        ]);
+        $milestoneConfig = $plan->getConfig('milestone_config', [
             ['month' => 12, 'amount' => 1000],
             ['month' => 24, 'amount' => 2000],
             ['month' => 36, 'amount' => 5000],
-        ];
-        $consistencyConfig = [
+        ]);
+        $consistencyConfig = $plan->getConfig('consistency_config', [
             'amount_per_payment' => 50,
-        ];
-        $welcomeBonusConfig = [
+        ]);
+        $welcomeBonusConfig = $plan->getConfig('welcome_bonus_config', [
             'amount' => 500,
-        ];
+        ]);
 
         // Compute hash using same algorithm as SubscriptionConfigSnapshotService
         $versionHash = $this->computeCanonicalHash(

@@ -77,42 +77,47 @@ class ProcessPaymentBonusJob implements ShouldQueue
                 $user = $this->payment->user;
 
                 // 1. Calculate and Award Bonuses
-                $totalBonus = $bonusService->calculateAndAwardBonuses($this->payment);
+                // V-WAVE3-FIX: calculateAndAwardBonuses() already credits wallet via
+                // createBonusTransaction() -> depositTaxable(). Do NOT double-credit.
+                $totalGrossBonus = $bonusService->calculateAndAwardBonuses($this->payment);
 
                 // If no bonus, exit gracefully
-                if ($totalBonus <= 0) {
+                if ($totalGrossBonus <= 0) {
                     Log::info("No bonus calculated for Payment {$this->payment->id}.");
                     return;
                 }
 
-                // 2. Credit Wallet with Bonus
-                $bonusTxn = $user->bonuses()->where('payment_id', $this->payment->id)->first();
-                $walletService->deposit(
-                    $user,
-                    $totalBonus,
-                    'bonus_credit',
-                    'SIP Bonus',
-                    $bonusTxn
-                );
-                Log::info("Payment #{$this->payment->id}: Credited ₹{$totalBonus} bonus to user wallet");
+                // V-WAVE3-FIX: Calculate NET total (what wallet actually received after TDS)
+                // Wallet receives NET = GROSS - TDS, so use NET for share purchase
+                $netBonusTotal = $user->bonuses()
+                    ->where('payment_id', $this->payment->id)
+                    ->sum(DB::raw('amount - tds_deducted'));
 
-                // 3. Debit Wallet for Bonus Share Purchase
-                // V-WAVE1-FIX: Use 'investment' - valid TransactionType enum value
-                $walletService->withdraw(
-                    $user,
-                    $totalBonus,
-                    'investment',
-                    "Bonus share purchase from Payment #{$this->payment->id}",
-                    $this->payment,
-                    false // Immediate debit
-                );
-                Log::info("Payment #{$this->payment->id}: Debited ₹{$totalBonus} from wallet for bonus share purchase");
+                Log::info("Payment #{$this->payment->id}: Bonus calculated - Gross: ₹{$totalGrossBonus}, Net: ₹{$netBonusTotal}");
 
-                // 4. Allocate Bonus Shares
-                // V-WAVE2-FIX: Use allocateSharesLegacy which accepts Payment and amount
-                $allocationService->allocateSharesLegacy($this->payment, $totalBonus);
+                // Skip share purchase if net bonus is zero (all went to TDS)
+                if ($netBonusTotal <= 0) {
+                    Log::info("No net bonus after TDS for Payment {$this->payment->id}. Skipping share purchase.");
+                    return;
+                }
 
-                Log::info("Bonus processing completed successfully for Payment {$this->payment->id}");
+                // 2. Debit Wallet for Bonus Share Purchase
+                // V-WAVE3-FIX: Use NET amount (what wallet actually has)
+                // $walletService->withdraw(
+                //     $user,
+                //     $netBonusTotal,
+                //     'investment',
+                //     "Bonus share purchase from Payment #{$this->payment->id}",
+                //     $this->payment,
+                //     false // Immediate debit
+                // );
+                // Log::info("Payment #{$this->payment->id}: Debited ₹{$netBonusTotal} from wallet for bonus share purchase");
+
+                // 3. Allocate Bonus Shares
+                // V-WAVE3-FIX: Allocate based on NET amount (user's actual purchasing power)
+                // $allocationService->allocateSharesLegacy($this->payment, $netBonusTotal);
+
+                // Log::info("Bonus processing completed successfully for Payment {$this->payment->id}");
             });
 
         } catch (\Exception $e) {

@@ -170,17 +170,17 @@ class BonusCalculatorService
             }
         }
 
-        // 1. Progressive Monthly Bonus (mapped as loyalty_bonus for frontend)
+        // 1. Progressive Monthly Bonus (FR-BONUS-001: Calculate and award progressive monthly bonus)
         if (setting('progressive_bonus_enabled', true)) {
             $progressiveBonus = $this->calculateProgressive($payment, $subscription, $multiplier, $overrideContexts);
             if ($progressiveBonus > 0) {
                 $totalBonus += $progressiveBonus;
                 $this->createBonusTransaction(
                     $payment,
-                    'loyalty_bonus',
+                    'progressive',
                     $progressiveBonus,
                     $multiplier,
-                    'Loyalty Bonus - Month ' . $paidCount,
+                    'Progressive Bonus - Month ' . $paidCount,
                     $overrideContexts['progressive_config'] ?? $this->emptyOverrideContext()
                 );
             }
@@ -202,17 +202,17 @@ class BonusCalculatorService
             }
         }
 
-        // 3. Consistency Bonus (mapped as cashback for frontend)
+        // 3. Consistency Bonus (FR-BONUS-003: Award bonus for on-time payments)
         if (setting('consistency_bonus_enabled', true) && $payment->is_on_time) {
             $consistencyBonus = $this->calculateConsistency($subscription, $overrideContexts);
             if ($consistencyBonus > 0) {
                 $totalBonus += $consistencyBonus;
                 $this->createBonusTransaction(
                     $payment,
-                    'cashback',
+                    'consistency',
                     $consistencyBonus,
                     1.0,
-                    'Cashback - On-Time Payment',
+                    'Consistency Bonus - On-Time Payment',
                     $overrideContexts['consistency_config'] ?? $this->emptyOverrideContext()
                 );
             }
@@ -800,9 +800,9 @@ class BonusCalculatorService
         // Build config_used for audit (the actual config used for this calculation)
         $configUsed = match ($type) {
             'welcome_bonus' => $payment->subscription->welcome_bonus_config,
-            'loyalty_bonus' => $payment->subscription->progressive_config,
+            'progressive' => $payment->subscription->progressive_config,
             'milestone_bonus' => $payment->subscription->milestone_config,
-            'cashback' => $payment->subscription->consistency_config,
+            'consistency' => $payment->subscription->consistency_config,
             default => null,
         };
 

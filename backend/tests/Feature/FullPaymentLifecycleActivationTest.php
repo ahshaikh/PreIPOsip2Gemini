@@ -292,12 +292,8 @@ class FullPaymentLifecycleActivationTest extends TestCase
 
         // Process job
         $payment->refresh();
-        (new ProcessSuccessfulPaymentJob($payment))->handle(
-            app(BonusCalculatorService::class),
-            app(AllocationService::class),
-            app(ReferralService::class),
-            app(WalletService::class)
-        );
+        // V-WAVE3-FIX: Use dispatchSync to let container inject IdempotencyService
+        ProcessSuccessfulPaymentJob::dispatchSync($payment);
 
         // Verify progressive bonus was triggered
         $progressiveBonus = BonusTransaction::where('payment_id', $payment->id)
@@ -388,12 +384,8 @@ class FullPaymentLifecycleActivationTest extends TestCase
         $balanceAfterFirst = $this->user->wallet->balance_paise;
 
         // Process job once
-        (new ProcessSuccessfulPaymentJob($payment))->handle(
-            app(BonusCalculatorService::class),
-            app(AllocationService::class),
-            app(ReferralService::class),
-            app(WalletService::class)
-        );
+        // V-WAVE3-FIX: Use dispatchSync to let container inject IdempotencyService
+        ProcessSuccessfulPaymentJob::dispatchSync($payment);
 
         $this->user->wallet->refresh();
         $balanceAfterJob = $this->user->wallet->balance_paise;
