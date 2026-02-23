@@ -8,26 +8,33 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "fix(refund, bonus-engine, wallet): enforce net bonus integrity & deterministic refund reversals
+$CommitMessage = "feat(financial-core): freeze Financial Integrity Layer v1.0 (refund/chargeback hardened)
 
-- Removed auto share-purchase from bonus flow (Option A: bonuses remain withdrawable cash)
-- Fixed double-credit issue in ProcessPaymentBonusJob (wallet credited only once)
-- Ensured wallet receives NET bonus (gross - TDS)
-- Aligned share allocation logic to use NET amount where applicable
-- Refactored refund logic to:
-  - Reverse only original bonuses (exclude reversals)
-  - Mirror gross + TDS symmetrically
-  - Reverse wallet using deterministic NET calculation
-  - Preserve double-entry ledger integrity
-- Eliminated bonus drift after refund (net impact now zero)
-- Updated PaymentToBonusIntegrationTest to assert wallet deltas via transactions instead of static balance values
-- Fixed Queue assertion misuse in edge case test
-- Stabilized state transition compliance (paid → refunded only)
+- Introduced ChargebackResolutionService as atomic refund/chargeback orchestrator
+- Enforced full economic neutrality: payment, bonus, TDS, wallet, ledger symmetry
+- Reinstated wallet debit on bonus reversal with shortfall reconciliation
+- Added distributed + DB-level idempotency locks for refund processing
+- Implemented deterministic bonus reversal via reversal_of_bonus_id FK (removed brittle description parsing)
+- Created dedicated chargeback_receivables table for granular receivable tracking
+    - FIFO settlement
+    - Per-receivable status lifecycle (pending/partial/settled/written_off)
+    - Ledger-linked audit trail
+- Implemented recovery mode enforcement (withdrawals blocked, deposits allowed)
+- Added automated recovery exit on full settlement
+- Added admin force-clear with structured write-off flow
+- Preserved DB constraints (no weakening of balance checks)
+- Hardened double-entry integrity and balance conservation
+- Updated invariant tests to reflect dedicated receivable model
+- All bonus/refund-related tests passing (BonusTds, PaymentToBonus, Chargeback invariants)
 
-Result:
-- BonusTdsIntegrationTest fully passing
-- PaymentToBonusIntegrationTest stabilized (net bonus invariants enforced)
-- Wallet / ledger consistency preserved under refund + reversal scenarios"
+Financial Core v1.0 is now:
+- Deterministic
+- Idempotent
+- Audit-pure
+- Ledger-balanced
+- Recovery-aware
+
+Next Wave: Allocation & Global Inventory Hardening"
 #----------------------
 
 function Get-GitCredential {

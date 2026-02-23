@@ -1,0 +1,2379 @@
+Folder PATH listing
+Volume serial number is 62C3-2787
+C:.
+|   .env
+|   .gitignore
+|   AI_CONTEXT_POLICY.md
+|   ARCHITECTURE.md
+|   Backend_Financial_Contract_Audit_Report.md
+|   CLAUDE.md
+|   composer.json
+|   composer.lock
+|   CURRENT_TASK.md
+|   CURRENT_TASK_LITE.md
+|   GEMINI.md
+|   GOVERNANCE.md
+|   INSTITUTIONAL_MEMORY.md
+|   INSTITUTIONAL_MEMORY_RAW.md
+|   next.config.js
+|   Project_context.md
+|   PushToGit.ps1
+|   README.md
+|   repo_structure.txt
+|   repo_tree.txt
+|   SKILL.md
+|   start.ps1
+|   SYSTEM_CONTEXT.md
+|   verification_report.md
+|   
++---.claude
+|       AUDIT_LINE.md
+|       settings.local.json
+|       system.md
+|       
++---.cursor
++---.github
+|   |   dependabot.yml
+|   |   
+|   \---workflows
+|           backend.yml
+|           broken-link-check.yml
+|           ci-cd.yml
+|           frontend.yml
+|           README.md
+|           
++---.husky
+|   |   pre-commit
+|   |   
+|   \---_
+|           husky.sh
+|           
++---backend
+|   |   .editorconfig
+|   |   .env
+|   |   .env.example
+|   |   .env.production.example
+|   |   .env.testing
+|   |   .gitattributes
+|   |   .gitignore
+|   |   .phpstorm.meta.php
+|   |   .phpunit.result.cache
+|   |   .user.ini
+|   |   2026-02-23-051815-this-session-is-being-continued-from-a-previous-co.txt
+|   |   5 Waves.txt
+|   |   artisan
+|   |   assign_founder_role.php
+|   |   composer.json
+|   |   composer.lock
+|   |   package-lock.json
+|   |   package.json
+|   |   phpunit.xml
+|   |   rector.php
+|   |   supervisord.conf
+|   |   test-output-factory-fix.txt
+|   |   test-output-strict-paise.txt
+|   |   test-results-factory-fix.xml
+|   |   test-results-Hakim.xml
+|   |   test-results-Hakim2.xml
+|   |   test-results-Hakim3.xml
+|   |   test-results-Hakim4.xml
+|   |   test-results-Hakim5.xml
+|   |   test-results-Hakim6.xml
+|   |   test-results-Hakim7.xml
+|   |   test-results-strict-paise.xml
+|   |   verify-fixes.sh
+|   |   vite.config.js
+|   |   _ide_helper.php
+|   |   _ide_helper_models.php
+|   |   
+|   +---app
+|   |   +---Console
+|   |   |   |   Kernel.php
+|   |   |   |   
+|   |   |   \---Commands
+|   |   |           AggregateAlerts.php
+|   |   |           AggregateDailyDisputeSnapshots.php
+|   |   |           BackfillMissingBonuses.php
+|   |   |           BackfillMissingWalletCredits.php
+|   |   |           BackupDatabase.php
+|   |   |           CheckTicketSLACommand.php
+|   |   |           DetectStuckStates.php
+|   |   |           GenerateMonthlyStatements.php
+|   |   |           GenerateSitemap.php
+|   |   |           InspectSeederCommand.php
+|   |   |           MigrateOffersToCampaigns.php
+|   |   |           MonitorSystemHealth.php
+|   |   |           PaymentReconcileCommand.php
+|   |   |           ProcessAutoDebits.php
+|   |   |           ProcessCelebrationBonuses.php
+|   |   |           ProcessMonthlyLuckyDraw.php
+|   |   |           ProcessPendingWebhooks.php
+|   |   |           ReconcileBalances.php
+|   |   |           ReconcileLedgers.php
+|   |   |           ReleaseExpiredFundLocks.php
+|   |   |           RetryFailedWebhooks.php
+|   |   |           RunReconciliation.php
+|   |   |           SchemaAssert.php
+|   |   |           UpdateProductPrices.php
+|   |   |           VerifyCompanyEmail.php
+|   |   |           WalletAudit.php
+|   |   |           WalletReconcileCommand.php
+|   |   |           WarmDisputeStatsCache.php
+|   |   |           
+|   |   +---Contracts
+|   |   |       PaymentGatewayInterface.php
+|   |   |       
+|   |   +---Domains
+|   |   |   \---Identity
+|   |   |       +---Actions
+|   |   |       |       LoginUserAction.php
+|   |   |       |       RegisterUserAction.php
+|   |   |       |       VerifyOtpAction.php
+|   |   |       |       
+|   |   |       +---Enums
+|   |   |       |       UserStatus.php
+|   |   |       |       
+|   |   |       \---Services
+|   |   |               OtpService.php
+|   |   |               
+|   |   +---Enums
+|   |   |       DisclosureTier.php
+|   |   |       DisclosureTierRequirements.php
+|   |   |       FreshnessEnums.php
+|   |   |       InvestmentSource.php
+|   |   |       KycDocumentType.php
+|   |   |       KycStatus.php
+|   |   |       PaymentType.php
+|   |   |       ProductStatus.php
+|   |   |       ReversalSource.php
+|   |   |       TicketCategory.php
+|   |   |       TransactionType.php
+|   |   |       
+|   |   +---Events
+|   |   |       ChargebackConfirmed.php
+|   |   |       CompanyTierChanged.php
+|   |   |       DisclosureApproved.php
+|   |   |       KycStatusUpdated.php
+|   |   |       SagaStepRollback.php
+|   |   |       TicketClosed.php
+|   |   |       TicketCreated.php
+|   |   |       TicketEscalated.php
+|   |   |       TicketReplied.php
+|   |   |       WithdrawalApproved.php
+|   |   |       
+|   |   +---Exceptions
+|   |   |   |   BulkPurchaseProvenanceException.php
+|   |   |   |   CannotDeleteInUseException.php
+|   |   |   |   ContractIntegrityException.php
+|   |   |   |   DealTierGateException.php
+|   |   |   |   DisclosureAuthorityViolationException.php
+|   |   |   |   DisclosureTierImmutabilityException.php
+|   |   |   |   EligibilityChangedException.php
+|   |   |   |   InsufficientInventoryException.php
+|   |   |   |   OverrideSchemaViolationException.php
+|   |   |   |   PaymentAmountMismatchException.php
+|   |   |   |   RiskBlockedException.php
+|   |   |   |   SnapshotImmutabilityViolationException.php
+|   |   |   |   
+|   |   |   \---Financial
+|   |   |           ComplianceBlockedException.php
+|   |   |           InsufficientBalanceException.php
+|   |   |           
+|   |   +---Exports
+|   |   |       DynamicTableExport.php
+|   |   |       
+|   |   +---Helpers
+|   |   |       BankHelper.php
+|   |   |       SettingsHelper.php
+|   |   |       UrlValidator.php
+|   |   |       
+|   |   +---Http
+|   |   |   +---Controllers
+|   |   |   |   |   Controller.php
+|   |   |   |   |   
+|   |   |   |   +---Admin
+|   |   |   |   |       AdminUserController.php
+|   |   |   |   |       NotificationController.php
+|   |   |   |   |       PaymentController.php
+|   |   |   |   |       
+|   |   |   |   \---Api
+|   |   |   |       |   ArticleController.php
+|   |   |   |       |   AuthController.php
+|   |   |   |       |   CategoryController.php
+|   |   |   |       |   HelpCenterController.php
+|   |   |   |       |   InvoiceController.php
+|   |   |   |       |   PasswordResetController.php
+|   |   |   |       |   PlatformContextController.php
+|   |   |   |       |   SocialLoginController.php
+|   |   |   |       |   SupportAIController.php
+|   |   |   |       |   TwoFactorAuthController.php
+|   |   |   |       |   WebhookController.php
+|   |   |   |       |   
+|   |   |   |       +---Admin
+|   |   |   |       |       AdminActivityController.php
+|   |   |   |       |       AdminBonusController.php
+|   |   |   |       |       AdminDashboardController.php
+|   |   |   |       |       AdminShareListingController.php
+|   |   |   |       |       AdminUserController.php
+|   |   |   |       |       AdvancedReportController.php
+|   |   |   |       |       AnalyticsController.php
+|   |   |   |       |       AuditDashboardController.php
+|   |   |   |       |       AuditLogController.php
+|   |   |   |       |       BackupController.php
+|   |   |   |       |       BlogCategoryController.php
+|   |   |   |       |       BlogPostController.php
+|   |   |   |       |       BulkOperationsController.php
+|   |   |   |       |       BulkPurchaseController.php
+|   |   |   |       |       CacheManagementController.php
+|   |   |   |       |       CampaignController.php
+|   |   |   |       |       CannedResponseController.php
+|   |   |   |       |       CmsController.php
+|   |   |   |       |       CompanyController.php
+|   |   |   |       |       CompanyLifecycleController.php
+|   |   |   |       |       CompanyUserController.php
+|   |   |   |       |       CompanyVersionController.php
+|   |   |   |       |       ComplianceController.php
+|   |   |   |       |       ComplianceReportController.php
+|   |   |   |       |       ConsentManagementController.php
+|   |   |   |       |       ContentReportController.php
+|   |   |   |       |       DashboardCustomizationController.php
+|   |   |   |       |       DatabaseOptimizationController.php
+|   |   |   |       |       DealApprovalController.php
+|   |   |   |       |       DealController.php
+|   |   |   |       |       DeveloperToolsController.php
+|   |   |   |       |       DisclosureController.php
+|   |   |   |       |       DisputeController.php
+|   |   |   |       |       DisputeSnapshotController.php
+|   |   |   |       |       EmailTemplateController.php
+|   |   |   |       |       FaqController.php
+|   |   |   |       |       FeatureFlagController.php
+|   |   |   |       |       HelpCenterDashboardController.php
+|   |   |   |       |       IntegrationManagementController.php
+|   |   |   |       |       InventoryTraceabilityController.php
+|   |   |   |       |       IpWhitelistController.php
+|   |   |   |       |       KbArticleController.php
+|   |   |   |       |       KbCategoryController.php
+|   |   |   |       |       KycQueueController.php
+|   |   |   |       |       KycReviewController.php
+|   |   |   |       |       LogManagementController.php
+|   |   |   |       |       LuckyDrawController.php
+|   |   |   |       |       NotificationController.php
+|   |   |   |       |       NotificationLogController.php
+|   |   |   |       |       NotificationTestingController.php
+|   |   |   |       |       OfferCampaignController.php
+|   |   |   |       |       PageBlockController.php
+|   |   |   |       |       PageController.php
+|   |   |   |       |       PaymentController.php
+|   |   |   |       |       PaymentReviewController.php
+|   |   |   |       |       PaymentSagaController.php
+|   |   |   |       |       PerformanceMonitoringController.php
+|   |   |   |       |       PlanController.php
+|   |   |   |       |       PlanProductController.php
+|   |   |   |       |       PlanRegulatoryOverrideController.php
+|   |   |   |       |       ProductAuditController.php
+|   |   |   |       |       ProductController.php
+|   |   |   |       |       ProfitShareController.php
+|   |   |   |       |       PushNotificationConfigController.php
+|   |   |   |       |       ReconciliationDashboardController.php
+|   |   |   |       |       RedirectController.php
+|   |   |   |       |       ReferralController.php
+|   |   |   |       |       ReportController.php
+|   |   |   |       |       RobotsTxtController.php
+|   |   |   |       |       RoleController.php
+|   |   |   |       |       SagaManagementController.php
+|   |   |   |       |       SectorController.php
+|   |   |   |       |       SeoConfigController.php
+|   |   |   |       |       SettingsController.php
+|   |   |   |       |       SitemapController.php
+|   |   |   |       |       SmsTemplateController.php
+|   |   |   |       |       SnapshotIntegrityController.php
+|   |   |   |       |       SupportTicketController.php
+|   |   |   |       |       SystemMonitorController.php
+|   |   |   |       |       ThemeSeoController.php
+|   |   |   |       |       TutorialController.php
+|   |   |   |       |       UnifiedDashboardController.php
+|   |   |   |       |       WithdrawalController.php
+|   |   |   |       |       
+|   |   |   |       +---Calculator
+|   |   |   |       |       SimulationController.php
+|   |   |   |       |       
+|   |   |   |       +---Company
+|   |   |   |       |       AuthController.php
+|   |   |   |       |       BaseCompanyController.php
+|   |   |   |       |       CompanyAnalyticsController.php
+|   |   |   |       |       CompanyProfileController.php
+|   |   |   |       |       CompanyQnaController.php
+|   |   |   |       |       CompanyUpdateController.php
+|   |   |   |       |       CompanyWebinarController.php
+|   |   |   |       |       DisclosureController.php
+|   |   |   |       |       DocumentController.php
+|   |   |   |       |       EmailVerificationController.php
+|   |   |   |       |       FinancialReportController.php
+|   |   |   |       |       FundingRoundController.php
+|   |   |   |       |       InvestorInterestController.php
+|   |   |   |       |       OnboardingWizardController.php
+|   |   |   |       |       ProductController.php
+|   |   |   |       |       ShareListingController.php
+|   |   |   |       |       TeamMemberController.php
+|   |   |   |       |       UserManagementController.php
+|   |   |   |       |       
+|   |   |   |       +---Investor
+|   |   |   |       |       InvestorCompanyController.php
+|   |   |   |       |       InvestorCompanyControllerComprehensive.php
+|   |   |   |       |       InvestorInvestmentController.php
+|   |   |   |       |       InvestorSnapshotComparisonController.php
+|   |   |   |       |       
+|   |   |   |       +---Payments
+|   |   |   |       |       WebhookController.php
+|   |   |   |       |       
+|   |   |   |       +---Public
+|   |   |   |       |       CompanyProfileController.php
+|   |   |   |       |       CookieConsentController.php
+|   |   |   |       |       GlobalSettingsController.php
+|   |   |   |       |       HelpCenterController.php
+|   |   |   |       |       LegalDocumentController.php
+|   |   |   |       |       PageController.php
+|   |   |   |       |       PlanController.php
+|   |   |   |       |       ProductDataController.php
+|   |   |   |       |       
+|   |   |   |       +---Support
+|   |   |   |       |       SupportTicketController.php
+|   |   |   |       |       
+|   |   |   |       +---User
+|   |   |   |       |       ActivityController.php
+|   |   |   |       |       BonusController.php
+|   |   |   |       |       CampaignController.php
+|   |   |   |       |       ComplianceStatusController.php
+|   |   |   |       |       DealController.php
+|   |   |   |       |       DiagnosticsController.php
+|   |   |   |       |       InvestmentController.php
+|   |   |   |       |       KnowledgeBaseController.php
+|   |   |   |       |       KycController.php
+|   |   |   |       |       LearningCenterController.php
+|   |   |   |       |       LuckyDrawController.php
+|   |   |   |       |       NotificationController.php
+|   |   |   |       |       OfferController.php
+|   |   |   |       |       PaymentController.php
+|   |   |   |       |       PortfolioController.php
+|   |   |   |       |       PrivacyController.php
+|   |   |   |       |       ProfileController.php
+|   |   |   |       |       ProfitShareController.php
+|   |   |   |       |       PromotionalMaterialController.php
+|   |   |   |       |       ReferralController.php
+|   |   |   |       |       ReportsController.php
+|   |   |   |       |       SecurityController.php
+|   |   |   |       |       SubscriptionController.php
+|   |   |   |       |       SupportTicketController.php
+|   |   |   |       |       TwoFactorAuthController.php
+|   |   |   |       |       UserDashboardController.php
+|   |   |   |       |       UserSettingsController.php
+|   |   |   |       |       UserWithdrawalController.php
+|   |   |   |       |       WalletController.php
+|   |   |   |       |       WebhookController.php
+|   |   |   |       |       WithdrawalController.php
+|   |   |   |       |       
+|   |   |   |       \---Wallet
+|   |   |   |               TaxController.php
+|   |   |   |               
+|   |   |   +---Middleware
+|   |   |   |       AdminIpRestriction.php
+|   |   |   |       Authenticate.php
+|   |   |   |       CheckMaintenanceMode.php
+|   |   |   |       CheckPermission.php
+|   |   |   |       CheckPlanEligibility.php
+|   |   |   |       ConcurrentSessionControl.php
+|   |   |   |       EnforceDisclosureVisibility.php
+|   |   |   |       EnsureCompanyInvestable.php
+|   |   |   |       EnsureKycCompleted.php
+|   |   |   |       EnsureLegalAcceptance.php
+|   |   |   |       EnsureMfaVerified.php
+|   |   |   |       ForceHttps.php
+|   |   |   |       Protocol1Middleware.php
+|   |   |   |       RedirectMiddleware.php
+|   |   |   |       SanitizeInput.php
+|   |   |   |       SecurityHeadersMiddleware.php
+|   |   |   |       ThrottlePublicApi.php
+|   |   |   |       TrackDatabaseQueries.php
+|   |   |   |       TrustProxies.php
+|   |   |   |       ValidateFileUpload.php
+|   |   |   |       VerifyWebhookSignature.php
+|   |   |   |       
+|   |   |   +---Requests
+|   |   |   |   |   InitiatePaymentRequest.php
+|   |   |   |   |   KycSubmitRequest.php
+|   |   |   |   |   LoginRequest.php
+|   |   |   |   |   RegisterRequest.php
+|   |   |   |   |   
+|   |   |   |   +---Admin
+|   |   |   |   |       AdjustBalanceRequest.php
+|   |   |   |   |       StoreBulkPurchaseRequest.php
+|   |   |   |   |       StoreCampaignRequest.php
+|   |   |   |   |       StoreCompanyRequest.php
+|   |   |   |   |       StoreDealRequest.php
+|   |   |   |   |       StoreOfferRequest.php
+|   |   |   |   |       StorePlanRequest.php
+|   |   |   |   |       StoreProductRequest.php
+|   |   |   |   |       StoreUserRequest.php
+|   |   |   |   |       UpdateCampaignRequest.php
+|   |   |   |   |       UpdateDealRequest.php
+|   |   |   |   |       UpdatePlanRequest.php
+|   |   |   |   |       UpdateUserRequest.php
+|   |   |   |   |       
+|   |   |   |   +---Company
+|   |   |   |   |       StoreProductRequest.php
+|   |   |   |   |       StoreShareListingRequest.php
+|   |   |   |   |       UpdateProductRequest.php
+|   |   |   |   |       
+|   |   |   |   +---Financial
+|   |   |   |   |       AdminBalanceAdjustmentRequest.php
+|   |   |   |   |       InitiatePaymentRequest.php
+|   |   |   |   |       WalletDepositRequest.php
+|   |   |   |   |       WithdrawalRequest.php
+|   |   |   |   |       
+|   |   |   |   +---Requests
+|   |   |   |   |   \---Admin
+|   |   |   |   |           AdjustBalanceRequest.php
+|   |   |   |   |           
+|   |   |   |   \---User
+|   |   |   |           UpdateProfileRequest.php
+|   |   |   |           WithdrawalRequest.php
+|   |   |   |           
+|   |   |   +---Resources
+|   |   |   |       BaseResource.php
+|   |   |   |       
+|   |   |   \---Traits
+|   |   |           ApiResponseTrait.php
+|   |   |           ValidatesInvestments.php
+|   |   |           
+|   |   +---Jobs
+|   |   |       AwardBulkBonusJob.php
+|   |   |       CalculateProfitShareJob.php
+|   |   |       DatabaseOptimizationJob.php
+|   |   |       DataExportJob.php
+|   |   |       ExpireInventoryLock.php
+|   |   |       GenerateLuckyDrawEntryJob.php
+|   |   |       GenerateScheduledReportJob.php
+|   |   |       HandlePaymentWebhook.php
+|   |   |       InventoryReconciliationJob.php
+|   |   |       ProcessAllocationJob.php
+|   |   |       ProcessEmailJob.php
+|   |   |       ProcessKbView.php
+|   |   |       ProcessKycJob.php
+|   |   |       ProcessNotificationJob.php
+|   |   |       ProcessPaymentBonusJob.php
+|   |   |       ProcessProfitShareDistribution.php
+|   |   |       ProcessReferralJob.php
+|   |   |       ProcessSubscriptionChargeJob.php
+|   |   |       ProcessSuccessfulPaymentJob.php
+|   |   |       ProcessWebhookRetryJob.php
+|   |   |       RetryAutoDebitJob.php
+|   |   |       SendBulkInvestorEmail.php
+|   |   |       SendEmailNotification.php
+|   |   |       SendOtpJob.php
+|   |   |       SendPaymentConfirmationEmailJob.php
+|   |   |       SendPaymentFailedEmailJob.php
+|   |   |       SendPaymentReminderJob.php
+|   |   |       SendPushCampaignJob.php
+|   |   |       SnapshotIntegrityAuditJob.php
+|   |   |       
+|   |   +---Listeners
+|   |   |       CheckTierPromotionOnDisclosureApproval.php
+|   |   |       NotifyAdminsTicketEscalated.php
+|   |   |       NotifyUserTicketClosed.php
+|   |   |       ProcessPendingReferralsOnKycVerify.php
+|   |   |       UpdateUserRiskProfile.php
+|   |   |       
+|   |   +---Mail
+|   |   |       GenericMailable.php
+|   |   |       PaymentFailedMail.php
+|   |   |       PaymentReceiptMail.php
+|   |   |       
+|   |   +---Models
+|   |   |   |   ActivityLog.php
+|   |   |   |   AdminDashboardWidget.php
+|   |   |   |   AdminLedgerEntry.php
+|   |   |   |   AdminPreference.php
+|   |   |   |   ApiTestCase.php
+|   |   |   |   ApiTestResult.php
+|   |   |   |   ArticleFeedback.php
+|   |   |   |   AuditLog.php
+|   |   |   |   Banner.php
+|   |   |   |   BlogCategory.php
+|   |   |   |   BlogPost.php
+|   |   |   |   BonusTransaction.php
+|   |   |   |   BulkImportJob.php
+|   |   |   |   BulkPurchase.php
+|   |   |   |   Campaign.php
+|   |   |   |   CampaignUsage.php
+|   |   |   |   CannedResponse.php
+|   |   |   |   Category.php
+|   |   |   |   CelebrationEvent.php
+|   |   |   |   ChannelMessageTemplate.php
+|   |   |   |   CommunicationChannel.php
+|   |   |   |   Company.php
+|   |   |   |   CompanyAnalytics.php
+|   |   |   |   CompanyDisclosure.php
+|   |   |   |   CompanyDocument.php
+|   |   |   |   CompanyFinancialReport.php
+|   |   |   |   CompanyFundingRound.php
+|   |   |   |   CompanyInvestment.php
+|   |   |   |   CompanyLifecycleLog.php
+|   |   |   |   CompanyOnboardingProgress.php
+|   |   |   |   CompanyQna.php
+|   |   |   |   CompanyShareListing.php
+|   |   |   |   CompanyShareListingActivity.php
+|   |   |   |   CompanySnapshot.php
+|   |   |   |   CompanyTeamMember.php
+|   |   |   |   CompanyUpdate.php
+|   |   |   |   CompanyUser.php
+|   |   |   |   CompanyUserRole.php
+|   |   |   |   CompanyVersion.php
+|   |   |   |   CompanyWebinar.php
+|   |   |   |   ContextualSuggestion.php
+|   |   |   |   DailyDisputeSnapshot.php
+|   |   |   |   DataExportJob.php
+|   |   |   |   Deal.php
+|   |   |   |   DealApproval.php
+|   |   |   |   DisclosureApproval.php
+|   |   |   |   DisclosureChangeLog.php
+|   |   |   |   DisclosureClarification.php
+|   |   |   |   DisclosureDocument.php
+|   |   |   |   DisclosureErrorReport.php
+|   |   |   |   DisclosureEvent.php
+|   |   |   |   DisclosureModule.php
+|   |   |   |   DisclosureVersion.php
+|   |   |   |   Dispute.php
+|   |   |   |   EmailLog.php
+|   |   |   |   EmailTemplate.php
+|   |   |   |   ErrorLog.php
+|   |   |   |   Faq.php
+|   |   |   |   FeatureFlag.php
+|   |   |   |   FundLock.php
+|   |   |   |   HelpTooltip.php
+|   |   |   |   Investment.php
+|   |   |   |   InvestmentDisclosureSnapshot.php
+|   |   |   |   InvestorInterest.php
+|   |   |   |   InvestorJourney.php
+|   |   |   |   InvestorJourneyTransition.php
+|   |   |   |   InvestorRiskAcknowledgement.php
+|   |   |   |   InvestorViewHistory.php
+|   |   |   |   IpWhitelist.php
+|   |   |   |   JourneyAcknowledgementBinding.php
+|   |   |   |   KbArticle.php
+|   |   |   |   KbArticleView.php
+|   |   |   |   KbCategory.php
+|   |   |   |   KycDocument.php
+|   |   |   |   KycRejectionTemplate.php
+|   |   |   |   KycVerificationNote.php
+|   |   |   |   LedgerAccount.php
+|   |   |   |   LedgerEntry.php
+|   |   |   |   LedgerLine.php
+|   |   |   |   LegalAgreement.php
+|   |   |   |   LegalAgreementAuditTrail.php
+|   |   |   |   LegalAgreementVersion.php
+|   |   |   |   LuckyDraw.php
+|   |   |   |   LuckyDrawEntry.php
+|   |   |   |   Menu.php
+|   |   |   |   MenuItem.php
+|   |   |   |   Notification.php
+|   |   |   |   Offer.php
+|   |   |   |   OfferStatistic.php
+|   |   |   |   OfferUsage.php
+|   |   |   |   Otp.php
+|   |   |   |   OutboundMessageQueue.php
+|   |   |   |   Page.php
+|   |   |   |   PageBlock.php
+|   |   |   |   PageVersion.php
+|   |   |   |   PasswordHistory.php
+|   |   |   |   Payment.php
+|   |   |   |   PaymentSaga.php
+|   |   |   |   PerformanceMetric.php
+|   |   |   |   PillarVitalitySnapshot.php
+|   |   |   |   Plan.php
+|   |   |   |   PlanConfig.php
+|   |   |   |   PlanFeature.php
+|   |   |   |   PlanRegulatoryOverride.php
+|   |   |   |   PlatformCompanyMetric.php
+|   |   |   |   PlatformLedgerEntry.php
+|   |   |   |   PlatformRiskFlag.php
+|   |   |   |   PlatformValuationContext.php
+|   |   |   |   PrivacyRequest.php
+|   |   |   |   Product.php
+|   |   |   |   ProductAudit.php
+|   |   |   |   ProductFounder.php
+|   |   |   |   ProductFundingRound.php
+|   |   |   |   ProductHighlight.php
+|   |   |   |   ProductKeyMetric.php
+|   |   |   |   ProductPriceHistory.php
+|   |   |   |   ProductRiskDisclosure.php
+|   |   |   |   ProfitShare.php
+|   |   |   |   PromotionalMaterial.php
+|   |   |   |   PromotionalMaterialDownload.php
+|   |   |   |   PushLog.php
+|   |   |   |   Redirect.php
+|   |   |   |   Referral.php
+|   |   |   |   ReferralCampaign.php
+|   |   |   |   ReferralTransaction.php
+|   |   |   |   Report.php
+|   |   |   |   ReportRun.php
+|   |   |   |   SagaExecution.php
+|   |   |   |   SagaStep.php
+|   |   |   |   ScheduledReport.php
+|   |   |   |   ScheduledTask.php
+|   |   |   |   Sector.php
+|   |   |   |   Setting.php
+|   |   |   |   ShareAllocationLog.php
+|   |   |   |   SlaPolicy.php
+|   |   |   |   SmsLog.php
+|   |   |   |   SmsTemplate.php
+|   |   |   |   Subscription.php
+|   |   |   |   SupportMessage.php
+|   |   |   |   SupportTicket.php
+|   |   |   |   SystemHealthCheck.php
+|   |   |   |   TdsDeduction.php
+|   |   |   |   TicketSlaTracking.php
+|   |   |   |   Transaction.php
+|   |   |   |   Tutorial.php
+|   |   |   |   TutorialStep.php
+|   |   |   |   UnifiedInboxMessage.php
+|   |   |   |   User.php
+|   |   |   |   UserAgreementSignature.php
+|   |   |   |   UserChannelPreference.php
+|   |   |   |   UserConsent.php
+|   |   |   |   UserDevice.php
+|   |   |   |   UserDismissedSuggestion.php
+|   |   |   |   UserInvestment.php
+|   |   |   |   UserKyc.php
+|   |   |   |   UserLegalAcceptance.php
+|   |   |   |   UserNotificationPreference.php
+|   |   |   |   UserProfile.php
+|   |   |   |   UserProfitShare.php
+|   |   |   |   UserTutorialProgress.php
+|   |   |   |   Wallet.php
+|   |   |   |   WebhookLog.php
+|   |   |   |   WebinarRegistration.php
+|   |   |   |   Withdrawal.php
+|   |   |   |   
+|   |   |   \---Traits
+|   |   |           HasMonetaryFields.php
+|   |   |           HasStateMachine.php
+|   |   |           LogsStateChanges.php
+|   |   |           
+|   |   +---Notifications
+|   |   |       AdminMessage.php
+|   |   |       BonusCredited.php
+|   |   |       KycVerified.php
+|   |   |       PaymentFailed.php
+|   |   |       SupportReplyNotification.php
+|   |   |       TicketClosedNotification.php
+|   |   |       TicketEscalatedNotification.php
+|   |   |       WithdrawalRequested.php
+|   |   |       
+|   |   +---Observers
+|   |   |       AuditLogObserver.php
+|   |   |       BulkPurchaseObserver.php
+|   |   |       CompanyDisclosureObserver.php
+|   |   |       CompanyObserver.php
+|   |   |       DisclosureVersionObserver.php
+|   |   |       SupportTicketObserver.php
+|   |   |       TransactionObserver.php
+|   |   |       WithdrawalObserver.php
+|   |   |       
+|   |   +---Policies
+|   |   |       BulkPurchasePolicy.php
+|   |   |       CompanyDisclosurePolicy.php
+|   |   |       DealPolicy.php
+|   |   |       InvestmentPolicy.php
+|   |   |       ProductPolicy.php
+|   |   |       ShareListingPolicy.php
+|   |   |       
+|   |   +---Providers
+|   |   |       AppServiceProvider.php
+|   |   |       AuthServiceProvider.php
+|   |   |       DatabaseQueryMonitoringServiceProvider.php
+|   |   |       EventServiceProvider.php
+|   |   |       RouteServiceProvider.php
+|   |   |       
+|   |   +---Repositories
+|   |   |       ApprovedDisclosureRepository.php
+|   |   |       
+|   |   +---Rules
+|   |   |       SafeUrl.php
+|   |   |       
+|   |   +---Scopes
+|   |   |       InvestorVisibleDisclosureScope.php
+|   |   |       ProductPublicVisibilityScope.php
+|   |   |       PublicVisibilityScope.php
+|   |   |       
+|   |   +---Services
+|   |   |   |   AdminActionConstraintService.php
+|   |   |   |   AdminPlatformAttributionService.php
+|   |   |   |   AlertRootCauseAnalyzer.php
+|   |   |   |   AllocationService.php
+|   |   |   |   AuditLogger.php
+|   |   |   |   AutoDebitService.php
+|   |   |   |   BenefitCalculationResult.php
+|   |   |   |   BenefitOrchestrator.php
+|   |   |   |   BonusCalculatorService.php
+|   |   |   |   BuyEligibilityService.php
+|   |   |   |   BuyEnablementGuardService.php
+|   |   |   |   CacheService.php
+|   |   |   |   CampaignMetricsService.php
+|   |   |   |   CampaignService.php
+|   |   |   |   CaptchaService.php
+|   |   |   |   CelebrationBonusService.php
+|   |   |   |   ChangeTrackingService.php
+|   |   |   |   CircuitBreakerService.php
+|   |   |   |   ClarificationTimeoutService.php
+|   |   |   |   CompanyDisclosureService.php
+|   |   |   |   CompanyDisclosureTierService.php
+|   |   |   |   CompanyInventoryService.php
+|   |   |   |   CompanyLifecycleService.php
+|   |   |   |   CompanyMetricsService.php
+|   |   |   |   CompanyOnboardingService.php
+|   |   |   |   CompanyService.php
+|   |   |   |   CompanyShareAllocationService.php
+|   |   |   |   ComplianceGateService.php
+|   |   |   |   CrossPhaseEnforcementGuard.php
+|   |   |   |   DisclosureDiffService.php
+|   |   |   |   DisclosureFreshnessService.php
+|   |   |   |   DisclosureReviewService.php
+|   |   |   |   DisclosureVisibilityGuard.php
+|   |   |   |   DisputeDefensibilityService.php
+|   |   |   |   DisputeStatsCache.php
+|   |   |   |   DoubleEntryLedgerService.php
+|   |   |   |   EconomicImpactService.php
+|   |   |   |   EmailService.php
+|   |   |   |   ErrorReportClassificationService.php
+|   |   |   |   FeatureFlagService.php
+|   |   |   |   FileUploadService.php
+|   |   |   |   IdempotencyService.php
+|   |   |   |   ImmutableTransactionService.php
+|   |   |   |   InventoryConservationService.php
+|   |   |   |   InventoryService.php
+|   |   |   |   InventoryTraceabilityReportService.php
+|   |   |   |   InvestmentIntegrityService.php
+|   |   |   |   InvestmentSecurityGuard.php
+|   |   |   |   InvestmentSnapshotService.php
+|   |   |   |   InvestorJourneyStateMachine.php
+|   |   |   |   IssuerSnapshotAwarenessService.php
+|   |   |   |   JobStateTrackerService.php
+|   |   |   |   LedgerReconciliationService.php
+|   |   |   |   LifecycleTransitionValidator.php
+|   |   |   |   LuckyDrawService.php
+|   |   |   |   MaterialChangeBuyImpactService.php
+|   |   |   |   NotificationService.php
+|   |   |   |   OtpService.php
+|   |   |   |   PaymentAllocationSaga.php
+|   |   |   |   PaymentInitiationService.php
+|   |   |   |   PaymentReconciliationService.php
+|   |   |   |   PaymentWebhookService.php
+|   |   |   |   PlanEligibilityService.php
+|   |   |   |   PlatformContextGuard.php
+|   |   |   |   PlatformContextMakerCheckerService.php
+|   |   |   |   PlatformContextMutationGuard.php
+|   |   |   |   PlatformContextSnapshotService.php
+|   |   |   |   PlatformLedgerService.php
+|   |   |   |   PlatformReconciliationService.php
+|   |   |   |   PlatformSupremacyGuard.php
+|   |   |   |   ProductService.php
+|   |   |   |   ProductStateService.php
+|   |   |   |   ProfitShareService.php
+|   |   |   |   Protocol1ExtensionValidator.php
+|   |   |   |   PublicCompanyPageService.php
+|   |   |   |   RazorpayService.php
+|   |   |   |   ReconciliationService.php
+|   |   |   |   ReferralService.php
+|   |   |   |   ReportService.php
+|   |   |   |   ResilientEmailService.php
+|   |   |   |   ResilientRazorpayService.php
+|   |   |   |   ResilientSmsService.php
+|   |   |   |   RiskAcknowledgementService.php
+|   |   |   |   RiskFlaggingService.php
+|   |   |   |   RiskGuardService.php
+|   |   |   |   RiskScoringService.php
+|   |   |   |   SchemaAwareOverrideResolver.php
+|   |   |   |   SeoAnalyzerService.php
+|   |   |   |   SmsService.php
+|   |   |   |   StatementGeneratorService.php
+|   |   |   |   StuckStateDetectorService.php
+|   |   |   |   SubscriptionConfigSnapshotService.php
+|   |   |   |   SubscriptionService.php
+|   |   |   |   SupportAIService.php
+|   |   |   |   SupportService.php
+|   |   |   |   SystemHealthMonitoringService.php
+|   |   |   |   SystemIntegrityService.php
+|   |   |   |   TdsCalculationService.php
+|   |   |   |   TdsEnforcementService.php
+|   |   |   |   TdsResult.php
+|   |   |   |   TdsService.php
+|   |   |   |   Tier2RiskControlService.php
+|   |   |   |   UserService.php
+|   |   |   |   ValuationContextService.php
+|   |   |   |   ValuationService.php
+|   |   |   |   VerificationService.php
+|   |   |   |   VersioningRouter.php
+|   |   |   |   WalletService.php
+|   |   |   |   WithdrawalService.php
+|   |   |   |   
+|   |   |   +---Accounting
+|   |   |   |       AdminLedger.php
+|   |   |   |       
+|   |   |   +---Analytics
+|   |   |   |       PortfolioAnalyticsService.php
+|   |   |   |       
+|   |   |   +---Audit
+|   |   |   |       AuditLogService.php
+|   |   |   |       
+|   |   |   +---Auth
+|   |   |   |       CoreAuthService.php
+|   |   |   |       
+|   |   |   +---Bonuses
+|   |   |   |   |   BonusSimulatorService.php
+|   |   |   |   |   
+|   |   |   |   \---Strategies
+|   |   |   |           BonusStrategyInterface.php
+|   |   |   |           MilestoneStrategy.php
+|   |   |   |           
+|   |   |   +---Compliance
+|   |   |   |       AgreementService.php
+|   |   |   |       
+|   |   |   +---CRM
+|   |   |   |       DynamicScoringEngine.php
+|   |   |   |       LeadScoringService.php
+|   |   |   |       
+|   |   |   +---Health
+|   |   |   |       HardenedHealthService.php
+|   |   |   |       HealthCheckService.php
+|   |   |   |       
+|   |   |   +---Kyc
+|   |   |   |       KycOrchestrator.php
+|   |   |   |       KycStatusService.php
+|   |   |   |       
+|   |   |   +---Legal
+|   |   |   |       AgreementController.php
+|   |   |   |       DisclaimerService.php
+|   |   |   |       
+|   |   |   +---Orchestration
+|   |   |   |   |   FinancialOrchestrator.php
+|   |   |   |   |   
+|   |   |   |   +---Operations
+|   |   |   |   |       AllocateSharesOperation.php
+|   |   |   |   |       CalculateCampaignBenefitOperation.php
+|   |   |   |   |       CreditUserWalletOperation.php
+|   |   |   |   |       OperationInterface.php
+|   |   |   |   |       OperationResult.php
+|   |   |   |   |       RecordCampaignLiabilityOperation.php
+|   |   |   |   |       VerifyComplianceOperation.php
+|   |   |   |   |       
+|   |   |   |   \---Saga
+|   |   |   |           SagaContext.php
+|   |   |   |           SagaCoordinator.php
+|   |   |   |           
+|   |   |   +---Payments
+|   |   |   |   \---Gateways
+|   |   |   |           RazorpayGateway.php
+|   |   |   |           
+|   |   |   +---Portfolio
+|   |   |   |       PortfolioAnalyticsService.php
+|   |   |   |       
+|   |   |   +---Protocol1
+|   |   |   |       Protocol1Monitor.php
+|   |   |   |       Protocol1Specification.php
+|   |   |   |       Protocol1Validator.php
+|   |   |   |       
+|   |   |   +---Referral
+|   |   |   |       ReferralEngine.php
+|   |   |   |       ReferralPathService.php
+|   |   |   |       
+|   |   |   +---Reporting
+|   |   |   |       StatementGenerator.php
+|   |   |   |       
+|   |   |   +---Seeder
+|   |   |   |       ContractViolation.php
+|   |   |   |       SchemaInspector.php
+|   |   |   |       SeederCodeScanner.php
+|   |   |   |       SeederContractValidator.php
+|   |   |   |       SeederGuard.php
+|   |   |   |       
+|   |   |   +---Support
+|   |   |   |       SupportAIService.php
+|   |   |   |       
+|   |   |   \---Traits
+|   |   |           HasCircuitBreaker.php
+|   |   |           
+|   |   +---Traits
+|   |   |       BelongsToCompany.php
+|   |   |       CalculatesReturns.php
+|   |   |       EnforcesActorSeparation.php
+|   |   |       EnforcesFieldOwnership.php
+|   |   |       EnforcesLockOrder.php
+|   |   |       HasDeletionProtection.php
+|   |   |       HasVisibilityScope.php
+|   |   |       HasWorkflowActions.php
+|   |   |       LogsPlatformGovernance.php
+|   |   |       MultitenantScoped.php
+|   |   |       
+|   |   \---ValueObjects
+|   |           Money.php
+|   |           
+|   +---bootstrap
+|   |   |   app.php
+|   |   |   providers.php
+|   |   |   
+|   |   \---cache
+|   |           packages.php
+|   |           services.php
+|   |           
+|   +---config
+|   |       app.php
+|   |       auth.php
+|   |       backup.php
+|   |       cache.php
+|   |       cors.php
+|   |       database.php
+|   |       dispute.php
+|   |       eligibility.php
+|   |       filesystems.php
+|   |       logging.php
+|   |       mail.php
+|   |       permission.php
+|   |       protocol1.php
+|   |       queue.php
+|   |       rate-limiting.php
+|   |       risk.php
+|   |       sanctum.php
+|   |       sentry.php
+|   |       services.php
+|   |       session.php
+|   |       tds.php
+|   |       versioning.php
+|   |       
+|   +---controllers
+|   |       dashboardController.ts
+|   |       
+|   +---database
+|   |   +---factories
+|   |   |       ActivityLogFactory.php
+|   |   |       BannerFactory.php
+|   |   |       BlogPostFactory.php
+|   |   |       BonusTransactionFactory.php
+|   |   |       BulkPurchaseFactory.php
+|   |   |       CompanyDisclosureFactory.php
+|   |   |       CompanyFactory.php
+|   |   |       CompanyShareListingFactory.php
+|   |   |       CompanyUserFactory.php
+|   |   |       DealFactory.php
+|   |   |       DisclosureApprovalFactory.php
+|   |   |       DisclosureClarificationFactory.php
+|   |   |       DisclosureModuleFactory.php
+|   |   |       DisclosureVersionFactory.php
+|   |   |       EmailTemplateFactory.php
+|   |   |       FeatureFlagFactory.php
+|   |   |       InvestmentFactory.php
+|   |   |       KbArticleFactory.php
+|   |   |       KbCategoryFactory.php
+|   |   |       KycDocumentFactory.php
+|   |   |       LuckyDrawEntryFactory.php
+|   |   |       LuckyDrawFactory.php
+|   |   |       MenuFactory.php
+|   |   |       MenuItemFactory.php
+|   |   |       NotificationFactory.php
+|   |   |       PageFactory.php
+|   |   |       PaymentFactory.php
+|   |   |       PlanConfigFactory.php
+|   |   |       PlanFactory.php
+|   |   |       PlanFeatureFactory.php
+|   |   |       PlatformLedgerEntryFactory.php
+|   |   |       ProductFactory.php
+|   |   |       ProductFounderFactory.php
+|   |   |       ProductFundingRoundFactory.php
+|   |   |       ProductHighlightFactory.php
+|   |   |       ProductKeyMetricFactory.php
+|   |   |       ProductPriceHistoryFactory.php
+|   |   |       ProductRiskDisclosureFactory.php
+|   |   |       ProfitShareFactory.php
+|   |   |       RedirectFactory.php
+|   |   |       ReferralCampaignFactory.php
+|   |   |       ReferralFactory.php
+|   |   |       SubscriptionFactory.php
+|   |   |       SupportMessageFactory.php
+|   |   |       SupportTicketFactory.php
+|   |   |       TransactionFactory.php
+|   |   |       UserFactory.php
+|   |   |       UserInvestmentFactory.php
+|   |   |       UserKycFactory.php
+|   |   |       UserProfileFactory.php
+|   |   |       WalletFactory.php
+|   |   |       WithdrawalFactory.php
+|   |   |       
+|   |   +---migrations
+|   |   |       0001_01_01_000000_create_users_table.php
+|   |   |       0001_01_01_000001_create_cache_table.php
+|   |   |       0001_01_01_000002_create_jobs_table.php
+|   |   |       2025_01_01_000001_create_user_devices_table.php
+|   |   |       2025_11_11_000105_create_activity_logs_table.php
+|   |   |       2025_11_11_000200_create_settings_table.php
+|   |   |       2025_11_11_000201_create_plans_table.php
+|   |   |       2025_11_11_000204a_create_product_highlights_table.php
+|   |   |       2025_11_11_000204b_create_product_founders_table.php
+|   |   |       2025_11_11_000204c_create_product_funding_rounds_table.php
+|   |   |       2025_11_11_000204d_create_product_key_metrics_table.php
+|   |   |       2025_11_11_000204e_create_product_risk_disclosures_table.php
+|   |   |       2025_11_11_000204f_create_product_price_histories_table.php
+|   |   |       2025_11_11_000204_create_products_table.php
+|   |   |       2025_11_11_000205_create_bulk_purchases_table.php
+|   |   |       2025_11_11_000207_create_menus_table.php
+|   |   |       2025_11_11_000208_create_menu_items_table.php
+|   |   |       2025_11_11_000209_create_email_templates_table.php
+|   |   |       2025_11_11_000210_create_sms_templates_table.php
+|   |   |       2025_11_11_000211_create_feature_flags_table.php
+|   |   |       2025_11_11_000300_create_subscriptions_table.php
+|   |   |       2025_11_11_000301_create_payments_table.php
+|   |   |       2025_11_11_000302_create_user_investments_table.php
+|   |   |       2025_11_11_000303_create_wallets_table.php
+|   |   |       2025_11_11_000305_create_bonus_and_referral_tables.php
+|   |   |       2025_11_11_000308_create_bonus_modules_tables.php
+|   |   |       2025_11_11_173232_create_personal_access_tokens_table.php
+|   |   |       2025_11_11_173256_create_permission_tables.php
+|   |   |       2025_11_11_173257_add_system_developer_tools_permission.php
+|   |   |       2025_11_12_000401_create_support_tickets_table.php
+|   |   |       2025_11_12_000402_create_support_messages_table.php
+|   |   |       2025_11_12_000404_create_pages_table.php
+|   |   |       2025_11_12_000405_create_page_versions_table.php
+|   |   |       2025_11_12_000406_create_user_legal_acceptances_table.php
+|   |   |       2025_11_12_000407_create_banners_table.php
+|   |   |       2025_11_12_000408_create_redirects_table.php
+|   |   |       2025_11_12_000409_create_kb_categories_table.php
+|   |   |       2025_11_12_000410_create_kb_articles_table.php
+|   |   |       2025_11_14_000100_create_notifications_table.php
+|   |   |       2025_11_14_001000_create_blog_and_faq_tables.php
+|   |   |       2025_11_14_001600_add_check_constraint_to_wallets.php
+|   |   |       2025_11_14_002200_create_email_infrastructure_tables.php
+|   |   |       2025_11_14_002300_create_sms_logs_table.php
+|   |   |       2025_11_15_004000_create_kyc_rejection_templates_table.php
+|   |   |       2025_11_15_016000_add_tds_to_transactions.php
+|   |   |       2025_11_16_000000_create_missing_modules_tables.php
+|   |   |       2025_11_16_001000_create_missing_system_tables.php
+|   |   |       2025_11_19_000000_create_ip_whitelist_table.php
+|   |   |       2025_11_24_093145_create_canned_responses_table.php
+|   |   |       2025_11_26_000001_create_legal_agreements_table.php
+|   |   |       2025_11_26_000002_create_legal_agreement_versions_table.php
+|   |   |       2025_11_26_000003_create_legal_agreement_audit_trail_table.php
+|   |   |       2025_11_26_000004_update_user_legal_acceptances_table.php
+|   |   |       2025_11_26_000005_create_webhook_logs_table.php
+|   |   |       2025_11_26_120000_add_additional_performance_indexes.php
+|   |   |       2025_11_28_180400_add_timestamps_to_product_highlights_table.php
+|   |   |       2025_11_28_180912_add_missing_timestamps_to_product_tables.php
+|   |   |       2025_11_28_202316_add_bank_fields_to_withdrawals_table.php
+|   |   |       2025_11_28_203457_add_requested_at_to_withdrawals_table.php
+|   |   |       2025_11_28_203813_make_bank_details_nullable_in_withdrawals_table.php
+|   |   |       2025_11_28_204255_add_investment_fields_to_user_investments_table.php
+|   |   |       2025_11_28_212417_add_exited_at_to_user_investments_table.php
+|   |   |       2025_11_28_212832_make_value_allocated_nullable_in_user_investments.php
+|   |   |       2025_12_02_000001_add_avatar_url_to_user_profiles.php
+|   |   |       2025_12_02_100001_create_content_management_tables.php
+|   |   |       2025_12_03_180000_create_user_settings_table.php
+|   |   |       2025_12_03_190000_create_promotional_materials_tables.php
+|   |   |       2025_12_03_200000_create_offers_table.php
+|   |   |       2025_12_03_233850_create_article_feedback_table.php
+|   |   |       2025_12_04_110000_create_company_users_system.php
+|   |   |       2025_12_05_120000_create_company_enhancements_tables.php
+|   |   |       2025_12_05_233458_add_timestamps_to_otps_table.php
+|   |   |       2025_12_05_233714_fix_bonus_transactions_description_default.php
+|   |   |       2025_12_06_000000_create_kb_analytics_tables.php
+|   |   |       2025_12_06_100000_add_summary_to_kb_articles.php
+|   |   |       2025_12_08_000000_add_comprehensive_bonus_settings.php
+|   |   |       2025_12_09_000000_enhance_lucky_draws_configuration.php
+|   |   |       2025_12_09_100000_enhance_profit_sharing_configuration.php
+|   |   |       2025_12_09_110000_enhance_user_management_features.php
+|   |   |       2025_12_09_120000_enhance_payment_withdrawal_configuration.php
+|   |   |       2025_12_09_130000_create_scheduled_reports_table.php
+|   |   |       2025_12_09_140000_create_advanced_admin_features_tables.php
+|   |   |       2025_12_09_151000_create_live_chat_tables.php
+|   |   |       2025_12_09_160000_create_user_consents_table.php
+|   |   |       2025_12_09_170000_enhance_notification_logs_tracking.php
+|   |   |       2025_12_10_100000_create_blog_categories_table.php
+|   |   |       2025_12_10_100001_add_missing_fields_to_blog_posts.php
+|   |   |       2025_12_10_110000_create_page_blocks_table.php
+|   |   |       2025_12_11_100000_create_tutorials_table.php
+|   |   |       2025_12_12_000001_create_sla_policies_table.php
+|   |   |       2025_12_12_000002_add_agent_collaboration_features.php
+|   |   |       2025_12_12_000003_create_multi_channel_support.php
+|   |   |       2025_12_12_000004_create_contextual_help_system.php
+|   |   |       2025_12_16_000000_add_soft_deletes_to_product_relations_tables.php
+|   |   |       2025_12_16_000001_add_granular_verification_to_user_kyc_table.php
+|   |   |       2025_12_16_000002_create_kyc_verification_notes_table.php
+|   |   |       2025_12_16_000003_add_idempotency_key_to_withdrawals_table.php
+|   |   |       2025_12_17_100000_add_fulltext_index_to_kb_articles.php
+|   |   |       2025_12_18_000001_add_unique_to_payments.php
+|   |   |       2025_12_18_000100_optimize_indexes.php
+|   |   |       2025_12_18_100000_create_generated_reports_table.php
+|   |   |       2025_12_18_110001_create_user_tutorial_progress_table.php
+|   |   |       2025_12_22_000001_add_is_reversed_to_user_investments.php
+|   |   |       2025_12_23_000001_create_investments_table.php
+|   |   |       2025_12_24_000000_add_kyc_status_to_users_table.php
+|   |   |       2025_12_24_095500_add_investment_fields_to_plans_table.php
+|   |   |       2025_12_25_101545_add_bank_name_to_user_kyc_table.php
+|   |   |       2025_12_26_000001_rename_offers_to_campaigns_add_workflow_fields.php
+|   |   |       2025_12_26_000002_create_campaign_usages_table.php
+|   |   |       2025_12_26_000003_add_archival_to_campaigns.php
+|   |   |       2025_12_26_000004_add_terms_acceptance_to_campaign_usages.php
+|   |   |       2025_12_27_000001_add_allocation_status_to_investments.php
+|   |   |       2025_12_27_000001_add_company_id_to_deals.php
+|   |   |       2025_12_27_000002_remove_stored_inventory_from_deals.php
+|   |   |       2025_12_27_100001_create_plan_products_table.php
+|   |   |       2025_12_27_110001_create_company_share_listings_table.php
+|   |   |       2025_12_27_130001_create_audit_logs_table.php
+|   |   |       2025_12_27_140000_add_subscription_id_to_user_investments_table.php
+|   |   |       2025_12_27_150000_consolidate_offer_to_campaign_rename_pivots.php
+|   |   |       2025_12_28_000001_create_saga_tables.php
+|   |   |       2025_12_28_000002_create_admin_ledger_entries_table.php
+|   |   |       2025_12_28_100001_enforce_bulk_purchase_provenance.php
+|   |   |       2025_12_28_130001_create_benefit_audit_tables.php
+|   |   |       2025_12_28_140001_enforce_transaction_immutability.php
+|   |   |       2025_12_28_150001_create_tds_deductions_table.php
+|   |   |       2025_12_28_180001_create_job_idempotency_tracking.php
+|   |   |       2025_12_28_190001_create_governance_operational_tables.php
+|   |   |       2025_12_28_200001_add_root_cause_tracking_to_alerts.php
+|   |   |       2025_12_29_140000_seed_valid_scheduled_tasks.php
+|   |   |       2025_12_29_215151_add_scheduling_to_banners_table.php
+|   |   |       2025_12_30_140518_add_content_hash_to_legal_agreement_versions.php
+|   |   |       2026_01_01_000002_add_branch_name_to_user_kyc_table.php
+|   |   |       2026_01_01_000002_enhance_user_profiles_table.php
+|   |   |       2026_01_04_191046_add_retention_to_benefit_audit_log.php
+|   |   |       2026_01_04_191046_enforce_audit_logs_retention.php
+|   |   |       2026_01_04_191047_add_retention_to_legal_agreement_audit_trail.php
+|   |   |       2026_01_04_191048_add_retention_to_tds_deductions.php
+|   |   |       2026_01_04_201144_add_description_to_settings_table.php
+|   |   |       2026_01_04_233820_add_sector_id_to_companies_table.php
+|   |   |       2026_01_05_000837_add_core_missing_columns_post_audit.php
+|   |   |       2026_01_05_001616_add_missing_core_columns_user_profiles_and_feature_flags.php
+|   |   |       2026_01_05_003611_add_missing_content_and_communication_columns_safe.php
+|   |   |       2026_01_05_003827_add_missing_legal_and_privacy_columns_safe.php
+|   |   |       2026_01_05_004314_stabilize_campaign_and_referral_legacy_schema.php
+|   |   |       2026_01_05_004612_add_missing_analytics_and_reporting_columns_safe.php
+|   |   |       2026_01_05_005002_add_remaining_non_core_schema_columns_post_audit.php
+|   |   |       2026_01_05_010001_add_admin_and_audit_non_core_columns.php.php
+|   |   |       2026_01_05_010002_add_content_cms_and_communication_columns.php.php
+|   |   |       2026_01_05_021500_fix_sms_templates_body_content_mismatch.php
+|   |   |       2026_01_05_023000_fix_sms_templates_body_not_null.php
+|   |   |       2026_01_05_120500_fix_companies_legacy_sector_column.php
+|   |   |       2026_01_07_000001_create_reconciliation_logs_table.php
+|   |   |       2026_01_07_100001_add_frozen_at_to_companies.php
+|   |   |       2026_01_07_100002_add_approval_fields_to_deals.php
+|   |   |       2026_01_07_100003_migrate_monetary_fields_to_paise.php
+|   |   |       2026_01_07_100004_add_campaign_approval_constraint.php
+|   |   |       2026_01_07_110001_add_locked_balance_to_wallets.php
+|   |   |       2026_01_08_000001_create_company_versions_table.php
+|   |   |       2026_01_08_000002_create_product_audits_table.php
+|   |   |       2026_01_08_000004_upgrade_tds_deductions_schema.php
+|   |   |       2026_01_08_104500_create_deal_approvals_table.php
+|   |   |       2026_01_09_000001_make_audit_logs_module_nullable.php
+|   |   |       2026_01_10_100001_extend_companies_table_for_governance.php
+|   |   |       2026_01_10_100002_create_disclosure_modules_table.php
+|   |   |       2026_01_10_100003_create_company_disclosures_table.php
+|   |   |       2026_01_10_100004_create_disclosure_versions_table.php
+|   |   |       2026_01_10_100005_create_disclosure_clarifications_table.php
+|   |   |       2026_01_10_100006_create_disclosure_approvals_table.php
+|   |   |       2026_01_10_200001_add_disclosure_tiers_and_lifecycle_states.php
+|   |   |       2026_01_10_210000_create_company_roles_and_error_reports.php
+|   |   |       2026_01_10_220000_create_platform_context_layer.php
+|   |   |       2026_01_11_000001_add_field_ownership_to_companies.php
+|   |   |       2026_01_11_000002_convert_lifecycle_enum_to_table.php
+|   |   |       2026_01_11_000003_create_platform_context_authority.php
+|   |   |       2026_01_11_000004_create_investment_disclosure_snapshots.php
+|   |   |       2026_01_11_000005_extend_platform_context_for_governance.php
+|   |   |       2026_01_11_000006_add_governance_snapshot_to_investments.php
+|   |   |       2026_01_15_000001_add_timeout_semantics_to_clarifications.php
+|   |   |       2026_01_15_000002_create_platform_context_snapshots.php
+|   |   |       2026_01_15_000003_create_investor_risk_acknowledgements.php
+|   |   |       2026_01_15_000004_add_phase5_fields_to_investment_snapshots.php
+|   |   |       2026_01_16_184535_create_protocol1_tables.php
+|   |   |       2026_01_20_100001_convert_disclosure_actor_fields_to_polymorphic.php
+|   |   |       2026_01_20_200001_add_hash_fields_to_investment_snapshots.php
+|   |   |       2026_01_21_000001_create_company_investments_table.php
+|   |   |       2026_01_22_000001_create_disputes_table.php
+|   |   |       2026_01_22_000002_create_investment_denial_log_table.php
+|   |   |       2026_01_24_000001_create_investment_snapshots_table.php
+|   |   |       2026_01_25_000001_add_share_traceability_to_company_investments.php
+|   |   |       2026_01_25_000002_create_platform_context_maker_checker_tables.php
+|   |   |       2026_01_25_000003_create_investor_journey_state_machine.php
+|   |   |       2026_01_25_000004_create_security_audit_log_table.php
+|   |   |       2026_01_25_000005_add_immutability_triggers.php
+|   |   |       2026_01_26_000001_add_missing_columns_to_product_founders_table.php
+|   |   |       2026_01_27_134957_add_reason_to_company_versions_table.php
+|   |   |       2026_01_27_144609_make_product_id_nullable_in_deals_table.php
+|   |   |       2026_01_27_193838_add_status_to_products_table.php
+|   |   |       2026_01_29_183239_add_company_id_to_products_table.php
+|   |   |       2026_01_29_192522_backfill_company_id_for_existing_products.php
+|   |   |       2026_01_31_000000_verify_product_company_ownership.php
+|   |   |       2026_01_31_000001_create_platform_ledger_entries_table.php
+|   |   |       2026_01_31_000002_add_platform_ledger_entry_id_to_bulk_purchases.php
+|   |   |       2026_01_31_183141_cleanup_and_enforce_product_company_ownership.php
+|   |   |       2026_02_01_000001_create_double_entry_ledger_tables.php
+|   |   |       2026_02_02_000001_update_ledger_accounts_for_expense_model.php
+|   |   |       2026_02_02_000002_add_ledger_entry_id_to_bulk_purchases.php
+|   |   |       2026_02_08_100002_create_disclosure_events_table.php
+|   |   |       2026_02_08_100003_create_disclosure_documents_table.php
+|   |   |       2026_02_09_135900_ensure_category_column_on_disclosure_modules.php
+|   |   |       2026_02_09_142006_fix_company_user_roles_foreign_key.php
+|   |   |       2026_02_10_130000_fix_disclosure_approvals_requested_by_fk.php
+|   |   |       2026_02_11_100001_add_freshness_config_to_disclosure_modules.php
+|   |   |       2026_02_11_100002_add_freshness_tracking_to_company_disclosures.php
+|   |   |       2026_02_11_100003_create_pillar_vitality_snapshots_table.php
+|   |   |       2026_02_12_000000_drop_kyc_status_from_users_table.php
+|   |   |       2026_02_14_000001_add_bonus_config_snapshot_to_subscriptions.php
+|   |   |       2026_02_14_000002_create_plan_regulatory_overrides_table.php
+|   |   |       2026_02_14_000003_add_override_tracking_to_bonus_transactions.php
+|   |   |       2026_02_14_000004_add_unique_active_override_constraint.php
+|   |   |       2026_02_14_000005_add_subscription_snapshot_immutability_trigger.php
+|   |   |       2026_02_14_000006_add_snapshot_hash_used_to_bonus_transactions.php
+|   |   |       2026_02_16_000001_convert_ledger_lines_to_paise.php
+|   |   |       2026_02_16_000002_remove_decimal_from_fund_locks.php
+|   |   |       2026_02_16_000003_add_idempotency_to_admin_adjustments.php
+|   |   |       2026_02_16_100001_add_payment_integrity_columns.php
+|   |   |       2026_02_17_100001_add_chargeback_columns_to_payments.php
+|   |   |       2026_02_17_100002_enforce_unique_refund_gateway_id.php
+|   |   |       2026_02_18_100001_add_risk_fields_to_users_table.php
+|   |   |       2026_02_18_100002_create_daily_dispute_snapshots_table.php
+|   |   |       2026_02_19_184630_update_transaction_check_constraint_for_all_types.php
+|   |   |       2026_02_20_000001_enforce_unsigned_value_remaining.php
+|   |   |       2026_02_20_210729_add_bonus_contract_snapshot_to_subscriptions_table.php
+|   |   |       2026_02_20_232311_add_reversal_fields_to_user_investments_table.php
+|   |   |       2026_02_21_100652_add_reversal_source_to_user_investments_table.php
+|   |   |       
+|   |   \---seeders
+|   |       |   AssignMissingCompanyUserRolesSeeder.php
+|   |       |   BlogCategorySeeder.php
+|   |       |   CannedResponseSeeder.php
+|   |       |   CompaniesProductsSeeder.php
+|   |       |   CompanyDisclosureSystemSeeder.php
+|   |       |   CompanyRoleSeeder.php
+|   |       |   CompanyUserSeeder.php
+|   |       |   COMPANY_DISCLOSURE_SEEDER_README.md
+|   |       |   ContentManagementSeeder.php
+|   |       |   DatabaseSeeder.php
+|   |       |   DealSeeder.php
+|   |       |   DisclosureModuleCategorySeeder.php
+|   |       |   DisclosureModuleSeeder.php
+|   |       |   EmailTemplateSeeder.php
+|   |       |   EnhancedUserSeeder.php
+|   |       |   FaqSeeder.php
+|   |       |   FeatureFlagSeeder.php
+|   |       |   FoundationSeeder.php
+|   |       |   HomePageSeeder.php
+|   |       |   IdentityAccessSeeder.php
+|   |       |   InvestmentPlansSeeder.php
+|   |       |   KbSeeder.php
+|   |       |   KycRejectionTemplateSeeder.php
+|   |       |   LegalAgreementSeeder.php
+|   |       |   LuckyDrawSeeder.php
+|   |       |   PermissionsSeeder.php
+|   |       |   PlanSeeder.php
+|   |       |   ProductSeeder.php
+|   |       |   PromotionalCampaignSeeder.php
+|   |       |   PromotionalMaterialsSeeder.php
+|   |       |   README.md
+|   |       |   README_EXHAUSTIVE_SEEDER.md
+|   |       |   RolesAndPermissionsSeeder.php
+|   |       |   SectorSeeder.php
+|   |       |   SettingsSeeder.php
+|   |       |   SmsTemplateSeeder.php
+|   |       |   TestDataSetSeeder.php
+|   |       |   UserInvestmentsSeeder.php
+|   |       |   UserSeeder.php
+|   |       |   
+|   |       \---Concerns
+|   +---docs
+|   |       company_presentation.md
+|   |       Plan_PresentationNew.txt
+|   |       preipo_fsd_doc.txt
+|   |       preipo_srs_doc.txt
+|   |       preipo_wrd_doc.txt
+|   |       
+|   +---public
+|   |       .htaccess
+|   |       check_helper.php
+|   |       favicon.ico
+|   |       index.php
+|   |       robots.txt
+|   |      
+|   |                   
+|   +---resources
+|   |   +---css
+|   |   |       app.css
+|   |   |       
+|   |   +---js
+|   |   |       app.js
+|   |   |       bootstrap.js
+|   |   |       
+|   |   \---views
+|   |       |   performance-dashboard.blade.php
+|   |       |   welcome.blade.php
+|   |       |   
+|   |       +---certificates
+|   |       |       lucky-draw-winner.blade.php
+|   |       |       
+|   |       +---emails
+|   |       |       kyc-approved.blade.php
+|   |       |       layout.blade.php
+|   |       |       payment_confirmation.blade.php
+|   |       |       payment_failed.blade.php
+|   |       |       withdrawal-approved.blade.php
+|   |       |       
+|   |       +---invoices
+|   |       |       receipt.blade.php
+|   |       |       
+|   |       +---pdf
+|   |       |       legal-document.blade.php
+|   |       |       wallet-statement.blade.php
+|   |       |       
+|   |       +---pdfs
+|   |       |       ticket-transcript.blade.php
+|   |       |       
+|   |       +---reports
+|   |       |       generic_pdf.blade.php
+|   |       |       
+|   |       +---statements
+|   |       |       transaction.blade.php
+|   |       |       
+|   |       \---tds
+|   |               form16a.blade.php
+|   |               
+|   +---routes
+|   |       api.php
+|   |       console.php
+|   |       saga-admin-routes.php
+|   |       web.php
+|   |       
+|   +---storage
+|   |           
+|   +---tests
+|       |   CreatesApplication.php
+|       |   TestCase.php
+|       |   
+|       +---Feature
+|       |   |   AdminDashboardEndpointsTest.php
+|       |   |   AdminProductApprovalTest.php
+|       |   |   AdminUserControllerTest.php
+|       |   |   AdminWorkflowTest.php
+|       |   |   AuthTest.php
+|       |   |   AutoDebitMultiCycleTest.php
+|       |   |   BlockedUserInvestmentTest.php
+|       |   |   BonusTdsIntegrationTest.php
+|       |   |   ChargebackIntegrationTest.php
+|       |   |   ChargebackInvariantsTest.php
+|       |   |   CompleteUserJourneyTest.php
+|       |   |   ContractHardeningTest.php
+|       |   |   DailyDisputeSnapshotTest.php
+|       |   |   DisclosureVersionImmutabilityTest.php
+|       |   |   DisclosureWorkflowTest.php
+|       |   |   EdgeCaseResilienceTest.php
+|       |   |   Epic4FinancialAtomicityTest.php
+|       |   |   ExampleTest.php
+|       |   |   FinalSanityTest.php
+|       |   |   FinancialDriftTest.php
+|       |   |   FinancialGuaranteesTest.php
+|       |   |   FullPaymentLifecycleActivationTest.php
+|       |   |   FullUserJourneyIntegrationTest.php
+|       |   |   GenerateSitemapTest.php
+|       |   |   KycSubmitRequestTest.php
+|       |   |   KycTest.php
+|       |   |   LuckyDrawTest.php
+|       |   |   MaintenanceModeTest.php
+|       |   |   OtpTest.php
+|       |   |   PaymentLifecycleTest.php
+|       |   |   PaymentRequestTest.php
+|       |   |   PaymentToBonusIntegrationTest.php
+|       |   |   PaymentWebhookServiceTest.php
+|       |   |   PermissionMiddlewareTest.php
+|       |   |   ProcessAutoDebitsTest.php
+|       |   |   ProcessCelebrationBonusesTest.php
+|       |   |   ProcessMonthlyLuckyDrawTest.php
+|       |   |   ProfitShareTest.php
+|       |   |   RateLimitingTest.php
+|       |   |   ReferralCampaignControllerTest.php
+|       |   |   ReferralSystemTest.php
+|       |   |   ReferralTest.php
+|       |   |   RegisterRequestTest.php
+|       |   |   ServiceIntegrationTest.php
+|       |   |   SnapshotIntegrityTest.php
+|       |   |   SocialLoginReferralTest.php
+|       |   |   SubscriptionLifecycleTest.php
+|       |   |   SubscriptionTest.php
+|       |   |   ThemeSeoControllerTest.php
+|       |   |   UserLuckyDrawEndpointsTest.php
+|       |   |   UserNotificationEndpointsTest.php
+|       |   |   UserProfileEndpointsTest 2.php
+|       |   |   UserProfileEndpointsTest.php
+|       |   |   UserSettingsControllerTest.php
+|       |   |   UserSupportEndpointsTest.php
+|       |   |   UserWithdrawalEndpointTest.php
+|       |   |   WebhookRetrySystemTest.php
+|       |   |   WebhookValidationTest.php
+|       |   |   WithdrawalRequestTest.php
+|       |   |   
+|       |   +---Models
+|       |   |       CompanyDisclosureTierImmutabilityTest.php
+|       |   |       DisclosureTierVisibilityScopeTest.php
+|       |   |       
+|       |   \---Services
+|       |           CompanyDisclosureTierServiceTest.php
+|       |           
+|       +---LoadTesting
+|       |       artillery-config.yml
+|       |       k6-load-test.js
+|       |       README.md
+|       |       
+|       \---Unit
+|           |   ActivityLogTest.php
+|           |   AdminRoutesSecurityTest.php
+|           |   AllocationServiceTest.php
+|           |   AutoDebitServiceTest.php
+|           |   BonusCalculatorCelebrationTest.php
+|           |   BonusCalculatorConsistencyTest.php
+|           |   BonusCalculatorMilestoneTest.php
+|           |   BonusCalculatorProgressiveTest.php
+|           |   BonusCalculatorTest.php
+|           |   BonusTransactionTest.php
+|           |   BulkPurchaseTest.php
+|           |   CampaignServiceTest.php
+|           |   CsrfProtectionTest.php
+|           |   DealTierGateTest.php
+|           |   DisputeStatsCacheTest.php
+|           |   EmailServiceTest.php
+|           |   ExampleTest.php
+|           |   FeatureFlagTest.php
+|           |   InventoryServiceTest.php
+|           |   KycDocumentTest.php
+|           |   LoggingSecurityTest.php
+|           |   LuckyDrawEntryTest.php
+|           |   LuckyDrawServiceTest.php
+|           |   LuckyDrawTest.php
+|           |   NotificationServiceTest.php
+|           |   OtpServiceTest.php
+|           |   PasswordResetTokenTest.php
+|           |   PaymentTest.php
+|           |   PerformanceTest.php
+|           |   PlanConfigTest.php
+|           |   PlanTest.php
+|           |   ProductPriceHistoryTest.php
+|           |   ProductTest.php
+|           |   ProfitShareServiceTest.php
+|           |   ProfitShareServiceTest2.php
+|           |   RateLimitingTest.php
+|           |   RazorpayServiceTest.php
+|           |   ReferralCampaignTest.php
+|           |   ReferralServiceTest.php
+|           |   ReferralServiceTest2.php
+|           |   ReferralTest.php
+|           |   ReportServiceTest.php
+|           |   RiskGuardServiceTest.php
+|           |   RiskScoringServiceTest.php
+|           |   SettingHelperTest.php
+|           |   SettingTest.php
+|           |   SmsServiceTest.php
+|           |   SqlInjectionTest.php
+|           |   SubscriptionServiceTest.php
+|           |   SubscriptionServiceTest2.php
+|           |   SubscriptionTest.php
+|           |   SupportMessageTest.php
+|           |   SupportServiceTest.php
+|           |   SupportTicketTest.php
+|           |   TransactionTest.php
+|           |   UserDataSecurityTest.php
+|           |   UserInvestmentTest.php
+|           |   UserKycTest.php
+|           |   UserProfitShareTest.php
+|           |   UserTest.php
+|           |   UserTest2.php
+|           |   VerificationServiceTest.php
+|           |   WalletServiceTest.php
+|           |   WalletTest.php
+|           |   WithdrawalServiceTest.php
+|           |   WithdrawalTest.php
+|           |   XssPreventionTest.php
+|           |   
+|           +---Enums
+|           |       DisclosureTierTest.php
+|           |       
+|           \---Phase1Audit
+|                   DisclosureAuthorityTest.php
+|                                   
+\---frontend
+    |   .env.example
+    |   .gitignore
+    |   components.json
+    |   eslint.config.mjs
+    |   instrumentation.ts
+    |   middleware.ts
+    |   next-env.d.ts
+    |   next.config.js
+    |   next.config.ts
+    |   nul
+    |   package-lock.json
+    |   package.json
+    |   postcss.config.js
+    |   sentry.client.config.ts
+    |   sentry.edge.config.ts
+    |   sentry.server.config.ts
+    |   tailwind.config.ts
+    |   tsconfig.json
+    |   tsconfig.tsbuildinfo
+    |   types.ts
+    |   
+    +---.husky
+    |       pre-commit
+    |       
+    +---admin
+    |   \---audit
+    |           AuditTimeline.tsx
+    |           
+    +---app
+    |   |   error.tsx
+    |   |   favicon.ico
+    |   |   global-error.tsx
+    |   |   globals.css
+    |   |   layout.tsx
+    |   |   legal.css
+|   |   |   not-found.tsx
+|   |   |   page.tsx
+|   |   |   PreIPOsip.png
+|   |   |   
+|   |   +---(public)
+|   |   |   |   page.tsx
+|   |   |   |   
+|   |   |   +---about
+|   |   |   |   |   page.tsx
+|   |   |   |   |   
+|   |   |   |   +---story
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---team
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   \---trust
+|   |   |   |           page.tsx
+|   |   |   |           
+|   |   |   +---aml-kyc-policy
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---calculator
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---careers
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---companies
+|   |   |   |   |   page.tsx
+|   |   |   |   |   
+|   |   |   |   +---compare
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   \---[slug]
+|   |   |   |           page.tsx
+|   |   |   |           
+|   |   |   +---contact
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---cookie-policy
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---explore
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---faq
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---for-companies
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---grievance-redressal
+|   |   |   |   |   page.tsx
+|   |   |   |   |   
+|   |   |   |   \---sebi
+|   |   |   |           page.tsx
+|   |   |   |           
+|   |   |   +---help-center
+|   |   |   |   |   data.ts
+|   |   |   |   |   page.tsx
+|   |   |   |   |   page1.txt
+|   |   |   |   |   
+|   |   |   |   \---ticket
+|   |   |   |           page.tsx
+|   |   |   |           
+|   |   |   +---how-it-works
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---insights
+|   |   |   |   +---market
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---news
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---reports
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   \---tutorials
+|   |   |   |           page.tsx
+|   |   |   |           
+|   |   |   +---investor-charter
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---legal
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---login
+|   |   |   |   |   page.tsx
+|   |   |   |   |   
+|   |   |   |   \---social-callback
+|   |   |   |           page.tsx
+|   |   |   |           
+|   |   |   +---plans
+|   |   |   |   |   page.tsx
+|   |   |   |   |   
+|   |   |   |   \---[id]
+|   |   |   |           page.tsx
+|   |   |   |           
+|   |   |   +---press
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---privacy-policy
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---private-equity
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---products
+|   |   |   |   |   page.tsx
+|   |   |   |   |   
+|   |   |   |   \---[slug]
+|   |   |   |           page.tsx
+|   |   |   |           
+|   |   |   +---refund-policy
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---risk-disclosure
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---sebi-regulations
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---signup
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---team
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---terms
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---verify
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   \---[slug]
+|   |   |           page.tsx
+|   |   |           
+|   |   +---(user)
+|   |   |   |   layout.tsx
+|   |   |   |   
+|   |   |   +---blog
+|   |   |   |   |   page.tsx
+|   |   |   |   |   
+|   |   |   |   \---[slug]
+|   |   |   |           page.tsx
+|   |   |   |           
+|   |   |   +---bonuses
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---compliance
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---dashboard
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---deals
+|   |   |   |   |   page.tsx
+|   |   |   |   |   
+|   |   |   |   \---[id]
+|   |   |   |       |   page.tsx
+|   |   |   |       |   
+|   |   |   |       \---comprehensive
+|   |   |   |               page.tsx
+|   |   |   |               
+|   |   |   +---investments
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---kyc
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---learn
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---lucky-draws
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---materials
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---notifications
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---offers
+|   |   |   |   |   page.tsx
+|   |   |   |   |   
+|   |   |   |   \---[id]
+|   |   |   |           page.tsx
+|   |   |   |           
+|   |   |   +---plan
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---portfolio
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---profile
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---profit-sharing
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---promote
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---referrals
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---reports
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---settings
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---subscribe
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---subscription
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---support
+|   |   |   |   |   page.tsx
+|   |   |   |   |   
+|   |   |   |   \---[ticketId]
+|   |   |   |           page.tsx
+|   |   |   |           
+|   |   |   +---transactions
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   \---wallet
+|   |   |           page.tsx
+|   |   |           
+|   |   +---admin
+|   |   |   |   layout.tsx
+|   |   |   |   
+|   |   |   +---audit
+|   |   |   |   |   layout.tsx
+|   |   |   |   |   page.tsx
+|   |   |   |   |   
+|   |   |   |   +---actions
+|   |   |   |   |   |   page.tsx
+|   |   |   |   |   |   
+|   |   |   |   |   \---[id]
+|   |   |   |   |           page.tsx
+|   |   |   |   |           
+|   |   |   |   +---companies
+|   |   |   |   |   |   page.tsx
+|   |   |   |   |   |   
+|   |   |   |   |   \---[id]
+|   |   |   |   |           page.tsx
+|   |   |   |   |           
+|   |   |   |   +---investments
+|   |   |   |   |   |   page.tsx
+|   |   |   |   |   |   
+|   |   |   |   |   \---[id]
+|   |   |   |   |           page.tsx
+|   |   |   |   |           
+|   |   |   |   \---investors
+|   |   |   |       |   page.tsx
+|   |   |   |       |   
+|   |   |   |       \---[id]
+|   |   |   |               page.tsx
+|   |   |   |               
+|   |   |   +---bonuses
+|   |   |   |   \---management
+|   |   |   |           page.tsx
+|   |   |   |           
+|   |   |   +---campaigns
+|   |   |   |   |   page.tsx
+|   |   |   |   |   
+|   |   |   |   \---[id]
+|   |   |   |           page.tsx
+|   |   |   |           
+|   |   |   +---companies
+|   |   |   |   \---[id]
+|   |   |   |           page.tsx
+|   |   |   |           
+|   |   |   +---company-users
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---company-versions
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---compliance-manager
+|   |   |   |   \---legal-agreements
+|   |   |   |       |   page.tsx
+|   |   |   |       |   
+|   |   |   |       \---[id]
+|   |   |   |           |   page.tsx
+|   |   |   |           |   
+|   |   |   |           \---audit-trail
+|   |   |   |                   page.tsx
+|   |   |   |                   
+|   |   |   +---content
+|   |   |   |   +---companies
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---deals
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---faq
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---homepage
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---page-builder
+|   |   |   |   |   \---[pageId]
+|   |   |   |   |           page.tsx
+|   |   |   |   |           
+|   |   |   |   +---reports
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---sectors
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   \---tutorials
+|   |   |   |           page.tsx
+|   |   |   |           
+|   |   |   +---dashboard
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---deal-approvals
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---disclosures
+|   |   |   |   |   page.tsx
+|   |   |   |   |   
+|   |   |   |   +---pending
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   \---[id]
+|   |   |   |           page.tsx
+|   |   |   |           
+|   |   |   +---health-check
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---help-center
+|   |   |   |   |   page.tsx
+|   |   |   |   |   
+|   |   |   |   \---articles
+|   |   |   |       +---create
+|   |   |   |       |       page.tsx
+|   |   |   |       |       
+|   |   |   |       \---[id]
+|   |   |   |               page.tsx
+|   |   |   |               
+|   |   |   +---inventory
+|   |   |   |   +---allocation-history
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---bulk-purchases
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   \---dashboard
+|   |   |   |           page.tsx
+|   |   |   |           
+|   |   |   +---kyc-queue
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---lucky-draws
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---notifications
+|   |   |   |   \---push
+|   |   |   |           page.tsx
+|   |   |   |           
+|   |   |   +---payments
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---product-audits
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---profit-sharing
+|   |   |   |       page.tsx
+|   |   |   |       
+|   |   |   +---reports
+|   |   |   |   |   page.tsx
+|   |   |   |   |   
+|   |   |   |   \---kyc
+|   |   |   |           page.tsx
+|   |   |   |           
+|   |   |   +---sagas
+|   |   |   |   |   page.tsx
+|   |   |   |   |   
+|   |   |   |   \---[id]
+|   |   |   |           page.tsx
+|   |   |   |           
+|   |   |   +---settings
+|   |   |   |   +---activity
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---backups
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---banners
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---blog
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---blog-categories
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---bonuses
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---canned-responses
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---captcha
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---cms
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---compliance
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---cron-jobs
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---custom-code
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---email-templates
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---faq
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---ip-whitelist
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---knowledge-base
+|   |   |   |   |   |   page.tsx
+|   |   |   |   |   |   
+|   |   |   |   |   \---articles
+|   |   |   |   |           page.tsx
+|   |   |   |   |           
+|   |   |   |   +---kyc-config
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---menus
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---payment-gateways
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---plans
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---product
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---promotional-materials
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---redirects
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---referral-campaigns
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---roles
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---system
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   +---system-health
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   \---theme-seo
+|   |   |   |           page.tsx
+|   |   |   |           
+|   |   |   +---support
+|   |   |   |   |   page.tsx
+|   |   |   |   |   
+|   |   |   |   +---chat-transcript
+|   |   |   |   |       page.tsx
+|   |   |   |   |       
+|   |   |   |   \---[ticketId]
+|   |   |   |           page.tsx
+|   |   |   |           
+|   |   |   +---system
+|   |   |   |   \---audit-logs
+|   |   |   |           page.tsx
+|   |   |   |           
+|   |   |   +---users
+|   |   |   |   |   page.tsx
+|   |   |   |   |   
+|   |   |   |   \---[userId]
+|   |   |   |           page.tsx
+|   |   |   |           
+|   |   |   \---withdrawal-queue
+|   |   |           page.tsx
+|   |   |           
+|   |   +---api
+|   |   |   \---storage
+|   |   |       \---[...path]
+|   |   |               route.ts
+|   |   |               
+|   |   \---company
+|   |       |   layout.tsx
+|   |       |   
+|   |       +---account
+|   |       |       page.tsx
+|   |       |       
+|   |       +---analytics
+|   |       |       page.tsx
+|   |       |       
+|   |       +---dashboard
+|   |       |       page.tsx
+|   |       |       
+|   |       +---deals
+|   |       |       page.tsx
+|   |       |       
+|   |       +---disclosures
+|   |       |   |   page.tsx
+|   |       |   |   
+|   |       |   \---[id]
+|   |       |           page.tsx
+|   |       |           
+|   |       +---documents
+|   |       |       page.tsx
+|   |       |       
+|   |       +---financial-reports
+|   |       |       page.tsx
+|   |       |       
+|   |       +---funding
+|   |       |       page.tsx
+|   |       |       
+|   |       +---investor-interests
+|   |       |       page.tsx
+|   |       |       
+|   |       +---login
+|   |       |       page.tsx
+|   |       |       
+|   |       +---profile
+|   |       |       page.tsx
+|   |       |       
+|   |       +---qna
+|   |       |       page.tsx
+|   |       |       
+|   |       +---register
+|   |       |       page.tsx
+|   |       |       
+|   |       +---team
+|   |       |       page.tsx
+|   |       |       
+|   |       +---updates
+|   |       |       page.tsx
+|   |       |       
+|   |       +---users
+|   |       |       page.tsx
+|   |       |       
+|   |       \---webinars
+|   |               page.tsx
+|   |               
+|   +---components
+|   |   |   CookiePolicyPart1.tsx
+|   |   |   CookiePolicyPart10.tsx
+|   |   |   CookiePolicyPart11.tsx
+|   |   |   CookiePolicyPart12.tsx
+|   |   |   CookiePolicyPart13.tsx
+|   |   |   CookiePolicyPart14.tsx
+|   |   |   CookiePolicyPart15.tsx
+|   |   |   CookiePolicyPart2.tsx
+|   |   |   CookiePolicyPart3.tsx
+|   |   |   CookiePolicyPart4.tsx
+|   |   |   CookiePolicyPart5.tsx
+|   |   |   CookiePolicyPart6.tsx
+|   |   |   CookiePolicyPart7.tsx
+|   |   |   CookiePolicyPart8.tsx
+|   |   |   CookiePolicyPart9.tsx
+|   |   |   RefundPolicyPart1.tsx
+|   |   |   RefundPolicyPart10.tsx
+|   |   |   RefundPolicyPart11.tsx
+|   |   |   RefundPolicyPart12.tsx
+|   |   |   RefundPolicyPart13.tsx
+|   |   |   RefundPolicyPart2.tsx
+|   |   |   RefundPolicyPart3.tsx
+|   |   |   RefundPolicyPart4.tsx
+|   |   |   RefundPolicyPart5.tsx
+|   |   |   RefundPolicyPart6.tsx
+|   |   |   RefundPolicyPart7.tsx
+|   |   |   RefundPolicyPart8.tsx
+|   |   |   RefundPolicyPart9.tsx
+|   |   |   
+|   |   +---admin
+|   |   |   |   AdminActionSimulationPanel.tsx
+|   |   |   |   AdminArticles.tsx
+|   |   |   |   AdminInvestorImpactPanel.tsx
+|   |   |   |   AdminPlatformAuthorityBanner.tsx
+|   |   |   |   AdminSnapshotAwarenessPanel.tsx
+|   |   |   |   AdvancedFeaturesDialog.tsx
+|   |   |   |   ArticleForm.tsx
+|   |   |   |   AutoDebitConfigDialog.tsx
+|   |   |   |   BonusConfigDialog.tsx
+|   |   |   |   BonusPreview.tsx
+|   |   |   |   CelebrationBonusConfigDialog.tsx
+|   |   |   |   ConsistencyBonusForm.tsx
+|   |   |   |   DiscountConfigDialog.tsx
+|   |   |   |   DynamicAdminModals.tsx
+|   |   |   |   EligibilityConfigDialog.tsx
+|   |   |   |   EnhancedKycVerificationModal.tsx
+|   |   |   |   index.ts
+|   |   |   |   KycVerificationModal.tsx
+|   |   |   |   MilestoneBonusForm.tsx
+|   |   |   |   PlanAnalyticsDashboard.tsx
+|   |   |   |   ProfitSharingConfigDialog.tsx
+|   |   |   |   ProgressiveBonusForm.tsx
+|   |   |   |   WithdrawalProcessModal.tsx
+|   |   |   |   
+|   |   |   +---CRM
+|   |   |   |       InvestorCRMList.tsx
+|   |   |   |       
+|   |   |   \---system
+|   |   |           SystemStatus.tsx
+|   |   |           
+|   |   +---aml
+|   |   |       AMLKYCContent.tsx
+|   |   |       AmlKycPart1.tsx
+|   |   |       AmlKycPart10.tsx
+|   |   |       AmlKycPart11.tsx
+|   |   |       AmlKycPart12.tsx
+|   |   |       AmlKycPart13.tsx
+|   |   |       AmlKycPart14.tsx
+|   |   |       AmlKycPart15.tsx
+|   |   |       AmlKycPart16.tsx
+|   |   |       AmlKycPart17.tsx
+|   |   |       AmlKycPart18.tsx
+|   |   |       AmlKycPart19.tsx
+|   |   |       AmlKycPart2.tsx
+|   |   |       AmlKycPart20.tsx
+|   |   |       AmlKycPart21.tsx
+|   |   |       AmlKycPart3.tsx
+|   |   |       AmlKycPart4.tsx
+|   |   |       AmlKycPart5.tsx
+|   |   |       AmlKycPart6.tsx
+|   |   |       AmlKycPart7.tsx
+|   |   |       AmlKycPart8.tsx
+|   |   |       AmlKycPart9.tsx
+|   |   |       
+|   |   +---audit
+|   |   |       AuditActorBadge.tsx
+|   |   |       AuditAuthorityLabel.tsx
+|   |   |       AuditImmutableNotice.tsx
+|   |   |       AuditReasonBlock.tsx
+|   |   |       AuditSnapshotHash.tsx
+|   |   |       AuditTimestamp.tsx
+|   |   |       index.ts
+|   |   |       
+|   |   +---blocks
+|   |   |       AccordionBlock.tsx
+|   |   |       BlockRenderer.tsx
+|   |   |       CtaBlock.tsx
+|   |   |       FeaturesBlock.tsx
+|   |   |       HeroBlock.tsx
+|   |   |       RichTextBlock.tsx
+|   |   |       
+|   |   +---company
+|   |   |       OnboardingWizard.tsx
+|   |   |       
+|   |   +---disclosures
+|   |   |       CoverageVitalitySummary.tsx
+|   |   |       FreshnessIndicator.tsx
+|   |   |       index.ts
+|   |   |       VitalityBadge.tsx
+|   |   |       
+|   |   +---features
+|   |   |   |   BonusFeatures.tsx
+|   |   |   |   ComparisonSection.tsx
+|   |   |   |   HeroSection.tsx
+|   |   |   |   HowItWorks.tsx
+|   |   |   |   InvestmentModal.tsx
+|   |   |   |   ManageSubscriptionModal.tsx
+|   |   |   |   ManualPaymentModal.tsx
+|   |   |   |   PlanOverview.tsx
+|   |   |   |   ProductPriceChart.tsx
+|   |   |   |   ReturnsCalculator.tsx
+|   |   |   |   ReturnsCalculator2.tsx
+|   |   |   |   Testimonials.tsx
+|   |   |   |   ValueProps.tsx
+|   |   |   |   
+|   |   |   +---analytics
+|   |   |   |       InvestorDashboard.tsx
+|   |   |   |       
+|   |   |   +---calculator
+|   |   |   |       ReturnsCalculator.tsx
+|   |   |   |       
+|   |   |   +---investment
+|   |   |   |       SnapshotComparison.tsx
+|   |   |   |       
+|   |   |   +---Plans
+|   |   |   |       EligibilityConfigDialog.tsx
+|   |   |   |       
+|   |   |   +---portfolio
+|   |   |   |       PortfolioSummary.tsx
+|   |   |   |       
+|   |   |   +---referral
+|   |   |   |       AffiliateTree.tsx
+|   |   |   |       
+|   |   |   +---risk
+|   |   |   |       RiskFlagRationale.tsx
+|   |   |   |       
+|   |   |   \---support
+|   |   |           TicketChat.tsx
+|   |   |           
+|   |   +---help
+|   |   |       ContextualTooltip.tsx
+|   |   |       InteractiveTutorial.tsx
+|   |   |       
+|   |   +---investor
+|   |   |       InvestorPlatformBanner.tsx
+|   |   |       
+|   |   +---issuer
+|   |   |       ClarificationResponsePanel.tsx
+|   |   |       index.ts
+|   |   |       IssuerDisclosureEditor.tsx
+|   |   |       IssuerInvestorImpactPanel.tsx
+|   |   |       PlatformStatusBanner.tsx
+|   |   |       
+|   |   +---legal
+|   |   |       DocumentTOC.tsx
+|   |   |       LegalDocumentViewer.tsx
+|   |   |       PlanDisclaimer.tsx
+|   |   |       
+|   |   +---public
+|   |   |       PlatformRelationshipBanner.tsx
+|   |   |       PublicDisclaimerBanner.tsx
+|   |   |       
+|   |   +---shared
+|   |   |   |   AdminNav.tsx
+|   |   |   |   AdminTopNav.tsx
+|   |   |   |   ClientProvidersWrapper.tsx
+|   |   |   |   CompanyNav.tsx
+|   |   |   |   CompanyTopNav.tsx
+|   |   |   |   ComplianceGuard.tsx
+|   |   |   |   CookieConsent.tsx
+|   |   |   |   DashboardNav.tsx
+|   |   |   |   DynamicChart.tsx
+|   |   |   |   Footer.tsx
+|   |   |   |   GlobalSearch.tsx
+|   |   |   |   LegalAcceptanceModal.tsx
+|   |   |   |   LoadingSkeletons.tsx
+|   |   |   |   Navbar.tsx
+|   |   |   |   NotificationBell.tsx
+|   |   |   |   PaginationControls.tsx
+|   |   |   |   PopupBanner.tsx
+|   |   |   |   Providers.tsx
+|   |   |   |   ScrollToTop.tsx
+|   |   |   |   SearchInput.tsx
+|   |   |   |   SupportQuickLinks.tsx
+|   |   |   |   ThemeToggle.tsx
+|   |   |   |   TicketChat.tsx
+|   |   |   |   UserTopNav.tsx
+|   |   |   |   
+|   |   |   \---top-nav-bounded
+|   |   |       |   index.tsx
+|   |   |       |   
+|   |   |       +---Identity
+|   |   |       |       UserProfileMenu.tsx
+|   |   |       |       
+|   |   |       +---Marketing
+|   |   |       |       ActiveCampaignsMenu.tsx
+|   |   |       |       
+|   |   |       +---System
+|   |   |       |       NotificationDropdown.tsx
+|   |   |       |       
+|   |   |       \---Wallet
+|   |   |               WalletActionModal.tsx
+|   |   |               WalletIndicator.tsx
+|   |   |               
+|   |   +---support
+|   |   |       AISuggestionsPanel.tsx
+|   |   |       
+|   |   \---ui
+|   |           accordion.tsx
+|   |           alert-dialog.tsx
+|   |           alert.tsx
+|   |           avatar.tsx
+|   |           badge.tsx
+|   |           button.tsx
+|   |           calendar.tsx
+|   |           card.tsx
+|   |           checkbox.tsx
+|   |           command.tsx
+|   |           date-range-picker.tsx
+|   |           dialog.tsx
+|   |           dropdown-menu.tsx
+|   |           input.tsx
+|   |           label.tsx
+|   |           popover.tsx
+|   |           progress.tsx
+|   |           scroll-area.tsx
+|   |           select.tsx
+|   |           separator.tsx
+|   |           sheet.tsx
+|   |           skeleton.tsx
+|   |           slider.tsx
+|   |           sonner.tsx
+|   |           switch.tsx
+|   |           table.tsx
+|   |           tabs.tsx
+|   |           textarea.tsx
+|   |           use-toast.ts
+|   |           
+|   +---context
+|   |       AuthContext.tsx
+|   |       
+|   \---lib
+|           accessibility.tsx
+|           adminCompanyApi.ts
+|           api-utils.ts
+|           api.ts
+|           auditApi.ts
+|           auth-cookie.ts
+|           auth.ts
+|           AUTH_README.md
+|           backendBreachLogger.ts
+|           bonusCalculations.ts
+|          companyApi.ts
+|           dataNomalizer.ts
+|           disclosureTierGate.ts
+|           endpoints.ts
+|           hooks.ts
+|           investorCompanyApi.ts
+|           investorDisclosureGuard.ts
+|           issuerCompanyApi.ts
+|           publicCompanyApi.ts
+|           publicDataSanitizer.ts
+|           responsive.ts
+|           secureStorage.ts
+|           storageUrlHelper.ts
+|           utils.ts
+|           validation.ts
+|           websocket.ts
+|           

@@ -61,6 +61,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'manage plans',
             // V-WAVE1-FIX: Add compliance permissions used by dispute routes
             'compliance.view_legal',
+            // V-WAVE3-FIX: Add payments permissions used by refund routes
+            'payments.refund',
         ];
 
         foreach ($permissions as $permissionName) {
@@ -72,13 +74,15 @@ class RolesAndPermissionsSeeder extends Seeder
 
         // ======================================================
         // 4. Assign permissions per role
+        // V-WAVE3-FIX: Use syncPermissions to ensure fresh assignment in tests
         // ======================================================
-        $roleInstances['admin']->givePermissionTo([
+        $roleInstances['admin']->syncPermissions([
             'access admin panel',
             'manage users',
             'manage kyc',
             'manage plans',
             'compliance.view_legal', // V-WAVE1-FIX: Added for dispute routes
+            'payments.refund', // V-WAVE3-FIX: Added for refund routes
         ]);
 
         $roleInstances['kyc-officer']->givePermissionTo([

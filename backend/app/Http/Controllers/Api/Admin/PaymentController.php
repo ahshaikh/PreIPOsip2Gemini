@@ -1,5 +1,6 @@
 <?php
 // V-FINAL-1730-259 (Fraud Management Added) | V-FINAL-1730-568 (Created) | V-FINAL-1730-587 (V2.0 Refund)
+// V-WAVE3-REVERSAL-2026: Refactored refund to use ChargebackResolutionService
 
 namespace App\Http\Controllers\Api\Admin;
 
@@ -8,10 +9,11 @@ use App\Models\Payment;
 use App\Models\User;
 use App\Models\Transaction;
 use App\Jobs\ProcessSuccessfulPaymentJob;
-use App\Services\WalletService; // <-- IMPORT
-use App\Services\AllocationService; // <-- IMPORT
-use App\Services\RazorpayService; // <-- IMPORT
-use App\Exceptions\Financial\ComplianceBlockedException; // V-FIX: Import exception for catch block
+use App\Services\WalletService;
+use App\Services\AllocationService;
+use App\Services\RazorpayService;
+use App\Services\ChargebackResolutionService; // V-WAVE3-REVERSAL
+use App\Exceptions\Financial\ComplianceBlockedException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -20,12 +22,18 @@ class PaymentController extends Controller
     protected $walletService;
     protected $allocationService;
     protected $razorpayService;
+    protected $chargebackService; // V-WAVE3-REVERSAL
 
-    public function __construct(WalletService $walletService, AllocationService $allocationService, RazorpayService $razorpayService)
-    {
+    public function __construct(
+        WalletService $walletService,
+        AllocationService $allocationService,
+        RazorpayService $razorpayService,
+        ChargebackResolutionService $chargebackService // V-WAVE3-REVERSAL
+    ) {
         $this->walletService = $walletService;
         $this->allocationService = $allocationService;
         $this->razorpayService = $razorpayService;
+        $this->chargebackService = $chargebackService;
     }
 
     /**
@@ -216,6 +224,13 @@ class PaymentController extends Controller
 
     /**
      * FSD-PAY-007: V2.0 Refund (with Bonus/Allocation Reversal)
+     * V-WAVE3-REVERSAL-2026: Refactored to use ChargebackResolutionService
+     *
+     * This endpoint now delegates to ChargebackResolutionService which ensures:
+     * - Atomic reversal of all financial effects
+     * - Proper wallet reconciliation (partial debit if insufficient)
+     * - Receivable creation for shortfalls
+     * - Account freezing when recovery is needed
      */
     public function refund(Request $request, Payment $payment)
     {
@@ -226,64 +241,55 @@ class PaymentController extends Controller
         ]);
 
         // Set defaults if not provided
-        $validated['reason'] = $validated['reason'] ?? 'Admin initiated refund';
-        $validated['reverse_bonuses'] = $validated['reverse_bonuses'] ?? true;
-        $validated['reverse_allocations'] = $validated['reverse_allocations'] ?? true;
+        $reason = $validated['reason'] ?? 'Admin initiated refund';
+        $reverseBonuses = $validated['reverse_bonuses'] ?? true;
+        $reverseAllocations = $validated['reverse_allocations'] ?? true;
 
         if ($payment->status !== 'paid') {
             return response()->json(['message' => 'Only paid payments can be refunded.'], 400);
         }
 
         try {
-            DB::transaction(function () use ($payment, $validated) {
-                $user = $payment->user;
-                $reason = $validated['reason'];
-
-                // 0. Process Gateway Refund (if applicable)
-                if (in_array($payment->gateway, ['razorpay', 'razorpay_auto']) && $payment->gateway_payment_id) {
-                    try {
-                        $this->razorpayService->refundPayment($payment->gateway_payment_id, $payment->amount);
-                    } catch (\Exception $e) {
-                        // Log but don't block internal refund
-                        \Log::error("Razorpay refund failed for Payment #{$payment->id}: " . $e->getMessage());
-                        // Optionally: throw $e; to require gateway refund success
-                    }
+            // 0. Process Gateway Refund (if applicable) - outside main transaction
+            // Gateway refund is best-effort; internal state must still be corrected
+            if (in_array($payment->gateway, ['razorpay', 'razorpay_auto']) && $payment->gateway_payment_id) {
+                try {
+                    $this->razorpayService->refundPayment($payment->gateway_payment_id, $payment->amount);
+                } catch (\Exception $e) {
+                    // Log but don't block internal refund - gateway may have already refunded
+                    \Log::warning("Razorpay refund failed for Payment #{$payment->id}: " . $e->getMessage());
                 }
+            }
 
-                // 1. Reverse Bonuses (if checked)
-                if ($validated['reverse_bonuses']) {
-                    $bonuses = $payment->bonuses()->get();
-                    foreach ($bonuses as $bonus) {
-                        // Create negative bonus transaction
-                        $bonus->reverse($reason);
-                        // Debit wallet (securely)
-                        $this->walletService->withdraw($user, $bonus->net_amount, 'reversal', "Reversal: {$reason}", $bonus);
-                    }
-                }
+            // V-WAVE3-REVERSAL: Delegate to ChargebackResolutionService for atomic resolution
+            $result = $this->chargebackService->resolveRefund($payment, $reason, [
+                'reverse_bonuses' => $reverseBonuses,
+                'reverse_allocations' => $reverseAllocations,
+                'refund_payment' => true,
+                'process_gateway_refund' => false, // Already handled above
+            ]);
 
-                // 2. Reverse Allocations (if checked)
-                if ($validated['reverse_allocations']) {
-                    $this->allocationService->reverseAllocation($payment, $reason);
-                }
+            $response = [
+                'message' => 'Payment refunded and all actions reversed.',
+                'details' => [
+                    'bonuses_reversed' => count($result['bonuses_reversed']),
+                    'bonus_recovered_paise' => $result['bonus_wallet_debited_paise'],
+                    'allocations_reversed' => $result['allocations_reversed'],
+                    'payment_refunded_paise' => $result['payment_refunded_paise'],
+                ],
+            ];
 
-                // 3. Refund the original payment amount to user's wallet
-                $this->walletService->deposit(
-                    $user,
-                    $payment->amount,
-                    'refund',
-                    "Refund for Payment #{$payment->id}: {$reason}",
-                    $payment
-                );
+            // Add warning if account was frozen due to shortfall
+            if ($result['account_frozen']) {
+                $response['warning'] = 'User account frozen due to bonus recovery shortfall. Receivable created.';
+                $response['details']['shortfall_paise'] = $result['bonus_shortfall_paise'];
+            }
 
-                // 4. Mark payment as refunded
-                $payment->update(['status' => 'refunded']);
-            });
+            return response()->json($response);
 
         } catch (\Exception $e) {
             return response()->json(['message' => 'Error processing refund: ' . $e->getMessage()], 500);
         }
-
-        return response()->json(['message' => 'Payment refunded and all actions reversed.']);
     }
 
     /**

@@ -43,6 +43,10 @@ class Wallet extends Model
         'user_id',
         'balance_paise',
         'locked_balance_paise',
+        'is_recovery_mode', // V-WAVE3-REVERSAL: Financial recovery mode flag
+        'receivable_balance_paise', // V-WAVE3-REVERSAL-HARDENING: Outstanding receivable
+        'receivable_created_at',
+        'receivable_settled_at',
     ];
 
     /**
@@ -51,6 +55,10 @@ class Wallet extends Model
     protected $casts = [
         'balance_paise' => 'integer',
         'locked_balance_paise' => 'integer',
+        'is_recovery_mode' => 'boolean', // V-WAVE3-REVERSAL: Financial recovery mode
+        'receivable_balance_paise' => 'integer', // V-WAVE3-REVERSAL-HARDENING
+        'receivable_created_at' => 'datetime',
+        'receivable_settled_at' => 'datetime',
     ];
 
     /**

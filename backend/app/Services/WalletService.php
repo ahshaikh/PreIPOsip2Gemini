@@ -234,6 +234,8 @@ class WalletService
      * PHASE 4 SECTION 7.2: Added $bonusAmountPaise parameter for bonus usage accounting.
      * When shares are purchased using bonus funds, the caller must specify the bonus portion.
      * This triggers the required ledger entry: DEBIT BONUS_LIABILITY, CREDIT COST_OF_SHARES.
+     *
+     * V-WAVE3-REVERSAL: Added $bypassRecoveryCheck parameter for internal operations.
      */
     public function withdraw(
         User $user,
@@ -243,7 +245,8 @@ class WalletService
         ?Model $reference = null,
         bool $lockBalance = false,
         bool $allowOverdraft = false,
-        int $bonusAmountPaise = 0 // PHASE 4 SECTION 7.2: Portion of withdrawal from bonus funds
+        int $bonusAmountPaise = 0, // PHASE 4 SECTION 7.2: Portion of withdrawal from bonus funds
+        bool $bypassRecoveryCheck = false // V-WAVE3-REVERSAL: For internal reversal operations
     ): Transaction {
         $amountPaise = $this->normalizeAmount($amount);
 
@@ -253,6 +256,18 @@ class WalletService
 
         if (is_string($type)) {
             $type = TransactionType::from($type);
+        }
+
+        // V-WAVE3-REVERSAL: Block withdrawals if account is in recovery mode
+        // Recovery mode is set when user owes money after bonus reversal shortfall
+        // Only deposits are allowed until receivable is settled
+        if (!$bypassRecoveryCheck) {
+            $wallet = Wallet::where('user_id', $user->id)->first();
+            if ($wallet && $wallet->is_recovery_mode) {
+                throw new \App\Exceptions\Financial\AccountRecoveryModeException(
+                    "Account is in financial recovery mode. Withdrawals are blocked until outstanding receivables are settled."
+                );
+            }
         }
 
         // PHASE 4 SECTION 7.2: Validate bonus amount doesn't exceed total

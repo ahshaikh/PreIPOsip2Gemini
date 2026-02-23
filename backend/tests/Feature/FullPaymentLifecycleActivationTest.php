@@ -211,8 +211,8 @@ class FullPaymentLifecycleActivationTest extends TestCase
         );
 
         // Verify ledger is balanced
-        $totalDebits = LedgerLine::where('type', 'debit')->sum('amount_paise');
-        $totalCredits = LedgerLine::where('type', 'credit')->sum('amount_paise');
+        $totalDebits = LedgerLine::where('direction', 'debit')->sum('amount_paise');
+        $totalCredits = LedgerLine::where('direction', 'credit')->sum('amount_paise');
         $this->assertEquals($totalDebits, $totalCredits, 'Ledger must be balanced');
 
         // STEP 9: Bonus Eligibility Triggered

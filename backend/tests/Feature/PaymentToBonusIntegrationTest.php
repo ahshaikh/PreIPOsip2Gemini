@@ -183,7 +183,12 @@ class PaymentToBonusIntegrationTest extends TestCase
         $admin = User::factory()->create();
         $admin->assignRole('admin');
 
-        $this->actingAs($admin)->postJson(
+        // V-WAVE3-FIX: Refresh payment to get 'paid' status from DB (route model binding needs this)
+        $this->payment->refresh();
+        $this->assertEquals('paid', $this->payment->status, 'Payment should be paid before refund');
+
+        // V-WAVE3-FIX: Capture and verify response to ensure API call succeeds
+        $response = $this->actingAs($admin)->postJson(
             "/api/v1/admin/payments/{$this->payment->id}/refund",
             [
                 'reason' => 'Test refund',
@@ -191,6 +196,9 @@ class PaymentToBonusIntegrationTest extends TestCase
                 'reverse_allocations' => true
             ]
         );
+
+        // V-WAVE3-FIX: Assert successful response before checking database state
+        $response->assertStatus(200);
 
         // After refund, total net bonus impact for this payment should be zero
 

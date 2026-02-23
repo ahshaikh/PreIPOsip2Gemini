@@ -62,16 +62,16 @@ class SnapshotIntegrityTest extends TestCase
 
         // Raw ledger calculation
         $rawDebits = DB::table('ledger_lines')
-            ->where('type', 'debit')
+            ->where('direction', 'debit')
             ->sum('amount_paise');
 
         $rawCredits = DB::table('ledger_lines')
-            ->where('type', 'credit')
+            ->where('direction', 'credit')
             ->sum('amount_paise');
 
         // Aggregate calculation (via Eloquent)
-        $eloquentDebits = LedgerLine::where('type', 'debit')->sum('amount_paise');
-        $eloquentCredits = LedgerLine::where('type', 'credit')->sum('amount_paise');
+        $eloquentDebits = LedgerLine::where('direction', 'debit')->sum('amount_paise');
+        $eloquentCredits = LedgerLine::where('direction', 'credit')->sum('amount_paise');
 
         // Raw and aggregate must match
         $this->assertEquals($rawDebits, $eloquentDebits, 'Debit aggregates mismatch');
@@ -140,11 +140,11 @@ class SnapshotIntegrityTest extends TestCase
 
         foreach ($liabilityAccounts as $account) {
             $credits = LedgerLine::where('ledger_account_id', $account->id)
-                ->where('type', 'credit')
+                ->where('direction', 'credit')
                 ->sum('amount_paise');
 
             $debits = LedgerLine::where('ledger_account_id', $account->id)
-                ->where('type', 'debit')
+                ->where('direction', 'debit')
                 ->sum('amount_paise');
 
             $balance = $credits - $debits; // Liability: credit-normal
@@ -261,12 +261,12 @@ class SnapshotIntegrityTest extends TestCase
 
         if ($revenueAccount && $paidPaymentsSum > 0) {
             $ledgerRevenue = LedgerLine::where('ledger_account_id', $revenueAccount->id)
-                ->where('type', 'credit') // Revenue is credit-normal
+                ->where('direction', 'credit') // Revenue is credit-normal
                 ->sum('amount_paise');
 
             // Allow for refunds/chargebacks
             $refundsAndChargebacks = LedgerLine::where('ledger_account_id', $revenueAccount->id)
-                ->where('type', 'debit')
+                ->where('direction', 'debit')
                 ->sum('amount_paise');
 
             $netRevenue = $ledgerRevenue - $refundsAndChargebacks;
@@ -328,8 +328,8 @@ class SnapshotIntegrityTest extends TestCase
             $results[] = [
                 'total_payments' => Payment::where('status', Payment::STATUS_PAID)->sum('amount_paise'),
                 'total_wallets' => Wallet::sum('balance_paise'),
-                'ledger_debits' => LedgerLine::where('type', 'debit')->sum('amount_paise'),
-                'ledger_credits' => LedgerLine::where('type', 'credit')->sum('amount_paise'),
+                'ledger_debits' => LedgerLine::where('direction', 'debit')->sum('amount_paise'),
+                'ledger_credits' => LedgerLine::where('direction', 'credit')->sum('amount_paise'),
             ];
         }
 

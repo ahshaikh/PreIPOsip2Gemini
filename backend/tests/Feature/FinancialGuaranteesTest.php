@@ -182,8 +182,8 @@ class FinancialGuaranteesTest extends TestCase
         $this->createFinancialScenario();
 
         // V-DOUBLE-ENTRY: Every entry must balance
-        $totalDebits = LedgerLine::where('type', 'debit')->sum('amount_paise');
-        $totalCredits = LedgerLine::where('type', 'credit')->sum('amount_paise');
+        $totalDebits = LedgerLine::where('direction', 'debit')->sum('amount_paise');
+        $totalCredits = LedgerLine::where('direction', 'credit')->sum('amount_paise');
 
         $this->assertEquals(
             $totalDebits,
@@ -195,10 +195,10 @@ class FinancialGuaranteesTest extends TestCase
         $entries = LedgerEntry::all();
         foreach ($entries as $entry) {
             $entryDebits = LedgerLine::where('ledger_entry_id', $entry->id)
-                ->where('type', 'debit')
+                ->where('direction', 'debit')
                 ->sum('amount_paise');
             $entryCredits = LedgerLine::where('ledger_entry_id', $entry->id)
-                ->where('type', 'credit')
+                ->where('direction', 'credit')
                 ->sum('amount_paise');
 
             $this->assertEquals(
@@ -253,7 +253,7 @@ class FinancialGuaranteesTest extends TestCase
 
         if ($revenueAccount) {
             $ledgerRevenue = LedgerLine::where('ledger_account_id', $revenueAccount->id)
-                ->where('type', 'credit')
+                ->where('direction', 'credit')
                 ->sum('amount_paise');
 
             $this->assertGreaterThanOrEqual(
@@ -351,11 +351,11 @@ class FinancialGuaranteesTest extends TestCase
 
         if ($liabilityAccount) {
             $liabilityCredits = LedgerLine::where('ledger_account_id', $liabilityAccount->id)
-                ->where('type', 'credit')
+                ->where('direction', 'credit')
                 ->sum('amount_paise');
 
             $liabilityDebits = LedgerLine::where('ledger_account_id', $liabilityAccount->id)
-                ->where('type', 'debit')
+                ->where('direction', 'debit')
                 ->sum('amount_paise');
 
             $netLiability = $liabilityCredits - $liabilityDebits;
@@ -387,11 +387,11 @@ class FinancialGuaranteesTest extends TestCase
 
         if ($receivablesAccount && $outstandingChargebacks > 0) {
             $receivablesBalance = LedgerLine::where('ledger_account_id', $receivablesAccount->id)
-                ->where('type', 'debit')
+                ->where('direction', 'debit')
                 ->sum('amount_paise');
 
             $receivablesCredits = LedgerLine::where('ledger_account_id', $receivablesAccount->id)
-                ->where('type', 'credit')
+                ->where('direction', 'credit')
                 ->sum('amount_paise');
 
             $netReceivables = $receivablesBalance - $receivablesCredits;
@@ -456,8 +456,8 @@ class FinancialGuaranteesTest extends TestCase
         ];
 
         // Check ledger balance
-        $totalDebits = LedgerLine::where('type', 'debit')->sum('amount_paise');
-        $totalCredits = LedgerLine::where('type', 'credit')->sum('amount_paise');
+        $totalDebits = LedgerLine::where('direction', 'debit')->sum('amount_paise');
+        $totalCredits = LedgerLine::where('direction', 'credit')->sum('amount_paise');
         if ($totalDebits !== $totalCredits) {
             $report['ledger_balanced'] = false;
             $report['ledger_details'] = [

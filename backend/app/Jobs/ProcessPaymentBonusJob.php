@@ -103,21 +103,21 @@ class ProcessPaymentBonusJob implements ShouldQueue
 
                 // 2. Debit Wallet for Bonus Share Purchase
                 // V-WAVE3-FIX: Use NET amount (what wallet actually has)
-                // $walletService->withdraw(
-                //     $user,
-                //     $netBonusTotal,
-                //     'investment',
-                //     "Bonus share purchase from Payment #{$this->payment->id}",
-                //     $this->payment,
-                //     false // Immediate debit
-                // );
-                // Log::info("Payment #{$this->payment->id}: Debited ₹{$netBonusTotal} from wallet for bonus share purchase");
+                $walletService->withdraw(
+                    $user,
+                    $netBonusTotal,
+                    'investment',
+                    "Bonus share purchase from Payment #{$this->payment->id}",
+                    $this->payment,
+                    false // Immediate debit
+                );
+                Log::info("Payment #{$this->payment->id}: Debited ₹{$netBonusTotal} from wallet for bonus share purchase");
 
                 // 3. Allocate Bonus Shares
                 // V-WAVE3-FIX: Allocate based on NET amount (user's actual purchasing power)
-                // $allocationService->allocateSharesLegacy($this->payment, $netBonusTotal);
+                $allocationService->allocateSharesLegacy($this->payment, $netBonusTotal);
 
-                // Log::info("Bonus processing completed successfully for Payment {$this->payment->id}");
+                Log::info("Bonus processing completed successfully for Payment {$this->payment->id}");
             });
 
         } catch (\Exception $e) {

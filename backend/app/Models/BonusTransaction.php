@@ -18,9 +18,10 @@ class BonusTransaction extends Model
         'user_id',
         'subscription_id',
         'payment_id',
+        'reversal_of_bonus_id', // V-WAVE3-REVERSAL-AUDIT: Relational link for reversals
         'type',
         'amount',
-        'tds_deducted', // <-- NEW
+        'tds_deducted',
         'multiplier_applied',
         'base_amount',
         'description',
@@ -84,6 +85,30 @@ class BonusTransaction extends Model
         return $this->belongsTo(PlanRegulatoryOverride::class, 'override_id');
     }
 
+    /**
+     * V-WAVE3-REVERSAL-AUDIT: Relationship to original bonus (for reversals)
+     */
+    public function originalBonus(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'reversal_of_bonus_id');
+    }
+
+    /**
+     * V-WAVE3-REVERSAL-AUDIT: Relationship to reversal record (for originals)
+     */
+    public function reversal()
+    {
+        return $this->hasOne(self::class, 'reversal_of_bonus_id');
+    }
+
+    /**
+     * V-WAVE3-REVERSAL-AUDIT: Check if this bonus has been reversed.
+     */
+    public function isReversed(): bool
+    {
+        return $this->reversal()->exists();
+    }
+
     // --- HELPERS ---
 
     /**
@@ -96,13 +121,24 @@ class BonusTransaction extends Model
 
     /**
      * Create a reversal (negative) transaction for this bonus.
+     * V-WAVE3-REVERSAL-AUDIT: Now uses relational link instead of description matching.
+     *
+     * @param string $reason Reason for reversal
+     * @return self The reversal transaction, or existing reversal if already reversed
      */
     public function reverse(string $reason): self
     {
+        // V-WAVE3-REVERSAL-AUDIT: Idempotency - check if already reversed via relational link
+        $existingReversal = $this->reversal;
+        if ($existingReversal) {
+            return $existingReversal;
+        }
+
         return self::create([
             'user_id' => $this->user_id,
             'subscription_id' => $this->subscription_id,
             'payment_id' => $this->payment_id,
+            'reversal_of_bonus_id' => $this->id, // V-WAVE3-REVERSAL-AUDIT: Relational link
             'type' => 'reversal',
             'amount' => -$this->amount, // Negative amount
             'tds_deducted' => -$this->tds_deducted,
