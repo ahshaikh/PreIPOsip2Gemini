@@ -97,10 +97,11 @@ class ProcessPaymentBonusJob implements ShouldQueue
                 Log::info("Payment #{$this->payment->id}: Credited ₹{$totalBonus} bonus to user wallet");
 
                 // 3. Debit Wallet for Bonus Share Purchase
+                // V-WAVE1-FIX: Use 'investment' - valid TransactionType enum value
                 $walletService->withdraw(
                     $user,
                     $totalBonus,
-                    'share_purchase',
+                    'investment',
                     "Bonus share purchase from Payment #{$this->payment->id}",
                     $this->payment,
                     false // Immediate debit
@@ -108,7 +109,8 @@ class ProcessPaymentBonusJob implements ShouldQueue
                 Log::info("Payment #{$this->payment->id}: Debited ₹{$totalBonus} from wallet for bonus share purchase");
 
                 // 4. Allocate Bonus Shares
-                $allocationService->allocateShares($this->payment, $totalBonus);
+                // V-WAVE2-FIX: Use allocateSharesLegacy which accepts Payment and amount
+                $allocationService->allocateSharesLegacy($this->payment, $totalBonus);
 
                 Log::info("Bonus processing completed successfully for Payment {$this->payment->id}");
             });

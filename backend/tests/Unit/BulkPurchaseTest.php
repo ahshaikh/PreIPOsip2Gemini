@@ -7,6 +7,8 @@ namespace Tests\Unit;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Product;
+use App\Models\Company;
+use App\Models\CompanyShareListing;
 use App\Models\BulkPurchase;
 use App\Exceptions\BulkPurchaseProvenanceException;
 class BulkPurchaseTest extends TestCase
@@ -14,10 +16,13 @@ class BulkPurchaseTest extends TestCase
     protected $product;
     protected $admin;
 
+    protected $company;
+
     protected function setUp(): void
     {
         parent::setUp();
-        $this->product = Product::factory()->create();
+        $this->company = Company::factory()->create();
+        $this->product = Product::factory()->create(['company_id' => $this->company->id]);
         $this->admin = User::factory()->create();
     }
 
@@ -30,14 +35,18 @@ class BulkPurchaseTest extends TestCase
         $defaults = [
             'product_id' => $this->product->id,
             'admin_id' => $this->admin->id,
+            'company_id' => $this->company->id, // V-WAVE1-FIX: Required FK
             'face_value_purchased' => 100000,
             'actual_cost_paid' => 80000,
             'extra_allocation_percentage' => 25,
             'purchase_date' => now(),
             // STORY 4.2: Provenance fields (required for compliance)
+            // V-WAVE1-FIX: Constraint requires 50+ char reason, approved_by, and verified_at
             'source_type' => 'manual_entry',
-            'manual_entry_reason' => 'Test purchase for unit testing',
+            'manual_entry_reason' => 'Test purchase for unit testing - this reason must exceed fifty characters to satisfy the database constraint',
             'source_documentation' => 'test-document-ref-001',
+            'approved_by_admin_id' => $this->admin->id,
+            'verified_at' => now(),
         ];
 
         // This will trigger the 'creating' boot method
@@ -210,16 +219,20 @@ class BulkPurchaseTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_manual_entry_with_valid_provenance_succeeds()
     {
+        // V-WAVE1-FIX: Added company_id and provenance fields required by constraints
         $purchase = BulkPurchase::create([
             'product_id' => $this->product->id,
             'admin_id' => $this->admin->id,
+            'company_id' => $this->company->id,
             'face_value_purchased' => 100000,
             'actual_cost_paid' => 80000,
             'extra_allocation_percentage' => 25,
             'purchase_date' => now(),
             'source_type' => 'manual_entry',
-            'manual_entry_reason' => 'Bulk inventory acquisition from secondary market',
+            'manual_entry_reason' => 'Bulk inventory acquisition from secondary market - this reason must exceed fifty characters to satisfy the database constraint',
             'source_documentation' => 'invoice-2024-001.pdf',
+            'approved_by_admin_id' => $this->admin->id,
+            'verified_at' => now(),
         ]);
 
         $this->assertInstanceOf(BulkPurchase::class, $purchase);
@@ -231,23 +244,26 @@ class BulkPurchaseTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_company_listing_with_valid_listing_id_succeeds()
     {
-        // Create a mock company share listing (using a valid ID)
-        $listingId = 1;
+        // V-WAVE1-FIX: Create a real company share listing to satisfy FK constraint
+        $listing = CompanyShareListing::factory()->create([
+            'company_id' => $this->company->id,
+        ]);
 
         $purchase = BulkPurchase::create([
             'product_id' => $this->product->id,
             'admin_id' => $this->admin->id,
+            'company_id' => $this->company->id,
             'face_value_purchased' => 100000,
             'actual_cost_paid' => 80000,
             'extra_allocation_percentage' => 25,
             'purchase_date' => now(),
             'source_type' => 'company_listing',
-            'company_share_listing_id' => $listingId,
+            'company_share_listing_id' => $listing->id,
         ]);
 
         $this->assertInstanceOf(BulkPurchase::class, $purchase);
         $this->assertEquals('company_listing', $purchase->source_type);
-        $this->assertEquals($listingId, $purchase->company_share_listing_id);
+        $this->assertEquals($listing->id, $purchase->company_share_listing_id);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]

@@ -17,6 +17,8 @@ class UserNotificationPreference extends Model
     protected $fillable = [
         'user_id',
         'notification_type',
+        'preference_key', // V-WAVE1-FIX: Legacy column still required by DB
+        'is_enabled',     // V-WAVE1-FIX: Legacy column still required by DB
         'email_enabled',
         'sms_enabled',
         'push_enabled',

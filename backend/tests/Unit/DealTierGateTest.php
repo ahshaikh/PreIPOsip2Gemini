@@ -29,7 +29,9 @@ class DealTierGateTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->product = Product::factory()->create();
+        // V-WAVE2-FIX: Use withInventory() to satisfy Deal model's inventory requirement
+        // Deal model requires product to have BulkPurchase inventory before deal creation
+        $this->product = Product::factory()->withInventory()->create();
         $this->admin = User::factory()->create();
     }
 
@@ -58,6 +60,7 @@ class DealTierGateTest extends TestCase
 
     /**
      * Helper to create a deal with common defaults.
+     * V-WAVE2-FIX: Added sector field required by deals table
      */
     private function createDeal(Company $company, array $overrides = []): Deal
     {
@@ -67,6 +70,7 @@ class DealTierGateTest extends TestCase
             'title' => 'Test Deal ' . uniqid(),
             'slug' => 'test-deal-' . uniqid(),
             'description' => 'Test deal description',
+            'sector' => 'Technology', // V-WAVE2-FIX: Required NOT NULL field
             'deal_type' => 'upcoming',
             'min_investment' => 10000,
             'max_investment' => 100000,

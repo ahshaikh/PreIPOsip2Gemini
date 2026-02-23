@@ -8,6 +8,8 @@ use App\Models\User;
 use App\Models\LuckyDraw;
 use App\Models\LuckyDrawEntry;
 use App\Models\Wallet;
+use App\Models\Payment;
+use App\Models\Subscription;
 
 class LuckyDrawTest extends TestCase
 {
@@ -35,15 +37,24 @@ class LuckyDrawTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_execute_draw()
     {
-        // Create 5 entrants
+        // Create 5 entrants with proper FK relationships
         $users = User::factory()->count(5)->create();
         foreach ($users as $u) {
             Wallet::create(['user_id' => $u->id, 'balance_paise' => 0, 'locked_balance_paise' => 0]);
+
+            // V-WAVE1-FIX: Create proper subscription and payment FKs
+            $subscription = Subscription::factory()->create(['user_id' => $u->id]);
+            $payment = Payment::factory()->create([
+                'user_id' => $u->id,
+                'subscription_id' => $subscription->id,
+            ]);
+
             LuckyDrawEntry::create([
                 'user_id' => $u->id,
                 'lucky_draw_id' => $this->draw->id,
-                'payment_id' => 1, // Stub
-                'entry_code' => 'ABC' . $u->id
+                'payment_id' => $payment->id,
+                'base_entries' => 1,
+                'bonus_entries' => 0,
             ]);
         }
 

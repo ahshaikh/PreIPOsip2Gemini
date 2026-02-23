@@ -72,9 +72,10 @@ class SmsServiceTest extends TestCase
 
         $this->service->send($this->user, "Test", "slug");
 
+        // V-WAVE1-FIX: Column was renamed from to_mobile to recipient_mobile
         $this->assertDatabaseHas('sms_logs', [
             'user_id' => $this->user->id,
-            'to_mobile' => $this->user->mobile,
+            'recipient_mobile' => $this->user->mobile,
             'status' => 'sent',
             'gateway_message_id' => 'abc'
         ]);
@@ -95,16 +96,22 @@ class SmsServiceTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_send_sms_respects_user_preferences()
     {
-        // 1. User opts out of 'auth_sms'
+        // V-WAVE1-FIX: Include both legacy and new schema columns
+        // The table has both old (preference_key, is_enabled) and new (notification_type, *_enabled) columns
         $this->user->notificationPreferences()->create([
-            'preference_key' => 'auth_sms',
-            'is_enabled' => false
+            'notification_type' => 'auth',
+            'preference_key' => 'auth_sms', // Legacy column still required
+            'is_enabled' => false,           // Legacy column
+            'sms_enabled' => false,
+            'email_enabled' => true,
+            'push_enabled' => true,
+            'in_app_enabled' => true,
         ]);
 
         // 2. Try to send an 'auth.otp' message
         $log = $this->service->send($this->user, "Test", "auth.otp");
 
-        // 3. Assert it was aborted
+        // 3. Assert it was aborted (user opted out of SMS for auth notifications)
         $this->assertNull($log);
         $this->assertDatabaseMissing('sms_logs');
     }

@@ -156,9 +156,13 @@ class SubscriptionConfigSnapshotService
         ?array $luckyDrawConfig
     ): string {
         // Build canonical data structure (fixed key order)
+        // V-WAVE2-FIX: Normalize timestamp to second precision (MySQL timestamp doesn't store microseconds)
+        // This ensures hash computed before save matches hash computed after database round-trip
+        $normalizedTimestamp = \Carbon\Carbon::parse($snapshotAt)->setMicroseconds(0);
+
         $canonicalData = [
             'celebration_bonus_config' => $this->sortRecursively($celebrationConfig),
-            'config_snapshot_at' => $snapshotAt->format('Y-m-d\TH:i:s.uP'), // ISO8601 with microseconds
+            'config_snapshot_at' => $normalizedTimestamp->format('Y-m-d\TH:i:s.000000P'), // ISO8601 with zero microseconds
             'consistency_config' => $this->sortRecursively($consistencyConfig),
             'lucky_draw_entries' => $this->sortRecursively($luckyDrawConfig),
             'milestone_config' => $this->sortRecursively($milestoneConfig),

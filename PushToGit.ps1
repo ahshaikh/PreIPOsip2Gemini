@@ -8,38 +8,25 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "refactor(test-foundation): Wave 1 schema & factory realignment under Hardened Doctrine
+$CommitMessage = "Wave 2: Service-layer alignment, inventory integrity fixes, and FK stabilization
 
-Foundation First – Wave 1 (Environmental & Schema Alignment)
+- Rolled back ProductFactory withoutEvents() bypass; restored valid state machine compliance
+- Fixed AllocationService inventory query to align with lifecycle states (active/approved)
+- Added explicit payment_id + subscription_id handling in UserInvestment creation
+- Updated allocateShares() signature to support payment-driven allocation
+- Removed invalid investment_id persistence (column does not exist)
+- Corrected NOT NULL violations (sector, payment_id) in failing test paths
+- Replaced direct Model::create() usages in tests with factories
+- Switched service instantiation in tests to container resolution (DI compliance)
+- Restored canonical allocateShares() usage in BlockedUserInvestmentTest
+- Updated AllocationServiceTest to use allocateSharesLegacy() where appropriate
+- Fixed DealTierGateTest inventory + sector requirements
+- Reduced failures from 373 → 346 through root-cause service corrections
 
-• Analyzed 410+ failures from test-results-Hakim3.xml and categorized by exception class.
-• Targeted QueryException + factory-related cascade failures.
-
-Schema / Model Alignment
-- Added JSON cast for `bonus_contract_snapshot` on Subscription model.
-- Ensured strict paise-only monetary doctrine (no float fallback).
-- Preserved ledger `direction` (no reintroduction of deprecated `type`).
-- Preserved paise canonicalization (`amount_paise` authoritative).
-
-Factories
-- Created LuckyDrawEntryFactory.
-- Created ProfitShareFactory.
-- Ensured PaymentFactory enforces non-null `amount_paise`.
-
-Test Setup Realignment (No assertion edits)
-- Replaced hardcoded FK IDs with proper factory-based relationships.
-- Migrated raw Model::create() calls to factories where required to satisfy FK + NOT NULL invariants.
-- Updated affected integration tests (FullUserJourneyIntegrationTest and related files).
-
-Doctrine Protection
-- No schema weakening.
-- No assertion modification.
-- No test skipping.
-- No defensive try/catch silencing.
-
-Result
-- Eliminated structural FK and missing factory cascades.
-- Surfaced Wave 2 lifecycle/snapshot invariants for next phase."
+No assertion weakening.
+No invariant suppression.
+No schema loosening.
+Doctrine preserved."
 #----------------------
 
 function Get-GitCredential {

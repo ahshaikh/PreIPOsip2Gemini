@@ -24,7 +24,8 @@ class AllocationServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new AllocationService();
+        // V-WAVE2-FIX: Use DI container to resolve AllocationService with its dependencies
+        $this->service = app(AllocationService::class);
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
         
         $this->user = User::factory()->create();
@@ -33,12 +34,14 @@ class AllocationServiceTest extends TestCase
             'face_value_per_unit' => 100
         ]);
         
-        $this->purchase = BulkPurchase::create([
+        // V-WAVE2-FIX: Use factory to provide all required provenance fields
+        $this->purchase = BulkPurchase::factory()->create([
             'product_id' => $this->product->id,
+            'company_id' => $this->product->company_id,
             'face_value_purchased' => 100000,
             'actual_cost_paid' => 80000,
             'extra_allocation_percentage' => 25, // Total Value = 125,000
-        ]); // value_remaining is 125,000
+        ]); // value_remaining is auto-calculated to 125,000
 
         $sub = Subscription::factory()->create(['user_id' => $this->user->id]);
         $this->payment = Payment::factory()->create(['subscription_id' => $sub->id]);
@@ -47,7 +50,7 @@ class AllocationServiceTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_allocate_to_user_creates_investment_record()
     {
-        $this->service->allocateShares($this->payment, 1000);
+        $this->service->allocateSharesLegacy($this->payment, 1000);
 
         $this->assertDatabaseHas('user_investments', [
             'user_id' => $this->user->id,
@@ -61,7 +64,7 @@ class AllocationServiceTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_allocate_to_user_deducts_from_bulk_purchase()
     {
-        $this->service->allocateShares($this->payment, 1000);
+        $this->service->allocateSharesLegacy($this->payment, 1000);
 
         $this->assertDatabaseHas('bulk_purchases', [
             'id' => $this->purchase->id,
@@ -73,7 +76,7 @@ class AllocationServiceTest extends TestCase
     public function test_allocate_to_user_handles_insufficient_inventory()
     {
         // Try to allocate 200,000 when only 125,000 is available
-        $this->service->allocateShares($this->payment, 200000);
+        $this->service->allocateSharesLegacy($this->payment, 200000);
 
         // 1. No investment should be created
         $this->assertDatabaseMissing('user_investments', [
@@ -97,7 +100,7 @@ class AllocationServiceTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_allocation_logs_audit_trail_on_success()
     {
-        $this->service->allocateShares($this->payment, 1000);
+        $this->service->allocateSharesLegacy($this->payment, 1000);
 
         $this->assertDatabaseHas('activity_logs', [
             'user_id' => $this->user->id,
@@ -110,7 +113,7 @@ class AllocationServiceTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_allocation_logs_audit_trail_on_failure()
     {
-        $this->service->allocateShares($this->payment, 200000); // Fail
+        $this->service->allocateSharesLegacy($this->payment, 200000); // Fail
 
         $this->assertDatabaseHas('activity_logs', [
             'user_id' => $this->user->id,
@@ -126,7 +129,7 @@ class AllocationServiceTest extends TestCase
         // are combined (1100) and drawn from the *same* inventory pool.
         
         $totalValue = 1100;
-        $this->service->allocateShares($this->payment, $totalValue);
+        $this->service->allocateSharesLegacy($this->payment, $totalValue);
 
         // Total inventory (125k) - 1100 = 123,900
         $this->assertDatabaseHas('bulk_purchases', [

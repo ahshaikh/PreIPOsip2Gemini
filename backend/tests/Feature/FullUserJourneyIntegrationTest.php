@@ -315,7 +315,8 @@ class FullUserJourneyIntegrationTest extends TestCase
         UserKyc::create(['user_id' => $user->id, 'status' => 'verified']);
         $wallet = Wallet::create(['user_id' => $user->id, 'balance_paise' => 500000, 'locked_balance_paise' => 0]); // ₹5000
 
-        $walletService = new WalletService();
+        // V-WAVE2-FIX: Use DI container to resolve WalletService with its dependencies
+        $walletService = app(WalletService::class);
 
         // ==================== USER REQUESTS WITHDRAWAL ====================
         $transaction = $walletService->withdraw(
@@ -408,7 +409,8 @@ class FullUserJourneyIntegrationTest extends TestCase
         $user->assignRole('user');
         Wallet::create(['user_id' => $user->id, 'balance_paise' => 100000, 'locked_balance_paise' => 0]); // ₹1000
 
-        $walletService = new WalletService();
+        // V-WAVE2-FIX: Use DI container to resolve WalletService with its dependencies
+        $walletService = app(WalletService::class);
 
         // Perform multiple operations
         $walletService->deposit($user, 500, 'deposit', 'Op 1');

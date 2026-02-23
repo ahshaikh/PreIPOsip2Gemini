@@ -20,8 +20,10 @@ class DealFactory extends Factory
         $title = $this->faker->company() . ' ' . $this->faker->randomElement(['Series A', 'Series B', 'Pre-IPO', 'Growth']);
 
         return [
-            'product_id' => Product::factory(),
-            'company_id' => Company::factory(),
+            // V-WAVE2-FIX: Product must have inventory for Deal creation
+            'product_id' => Product::factory()->activeWithInventory(),
+            // V-WAVE2-FIX: Company must have at least TIER_1_UPCOMING for Deal creation
+            'company_id' => Company::factory()->tierUpcoming(),
             'title' => $title,
             'slug' => Str::slug($title) . '-' . Str::random(6),
             'description' => $this->faker->paragraph(),

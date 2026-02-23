@@ -59,6 +59,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'manage users',
             'manage kyc',
             'manage plans',
+            // V-WAVE1-FIX: Add compliance permissions used by dispute routes
+            'compliance.view_legal',
         ];
 
         foreach ($permissions as $permissionName) {
@@ -76,6 +78,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'manage users',
             'manage kyc',
             'manage plans',
+            'compliance.view_legal', // V-WAVE1-FIX: Added for dispute routes
         ]);
 
         $roleInstances['kyc-officer']->givePermissionTo([

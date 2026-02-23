@@ -22,7 +22,8 @@ class ProfitShareServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new ProfitShareService();
+        // V-WAVE2-FIX: Use DI container to resolve service with its dependencies
+        $this->service = app(ProfitShareService::class);
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
         $this->seed(\Database\Seeders\SettingsSeeder::class);
 

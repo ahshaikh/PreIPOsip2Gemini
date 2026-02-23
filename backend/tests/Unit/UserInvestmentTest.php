@@ -30,9 +30,18 @@ class UserInvestmentTest extends TestCase
             'product_id' => $this->product->id,
         ]);
 
-        $this->investment = UserInvestment::create([
+        // V-WAVE2-FIX: Use factory to ensure all required fields are provided
+        $subscription = \App\Models\Subscription::factory()->create(['user_id' => $this->user->id]);
+        $payment = \App\Models\Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'subscription_id' => $subscription->id,
+        ]);
+
+        $this->investment = \App\Models\UserInvestment::factory()->create([
             'user_id' => $this->user->id,
             'product_id' => $this->product->id,
+            'payment_id' => $payment->id,
+            'subscription_id' => $subscription->id,
             'bulk_purchase_id' => $this->purchase->id,
             'units_allocated' => 10,  // 10 units
             'value_allocated' => 1000, // at ₹100 face value = ₹1000 cost
@@ -60,9 +69,18 @@ class UserInvestmentTest extends TestCase
 
     public function test_investment_tracks_allocation_type()
     {
-        $bonus = UserInvestment::create([
+        // V-WAVE2-FIX: Use factory to ensure all required fields are provided
+        $subscription = \App\Models\Subscription::factory()->create(['user_id' => $this->user->id]);
+        $payment = \App\Models\Payment::factory()->create([
+            'user_id' => $this->user->id,
+            'subscription_id' => $subscription->id,
+        ]);
+
+        $bonus = \App\Models\UserInvestment::factory()->create([
             'user_id' => $this->user->id,
             'product_id' => $this->product->id,
+            'payment_id' => $payment->id,
+            'subscription_id' => $subscription->id,
             'bulk_purchase_id' => $this->purchase->id,
             'units_allocated' => 2,
             'value_allocated' => 200,

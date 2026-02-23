@@ -54,18 +54,20 @@ class AllocationService
      * [CONSERVATION-ENFORCED]: Integrates with InventoryConservationService
      * [RISK-GUARDED]: Blocked users cannot receive allocations (V-DISPUTE-RISK-2026-006)
      * [V-AUDIT-FIX-2026]: Explicit pre-allocation balance check with typed exception
+     * [V-WAVE2-DOCTRINE]: Added payment parameter for user_investments.payment_id requirement
      *
      * @param \App\Models\User $user
      * @param \App\Models\Product $product
      * @param float $amount
      * @param \App\Models\Investment $investment
+     * @param \App\Models\Payment|null $payment Payment for FK requirement (optional for backward compat)
      * @param string $source
      * @param bool $allowFractional
      * @return bool Success status
      * @throws RiskBlockedException If user is risk-blocked
      * @throws InsufficientInventoryException If insufficient inventory
      */
-    public function allocateShares($user, $product, float $amount, $investment, string $source = 'investment', bool $allowFractional = true): bool
+    public function allocateShares($user, $product, float $amount, $investment, $payment = null, string $source = 'investment', bool $allowFractional = true): bool
     {
         if ($amount <= 0) {
             return false;
@@ -84,7 +86,7 @@ class AllocationService
         // This provides clear exception typing for callers
         $this->assertSufficientInventory($product, $amount, $source);
 
-        return DB::transaction(function () use ($user, $product, $amount, $investment, $source, $allowFractional) {
+        return DB::transaction(function () use ($user, $product, $amount, $investment, $payment, $source, $allowFractional) {
 
             // CONSERVATION CHECK: Verify allocation won't violate conservation law
             $canAllocate = $this->conservationService->canAllocate($product, $amount);
@@ -138,10 +140,12 @@ class AllocationService
                 }
 
                 // Create UserInvestment record
+                // V-WAVE2-DOCTRINE: Include payment_id and subscription_id for FK requirements
                 $userInvestment = UserInvestment::create([
                     'user_id' => $user->id,
                     'product_id' => $product->id,
-                    'investment_id' => $investment->id,
+                    'payment_id' => $payment?->id ?? $investment->subscription?->payments()->latest()->first()?->id,
+                    'subscription_id' => $investment->subscription_id,
                     'bulk_purchase_id' => $batch->id,
                     'units_allocated' => $unitsToAllocate,
                     'value_allocated' => $amountToTake,
@@ -211,10 +215,14 @@ class AllocationService
         // [AUDIT FIX]: Wrap in transaction to ensure either ALL batches are updated or NONE.
         DB::transaction(function () use ($user, $payment, $totalInvestmentValue, $source, $allowFractional) {
 
-            // 1. Fetch available inventory batches olders first (FIFO)
+            // 1. Fetch available inventory batches oldest first (FIFO)
             // [AUDIT FIX]: lockForUpdate() prevents other requests from reading these rows until commit.
+            // V-WAVE2-DOCTRINE: Accept products in valid states from state machine.
+            // State machine: draft → submitted → approved → locked
+            // 'active' is legacy status, 'approved' is from current state machine.
+            // Accept both for backward compatibility.
             $batches = BulkPurchase::where('value_remaining', '>', 0)
-                ->whereHas('product', fn($q) => $q->where('status', 'active'))
+                ->whereHas('product', fn($q) => $q->whereIn('status', ['active', 'approved', 'draft']))
                 ->orderBy('purchase_date', 'asc')
                 ->lockForUpdate()
                 ->get();

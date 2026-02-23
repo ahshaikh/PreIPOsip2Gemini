@@ -37,17 +37,12 @@ class BlockedUserInvestmentTest extends TestCase
     {
         $user = $this->createBlockedUser();
         $product = $this->createProductWithInventory();
-        $investment = $this->createInvestment($user);
+        $data = $this->createInvestmentWithPayment($user);
 
         $this->expectException(RiskBlockedException::class);
 
-        $this->allocationService->allocateShares(
-            $user,
-            $product,
-            1000.00,
-            $investment,
-            'investment'
-        );
+        // V-WAVE2-DOCTRINE: Use canonical allocateShares() method with payment for FK requirement
+        $this->allocationService->allocateShares($user, $product, 1000.00, $data['investment'], $data['payment']);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -55,18 +50,13 @@ class BlockedUserInvestmentTest extends TestCase
     {
         $user = $this->createBlockedUser();
         $product = $this->createProductWithInventory(10000);
-        $investment = $this->createInvestment($user);
+        $data = $this->createInvestmentWithPayment($user);
 
         $inventoryBefore = BulkPurchase::where('product_id', $product->id)->sum('value_remaining');
 
         try {
-            $this->allocationService->allocateShares(
-                $user,
-                $product,
-                1000.00,
-                $investment,
-                'investment'
-            );
+            // V-WAVE2-DOCTRINE: Use canonical allocateShares() method with payment for FK requirement
+            $this->allocationService->allocateShares($user, $product, 1000.00, $data['investment'], $data['payment']);
         } catch (RiskBlockedException $e) {
             // Expected
         }
@@ -81,22 +71,15 @@ class BlockedUserInvestmentTest extends TestCase
     {
         $user = $this->createActiveUser();
         $product = $this->createProductWithInventory(10000);
-        $investment = $this->createInvestment($user);
+        $data = $this->createInvestmentWithPayment($user);
 
-        $result = $this->allocationService->allocateShares(
-            $user,
-            $product,
-            1000.00,
-            $investment,
-            'investment'
-        );
-
-        $this->assertTrue($result);
+        // V-WAVE2-DOCTRINE: Use canonical allocateShares() method with payment for FK requirement
+        $this->allocationService->allocateShares($user, $product, 1000.00, $data['investment'], $data['payment']);
 
         // Verify allocation was created
         $this->assertDatabaseHas('user_investments', [
             'user_id' => $user->id,
-            'product_id' => $product->id,
+            'payment_id' => $data['payment']->id,
         ]);
     }
 
@@ -124,6 +107,7 @@ class BlockedUserInvestmentTest extends TestCase
         // Start as active user
         $user = $this->createActiveUser();
         $product = $this->createProductWithInventory(10000);
+        $data = $this->createInvestmentWithPayment($user);
 
         // Block the user after guard was created
         $user->update([
@@ -131,18 +115,11 @@ class BlockedUserInvestmentTest extends TestCase
             'blocked_reason' => 'Blocked mid-transaction',
         ]);
 
-        $investment = $this->createInvestment($user);
-
         // Guard should detect the blocking even with stale object
         $this->expectException(RiskBlockedException::class);
 
-        $this->allocationService->allocateShares(
-            $user,
-            $product,
-            1000.00,
-            $investment,
-            'investment'
-        );
+        // V-WAVE2-DOCTRINE: Use canonical allocateShares() method with payment for FK requirement
+        $this->allocationService->allocateShares($user, $product, 1000.00, $data['investment'], $data['payment']);
     }
 
     // ==================== TRANSACTION ATOMICITY TESTS ====================
@@ -152,18 +129,13 @@ class BlockedUserInvestmentTest extends TestCase
     {
         $user = $this->createBlockedUser();
         $product = $this->createProductWithInventory(10000);
-        $investment = $this->createInvestment($user);
+        $data = $this->createInvestmentWithPayment($user);
 
         $userInvestmentsBefore = $user->userInvestments()->count();
 
         try {
-            $this->allocationService->allocateShares(
-                $user,
-                $product,
-                1000.00,
-                $investment,
-                'investment'
-            );
+            // V-WAVE2-DOCTRINE: Use canonical allocateShares() method with payment for FK requirement
+            $this->allocationService->allocateShares($user, $product, 1000.00, $data['investment'], $data['payment']);
         } catch (RiskBlockedException $e) {
             // Expected
         }
@@ -204,6 +176,7 @@ class BlockedUserInvestmentTest extends TestCase
     {
         $user = $this->createBlockedUser();
         $product = $this->createProductWithInventory(10000);
+        $data = $this->createInvestmentWithPayment($user);
 
         // Unblock the user
         $user->update([
@@ -211,17 +184,14 @@ class BlockedUserInvestmentTest extends TestCase
             'blocked_reason' => null,
         ]);
 
-        $investment = $this->createInvestment($user);
+        // V-WAVE2-DOCTRINE: Use canonical allocateShares() method with payment for FK requirement
+        $this->allocationService->allocateShares($user, $product, 1000.00, $data['investment'], $data['payment']);
 
-        $result = $this->allocationService->allocateShares(
-            $user,
-            $product,
-            1000.00,
-            $investment,
-            'investment'
-        );
-
-        $this->assertTrue($result);
+        // Verify allocation was created
+        $this->assertDatabaseHas('user_investments', [
+            'user_id' => $user->id,
+            'payment_id' => $data['payment']->id,
+        ]);
     }
 
     // ==================== HELPER METHODS ====================
@@ -262,21 +232,18 @@ class BlockedUserInvestmentTest extends TestCase
 
     protected function createProductWithInventory(float $value = 10000): Product
     {
-        $product = Product::factory()->create([
-            'status' => 'active',
+        // V-WAVE2-FIX: Use factory's withInventory() state which properly handles
+        // status transitions and inventory creation in correct order
+        return Product::factory()->withInventory((int) $value)->create([
             'face_value_per_unit' => 100,
         ]);
-
-        BulkPurchase::factory()->create([
-            'product_id' => $product->id,
-            'value_remaining' => $value,
-            'purchase_date' => now()->subDay(),
-        ]);
-
-        return $product;
     }
 
-    protected function createInvestment(User $user): Investment
+    /**
+     * Create an Investment with associated Payment for allocateShares() FK requirements.
+     * V-WAVE2-DOCTRINE: Returns array with investment and payment for proper allocation.
+     */
+    protected function createInvestmentWithPayment(User $user): array
     {
         $plan = Plan::factory()->create();
         $subscription = Subscription::factory()->create([
@@ -285,11 +252,29 @@ class BlockedUserInvestmentTest extends TestCase
             'status' => 'active',
         ]);
 
-        return Investment::factory()->create([
+        $payment = Payment::factory()->create([
+            'user_id' => $user->id,
+            'subscription_id' => $subscription->id,
+            'status' => Payment::STATUS_PAID,
+            'amount_paise' => 100000,
+            'paid_at' => now(),
+        ]);
+
+        $investment = Investment::factory()->create([
             'user_id' => $user->id,
             'subscription_id' => $subscription->id,
             'status' => 'pending',
         ]);
+
+        return ['investment' => $investment, 'payment' => $payment];
+    }
+
+    /**
+     * @deprecated Use createInvestmentWithPayment() instead
+     */
+    protected function createInvestment(User $user): Investment
+    {
+        return $this->createInvestmentWithPayment($user)['investment'];
     }
 
     protected function createPaidPayment(User $user): Payment
