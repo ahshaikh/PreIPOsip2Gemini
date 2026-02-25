@@ -3,11 +3,11 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 // use Psr\Log\LoggerInterface;
 // use Monolog\Handler\TestHandler;
 
-class LoggingSecurityTest extends TestCase
+class LoggingSecurityTest extends UnitTestCase
 {
     #[\PHPUnit\Framework\Attributes\Test]
     public function testSensitiveDataNotInLogs()

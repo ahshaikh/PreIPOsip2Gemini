@@ -3,7 +3,7 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Services\EmailService;
 use App\Jobs\ProcessEmailJob;
 use App\Models\User;
@@ -12,7 +12,7 @@ use App\Models\EmailLog;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Mail;
 
-class EmailServiceTest extends TestCase
+class EmailServiceTest extends UnitTestCase
 {
     protected $service;
     protected $user;
@@ -23,7 +23,10 @@ class EmailServiceTest extends TestCase
         parent::setUp();
         $this->service = new EmailService();
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
-        $this->user = User::factory()->create(['username' => 'TestUser']);
+        $this->user = User::factory()->create([
+		'username' => 'TestUser',
+		'email' => 'test@example.com',
+	]);
         $this->template = EmailTemplate::factory()->create([
             'slug' => 'test.welcome',
             'subject' => 'Welcome, {{user_name}}!',

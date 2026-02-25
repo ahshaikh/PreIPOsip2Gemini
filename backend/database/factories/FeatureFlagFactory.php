@@ -17,6 +17,7 @@ class FeatureFlagFactory extends Factory
             'description' => $this->faker->sentence(),
             'is_active' => true,
             'percentage' => null, // null = 100% rollout when active
+	    'name' => $this->faker->word,
         ];
     }
 

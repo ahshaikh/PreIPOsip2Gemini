@@ -3,7 +3,7 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Services\ReportService;
 use App\Models\User;
 use App\Models\Plan;
@@ -12,7 +12,7 @@ use App\Models\Payment;
 use App\Models\BonusTransaction;
 use Carbon\Carbon;
 
-class ReportServiceTest extends TestCase
+class ReportServiceTest extends UnitTestCase
 {
     protected $service;
 

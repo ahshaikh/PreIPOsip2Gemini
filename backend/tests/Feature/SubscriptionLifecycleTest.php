@@ -3,12 +3,12 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\Plan;
 use App\Models\Subscription;
 
-class SubscriptionLifecycleTest extends TestCase
+class SubscriptionLifecycleTest extends FeatureTestCase
 {
     protected $user;
     protected $planA;

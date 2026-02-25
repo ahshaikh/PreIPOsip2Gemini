@@ -3,12 +3,12 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\User;
 use App\Models\ActivityLog;
 use Carbon\Carbon;
 
-class ActivityLogTest extends TestCase
+class ActivityLogTest extends UnitTestCase
 {
     protected $user;
 

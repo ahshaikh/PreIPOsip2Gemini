@@ -3,14 +3,14 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\User;
 use App\Models\SupportTicket;
 use App\Models\SupportMessage;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 
-class SupportTicketTest extends TestCase
+class SupportTicketTest extends UnitTestCase
 {
     protected $user;
     protected $admin;

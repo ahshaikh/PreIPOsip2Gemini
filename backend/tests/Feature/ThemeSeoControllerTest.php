@@ -3,14 +3,14 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\Setting;
 use App\Services\FileUploadService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
-class ThemeSeoControllerTest extends TestCase
+class ThemeSeoControllerTest extends FeatureTestCase
 {
     protected User $admin;
     protected User $user;

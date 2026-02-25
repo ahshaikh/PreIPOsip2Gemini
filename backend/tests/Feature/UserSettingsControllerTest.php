@@ -4,11 +4,11 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
-class UserSettingsControllerTest extends TestCase
+class UserSettingsControllerTest extends FeatureTestCase
 {
     protected $user;
 

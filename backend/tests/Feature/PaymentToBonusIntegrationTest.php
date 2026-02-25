@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\Plan;
 use App\Models\Product;
@@ -17,7 +17,7 @@ use App\Notifications\BonusCredited;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Notification;
 
-class PaymentToBonusIntegrationTest extends TestCase
+class PaymentToBonusIntegrationTest extends FeatureTestCase
 {
     protected $user;
     protected $plan;

@@ -3,7 +3,7 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\UserProfile;
 use App\Models\Plan;
@@ -11,7 +11,7 @@ use App\Models\Subscription;
 use App\Models\Wallet;
 use Illuminate\Support\Carbon;
 
-class ProcessCelebrationBonusesTest extends TestCase
+class ProcessCelebrationBonusesTest extends FeatureTestCase
 {
     protected $userA;
     protected $userB;

@@ -6,7 +6,7 @@ use App\Models\CompanyDisclosure;
 use App\Models\DisclosureVersion;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 
 //  * PHASE 1 REMEDIATION - DisclosureVersion Immutability Tests
 //  *
@@ -17,7 +17,7 @@ use Tests\TestCase;
 //  * 4. Logs security violations
 //  * 5. Auto-locks on creation
 
-class DisclosureVersionImmutabilityTest extends TestCase
+class DisclosureVersionImmutabilityTest extends FeatureTestCase
 {
     public function version_is_auto_locked_on_creation()
     {

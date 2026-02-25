@@ -3,12 +3,12 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\FeatureFlag;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 
-class FeatureFlagTest extends TestCase
+class FeatureFlagTest extends UnitTestCase
 {
     protected $user1;
     protected $user2;

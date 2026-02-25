@@ -55,7 +55,7 @@ class AggregateDailyDisputeSnapshots extends Command
                 $this->createSnapshot($snapshotDate, null);
 
                 // Create per-plan snapshots
-                $plans = Plan::where('status', 'active')->get();
+                $plans = Plan::where('is_active', true)->get();
                 foreach ($plans as $plan) {
                     $this->createSnapshot($snapshotDate, $plan->id);
                 }
@@ -96,7 +96,11 @@ class AggregateDailyDisputeSnapshots extends Command
         }
 
         // Build dispute query (optionally filtered by plan)
-        $disputeQuery = Dispute::whereDate('created_at', '<=', $snapshotDate);
+        $start = \Carbon\Carbon::parse($snapshotDate)->startOfDay();
+        $end   = \Carbon\Carbon::parse($snapshotDate)->endOfDay();
+
+        $end = \Carbon\Carbon::parse($snapshotDate)->endOfDay();
+        $disputeQuery = Dispute::where('opened_at', '<=', $end);
 
         // Count disputes by status (cumulative up to snapshot date)
         $statusCounts = (clone $disputeQuery)
@@ -120,8 +124,7 @@ class AggregateDailyDisputeSnapshots extends Command
             ->toArray();
 
         // Build chargeback query (optionally filtered by plan via subscription)
-        $chargebackQuery = Payment::whereDate('chargeback_confirmed_at', '<=', $snapshotDate);
-
+        $chargebackQuery = Payment::where('chargeback_confirmed_at', '<=', $end);
         if ($planId) {
             $chargebackQuery->whereHas('subscription', function ($q) use ($planId) {
                 $q->where('plan_id', $planId);
@@ -139,6 +142,7 @@ class AggregateDailyDisputeSnapshots extends Command
 
         // Pending chargebacks
         $pendingChargebacks = Payment::where('status', Payment::STATUS_CHARGEBACK_PENDING)
+            ->where('created_at', '<=', $end)
             ->when($planId, function ($q) use ($planId) {
                 $q->whereHas('subscription', function ($sq) use ($planId) {
                     $sq->where('plan_id', $planId);

@@ -3,14 +3,14 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\Plan;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 use Illuminate\Support\Facades\Log;
 
-class PermissionMiddlewareTest extends TestCase
+class PermissionMiddlewareTest extends FeatureTestCase
 {
     protected $adminUser;
     protected $plan;

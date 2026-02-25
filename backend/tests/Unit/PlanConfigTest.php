@@ -3,12 +3,12 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\Plan;
 use App\Models\PlanConfig;
 use Illuminate\Database\QueryException;
 
-class PlanConfigTest extends TestCase
+class PlanConfigTest extends UnitTestCase
 {
     protected $plan;
 

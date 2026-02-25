@@ -18,7 +18,7 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -30,7 +30,7 @@ use App\Services\AutoDebitService;
 use App\Jobs\RetryAutoDebitJob;
 use App\Jobs\SendPaymentFailedEmailJob;
 
-class AutoDebitMultiCycleTest extends TestCase
+class AutoDebitMultiCycleTest extends FeatureTestCase
 {
     protected User $user;
     protected Plan $plan;
@@ -218,7 +218,7 @@ class AutoDebitMultiCycleTest extends TestCase
     }
 
     // =========================================================================
-    // TEST 5: Failed → Retry → Suspend Flow
+    // TEST 5: Failed → Retry → Suspension Flow (Corrected Simulation)
     // =========================================================================
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -227,45 +227,66 @@ class AutoDebitMultiCycleTest extends TestCase
         $this->subscription->update([
             'razorpay_subscription_id' => 'sub_failure_flow',
             'start_date' => now()->subMonth(),
+            'status' => 'active',
+            'is_auto_debit' => true,
         ]);
 
-        // Attempt 1: Initial failure
-        $payment1 = Payment::factory()->create([
+        // Create ONE original failed payment
+        $originalPayment = Payment::factory()->create([
             'subscription_id' => $this->subscription->id,
             'user_id' => $this->user->id,
-            'status' => 'pending',
+            'status' => 'failed',
             'created_at' => now()->subDays(2),
         ]);
 
-        $this->service->processRetry($payment1);
-        $this->subscription->refresh();
-        $this->assertEquals('active', $this->subscription->status, 'Still active after 1st failure');
-
-        // Attempt 2: Second failure
-        $payment2 = Payment::factory()->create([
-            'subscription_id' => $this->subscription->id,
-            'user_id' => $this->user->id,
-            'status' => 'pending',
-            'created_at' => now()->subDay(),
-        ]);
-
-        $this->service->processRetry($payment2);
-        $this->subscription->refresh();
-        $this->assertEquals('active', $this->subscription->status, 'Still active after 2nd failure');
-
-        // Attempt 3: Third failure → Suspension
-        $payment3 = Payment::factory()->create([
-            'subscription_id' => $this->subscription->id,
-            'user_id' => $this->user->id,
-            'status' => 'pending',
-            'created_at' => now(),
-        ]);
-
-        $this->service->processRetry($payment3);
+        // ---------------------------
+        // Attempt 1
+        // ---------------------------
+        $this->service->processRetry($originalPayment);
         $this->subscription->refresh();
 
-        $this->assertEquals('payment_failed', $this->subscription->status, 'Suspended after 3rd failure');
-        $this->assertFalse($this->subscription->is_auto_debit, 'Auto-debit disabled');
+        $this->assertEquals(
+            'active',
+            $this->subscription->status,
+            'Still active after 1st failure'
+        );
+
+        // ---------------------------
+        // Attempt 2
+        // ---------------------------
+        $latestPayment = Payment::where('subscription_id', $this->subscription->id)
+            ->latest()
+            ->first();
+
+        $this->service->processRetry($latestPayment);
+        $this->subscription->refresh();
+
+        $this->assertEquals(
+            'active',
+            $this->subscription->status,
+            'Still active after 2nd failure'
+        );
+
+        // ---------------------------
+        // Attempt 3 → Suspension
+        // ---------------------------
+        $latestPayment = Payment::where('subscription_id', $this->subscription->id)
+            ->latest()
+            ->first();
+
+        $this->service->processRetry($latestPayment);
+        $this->subscription->refresh();
+
+        $this->assertEquals(
+            'payment_failed',
+            $this->subscription->status,
+            'Subscription moved to payment_failed after 3rd failure'
+        );
+
+        $this->assertFalse(
+            $this->subscription->is_auto_debit,
+            'Auto-debit disabled after max retries'
+        );
     }
 
     // =========================================================================

@@ -3,13 +3,13 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Services\RazorpayService;
 use Mockery;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Config;
 
-class RazorpayServiceTest extends TestCase
+class RazorpayServiceTest extends UnitTestCase
 {
     protected $service;
     protected $mockApi;

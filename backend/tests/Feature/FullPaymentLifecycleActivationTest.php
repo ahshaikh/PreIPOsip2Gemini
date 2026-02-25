@@ -20,7 +20,7 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Event;
@@ -46,7 +46,7 @@ use App\Events\PaymentSuccessful;
 use App\Contracts\PaymentGatewayInterface;
 use Mockery;
 
-class FullPaymentLifecycleActivationTest extends TestCase
+class FullPaymentLifecycleActivationTest extends FeatureTestCase
 {
     protected User $user;
     protected Plan $plan;

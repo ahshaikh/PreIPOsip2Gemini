@@ -3,7 +3,7 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Services\ReferralService;
 use App\Models\User;
 use App\Models\Plan;
@@ -16,7 +16,7 @@ use App\Jobs\ProcessReferralJob;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\DB;
 
-class ReferralServiceTest extends TestCase
+class ReferralServiceTest extends UnitTestCase
 {
     protected $service;
     protected $referrer;

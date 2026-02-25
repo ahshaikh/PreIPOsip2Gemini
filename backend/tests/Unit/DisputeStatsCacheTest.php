@@ -4,7 +4,7 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Services\DisputeStatsCache;
 use App\Models\Dispute;
 use App\Models\Payment;
@@ -12,7 +12,7 @@ use App\Models\User;
 use App\Models\Company;
 use Illuminate\Support\Facades\Cache;
 
-class DisputeStatsCacheTest extends TestCase
+class DisputeStatsCacheTest extends UnitTestCase
 {
     protected DisputeStatsCache $cacheService;
 

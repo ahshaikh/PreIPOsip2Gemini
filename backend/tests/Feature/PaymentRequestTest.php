@@ -3,7 +3,7 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\Payment;
 use App\Models\Subscription;
@@ -11,7 +11,7 @@ use App\Models\Setting;
 use App\Contracts\PaymentGatewayInterface;
 use Mockery;
 
-class PaymentRequestTest extends TestCase
+class PaymentRequestTest extends FeatureTestCase
 {
     protected $user;
     protected $otherUser;

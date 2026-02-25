@@ -3,7 +3,7 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\SupportTicket;
 use App\Notifications\SupportReplyNotification;
@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\UploadedFile;
 
-class UserSupportEndpointsTest extends TestCase
+class UserSupportEndpointsTest extends FeatureTestCase
 {
     protected $user;
     protected $otherUser;

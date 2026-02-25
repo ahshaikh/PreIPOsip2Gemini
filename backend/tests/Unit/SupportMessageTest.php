@@ -3,11 +3,11 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\User;
 use App\Models\SupportTicket;
 use App\Models\SupportMessage;
-class SupportMessageTest extends TestCase
+class SupportMessageTest extends UnitTestCase
 {
     protected $user;
     protected $admin;

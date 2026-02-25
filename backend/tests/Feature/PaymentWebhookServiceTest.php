@@ -6,7 +6,7 @@ namespace Tests\Feature;
 
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\Payment;
 use App\Models\User;
 use App\Models\Subscription;
@@ -18,7 +18,7 @@ use App\Exceptions\PaymentAmountMismatchException;
 use App\Http\Middleware\VerifyWebhookSignature;
 use Mockery;
 
-class PaymentWebhookServiceTest extends TestCase
+class PaymentWebhookServiceTest extends FeatureTestCase
 {
     protected $user;
     protected $subscription;

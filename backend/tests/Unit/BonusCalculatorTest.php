@@ -3,13 +3,13 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Services\BonusCalculatorService;
 use App\Models\User;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\Payment;
-class BonusCalculatorTest extends TestCase
+class BonusCalculatorTest extends UnitTestCase
 {
     protected $service;
     protected $plan;

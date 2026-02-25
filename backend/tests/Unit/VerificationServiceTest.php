@@ -3,7 +3,7 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Services\VerificationService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Razorpay\Api\Api;
 use Mockery;
 
-class VerificationServiceTest extends TestCase
+class VerificationServiceTest extends UnitTestCase
 {
     protected $service;
 

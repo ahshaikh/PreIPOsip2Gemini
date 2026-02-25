@@ -3,7 +3,7 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Services\LuckyDrawService;
 use App\Models\User;
 use App\Models\Plan;
@@ -14,7 +14,7 @@ use App\Models\LuckyDrawEntry;
 use Illuminate\Support\Facades\Queue;
 use Carbon\Carbon;
 
-class LuckyDrawServiceTest extends TestCase
+class LuckyDrawServiceTest extends UnitTestCase
 {
     protected $service;
     protected $plan;

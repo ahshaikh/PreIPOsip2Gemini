@@ -32,8 +32,13 @@ class ActivityLogFactory extends Factory
             'description' => $actions[$action],
             'ip_address' => $this->faker->ipv4(),
             'user_agent' => $this->faker->userAgent(),
+            'old_values' => json_encode(['field' => 'old_value']), // ✅ JSON string
+            'new_values' => json_encode(['field' => 'new_value']), // ✅ JSON string
             // NOTE: 'properties' column does NOT exist in activity_logs migration
             // See: 2025_11_11_000105_create_activity_logs_table.php
         ];
     }
 }
+
+in the above file:
+Action: Ensure old_values and new_values are being passed as JSON strings or arrays that Laravel can cast to JSON, rather than nulls or empty strings if they are triggered.

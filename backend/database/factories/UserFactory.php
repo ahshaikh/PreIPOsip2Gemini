@@ -35,7 +35,7 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'mobile_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
-            'referral_code' => Str::upper(Str::random(10)),
+            'referral_code' => Str::upper(Str::random(10)) . $this->faker->unique()->randomNumber(),
             'status' => 'active',
             'remember_token' => Str::random(10),
         ];

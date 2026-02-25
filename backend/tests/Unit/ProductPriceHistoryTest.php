@@ -3,12 +3,12 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\Product;
 use App\Models\ProductPriceHistory;
 use Carbon\Carbon;
 
-class ProductPriceHistoryTest extends TestCase
+class ProductPriceHistoryTest extends UnitTestCase
 {
     protected $product;
 

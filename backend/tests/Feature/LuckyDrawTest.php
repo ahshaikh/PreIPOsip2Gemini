@@ -3,7 +3,7 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\LuckyDraw;
 use App\Models\LuckyDrawEntry;
@@ -11,7 +11,7 @@ use App\Models\Wallet;
 use App\Models\Payment;
 use App\Models\Subscription;
 
-class LuckyDrawTest extends TestCase
+class LuckyDrawTest extends FeatureTestCase
 {
     protected $admin;
     protected $draw;

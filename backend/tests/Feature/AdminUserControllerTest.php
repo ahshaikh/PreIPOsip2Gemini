@@ -3,7 +3,7 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\UserProfile;
 use App\Models\UserKyc;
@@ -15,7 +15,7 @@ use App\Models\Plan;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
-class AdminUserControllerTest extends TestCase
+class AdminUserControllerTest extends FeatureTestCase
 {
     protected User $admin;
     protected User $user;

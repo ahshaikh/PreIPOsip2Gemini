@@ -3,12 +3,12 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Http\Requests\KycSubmitRequest;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\UploadedFile;
 
-class KycSubmitRequestTest extends TestCase
+class KycSubmitRequestTest extends FeatureTestCase
 {
     private $rules;
 

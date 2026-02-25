@@ -3,14 +3,14 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\LuckyDraw;
 use App\Models\LuckyDrawEntry;
 use App\Models\User;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 
-class LuckyDrawTest extends TestCase
+class LuckyDrawTest extends UnitTestCase
 {
     protected $user;
 

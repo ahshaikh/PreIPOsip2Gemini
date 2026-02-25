@@ -14,7 +14,7 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
@@ -38,7 +38,7 @@ use App\Services\AllocationService;
 use App\Services\ReferralService;
 use App\Jobs\ProcessSuccessfulPaymentJob;
 
-class SnapshotIntegrityTest extends TestCase
+class SnapshotIntegrityTest extends FeatureTestCase
 {
     protected function setUp(): void
     {

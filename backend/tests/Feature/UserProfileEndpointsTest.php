@@ -3,7 +3,7 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\PasswordHistory;
 use Illuminate\Http\UploadedFile;
@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 
-class UserProfileEndpointsTest extends TestCase
+class UserProfileEndpointsTest extends FeatureTestCase
 {
     protected $user;
 

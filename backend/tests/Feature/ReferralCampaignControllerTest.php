@@ -3,10 +3,10 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\ReferralCampaign;
-class ReferralCampaignControllerTest extends TestCase
+class ReferralCampaignControllerTest extends FeatureTestCase
 {
     protected User $admin;
     protected User $user;

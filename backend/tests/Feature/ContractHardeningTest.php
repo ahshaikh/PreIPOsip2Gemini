@@ -3,7 +3,7 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\Plan;
 use App\Models\PlanConfig;
@@ -16,7 +16,7 @@ use App\Services\SubscriptionConfigSnapshotService;
 use App\Services\BonusCalculatorService;
 use Illuminate\Support\Facades\DB;
 
-class ContractHardeningTest extends TestCase
+class ContractHardeningTest extends FeatureTestCase
 {
     protected User $user;
     protected Plan $plan;

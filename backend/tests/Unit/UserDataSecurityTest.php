@@ -3,10 +3,10 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 // use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
-class UserDataSecurityTest extends TestCase // Or WebTestCase
+class UserDataSecurityTest extends UnitTestCase // Or WebTestCase
 {
     private $client;
 

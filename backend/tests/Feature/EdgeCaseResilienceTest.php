@@ -20,7 +20,7 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Event;
@@ -44,7 +44,7 @@ use App\Jobs\ProcessSuccessfulPaymentJob;
 use App\Contracts\PaymentGatewayInterface;
 use Mockery;
 
-class EdgeCaseResilienceTest extends TestCase
+class EdgeCaseResilienceTest extends FeatureTestCase
 {
     protected User $user;
     protected Plan $plan;

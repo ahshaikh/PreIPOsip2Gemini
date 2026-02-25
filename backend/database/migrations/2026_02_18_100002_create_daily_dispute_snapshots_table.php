@@ -13,7 +13,7 @@ return new class extends Migration
         Schema::create('daily_dispute_snapshots', function (Blueprint $table) {
             $table->id();
             $table->date('snapshot_date');
-            $table->foreignId('plan_id')->nullable()->constrained('plans')->onDelete('set null');
+            $table->foreignId('plan_id')->nullable()->constrained('plans')->nullOnDelete();
 
             // Dispute counts
             $table->unsignedInteger('total_disputes')->default(0);
@@ -44,7 +44,10 @@ return new class extends Migration
             $table->timestamps();
 
             // Unique constraint: one snapshot per date per plan (null plan = platform-wide)
-            $table->unique(['snapshot_date', 'plan_id'], 'daily_dispute_snapshots_unique_idx');
+            // Enforce uniqueness even when plan_id is NULL
+	    $table->unique(['snapshot_date', 'plan_id'],'daily_dispute_snapshots_unique_idx');
+	    $table->unsignedBigInteger('plan_scope_key')->storedAs("COALESCE(plan_id, 0)");
+	    $table->unique(['snapshot_date', 'plan_scope_key'],'daily_dispute_snapshots_scope_unique_idx');
 
             // Index for date range queries
             $table->index('snapshot_date', 'daily_dispute_snapshots_date_idx');

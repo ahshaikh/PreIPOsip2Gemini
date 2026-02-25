@@ -12,7 +12,7 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\User;
 use App\Models\Deal;
 use App\Models\Company;
@@ -21,7 +21,7 @@ use App\Enums\DisclosureTier;
 use App\Exceptions\DealTierGateException;
 use Illuminate\Support\Facades\DB;
 
-class DealTierGateTest extends TestCase
+class DealTierGateTest extends UnitTestCase
 {
     protected $product;
     protected $admin;

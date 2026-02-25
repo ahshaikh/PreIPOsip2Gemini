@@ -3,11 +3,11 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\User;
 // use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
-class CsrfProtectionTest extends TestCase // Or WebTestCase
+class CsrfProtectionTest extends UnitTestCase // Or WebTestCase
 {
     private $client;
 

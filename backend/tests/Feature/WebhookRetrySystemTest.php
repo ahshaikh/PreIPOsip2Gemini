@@ -2,12 +2,12 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\WebhookLog;
 use App\Jobs\ProcessWebhookRetryJob;
 use Illuminate\Support\Facades\Queue;
 
-class WebhookRetrySystemTest extends TestCase
+class WebhookRetrySystemTest extends FeatureTestCase
 {
     #[\PHPUnit\Framework\Attributes\Test]
     public function webhook_log_is_created_for_incoming_webhook()

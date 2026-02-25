@@ -3,14 +3,14 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\User;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\Payment;
 use Carbon\Carbon;
 
-class SubscriptionTest extends TestCase
+class SubscriptionTest extends UnitTestCase
 {
     protected $user;
     protected $plan;

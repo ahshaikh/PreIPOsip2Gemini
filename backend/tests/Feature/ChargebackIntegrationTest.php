@@ -17,7 +17,7 @@ namespace Tests\Feature;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\Payment;
 use App\Models\User;
 use App\Models\Subscription;
@@ -31,7 +31,7 @@ use App\Services\DoubleEntryLedgerService;
 use App\Enums\TransactionType;
 use Mockery;
 
-class ChargebackIntegrationTest extends TestCase
+class ChargebackIntegrationTest extends FeatureTestCase
 {
     protected User $user;
     protected Subscription $subscription;

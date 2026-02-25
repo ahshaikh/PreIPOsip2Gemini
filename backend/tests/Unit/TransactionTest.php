@@ -3,7 +3,7 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Models\Transaction;
@@ -13,7 +13,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-class TransactionTest extends TestCase
+class TransactionTest extends UnitTestCase
 {
     protected $user;
     protected $wallet;

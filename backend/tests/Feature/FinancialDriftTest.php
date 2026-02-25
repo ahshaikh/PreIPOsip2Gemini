@@ -2,10 +2,10 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Traits\CalculatesReturns;
 
-class FinancialDriftTest extends TestCase
+class FinancialDriftTest extends FeatureTestCase
 {
     use CalculatesReturns;
 

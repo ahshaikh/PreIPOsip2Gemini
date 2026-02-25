@@ -3,13 +3,13 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\User;
 use App\Models\UserKyc;
 use App\Models\KycDocument;
 use Illuminate\Support\Facades\Validator;
 
-class UserKycTest extends TestCase
+class UserKycTest extends UnitTestCase
 {
     protected function setUp(): void
     {

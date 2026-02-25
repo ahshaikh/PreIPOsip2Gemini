@@ -2,7 +2,7 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\Campaign;
 use App\Models\CampaignUsage;
 use App\Models\User;
@@ -10,7 +10,7 @@ use App\Models\Investment;
 use App\Services\CampaignService;
 use Illuminate\Support\Facades\DB;
 
-class CampaignServiceTest extends TestCase
+class CampaignServiceTest extends UnitTestCase
 {
     protected CampaignService $campaignService;
     protected User $user;

@@ -2,12 +2,12 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\Product;
 use App\Models\ProductAudit;
 
-class AdminProductApprovalTest extends TestCase
+class AdminProductApprovalTest extends FeatureTestCase
 {
     private $admin;
     private $user;

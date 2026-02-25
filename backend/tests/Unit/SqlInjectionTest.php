@@ -3,10 +3,10 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use Mockery;
 
-class SqlInjectionTest extends TestCase
+class SqlInjectionTest extends UnitTestCase
 {
     #[\PHPUnit\Framework\Attributes\Test]
     public function testSqlInjectionPreventionWorks()

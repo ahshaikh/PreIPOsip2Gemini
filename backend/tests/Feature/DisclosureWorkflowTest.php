@@ -9,7 +9,7 @@ use App\Models\DisclosureClarification;
 use App\Models\DisclosureModule;
 use App\Models\DisclosureVersion;
 use App\Models\User;
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 
 //  * PHASE 1 REMEDIATION - Disclosure Workflow Tests
 //  *
@@ -21,7 +21,7 @@ use Tests\TestCase;
 //  * 5. Answer clarifications
 //  * 6. Version creation on approval
 
-class DisclosureWorkflowTest extends TestCase
+class DisclosureWorkflowTest extends FeatureTestCase
 {
     protected User $companyUser;
     protected User $admin;

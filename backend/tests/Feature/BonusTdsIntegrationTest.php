@@ -13,7 +13,7 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use Illuminate\Support\Facades\DB;
 use App\Models\User;
 use App\Models\Plan;
@@ -34,7 +34,7 @@ use App\Services\PaymentWebhookService;
 use App\Jobs\ProcessSuccessfulPaymentJob;
 use App\Enums\TransactionType;
 
-class BonusTdsIntegrationTest extends TestCase
+class BonusTdsIntegrationTest extends FeatureTestCase
 {
     protected User $user;
     protected Plan $plan;

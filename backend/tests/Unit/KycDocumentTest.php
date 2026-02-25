@@ -3,13 +3,13 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\User;
 use App\Models\UserKyc;
 use App\Models\KycDocument;
 use Illuminate\Support\Facades\Validator;
 
-class KycDocumentTest extends TestCase
+class KycDocumentTest extends UnitTestCase
 {
     protected $kyc;
     protected $admin;

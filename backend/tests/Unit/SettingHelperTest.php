@@ -3,7 +3,7 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\SmsService;
@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
-class SettingHelperTest extends TestCase
+class SettingHelperTest extends UnitTestCase
 {
     protected $admin;
 

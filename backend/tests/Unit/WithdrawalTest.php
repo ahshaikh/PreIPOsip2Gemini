@@ -3,13 +3,13 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Models\Withdrawal;
 use Illuminate\Support\Facades\Validator;
 
-class WithdrawalTest extends TestCase
+class WithdrawalTest extends UnitTestCase
 {
     protected $user;
     protected $wallet;

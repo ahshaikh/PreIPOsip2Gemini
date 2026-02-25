@@ -22,9 +22,9 @@ use App\Models\User;
 use App\Scopes\PublicVisibilityScope;
 use App\Services\CompanyDisclosureTierService;
 use Illuminate\Support\Facades\DB;
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 
-class CompanyDisclosureTierServiceTest extends TestCase
+class CompanyDisclosureTierServiceTest extends FeatureTestCase
 {
     protected CompanyDisclosureTierService $service;
     protected User $adminUser;

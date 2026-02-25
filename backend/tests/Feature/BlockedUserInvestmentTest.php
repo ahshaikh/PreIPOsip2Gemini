@@ -4,7 +4,7 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Models\Payment;
@@ -16,7 +16,7 @@ use App\Models\Investment;
 use App\Services\AllocationService;
 use App\Services\RiskGuardService;
 use App\Exceptions\RiskBlockedException;
-class BlockedUserInvestmentTest extends TestCase
+class BlockedUserInvestmentTest extends FeatureTestCase
 {
     protected AllocationService $allocationService;
     protected RiskGuardService $riskGuard;

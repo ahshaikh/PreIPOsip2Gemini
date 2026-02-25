@@ -3,7 +3,7 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\User;
 // We'd typically use a framework-specific test case, e.g., WebTestCase
 // use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -12,7 +12,7 @@ use App\Models\User;
 // which provides a client to make requests.
 // For this example, we'll use a conceptual TestCase.
 
-class AdminRoutesSecurityTest extends TestCase // Replace with WebTestCase if using Symfony
+class AdminRoutesSecurityTest extends UnitTestCase // Replace with WebTestCase if using Symfony
 {
     // Mocks for a client and user creation
     private $client;

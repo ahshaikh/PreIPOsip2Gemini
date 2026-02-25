@@ -3,10 +3,10 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 // use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
-class PerformanceTest extends TestCase // Or WebTestCase
+class PerformanceTest extends UnitTestCase // Or WebTestCase
 {
     private $client;
 

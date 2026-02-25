@@ -101,6 +101,24 @@ class LuckyDrawService
         Log::info("Allocated {$baseEntries}+{$bonusEntries} entries for User #{$payment->user_id} to Draw #{$currentDraw->id}");
     }
 
+    public function dispatchMonthlyEntryGeneration(): void
+    {
+        $eligiblePayments = $this->getEligiblePaymentsForCurrentMonth();
+
+        foreach ($eligiblePayments as $payment) {
+            \App\Jobs\GenerateLuckyDrawEntryJob::dispatch($payment);
+        }
+    }
+
+    protected function getEligiblePaymentsForCurrentMonth()
+    {
+        return \App\Models\Payment::query()
+            ->where('status', 'paid')
+            ->whereMonth('paid_at', now()->month)
+            ->whereYear('paid_at', now()->year)
+            ->get();
+    }
+
     /**
      * Select winners using Weighted Random Selection (Alias Method Alternative).
      * * MODULE 10 FIX: Memory Optimization

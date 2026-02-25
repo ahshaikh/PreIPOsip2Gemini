@@ -1,14 +1,14 @@
 <?php
 // V-FINAL-1730-TEST-68 (Created)
 
-namespace Tests\Unit;
+namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\Setting;
 use Illuminate\Support\Facades\DB;
 
-class MaintenanceModeTest extends TestCase
+class MaintenanceModeTest extends FeatureTestCase
 {
     protected $user;
     protected $admin;

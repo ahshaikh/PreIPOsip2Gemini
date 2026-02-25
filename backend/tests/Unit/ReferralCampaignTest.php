@@ -3,13 +3,13 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\User;
 use App\Models\Referral;
 use App\Models\ReferralCampaign;
 use Carbon\Carbon;
 
-class ReferralCampaignTest extends TestCase
+class ReferralCampaignTest extends UnitTestCase
 {
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_campaign_validates_date_range()

@@ -3,12 +3,12 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\User;
 use App\Models\Product;
 use App\Models\BulkPurchase;
 use App\Models\UserInvestment;
-class UserInvestmentTest extends TestCase
+class UserInvestmentTest extends UnitTestCase
 {
     protected $user;
     protected $product;

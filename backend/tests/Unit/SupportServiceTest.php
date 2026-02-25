@@ -3,13 +3,13 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Services\SupportService;
 use App\Models\User;
 use App\Models\SupportTicket;
 use Carbon\Carbon;
 
-class SupportServiceTest extends TestCase
+class SupportServiceTest extends UnitTestCase
 {
     protected $service;
     protected $user;

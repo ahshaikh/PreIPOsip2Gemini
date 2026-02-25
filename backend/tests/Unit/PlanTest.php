@@ -3,7 +3,7 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\Plan;
 use App\Models\PlanConfig;
 use App\Models\PlanFeature;
@@ -11,7 +11,7 @@ use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 
-class PlanTest extends TestCase
+class PlanTest extends UnitTestCase
 {
     protected function setUp(): void
     {

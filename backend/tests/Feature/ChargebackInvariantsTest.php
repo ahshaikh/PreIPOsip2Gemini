@@ -4,7 +4,7 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\Payment;
 use App\Models\Wallet;
@@ -18,7 +18,7 @@ use App\Services\PaymentWebhookService;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\DB;
 
-class ChargebackInvariantsTest extends TestCase
+class ChargebackInvariantsTest extends FeatureTestCase
 {
     protected function setUp(): void
     {

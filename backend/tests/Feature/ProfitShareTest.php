@@ -3,13 +3,13 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\ProfitShare;
 use App\Models\Subscription;
 use App\Models\Plan;
 
-class ProfitShareTest extends TestCase
+class ProfitShareTest extends FeatureTestCase
 {
     protected $admin;
     protected $period;

@@ -3,7 +3,7 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\User;
 use App\Models\UserProfile;
 use App\Models\Plan;
@@ -12,7 +12,7 @@ use App\Models\CelebrationEvent;
 use App\Models\Setting;
 use Carbon\Carbon;
 
-class BonusCalculatorCelebrationTest extends TestCase
+class BonusCalculatorCelebrationTest extends UnitTestCase
 {
     protected $planA;
     protected $planB;

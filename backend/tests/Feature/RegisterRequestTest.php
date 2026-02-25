@@ -3,12 +3,12 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Http\Requests\RegisterRequest;
 use Illuminate\Support\Facades\Validator;
 use App\Models\User;
 
-class RegisterRequestTest extends TestCase
+class RegisterRequestTest extends FeatureTestCase
 {
     private $rules;
 

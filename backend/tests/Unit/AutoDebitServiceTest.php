@@ -3,7 +3,7 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Services\AutoDebitService;
 use App\Models\User;
 use App\Models\Plan;
@@ -15,7 +15,7 @@ use App\Jobs\SendPaymentReminderJob;
 use App\Jobs\SendPaymentFailedEmailJob;
 use Carbon\Carbon;
 
-class AutoDebitServiceTest extends TestCase
+class AutoDebitServiceTest extends UnitTestCase
 {
     protected $service;
     protected $plan;

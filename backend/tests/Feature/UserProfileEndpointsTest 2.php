@@ -3,12 +3,12 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Str;
 
-class UserNotificationEndpointsTest extends TestCase
+class UserNotificationEndpointsTest extends FeatureTestCase
 {
     protected $user;
 

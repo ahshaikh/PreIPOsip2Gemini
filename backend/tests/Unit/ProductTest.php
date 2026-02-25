@@ -3,7 +3,7 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\User;
 use App\Models\Product;
 use App\Models\BulkPurchase;
@@ -12,7 +12,7 @@ use App\Models\ProductPriceHistory;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Validator;
 
-class ProductTest extends TestCase
+class ProductTest extends UnitTestCase
 {
     protected $product;
 

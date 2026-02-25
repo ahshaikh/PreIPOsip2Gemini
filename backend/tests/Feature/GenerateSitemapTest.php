@@ -3,14 +3,14 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\Product;
 use App\Models\BlogPost;
 use App\Models\Page;
 use Illuminate\Support\Facades\File;
 
-class GenerateSitemapTest extends TestCase
+class GenerateSitemapTest extends FeatureTestCase
 {
     protected $sitemapPath;
 

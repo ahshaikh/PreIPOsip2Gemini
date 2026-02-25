@@ -3,7 +3,7 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\User;
 use App\Models\UserProfile;
 use App\Models\UserKyc;
@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
 
-class UserTest extends TestCase
+class UserTest extends UnitTestCase
 {
     protected function setUp(): void
     {

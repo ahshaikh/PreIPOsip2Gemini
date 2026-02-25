@@ -3,13 +3,13 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\Referral;
 use App\Models\Subscription;
 use App\Services\ReferralService;
 
-class ReferralTest extends TestCase
+class ReferralTest extends FeatureTestCase
 {
     protected $referrer;
     protected $service;

@@ -12,8 +12,9 @@ namespace Tests\Unit\Enums;
 
 use App\Enums\DisclosureTier;
 use PHPUnit\Framework\TestCase;
+use Tests\UnitTestCase;
 
-class DisclosureTierTest extends TestCase
+class DisclosureTierTest extends UnitTestCase
 {
     /**
      * Test tier ranking is correct and monotonic.

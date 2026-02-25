@@ -2,14 +2,14 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\Referral;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\User as SocialiteUser;
 use Mockery;
 
-class SocialLoginReferralTest extends TestCase
+class SocialLoginReferralTest extends FeatureTestCase
 {
     protected function setUp(): void
     {

@@ -3,13 +3,13 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Services\InventoryService;
 use App\Models\User;
 use App\Models\Product;
 use App\Models\BulkPurchase;
 use App\Models\UserInvestment;
-class InventoryServiceTest extends TestCase
+class InventoryServiceTest extends UnitTestCase
 {
     protected $service;
     protected $product;

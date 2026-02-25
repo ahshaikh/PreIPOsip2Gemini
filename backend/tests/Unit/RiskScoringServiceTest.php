@@ -4,13 +4,13 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Services\RiskScoringService;
 use App\Models\User;
 use App\Models\Payment;
 use App\Models\Dispute;
 use App\Models\Company;
-class RiskScoringServiceTest extends TestCase
+class RiskScoringServiceTest extends UnitTestCase
 {
     protected RiskScoringService $service;
     protected User $user;

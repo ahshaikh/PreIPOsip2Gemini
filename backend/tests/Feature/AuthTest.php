@@ -6,13 +6,13 @@ namespace Tests\Feature;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Event;
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Models\UserProfile;
 use App\Jobs\SendOtpJob;
 
-class AuthTest extends TestCase
+class AuthTest extends FeatureTestCase
 {
     protected function setUp(): void
     {

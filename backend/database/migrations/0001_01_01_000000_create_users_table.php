@@ -52,7 +52,8 @@ return new class extends Migration
             $table->string('state')->nullable();
             $table->string('pincode')->nullable();
             $table->string('country')->default('India');
-            $table->timestamps();
+	    $table->dateTime('created_at')->nullable();
+	    $table->dateTime('updated_at')->nullable();
         });
 
 // V-PHASE1-1730-004

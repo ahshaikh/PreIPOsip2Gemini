@@ -3,12 +3,12 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\Otp;
 use Carbon\Carbon;
 
-class OtpTest extends TestCase
+class OtpTest extends FeatureTestCase
 {
     protected function setUp(): void
     {

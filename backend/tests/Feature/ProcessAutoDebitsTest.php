@@ -3,7 +3,7 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Services\AutoDebitService;
 use App\Models\User;
 use App\Models\Plan;
@@ -14,7 +14,7 @@ use App\Jobs\SendPaymentReminderJob;
 use Illuminate\Support\Facades\Queue;
 use Mockery\MockInterface;
 
-class ProcessAutoDebitsTest extends TestCase
+class ProcessAutoDebitsTest extends FeatureTestCase
 {
     protected $serviceMock;
 

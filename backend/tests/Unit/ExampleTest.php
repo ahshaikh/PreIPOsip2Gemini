@@ -2,10 +2,10 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use Illuminate\Support\Facades\DB;
 
-class ExampleTest extends TestCase
+class ExampleTest extends UnitTestCase
 {
     /**
      * A basic test example.

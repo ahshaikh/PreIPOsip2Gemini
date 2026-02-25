@@ -3,18 +3,24 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use Illuminate\Notifications\DatabaseNotification;
 
-class UserNotificationEndpointsTest extends TestCase
+class UserNotificationEndpointsTest extends FeatureTestCase
 {
     protected $user;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        
+        // Only seed once for this entire test suite run
+        static $seeded = false;
+        if (!$seeded) {
+            $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+            $seeded = true;
+        }
         
         $this->user = User::factory()->create();
         $this->user->assignRole('user');
@@ -38,8 +44,14 @@ class UserNotificationEndpointsTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function testGetNotificationsReturnsUserNotifications()
     {
-        $this->createNotification();
-        $this->createNotification();
+        // 1. Clear auto-generated notifications from Seeders/Observers
+            $this->user->notifications()->delete();
+
+            // 2. Create exactly 2 for the test
+            \App\Models\Notification::factory()->count(2)->create([
+                'user_id' => $this->user->id,
+                'notification_type' => 'email' // Priority #1 fix: ensure this matches schema
+            ]);
 
         $response = $this->actingAs($this->user)->getJson('/api/v1/user/notifications');
         

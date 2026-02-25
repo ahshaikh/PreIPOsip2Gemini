@@ -4,11 +4,11 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Services\RiskGuardService;
 use App\Exceptions\RiskBlockedException;
 use App\Models\User;
-class RiskGuardServiceTest extends TestCase
+class RiskGuardServiceTest extends UnitTestCase
 {
     protected RiskGuardService $guard;
 

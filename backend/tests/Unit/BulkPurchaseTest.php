@@ -4,14 +4,14 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\User;
 use App\Models\Product;
 use App\Models\Company;
 use App\Models\CompanyShareListing;
 use App\Models\BulkPurchase;
 use App\Exceptions\BulkPurchaseProvenanceException;
-class BulkPurchaseTest extends TestCase
+class BulkPurchaseTest extends UnitTestCase
 {
     protected $product;
     protected $admin;

@@ -3,7 +3,7 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\Plan;
 use App\Models\Product;
@@ -22,7 +22,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Mail;
 
-class ServiceIntegrationTest extends TestCase
+class ServiceIntegrationTest extends FeatureTestCase
 {
     protected function setUp(): void
     {

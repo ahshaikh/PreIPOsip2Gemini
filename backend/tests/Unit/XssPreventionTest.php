@@ -3,9 +3,9 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 
-class XssPreventionTest extends TestCase
+class XssPreventionTest extends UnitTestCase
 {
     private $client;
 

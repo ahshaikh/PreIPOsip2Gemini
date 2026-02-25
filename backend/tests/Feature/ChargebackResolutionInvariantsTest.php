@@ -4,7 +4,7 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\Plan;
 use App\Models\Product;
@@ -23,7 +23,7 @@ use App\Jobs\ProcessSuccessfulPaymentJob;
 use App\Exceptions\Financial\AccountRecoveryModeException;
 use Illuminate\Support\Facades\DB;
 
-class ChargebackResolutionInvariantsTest extends TestCase
+class ChargebackResolutionInvariantsTest extends FeatureTestCase
 {
     protected User $user;
     protected User $admin;

@@ -3,13 +3,13 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\User;
 use App\Models\Referral;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 
-class ReferralTest extends TestCase
+class ReferralTest extends UnitTestCase
 {
     protected $referrer;
     protected $referee;

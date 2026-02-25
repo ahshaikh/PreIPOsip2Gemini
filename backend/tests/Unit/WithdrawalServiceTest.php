@@ -3,7 +3,7 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Services\WithdrawalService;
 use App\Models\User;
 use App\Models\Wallet;
@@ -13,7 +13,7 @@ use App\Events\WithdrawalApproved;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\DB;
 
-class WithdrawalServiceTest extends TestCase
+class WithdrawalServiceTest extends UnitTestCase
 {
     protected $service;
     protected $user;

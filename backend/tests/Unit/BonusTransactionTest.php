@@ -3,14 +3,14 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\User;
 use App\Models\Subscription;
 use App\Models\Payment;
 use App\Models\BonusTransaction;
 use Illuminate\Support\Facades\Validator;
 
-class BonusTransactionTest extends TestCase
+class BonusTransactionTest extends UnitTestCase
 {
     protected $user;
     protected $sub;

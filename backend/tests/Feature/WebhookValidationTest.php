@@ -3,14 +3,14 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\Payment;
 use App\Models\Subscription;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Config;
 
-class WebhookValidationTest extends TestCase
+class WebhookValidationTest extends FeatureTestCase
 {
     protected $user;
     protected $subscription;

@@ -5,11 +5,11 @@ namespace Tests\Feature;
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\UserKyc;
 
-class KycTest extends TestCase
+class KycTest extends FeatureTestCase
 {
     protected $user;
     protected $admin;

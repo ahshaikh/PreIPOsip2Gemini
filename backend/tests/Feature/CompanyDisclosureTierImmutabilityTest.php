@@ -13,9 +13,9 @@ use App\Enums\DisclosureTier;
 use App\Exceptions\DisclosureTierImmutabilityException;
 use App\Models\Company;
 use App\Scopes\PublicVisibilityScope;
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 
-class CompanyDisclosureTierImmutabilityTest extends TestCase
+class CompanyDisclosureTierImmutabilityTest extends FeatureTestCase
 {
     protected Company $company;
 

@@ -8,33 +8,15 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "feat(financial-core): freeze Financial Integrity Layer v1.0 (refund/chargeback hardened)
+$CommitMessage = "V-W3-1730: Milestone engine hardening + dispute snapshot domain-time fix
 
-- Introduced ChargebackResolutionService as atomic refund/chargeback orchestrator
-- Enforced full economic neutrality: payment, bonus, TDS, wallet, ledger symmetry
-- Reinstated wallet debit on bonus reversal with shortfall reconciliation
-- Added distributed + DB-level idempotency locks for refund processing
-- Implemented deterministic bonus reversal via reversal_of_bonus_id FK (removed brittle description parsing)
-- Created dedicated chargeback_receivables table for granular receivable tracking
-    - FIFO settlement
-    - Per-receivable status lifecycle (pending/partial/settled/written_off)
-    - Ledger-linked audit trail
-- Implemented recovery mode enforcement (withdrawals blocked, deposits allowed)
-- Added automated recovery exit on full settlement
-- Added admin force-clear with structured write-off flow
-- Preserved DB constraints (no weakening of balance checks)
-- Hardened double-entry integrity and balance conservation
-- Updated invariant tests to reflect dedicated receivable model
-- All bonus/refund-related tests passing (BonusTds, PaymentToBonus, Chargeback invariants)
-
-Financial Core v1.0 is now:
-- Deterministic
-- Idempotent
-- Audit-pure
-- Ledger-balanced
-- Recovery-aware
-
-Next Wave: Allocation & Global Inventory Hardening"
+- Fixed milestone bonus logic to use consecutive_payments_count invariant
+- Corrected milestone config resolution & user attribution
+- Preserved snapshot integrity without weakening financial contract
+- Repaired DailyDisputeSnapshot aggregation (cumulative ≤ endOfDay semantics)
+- Switched dispute filtering from created_at to opened_at (domain-time alignment)
+- Restored force overwrite + platform/per-plan snapshot correctness
+- All BonusCalculatorMilestoneTest and DailyDisputeSnapshotTest green"
 #----------------------
 
 function Get-GitCredential {

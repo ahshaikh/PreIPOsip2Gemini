@@ -14,9 +14,9 @@ use App\Models\Product;
 use App\Scopes\PublicVisibilityScope;
 use App\Scopes\ProductPublicVisibilityScope;
 use Illuminate\Support\Facades\DB;
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 
-class DisclosureTierVisibilityScopeTest extends TestCase
+class DisclosureTierVisibilityScopeTest extends FeatureTestCase
 {
     protected Company $companyPending;
     protected Company $companyUpcoming;

@@ -3,13 +3,13 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Services\OtpService;
 use App\Models\User;
 use App\Models\Otp;
 use Carbon\Carbon;
 
-class OtpServiceTest extends TestCase
+class OtpServiceTest extends UnitTestCase
 {
     protected $service;
     protected $user;

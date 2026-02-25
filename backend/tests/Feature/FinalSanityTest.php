@@ -9,12 +9,12 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Services\WalletService;
 use App\Enums\TransactionType;
 
-class FinalSanityTest extends TestCase
+class FinalSanityTest extends FeatureTestCase
 {
     /**
      * Test that the integer-based wallet math is 100% accurate.

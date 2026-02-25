@@ -3,7 +3,7 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\UserProfile;
 use App\Models\UserKyc;
@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Hash;
  * This integration test simulates a complete user journey from registration
  * through payment processing and bonus awards.
  */
-class FullUserJourneyIntegrationTest extends TestCase
+class FullUserJourneyIntegrationTest extends FeatureTestCase
 {
     protected User $admin;
     protected Plan $plan;

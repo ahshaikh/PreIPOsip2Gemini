@@ -3,14 +3,14 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\LuckyDraw;
 use App\Models\LuckyDrawEntry;
 use App\Models\User;
 use App\Models\Payment;
 use Illuminate\Database\QueryException;
 
-class LuckyDrawEntryTest extends TestCase
+class LuckyDrawEntryTest extends UnitTestCase
 {
     protected $user;
     protected $draw;

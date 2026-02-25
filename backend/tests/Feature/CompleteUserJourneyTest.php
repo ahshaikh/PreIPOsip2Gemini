@@ -3,7 +3,7 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\Plan;
 use App\Models\Product;
@@ -34,7 +34,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Carbon;
 use Illuminate\Http\UploadedFile;
 
-class CompleteUserJourneyTest extends TestCase
+class CompleteUserJourneyTest extends FeatureTestCase
 {
     protected $admin;
     protected $user;

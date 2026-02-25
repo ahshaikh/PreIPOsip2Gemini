@@ -3,14 +3,14 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Database\QueryException;
 
-class SettingTest extends TestCase
+class SettingTest extends UnitTestCase
 {
     protected $admin;
 

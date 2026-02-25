@@ -19,7 +19,7 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use Illuminate\Support\Facades\DB;
 use App\Models\User;
 use App\Models\Wallet;
@@ -42,7 +42,7 @@ use App\Services\DoubleEntryLedgerService;
 use App\Jobs\ProcessSuccessfulPaymentJob;
 use App\Enums\TransactionType;
 
-class FinancialGuaranteesTest extends TestCase
+class FinancialGuaranteesTest extends FeatureTestCase
 {
     protected WalletService $walletService;
     protected PaymentWebhookService $webhookService;

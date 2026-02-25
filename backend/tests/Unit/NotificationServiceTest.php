@@ -3,14 +3,14 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Services\NotificationService;
 use App\Jobs\ProcessNotificationJob;
 use App\Models\User;
 use App\Models\UserNotificationPreference;
 use Illuminate\Support\Facades\Queue;
 
-class NotificationServiceTest extends TestCase
+class NotificationServiceTest extends UnitTestCase
 {
     protected $service;
     protected $user;

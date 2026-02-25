@@ -3,7 +3,7 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\Payment;
 use App\Models\UserKyc;
@@ -11,7 +11,7 @@ use App\Models\Withdrawal;
 use App\Models\ActivityLog;
 use Illuminate\Support\Facades\Cache;
 
-class AdminDashboardEndpointsTest extends TestCase
+class AdminDashboardEndpointsTest extends FeatureTestCase
 {
 //    use RefreshDatabase;
 

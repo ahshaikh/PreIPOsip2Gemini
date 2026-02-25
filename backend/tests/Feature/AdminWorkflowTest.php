@@ -3,13 +3,13 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\UserKyc;
 use App\Models\Withdrawal;
 use App\Models\Wallet;
 
-class AdminWorkflowTest extends TestCase
+class AdminWorkflowTest extends FeatureTestCase
 {
     protected $admin;
     protected $user;

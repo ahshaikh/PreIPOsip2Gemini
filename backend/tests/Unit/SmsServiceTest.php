@@ -3,14 +3,14 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Services\SmsService;
 use App\Models\User;
 use App\Models\SmsLog;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 
-class SmsServiceTest extends TestCase
+class SmsServiceTest extends UnitTestCase
 {
     protected $service;
     protected $user;

@@ -3,17 +3,19 @@
 namespace Tests;
 
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\WithFaker; // 1. Add this import
+// use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Spatie\Permission\PermissionRegistrar;
 
 abstract class TestCase extends BaseTestCase
 {
-    use CreatesApplication;
-    use DatabaseTransactions;
+    use CreatesApplication, WithFaker;
+//     use DatabaseTransactions;
 
     protected function setUp(): void
     {
         parent::setUp();
+	$this->faker->unique(true); // clears the unique pool
 
         /**
          * CRITICAL: Clear Spatie permission cache

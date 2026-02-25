@@ -3,10 +3,10 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 
-class RateLimitingTest extends TestCase
+class RateLimitingTest extends FeatureTestCase
 {
     protected function setUp(): void
     {

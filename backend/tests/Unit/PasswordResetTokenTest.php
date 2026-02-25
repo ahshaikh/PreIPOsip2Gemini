@@ -3,12 +3,12 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 // use Doctrine\ORM\EntityManagerInterface;
 // use App\Repository\PasswordResetTokenRepository;
 // use App\Entity\PasswordResetToken;
 
-class PasswordResetTokenTest extends TestCase
+class PasswordResetTokenTest extends UnitTestCase
 {
     #[\PHPUnit\Framework\Attributes\Test]
     public function testPasswordResetTokenExpiry()

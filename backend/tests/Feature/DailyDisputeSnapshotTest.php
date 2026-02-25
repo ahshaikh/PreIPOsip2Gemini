@@ -4,7 +4,7 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\DailyDisputeSnapshot;
 use App\Models\Dispute;
 use App\Models\Payment;
@@ -13,7 +13,7 @@ use App\Models\Plan;
 use App\Models\Company;
 use Illuminate\Support\Facades\Artisan;
 
-class DailyDisputeSnapshotTest extends TestCase
+class DailyDisputeSnapshotTest extends FeatureTestCase
 {
     protected function setUp(): void
     {

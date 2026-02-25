@@ -10,7 +10,7 @@ use App\Models\DisclosureModule;
 use App\Models\User;
 use App\Repositories\ApprovedDisclosureRepository;
 use Illuminate\Support\Facades\DB;
-use Tests\TestCase;
+use Tests\UnitTestCase;
 
 // * PHASE 1 AUDIT: Disclosure Authority Tests
 // *
@@ -20,7 +20,7 @@ use Tests\TestCase;
 // * 3. Disclosure data comes from locked versions, not mutable disclosure records
 // * 4. Invariant violations cause hard failures, not silent skips
 
-class DisclosureAuthorityTest extends TestCase
+class DisclosureAuthorityTest extends UnitTestCase
 {
     protected Company $company;
     protected DisclosureModule $module;

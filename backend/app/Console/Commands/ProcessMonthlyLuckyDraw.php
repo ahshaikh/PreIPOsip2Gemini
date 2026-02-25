@@ -1,30 +1,23 @@
 <?php
-// V-FINAL-1730-423 (Created) | V-AUDIT-FIX-MODULE10 (Dependency Injection)
+// V-FINAL-1730-423 (Created)
+// V-AUDIT-FIX-MODULE10
+// V-WAVE3-ARCH-FIX: Removed invalid per-payment job dispatch from command layer
 
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use App\Services\LuckyDrawService;
-use App\Services\WalletService; // <-- Added
+use App\Services\WalletService;
 use App\Models\LuckyDraw;
-use Illuminate\Support\Carbon;
 
 class ProcessMonthlyLuckyDraw extends Command
 {
-    /**
-     * The name and signature of the console command.
-     */
     protected $signature = 'app:process-monthly-lucky-draw {--force}';
-
-    /**
-     * The console command description.
-     */
     protected $description = 'Manages the full lifecycle of the monthly lucky draw.';
-    
-    protected $service;
-    protected $walletService; // <-- Added property
 
-    // MODULE 10 FIX: Inject WalletService to prevent ArgumentCountError
+    protected LuckyDrawService $service;
+    protected WalletService $walletService;
+
     public function __construct(LuckyDrawService $service, WalletService $walletService)
     {
         parent::__construct();
@@ -32,38 +25,39 @@ class ProcessMonthlyLuckyDraw extends Command
         $this->walletService = $walletService;
     }
 
-    /**
-     * Execute the console command.
-     */
     public function handle()
     {
         $this->info("Checking lucky draw status...");
-        
-        // --- 1. Check if a new draw needs to be created ---
-        // (Runs on the 1st of the month)
+
+        // ------------------------------------------------------------
+        // 1️⃣ Create Monthly Draw (if needed)
+        // ------------------------------------------------------------
         if (now()->day == 1 || $this->option('force')) {
             $this->createDraw();
         }
 
-        // --- 2. Check if a draw needs to be executed ---
-        // (Runs on the draw date, e.g., 28th of month)
-        $draw = LuckyDraw::where('status', 'open')
-                         ->whereDate('draw_date', '<=', now())
-                         ->first();
-                         
+        // ------------------------------------------------------------
+        // 2️⃣ Execute Pending Draw (if ready)
+        // ------------------------------------------------------------
+        $draw = $this->service->getPendingDraw(now());
+
         if ($draw) {
             $this->executeDraw($draw);
+            $draw->update(['status' => 'completed']);
         }
 
         $this->info("Lucky draw process complete.");
         return 0;
     }
 
-    private function createDraw()
+    /**
+     * Create Monthly Draw and trigger entry allocation.
+     */
+    private function createDraw(): void
     {
         $monthName = now()->format('F Y');
         $drawName = "{$monthName} Lucky Draw";
-        
+
         if (LuckyDraw::where('name', $drawName)->exists()) {
             $this->warn("Draw for {$monthName} already exists. Skipping creation.");
             return;
@@ -71,31 +65,14 @@ class ProcessMonthlyLuckyDraw extends Command
 
         $this->info("Creating draw for {$monthName}...");
 
-        // FSD-DRAW-005: Prize pool from settings
-        $prizePool = (float) setting('lucky_draw_prize_pool', 152500);
-
-        // V-AUDIT-MODULE11-003 (HIGH): Move prize structure to settings instead of hardcoding
-        //
-        // Previous Issue:
-        // - Prize structure was hardcoded in command
-        // - Changing monthly prize mix required code deployment
-        // - Admin couldn't adjust prizes without developer intervention
-        //
-        // Fix:
-        // - Read prize structure from settings table
-        // - Setting key: 'lucky_draw_default_structure'
-        // - Store as JSON array in database
-        // - Admin can now configure via settings panel
-        // - Fallback to sensible default if setting not found
-
+        // Prize structure defaults
         $defaultStructure = [
             ['rank' => 1, 'count' => 1, 'amount' => 50000],
             ['rank' => 2, 'count' => 5, 'amount' => 10000],
             ['rank' => 3, 'count' => 25, 'amount' => 2000],
-            ['rank' => 4, 'count' => 50, 'amount' => 25], // 1250 total
+            ['rank' => 4, 'count' => 50, 'amount' => 25],
         ];
 
-        // V-AUDIT-MODULE11-003: Read from settings with fallback to default
         $structureJson = setting('lucky_draw_default_structure', null);
 
         if ($structureJson) {
@@ -113,33 +90,47 @@ class ProcessMonthlyLuckyDraw extends Command
             $structure = $defaultStructure;
         }
 
+        // Create draw via service
         $this->service->createMonthlyDraw(
             $drawName,
-            now()->endOfMonth()->subDays(2), // Draw date = 28th/29th
+            now()->endOfMonth()->subDays(2),
             $structure
         );
+
+        // ------------------------------------------------------------
+        // ARCH FIX:
+        // Delegate entry allocation to service.
+        // Service will fetch eligible payments and dispatch per-payment jobs.
+        // ------------------------------------------------------------
+        $this->service->dispatchMonthlyEntryGeneration();
+
+        $this->info("Draw created and entry generation dispatched.");
     }
 
-    private function executeDraw(LuckyDraw $draw)
+    /**
+     * Execute the draw lifecycle.
+     */
+    private function executeDraw(LuckyDraw $draw): void
     {
         $this->info("Executing draw: {$draw->name}...");
-        
-        try {
-            // 1. Select Winners
-            $winnerUserIds = $this->service->selectWinners($draw);
-            
-            // 2. Distribute Prizes (MODULE 10 FIX: Pass WalletService)
-            $this->service->distributePrizes($draw, $winnerUserIds, $this->walletService);
-            
-            // 3. Send Notifications
-            $this->service->sendWinnerNotifications($winnerUserIds);
-            
-            $this->info("Draw executed. " . count($winnerUserIds) . " winners paid.");
 
+        try {
+            // 1️⃣ Select Winners
+            $winnerUserIds = $this->service->selectWinners($draw);
+
+            // 2️⃣ Distribute Prizes
+            $this->service->distributePrizes(
+                $draw,
+                $winnerUserIds,
+                $this->walletService
+            );
+
+            // 3️⃣ Send Notifications
+            $this->service->sendWinnerNotifications($winnerUserIds);
+
+            $this->info("Draw executed. " . count($winnerUserIds) . " winners paid.");
         } catch (\Exception $e) {
             $this->error("Draw Execution Failed: " . $e->getMessage());
-            // Optionally mark draw as failed to prevent infinite retry loop
-            // $draw->update(['status' => 'failed']);
         }
     }
 }

@@ -3,7 +3,7 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Models\Withdrawal;
@@ -11,7 +11,7 @@ use App\Models\Setting;
 use App\Notifications\WithdrawalRequested;
 use Illuminate\Support\Facades\Notification;
 
-class UserWithdrawalEndpointTest extends TestCase
+class UserWithdrawalEndpointTest extends FeatureTestCase
 {
     protected $user;
     protected $wallet;

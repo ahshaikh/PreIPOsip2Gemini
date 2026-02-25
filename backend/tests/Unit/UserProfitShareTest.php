@@ -3,12 +3,12 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
+use Tests\UnitTestCase;
 use App\Models\User;
 use App\Models\ProfitShare;
 use App\Models\UserProfitShare;
 use App\Models\BonusTransaction;
-class UserProfitShareTest extends TestCase
+class UserProfitShareTest extends UnitTestCase
 {
     protected $user;
     protected $profitSharePeriod;

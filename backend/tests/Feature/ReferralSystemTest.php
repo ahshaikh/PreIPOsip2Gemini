@@ -3,7 +3,7 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 use App\Models\User;
 use App\Models\Plan;
 use App\Models\Referral;
@@ -12,7 +12,7 @@ use App\Models\Payment;
 use App\Jobs\ProcessReferralJob;
 use Illuminate\Support\Facades\Queue;
 
-class ReferralSystemTest extends TestCase
+class ReferralSystemTest extends FeatureTestCase
 {
     protected function setUp(): void
     {

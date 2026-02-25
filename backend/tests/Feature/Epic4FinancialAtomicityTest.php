@@ -10,7 +10,7 @@ use App\Models\Product;
 use App\Models\User;
 use App\Services\PlatformLedgerService;
 use Illuminate\Support\Facades\DB;
-use Tests\TestCase;
+use Tests\FeatureTestCase;
 
 
 //  * EPIC 4 - Lock Commercial Boundaries: Compliance Tests
@@ -26,7 +26,7 @@ use Tests\TestCase;
 //  * 3. Ledger entries are immutable (no updates, no deletes)
 //  * 4. Hard failure over false success
 
-class Epic4FinancialAtomicityTest extends TestCase
+class Epic4FinancialAtomicityTest extends FeatureTestCase
 {
 // <!-- GAP 4: PLATFORM LEDGER ENTRY IMMUTABILITY -->
 
