@@ -8,15 +8,20 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "V-W3-1730: Milestone engine hardening + dispute snapshot domain-time fix
+$CommitMessage = "V-WAVE3 | Financial Guarantees Stabilized | Ledger & Bonus Reconciliation Alignment
 
-- Fixed milestone bonus logic to use consecutive_payments_count invariant
-- Corrected milestone config resolution & user attribution
-- Preserved snapshot integrity without weakening financial contract
-- Repaired DailyDisputeSnapshot aggregation (cumulative ≤ endOfDay semantics)
-- Switched dispute filtering from created_at to opened_at (domain-time alignment)
-- Restored force overwrite + platform/per-plan snapshot correctness
-- All BonusCalculatorMilestoneTest and DailyDisputeSnapshotTest green"
+- Fixed schema mismatches (amount vs amount_paise across ledger_lines, transactions, bonus_transactions)
+- Corrected FinancialGuaranteesTest invariants to align with paise-based accounting model
+- Removed invalid gross bonus ↔ net wallet credit comparison (TDS-aware correction)
+- Standardized ledger summations to use amount_paise consistently
+- Ensured liability mirror (wallet = USER_WALLET_LIABILITY) reconciliation passes
+- Restored full-suite green for FinancialGuaranteesTest (9/9)
+
+No accounting logic weakened.
+False invariant removed (gross vs net bonus).
+Core double-entry, wallet atomicity, and liability invariants remain strict.
+
+System stable. Ready for next hardening phase."
 #----------------------
 
 function Get-GitCredential {
