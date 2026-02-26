@@ -8,24 +8,16 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "fix(referral-engine): resolve TDS closure scope bug & harden ReferralSystemTest
+$CommitMessage = "fix(tests): eliminate cache leakage to restore deterministic AuthTest results
 
-- Fixed undefined $tdsService / $ledgerService in ProcessReferralJob
-  by passing injected services into nested closures (PHP scope issue)
-- Ensured idempotent referral processing executes full ledger + TDS flow
-- Refactored ReferralSystemTest to be fully deterministic:
-  - Explicit campaign creation (date-driven running state)
-  - Explicit KYC setup for referrer & referee
-  - Production-accurate dispatchSync execution
-  - Removed misuse of setting() helper
-  - State-transition based assertions (no brittle magic values)
-- Adjusted multiplier assertion to reflect tier-driven business logic
+- Added Cache::flush() to base TestCase::setUp()
+- Cleared Spatie permission cache via PermissionRegistrar
+- Reset Faker unique state per test
 
 Result:
-- Referral job executes complete financial flow (TDS + ledger + wallet)
-- No undefined service errors
-- No risky tests
-- Deterministic, production-aligned referral test"
+- Removed cross-test cache contamination
+- Stabilized AuthTest under random order
+- Restored deterministic test suite behavior"
 #----------------------
 
 function Get-GitCredential {
