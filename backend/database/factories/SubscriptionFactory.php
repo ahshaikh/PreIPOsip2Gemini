@@ -20,33 +20,32 @@ class SubscriptionFactory extends Factory
      */
     public function definition(): array
     {
-        $plan = Plan::first() ?? Plan::factory()->create();
-
         $startDate = $this->faker->dateTimeBetween('-2 years', '-1 month');
-        $duration  = $plan->duration_months;
-
-        // V-MONETARY-REFACTOR-2026: Compute amount_paise from plan
-        $amountPaise = (int) round($plan->monthly_amount * 100);
 
         return [
             'user_id' => User::factory(),
-            'plan_id' => $plan->id,
-            'amount_paise' => $amountPaise, // AUTHORITATIVE (if column exists)
-            'amount' => $plan->monthly_amount, // Legacy compatibility
+
+            // Let Laravel resolve the plan properly (supports overrides cleanly)
+            'plan_id' => Plan::factory(),
+
+            // DO NOT precompute from a temporary plan here
+            // These will be derived correctly in configure()
+            'amount_paise' => 0,
+            'amount' => 0,
+
             'subscription_code' => 'SUB-' . Str::upper(Str::random(10)),
             'status' => 'active',
             'start_date' => $startDate,
-            'end_date' => Carbon::instance($startDate)->addMonths($duration),
+            'end_date' => Carbon::instance($startDate)->addMonths(12), // safe default
             'next_payment_date' => now()->addDays(5),
 
-            // Deterministic default values
+            // Deterministic defaults
             'bonus_multiplier' => 1.0,
             'consecutive_payments_count' => 0,
             'pause_count' => 0,
             'is_auto_debit' => false,
 
-            // V-WAVE2-FIX: Snapshot fields are set in configure() afterCreating callback
-            // to ensure proper hash computation
+            // Snapshot handled in configure()
             'bonus_contract_snapshot' => null,
         ];
     }
@@ -56,12 +55,29 @@ class SubscriptionFactory extends Factory
      */
     public function configure(): static
     {
-        return $this->afterCreating(function ($subscription) {
-            // Auto-generate valid snapshot for all subscriptions
+        return $this->afterMaking(function ($subscription) {
+
+            // Ensure plan relationship is loaded
+            $plan = $subscription->plan;
+
+            if ($plan) {
+                $subscription->amount = $plan->monthly_amount;
+                $subscription->amount_paise = (int) round($plan->monthly_amount * 100);
+
+                if (!$subscription->end_date) {
+                    $duration = $plan->duration_months ?? 12;
+                    $subscription->end_date = Carbon::parse($subscription->start_date)
+                        ->addMonths($duration);
+                }
+            }
+
+        })->afterCreating(function ($subscription) {
+
+            // Keep your existing snapshot logic intact
             $this->applyValidSnapshot($subscription);
+
         });
     }
-
     /**
      * V-WAVE2-FIX: Apply valid snapshot with correct hash computation
      * V-WAVE3-FIX: Read configs from Plan when available, fall back to defaults

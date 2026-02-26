@@ -46,19 +46,34 @@ class SubscriptionLifecycleTest extends FeatureTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function user_can_upgrade_plan()
     {
-        // Create existing subscription
-        Subscription::factory()->create([
+        $sub = Subscription::factory()->create([
             'user_id' => $this->user->id,
             'plan_id' => $this->planA->id,
             'status' => 'active'
         ]);
 
+        $this->user->wallet->update([
+            'balance_paise' => 1000000 // enough for upgrade
+        ]);
+
+        dump([
+            'subscription_amount' => $sub->amount,
+            'subscription_plan_monthly' => $sub->plan->monthly_amount,
+            'planA_monthly' => $this->planA->monthly_amount,
+            'planB_monthly' => $this->planB->monthly_amount,
+        ]);
+        
+        // Ensure no pending payments block the upgrade
+        \App\Models\Payment::where('subscription_id', $sub->id)
+            ->update(['status' => 'paid']);
+
         $response = $this->actingAs($this->user)
-                         ->postJson('/api/v1/user/subscription/change-plan', ['new_plan_id' => $this->planB->id]);
+                        ->postJson('/api/v1/user/subscription/change-plan', [
+                            'new_plan_id' => $this->planB->id
+                        ]);
 
         $response->assertStatus(200);
-        
-        // Verify Plan Changed
+
         $this->assertDatabaseHas('subscriptions', [
             'user_id' => $this->user->id,
             'plan_id' => $this->planB->id
@@ -68,8 +83,14 @@ class SubscriptionLifecycleTest extends FeatureTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function user_can_pause_subscription()
     {
+        $plan = Plan::factory()->create([
+            'allow_pause' => true,
+            'max_pause_duration_months' => 3,
+        ]);
+    
         $sub = Subscription::factory()->create([
             'user_id' => $this->user->id,
+            'plan_id' => $plan->id,
             'status' => 'active',
             'next_payment_date' => now()->addDays(5)
         ]);

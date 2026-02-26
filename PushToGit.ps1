@@ -8,16 +8,12 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "fix(tests): eliminate cache leakage to restore deterministic AuthTest results
+$CommitMessage = "fix(factory): eliminate plan/amount drift in SubscriptionFactory
 
-- Added Cache::flush() to base TestCase::setUp()
-- Cleared Spatie permission cache via PermissionRegistrar
-- Reset Faker unique state per test
-
-Result:
-- Removed cross-test cache contamination
-- Stabilized AuthTest under random order
-- Restored deterministic test suite behavior"
+- Removed precomputed plan dependency in definition()
+- Derived amount and amount_paise from final resolved plan in configure()
+- Prevented mismatch between plan_id and subscription amount
+- Fixed nondeterministic upgrade failures in SubscriptionLifecycleTest"
 #----------------------
 
 function Get-GitCredential {

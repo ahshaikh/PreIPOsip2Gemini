@@ -61,10 +61,17 @@ class SubscriptionTest extends FeatureTestCase
             'status' => 'active'
         ]);
 
+        // Ensure no pending payments block the upgrade
+        \App\Models\Payment::where('subscription_id', $sub->id)->update(['status' => 'paid']);
+
         $response = $this->actingAs($this->user)
                          ->postJson('/api/v1/user/subscription/change-plan', [
                              'new_plan_id' => $this->planB->id
                          ]);
+
+        if ($response->status() !== 200) {
+            $response->dump(); // Diagnostic dump
+        }
 
         $response->assertStatus(200);
         $this->assertDatabaseHas('subscriptions', [

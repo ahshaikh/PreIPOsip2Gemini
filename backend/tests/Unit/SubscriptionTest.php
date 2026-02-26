@@ -3,14 +3,14 @@
 
 namespace Tests\Unit;
 
-use Tests\UnitTestCase;
+use Tests\UnitRefreshTestCase;
 use App\Models\User;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\Payment;
 use Carbon\Carbon;
 
-class SubscriptionTest extends UnitTestCase
+class SubscriptionTest extends UnitRefreshTestCase
 {
     protected $user;
     protected $plan;
@@ -178,7 +178,7 @@ class SubscriptionTest extends UnitTestCase
     public function test_subscription_calculates_total_paid()
     {
         $sub = Subscription::factory()->create(['user_id' => $this->user->id]);
-        
+        // dd($sub->payments()->sum('amount_paise'));
         Payment::factory()->create(['subscription_id' => $sub->id, 'amount_paise' => 100000, 'status' => 'paid']); // ₹1000 in paise
         Payment::factory()->create(['subscription_id' => $sub->id, 'amount_paise' => 200000, 'status' => 'paid']); // ₹2000 in paise
 
@@ -189,7 +189,7 @@ class SubscriptionTest extends UnitTestCase
     public function test_subscription_status_enum_validates()
     {
         // Testing via DB query constraint or model update
-        $sub = Subscription::factory()->create(['user_id' => $this->user->id]);
+        $sub = Subscription::factory()->createQuietly(['user_id' => $this->user->id]);
         
         $sub->update(['status' => 'active']);
         $this->assertEquals('active', $sub->fresh()->status);

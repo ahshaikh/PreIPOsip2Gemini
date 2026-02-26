@@ -242,7 +242,7 @@ class Subscription extends Model
     protected function totalPaid(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->payments()->where('status', 'paid')->sum('amount')
+            get: fn () => $this->payments()->where('status', 'paid')->sum('amount_paise') / 100 // Convert paise to rupees
         );
     }
 
