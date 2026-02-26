@@ -345,8 +345,8 @@ class FinancialGuaranteesTest extends FeatureTestCase
         $totalWalletBalance = Wallet::sum('balance_paise');
 
         // Check liability account in ledger
-        LedgerAccount::where('code', '1200')->first();
-        $liabilityAccount = LedgerAccount::where('code', '2000')->first();
+        LedgerAccount::where('code', LedgerAccount::CODE_ACCOUNTS_RECEIVABLE)->first();
+        $liabilityAccount = LedgerAccount::where('code', LedgerAccount::CODE_USER_WALLET_LIABILITY)->first();
 
         $this->assertNotNull(
             $liabilityAccount,
@@ -381,7 +381,7 @@ class FinancialGuaranteesTest extends FeatureTestCase
             ->sum('chargeback_amount_paise');
 
         // Receivables ledger account
-        $receivablesAccount = LedgerAccount::where('code', '1200')->first();
+        $receivablesAccount = LedgerAccount::where('code', LedgerAccount::CODE_ACCOUNTS_RECEIVABLE)->first();
 
         $this->assertNotNull($receivablesAccount);
 

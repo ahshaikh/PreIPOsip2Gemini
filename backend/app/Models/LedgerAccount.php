@@ -57,9 +57,9 @@ class LedgerAccount extends Model
     /**
      * System account codes (non-deletable)
      */
-    public const CODE_BANK = '1000';
+    public const CODE_BANK = 'BANK';
     public const CODE_INVENTORY = 'INVENTORY';
-    public const CODE_USER_WALLET_LIABILITY = '2000';
+    public const CODE_USER_WALLET_LIABILITY = 'USER_WALLET_LIABILITY';
     public const CODE_BONUS_LIABILITY = 'BONUS_LIABILITY';
     public const CODE_OWNER_CAPITAL = 'OWNER_CAPITAL';
     public const CODE_SUBSCRIPTION_INCOME = 'SUBSCRIPTION_INCOME';

@@ -10,103 +10,150 @@ class LedgerAccountSeeder extends Seeder
     public function run(): void
     {
         $accounts = [
-            // ====================================================
-            // ASSETS (1000 - 1999)
-            // ====================================================
+
+            // ============================
+            // ASSETS
+            // ============================
             [
-                'code' => '1000',
+                'code' => 'BANK',
                 'name' => 'Cash at Bank (Operations)',
                 'type' => 'asset',
                 'description' => 'Main operational bank account',
                 'is_system' => true,
             ],
             [
-                'code' => '1200',
+                'code' => 'ACCOUNTS_RECEIVABLE',
                 'name' => 'User Chargeback Receivables',
                 'type' => 'asset',
                 'description' => 'Amounts owed by users after chargeback shortfall',
                 'is_system' => true,
             ],
             [
-                'code' => '1100',
-                'name' => 'Payment Gateway Escrow',
+                'code' => 'INVENTORY',
+                'name' => 'Pre-IPO Share Inventory',
                 'type' => 'asset',
-                'description' => 'Funds held by gateway (Stripe/Razorpay) before payout',
+                'description' => 'Inventory of shares available for allocation',
                 'is_system' => true,
             ],
 
-            // ====================================================
-            // LIABILITIES (2000 - 2999)
-            // ====================================================
+            // ============================
+            // LIABILITIES
+            // ============================
             [
-                'code' => '2000',
+                'code' => 'USER_WALLET_LIABILITY',
                 'name' => 'User Wallet Balances',
                 'type' => 'liability',
                 'description' => 'Total funds owed to users in their virtual wallets',
                 'is_system' => true,
             ],
             [
-                'code' => '2100',
-                'name' => 'Dispute Reserve Account',
+                'code' => 'BONUS_LIABILITY',
+                'name' => 'Bonus Payable to Users',
                 'type' => 'liability',
-                'description' => 'Funds held back to cover potential chargebacks',
+                'description' => 'Accrued but unpaid bonuses',
                 'is_system' => true,
             ],
             [
-                'code' => '2200',
-                'name' => 'Unearned Subscription Revenue',
+                'code' => 'TDS_PAYABLE',
+                'name' => 'TDS Payable',
                 'type' => 'liability',
-                'description' => 'Prepaid subscriptions not yet recognized as revenue',
+                'description' => 'Tax deducted at source payable to authorities',
+                'is_system' => true,
+            ],
+            [
+                'code' => 'REFUNDS_PAYABLE',
+                'name' => 'Refunds Payable',
+                'type' => 'liability',
+                'description' => 'Refunds owed to users',
                 'is_system' => true,
             ],
 
-            // ====================================================
-            // REVENUE (3000 - 3999)
-            // ====================================================
+            // ============================
+            // EQUITY
+            // ============================
             [
-                'code' => '3000',
+                'code' => 'OWNER_CAPITAL',
+                'name' => 'Owner Capital',
+                'type' => 'equity',
+                'description' => 'Initial capital invested by founders',
+                'is_system' => true,
+            ],
+            [
+                'code' => 'RETAINED_EARNINGS',
+                'name' => 'Retained Earnings',
+                'type' => 'equity',
+                'description' => 'Accumulated profits retained in business',
+                'is_system' => true,
+            ],
+
+            // ============================
+            // REVENUE
+            // ============================
+            [
+                'code' => 'SUBSCRIPTION_INCOME',
                 'name' => 'Subscription Revenue',
                 'type' => 'income',
                 'description' => 'Income from active plan payments',
                 'is_system' => true,
             ],
             [
-                'code' => '3100',
+                'code' => 'PLATFORM_FEES',
                 'name' => 'Platform Fees',
                 'type' => 'income',
                 'description' => 'Fees collected from transactions or penalties',
                 'is_system' => true,
             ],
+            [
+                'code' => 'SHARE_SALE_INCOME',
+                'name' => 'Share Sale Income',
+                'type' => 'income',
+                'description' => 'Income from share sales',
+                'is_system' => true,
+            ],
+            [
+                'code' => 'INTEREST_INCOME',
+                'name' => 'Interest Income',
+                'type' => 'income',
+                'description' => 'Interest earned on deposits',
+                'is_system' => true,
+            ],
 
-            // ====================================================
-            // EXPENSES (4000 - 4999)
-            // ====================================================
+            // ============================
+            // EXPENSES
+            // ============================
             [
-                'code' => '4000',
-                'name' => 'Milestone Bonus Expense',
+                'code' => 'MARKETING_EXPENSE',
+                'name' => 'Marketing Expense',
                 'type' => 'expense',
-                'description' => 'Bonuses paid out to users for loyalty milestones',
+                'description' => 'Marketing and promotional costs',
                 'is_system' => true,
             ],
             [
-                'code' => '4100',
-                'name' => 'Referral Bonus Expense',
+                'code' => 'OPERATING_EXPENSES',
+                'name' => 'Operating Expenses',
                 'type' => 'expense',
-                'description' => 'Bonuses paid for user referrals',
+                'description' => 'General operating expenses',
                 'is_system' => true,
             ],
             [
-                'code' => '4200',
+                'code' => 'COST_OF_SHARES',
+                'name' => 'Cost of Shares Sold',
+                'type' => 'expense',
+                'description' => 'Cost basis of shares allocated to users',
+                'is_system' => true,
+            ],
+            [
+                'code' => 'PAYMENT_GATEWAY_FEES',
                 'name' => 'Payment Gateway Fees',
                 'type' => 'expense',
-                'description' => 'Transaction fees kept by the payment provider',
+                'description' => 'Transaction fees kept by payment provider',
                 'is_system' => true,
             ],
             [
-                'code' => '4300',
-                'name' => 'Chargeback Losses',
+                'code' => 'INVENTORY_PURCHASE_EXPENSE',
+                'name' => 'Inventory Purchase Expense',
                 'type' => 'expense',
-                'description' => 'Losses incurred from lost disputes and penalties',
+                'description' => 'Cost of acquiring share inventory',
                 'is_system' => true,
             ],
         ];

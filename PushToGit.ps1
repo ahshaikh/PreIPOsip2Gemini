@@ -8,20 +8,20 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "V-WAVE3 | Financial Guarantees Stabilized | Ledger & Bonus Reconciliation Alignment
+$CommitMessage = "fix(financial-ledger): unify ledger account identity and stabilize financial invariants
 
-- Fixed schema mismatches (amount vs amount_paise across ledger_lines, transactions, bonus_transactions)
-- Corrected FinancialGuaranteesTest invariants to align with paise-based accounting model
-- Removed invalid gross bonus ↔ net wallet credit comparison (TDS-aware correction)
-- Standardized ledger summations to use amount_paise consistently
-- Ensured liability mirror (wallet = USER_WALLET_LIABILITY) reconciliation passes
-- Restored full-suite green for FinancialGuaranteesTest (9/9)
+- Replaced numeric ledger codes (1000/1200/2000) with canonical semantic codes
+- Updated LedgerAccountSeeder to match existing DB schema
+- Removed magic ledger code references from FinancialGuaranteesTest
+- Standardized all ledger account lookups via LedgerAccount constants
+- Eliminated dual ledger identity model causing test non-determinism
+- Restored wallet ↔ liability mirror invariant stability
+- Ensured full FinancialGuaranteesTest passes under random order
 
-No accounting logic weakened.
-False invariant removed (gross vs net bonus).
-Core double-entry, wallet atomicity, and liability invariants remain strict.
-
-System stable. Ready for next hardening phase."
+Result:
+- Deterministic financial invariants
+- No identity drift between DB, seeders, and tests
+- No weakening of accounting guarantees"
 #----------------------
 
 function Get-GitCredential {
