@@ -8,20 +8,24 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "fix(financial-ledger): unify ledger account identity and stabilize financial invariants
+$CommitMessage = "fix(referral-engine): resolve TDS closure scope bug & harden ReferralSystemTest
 
-- Replaced numeric ledger codes (1000/1200/2000) with canonical semantic codes
-- Updated LedgerAccountSeeder to match existing DB schema
-- Removed magic ledger code references from FinancialGuaranteesTest
-- Standardized all ledger account lookups via LedgerAccount constants
-- Eliminated dual ledger identity model causing test non-determinism
-- Restored wallet ↔ liability mirror invariant stability
-- Ensured full FinancialGuaranteesTest passes under random order
+- Fixed undefined $tdsService / $ledgerService in ProcessReferralJob
+  by passing injected services into nested closures (PHP scope issue)
+- Ensured idempotent referral processing executes full ledger + TDS flow
+- Refactored ReferralSystemTest to be fully deterministic:
+  - Explicit campaign creation (date-driven running state)
+  - Explicit KYC setup for referrer & referee
+  - Production-accurate dispatchSync execution
+  - Removed misuse of setting() helper
+  - State-transition based assertions (no brittle magic values)
+- Adjusted multiplier assertion to reflect tier-driven business logic
 
 Result:
-- Deterministic financial invariants
-- No identity drift between DB, seeders, and tests
-- No weakening of accounting guarantees"
+- Referral job executes complete financial flow (TDS + ledger + wallet)
+- No undefined service errors
+- No risky tests
+- Deterministic, production-aligned referral test"
 #----------------------
 
 function Get-GitCredential {
