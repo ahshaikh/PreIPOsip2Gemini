@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\ArtifactFreshness;
 use App\Traits\HasVisibilityScope;
 use App\Exceptions\DisclosureAuthorityViolationException;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -157,18 +158,32 @@ class CompanyDisclosure extends Model
      * Polymorphic: CompanyUser or User who submitted this disclosure
      * Usually: CompanyUser submits, Admin approves
      */
-    public function submittedBy()
+    public function submittedByMorph()
     {
         return $this->morphTo(__FUNCTION__, 'submitted_by_type', 'submitted_by_id');
     }
 
     /**
-     * DEPRECATED: Use submittedBy() instead (polymorphic)
+     * Backward compatibility for code expecting 'submitted_by' as a direct ID.
+     */
+    protected function submittedBy(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->submitted_by_id,
+            set: fn ($value) => [
+                'submitted_by_id' => $value,
+                'submitted_by_type' => 'App\\Models\\User', // Default to User if not specified
+            ]
+        );
+    }
+
+    /**
+     * DEPRECATED: Use submittedByMorph() instead (polymorphic)
      * Kept for backwards compatibility
      */
     public function submitter()
     {
-        return $this->submittedBy();
+        return $this->submittedByMorph();
     }
 
     /**
@@ -193,9 +208,23 @@ class CompanyDisclosure extends Model
      * Polymorphic: CompanyUser or User who last modified the disclosure data
      * Usually: CompanyUser edits, Admin may also edit
      */
-    public function lastModifiedBy()
+    public function lastModifiedByMorph()
     {
         return $this->morphTo(__FUNCTION__, 'last_modified_by_type', 'last_modified_by_id');
+    }
+
+    /**
+     * Backward compatibility for code expecting 'last_modified_by' as a direct ID.
+     */
+    protected function lastModifiedBy(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->last_modified_by_id,
+            set: fn ($value) => [
+                'last_modified_by_id' => $value,
+                'last_modified_by_type' => 'App\\Models\\User', // Default to User if not specified
+            ]
+        );
     }
 
     /**
@@ -383,9 +412,10 @@ class CompanyDisclosure extends Model
      * Submit disclosure for admin review
      *
      * @param int $userId CompanyUser ID submitting
+     * @param string $userType Model class of the user submitting
      * @throws \RuntimeException If disclosure is locked or incomplete
      */
-    public function submit(int $userId): void
+    public function submit(int $userId, string $userType = 'App\\Models\\User'): void
     {
         if ($this->is_locked) {
             throw new \RuntimeException('Cannot submit locked disclosure');
@@ -398,7 +428,8 @@ class CompanyDisclosure extends Model
         $this->update([
             'status' => 'submitted',
             'submitted_at' => now(),
-            'submitted_by' => $userId,
+            'submitted_by_id' => $userId,
+            'submitted_by_type' => $userType,
         ]);
 
         // Create approval record
@@ -536,9 +567,10 @@ class CompanyDisclosure extends Model
      *
      * @param array $data New disclosure data
      * @param int $userId User making the update
+     * @param string $userType Model class of the user updating
      * @throws \RuntimeException If disclosure is locked
      */
-    public function updateDisclosureData(array $data, int $userId): void
+    public function updateDisclosureData(array $data, int $userId, string $userType = 'App\\Models\\User'): void
     {
         if ($this->is_locked) {
             throw new \RuntimeException('Cannot update locked disclosure');
@@ -548,7 +580,8 @@ class CompanyDisclosure extends Model
             'disclosure_data' => $data,
             'completion_percentage' => $this->calculateCompletionPercentage($data),
             'last_modified_at' => now(),
-            'last_modified_by' => $userId,
+            'last_modified_by_id' => $userId,
+            'last_modified_by_type' => $userType,
             'last_modified_ip' => request()->ip(),
             'last_modified_user_agent' => request()->userAgent(),
         ]);

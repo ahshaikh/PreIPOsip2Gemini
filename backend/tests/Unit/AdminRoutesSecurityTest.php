@@ -53,6 +53,9 @@ class AdminRoutesSecurityTest extends UnitTestCase // Replace with WebTestCase i
         $adminRoutes = ['/admin/dashboard', '/admin/users/delete/1'];
 
         foreach ($adminRoutes as $route) {
+            // 0. Ensure no user logged in
+            $this->client->loginUser(null);
+
             // 1. Test with no user (guest)
             $response = $this->client->request('GET', $route);
             // Expecting a 401 Unauthorized or a 302 Redirect to /login

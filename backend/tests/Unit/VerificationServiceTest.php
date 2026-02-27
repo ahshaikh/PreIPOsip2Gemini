@@ -153,12 +153,14 @@ class VerificationServiceTest extends UnitTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_verification_logs_all_attempts()
     {
-        Log::shouldReceive('info')->atLeast()->once();
+        \Illuminate\Support\Facades\Log::spy();
         
         // Need to stub cache/http to prevent real errors from stopping logic
         Cache::shouldReceive('has')->andReturn(false);
         Http::fake(['*' => Http::response(['full_name' => 'John'], 200)]);
 
         $this->service->verifyPan('ABCDE1234F', 'John');
+        
+        \Illuminate\Support\Facades\Log::shouldHaveReceived('info')->atLeast()->once();
     }
 }

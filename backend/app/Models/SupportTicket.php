@@ -39,6 +39,8 @@ class SupportTicket extends Model
         'resolved_by',
         'resolved_at',
         'closed_at',   // <-- NEW
+        'rating',
+        'rating_feedback',
     ];
 
     protected $casts = [

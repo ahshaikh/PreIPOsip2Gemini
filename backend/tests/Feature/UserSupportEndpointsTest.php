@@ -117,7 +117,7 @@ class UserSupportEndpointsTest extends FeatureTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function testUserCanAttachFilesToTicket()
     {
-        Storage::fake('public');
+        Storage::fake('local'); // FileUploadService usually uses local for support docs
         
         $payload = $this->getValidTicketData() + [
             'attachment' => UploadedFile::fake()->create('proof.pdf', 1000)
@@ -126,9 +126,11 @@ class UserSupportEndpointsTest extends FeatureTestCase
         $response = $this->actingAs($this->user)->postJson('/api/v1/user/support-tickets', $payload);
 
         $response->assertStatus(201);
-        $this->assertDatabaseHas('support_messages', [
-            'attachments' => '["support\/' . $response->json('id') . '\/proof.pdf"]'
-        ]);
+        
+        $message = \App\Models\SupportMessage::where('support_ticket_id', $response->json('id'))->first();
+        $this->assertNotNull($message->attachments);
+        $this->assertStringContainsString('support/' . $response->json('id') . '/', $message->attachments[0]);
+        $this->assertStringContainsString('.pdf', $message->attachments[0]);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]

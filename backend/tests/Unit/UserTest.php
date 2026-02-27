@@ -106,34 +106,38 @@ class UserTest extends UnitTestCase
     public function test_user_has_profile_relationship()
     {
         $user = User::factory()->create();
-        $profile = UserProfile::create(['user_id' => $user->id, 'first_name' => 'Test']);
+        // UserFactory already creates a profile via afterCreating hook.
+        // Update the existing profile instead of creating a new one to avoid duplicates.
+        $user->profile->update(['first_name' => 'Test']);
 
         $this->assertTrue($user->profile()->exists());
-        $this->assertEquals('Test', $user->profile->first_name);
+        $this->assertEquals('Test', $user->profile->fresh()->first_name);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_user_has_wallet_relationship()
     {
         $user = User::factory()->create();
-        $wallet = Wallet::create([
-            'user_id' => $user->id,
+        // UserFactory already creates a wallet. Update it.
+        $user->wallet->update([
             'balance_paise' => 10000, // ₹100 in paise
             'locked_balance_paise' => 0
         ]);
 
         $this->assertTrue($user->wallet()->exists());
-        $this->assertEquals(100, $user->wallet->balance); // Virtual accessor returns rupees
+        $this->assertEquals(100, $user->wallet->fresh()->balance); // Virtual accessor returns rupees
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_user_has_kyc_relationship()
     {
         $user = User::factory()->create();
-        UserKyc::create(['user_id' => $user->id, 'status' => 'pending']);
+        // UserFactory already creates KYC as 'verified' by default.
+        // Update it to 'pending' for this test.
+        $user->kyc->update(['status' => 'pending']);
 
         $this->assertTrue($user->kyc()->exists());
-        $this->assertEquals('pending', $user->kyc->status);
+        $this->assertEquals('pending', $user->kyc->fresh()->status);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]

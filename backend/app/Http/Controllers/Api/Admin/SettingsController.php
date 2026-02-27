@@ -44,13 +44,14 @@ class SettingsController extends Controller
             'settings.*.type' => 'nullable|string' // Allow type overrides
         ]);
 
-        $adminId = $request->user()->id;
+        $adminId = $request->user() ? $request->user()->id : null;
 
         foreach ($validated['settings'] as $settingData) {
             
             // FIX: Fetch existing type to validate input
             $existing = Setting::where('key', $settingData['key'])->first();
-            $type = $settingData['type'] ?? ($existing ? $existing->type : 'string');
+            $type = $settingData['type'] 
+                ?? ($existing && $existing->type ? $existing->type : 'string');
 
             $value = $settingData['value'];
 
@@ -80,6 +81,7 @@ class SettingsController extends Controller
             }
 
             // Update or create setting
+            // Note: Cache busting is handled automatically by the Setting model's booted() method
             Setting::updateOrCreate(
                 ['key' => $settingData['key']],
                 [
@@ -89,9 +91,6 @@ class SettingsController extends Controller
                     'group' => $existing ? $existing->group : ($settingData['group'] ?? 'system'),
                 ]
             );
-
-            // Bust individual key cache
-            Cache::forget('setting.' . $settingData['key']);
         }
 
         // Bust all grouped caches

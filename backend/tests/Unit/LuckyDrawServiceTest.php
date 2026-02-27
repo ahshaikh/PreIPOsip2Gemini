@@ -58,7 +58,11 @@ class LuckyDrawServiceTest extends UnitTestCase
         $sub = Subscription::factory()->create(['user_id' => $user->id, 'plan_id' => $this->plan->id]);
         
         // Late payment (no bonus entries)
-        $payment = Payment::factory()->create(['subscription_id' => $sub->id, 'is_on_time' => false]);
+        $payment = Payment::factory()->create([
+            'user_id' => $user->id,
+            'subscription_id' => $sub->id,
+            'is_on_time' => false
+        ]);
         
         $this->service->allocateEntries($payment);
         
@@ -81,7 +85,11 @@ class LuckyDrawServiceTest extends UnitTestCase
         ]);
         
         // On-time payment
-        $payment = Payment::factory()->create(['subscription_id' => $sub->id, 'is_on_time' => true]);
+        $payment = Payment::factory()->create([
+            'user_id' => $user->id,
+            'subscription_id' => $sub->id, 
+            'is_on_time' => true
+        ]);
         
         $this->service->allocateEntries($payment);
         
@@ -96,13 +104,27 @@ class LuckyDrawServiceTest extends UnitTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_select_winners_uses_weighted_random()
     {
-        // User A: 100 entries
         $userA = User::factory()->create();
-        LuckyDrawEntry::create(['user_id' => $userA->id, 'lucky_draw_id' => $this->draw->id, 'payment_id' => 1, 'base_entries' => 100]);
+        $subA = Subscription::factory()->create(['user_id' => $userA->id]);
+        $payA = Payment::factory()->create(['user_id' => $userA->id, 'subscription_id' => $subA->id]);
         
-        // User B: 1 entry
+        LuckyDrawEntry::create([
+            'user_id' => $userA->id, 
+            'lucky_draw_id' => $this->draw->id, 
+            'payment_id' => $payA->id, 
+            'base_entries' => 100
+        ]);
+        
         $userB = User::factory()->create();
-        LuckyDrawEntry::create(['user_id' => $userB->id, 'lucky_draw_id' => $this->draw->id, 'payment_id' => 2, 'base_entries' => 1]);
+        $subB = Subscription::factory()->create(['user_id' => $userB->id]);
+        $payB = Payment::factory()->create(['user_id' => $userB->id, 'subscription_id' => $subB->id]);
+        
+        LuckyDrawEntry::create([
+            'user_id' => $userB->id, 
+            'lucky_draw_id' => $this->draw->id, 
+            'payment_id' => $payB->id, 
+            'base_entries' => 1
+        ]);
 
         // Run 100 draws. User A should win almost all of them.
         $wins = ['A' => 0, 'B' => 0];
@@ -121,12 +143,22 @@ class LuckyDrawServiceTest extends UnitTestCase
     public function test_distribute_prizes_to_wallets()
     {
         $user = User::factory()->create();
-        $user->wallet()->create(['balance_paise' => 0, 'locked_balance_paise' => 0]);
-        LuckyDrawEntry::create(['user_id' => $user->id, 'lucky_draw_id' => $this->draw->id, 'payment_id' => 1, 'base_entries' => 1]);
+        $user->wallet->update(['balance_paise' => 0, 'locked_balance_paise' => 0]);
+        
+        $sub = Subscription::factory()->create(['user_id' => $user->id]);
+        $pay = Payment::factory()->create(['user_id' => $user->id, 'subscription_id' => $sub->id]);
+
+        LuckyDrawEntry::create([
+            'user_id' => $user->id, 
+            'lucky_draw_id' => $this->draw->id, 
+            'payment_id' => $pay->id, 
+            'base_entries' => 1
+        ]);
 
         $winners = [$user->id];
         
-        $this->service->distributePrizes($this->draw, $winners);
+        $walletService = app(\App\Services\WalletService::class);
+        $this->service->distributePrizes($this->draw, $winners, $walletService);
         
         // 1. Wallet balance updated
         $this->assertEquals(1000, $user->wallet->fresh()->balance);
@@ -145,8 +177,9 @@ class LuckyDrawServiceTest extends UnitTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_send_winner_notifications()
     {
-        Log::shouldReceive('info')->once()->with('Queueing winner notification for User #1');
+        $user = User::factory()->create();
+        \Illuminate\Support\Facades\Log::shouldReceive('info')->once()->with("Queueing winner notification for User #{$user->id}");
 
-        $this->service->sendWinnerNotifications([1]);
+        $this->service->sendWinnerNotifications([$user->id]);
     }
 }

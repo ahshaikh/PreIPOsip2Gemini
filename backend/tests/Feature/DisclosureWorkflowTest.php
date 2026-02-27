@@ -24,6 +24,7 @@ use Tests\FeatureTestCase;
 class DisclosureWorkflowTest extends FeatureTestCase
 {
     protected User $companyUser;
+    protected \App\Models\CompanyUser $realCompanyUser;
     protected User $admin;
     protected Company $company;
     protected DisclosureModule $module;
@@ -39,8 +40,15 @@ class DisclosureWorkflowTest extends FeatureTestCase
         // Create test company and module
         $this->company = Company::factory()->create();
         $this->module = DisclosureModule::factory()->businessModel()->create();
+
+        // Create real CompanyUser record for FK constraints
+        $this->realCompanyUser = \App\Models\CompanyUser::factory()->create([
+            'company_id' => $this->company->id,
+            'status' => 'active'
+        ]);
     }
 
+    #[\PHPUnit\Framework\Attributes\Test]
     public function disclosure_can_be_submitted_for_review()
     {
         // Create complete disclosure (100%)
@@ -52,12 +60,12 @@ class DisclosureWorkflowTest extends FeatureTestCase
         ]);
 
         // Submit disclosure
-        $disclosure->submit($this->companyUser->id);
+        $disclosure->submit($this->realCompanyUser->id, \App\Models\CompanyUser::class);
 
         // Assert status changed
         $this->assertEquals('submitted', $disclosure->fresh()->status);
         $this->assertNotNull($disclosure->fresh()->submitted_at);
-        $this->assertEquals($this->companyUser->id, $disclosure->fresh()->submitted_by);
+        $this->assertEquals($this->realCompanyUser->id, $disclosure->fresh()->submitted_by_id);
 
         // Assert approval record created
         $this->assertDatabaseHas('disclosure_approvals', [
@@ -67,6 +75,7 @@ class DisclosureWorkflowTest extends FeatureTestCase
         ]);
     }
 
+    #[\PHPUnit\Framework\Attributes\Test]
     public function cannot_submit_incomplete_disclosure()
     {
         $disclosure = CompanyDisclosure::factory()->create([
@@ -79,9 +88,10 @@ class DisclosureWorkflowTest extends FeatureTestCase
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Cannot submit incomplete disclosure');
 
-        $disclosure->submit($this->companyUser->id);
+        $disclosure->submit($this->realCompanyUser->id, \App\Models\CompanyUser::class);
     }
 
+    #[\PHPUnit\Framework\Attributes\Test]
     public function cannot_submit_locked_disclosure()
     {
         $disclosure = CompanyDisclosure::factory()->create([
@@ -95,14 +105,27 @@ class DisclosureWorkflowTest extends FeatureTestCase
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Cannot submit locked disclosure');
 
-        $disclosure->submit($this->companyUser->id);
+        $disclosure->submit($this->realCompanyUser->id, \App\Models\CompanyUser::class);
     }
 
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_approve_disclosure()
     {
         $disclosure = CompanyDisclosure::factory()->submitted()->create([
             'company_id' => $this->company->id,
             'disclosure_module_id' => $this->module->id,
+        ]);
+
+        // Create the approval record that submit() would normally create
+        DisclosureApproval::create([
+            'company_disclosure_id' => $disclosure->id,
+            'company_id' => $this->company->id,
+            'disclosure_module_id' => $this->module->id,
+            'request_type' => 'initial_submission',
+            'requested_by' => $this->realCompanyUser->id,
+            'requested_at' => now(),
+            'disclosure_version_number' => 1,
+            'status' => 'pending',
         ]);
 
         // Approve disclosure
@@ -130,6 +153,7 @@ class DisclosureWorkflowTest extends FeatureTestCase
         ]);
     }
 
+    #[\PHPUnit\Framework\Attributes\Test]
     public function approval_creates_immutable_version_snapshot()
     {
         $disclosureData = [
@@ -146,6 +170,18 @@ class DisclosureWorkflowTest extends FeatureTestCase
             'disclosure_data' => $disclosureData,
         ]);
 
+        // Need approval record for approve() to work without failing on latest() update
+        DisclosureApproval::create([
+            'company_disclosure_id' => $disclosure->id,
+            'company_id' => $this->company->id,
+            'disclosure_module_id' => $this->module->id,
+            'request_type' => 'initial_submission',
+            'requested_by' => $this->realCompanyUser->id,
+            'requested_at' => now(),
+            'disclosure_version_number' => 1,
+            'status' => 'pending',
+        ]);
+
         $disclosure->approve($this->admin->id, 'Approved');
 
         // Get created version
@@ -158,11 +194,24 @@ class DisclosureWorkflowTest extends FeatureTestCase
         $this->assertEquals(hash('sha256', json_encode($disclosureData)), $version->version_hash);
     }
 
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_reject_disclosure()
     {
         $disclosure = CompanyDisclosure::factory()->submitted()->create([
             'company_id' => $this->company->id,
             'disclosure_module_id' => $this->module->id,
+        ]);
+
+        // Create the approval record
+        DisclosureApproval::create([
+            'company_disclosure_id' => $disclosure->id,
+            'company_id' => $this->company->id,
+            'disclosure_module_id' => $this->module->id,
+            'request_type' => 'initial_submission',
+            'requested_by' => $this->realCompanyUser->id,
+            'requested_at' => now(),
+            'disclosure_version_number' => 1,
+            'status' => 'pending',
         ]);
 
         $disclosure->reject($this->admin->id, 'Incomplete financial data');
@@ -182,6 +231,7 @@ class DisclosureWorkflowTest extends FeatureTestCase
         ]);
     }
 
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_request_clarifications()
     {
         $disclosure = CompanyDisclosure::factory()->submitted()->create([
@@ -212,6 +262,7 @@ class DisclosureWorkflowTest extends FeatureTestCase
         ]);
     }
 
+    #[\PHPUnit\Framework\Attributes\Test]
     public function company_can_answer_clarification()
     {
         $clarification = DisclosureClarification::factory()->create([
@@ -220,21 +271,23 @@ class DisclosureWorkflowTest extends FeatureTestCase
         ]);
 
         $clarification->submitAnswer(
-            $this->companyUser->id,
+            $this->realCompanyUser->id,
             'Growth was due to new product launch in Q3',
             [
                 ['file_path' => 'docs/revenue-proof.pdf', 'uploaded_at' => now()->toIso8601String()],
-            ]
+            ],
+            \App\Models\CompanyUser::class
         );
 
         $refreshed = $clarification->fresh();
         $this->assertEquals('answered', $refreshed->status);
         $this->assertEquals('Growth was due to new product launch in Q3', $refreshed->answer_body);
-        $this->assertEquals($this->companyUser->id, $refreshed->answered_by);
+        $this->assertEquals($this->realCompanyUser->id, $refreshed->answered_by_id);
         $this->assertNotNull($refreshed->answered_at);
         $this->assertNotNull($refreshed->supporting_documents);
     }
 
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_accept_clarification_answer()
     {
         $clarification = DisclosureClarification::factory()->answered()->create([
@@ -250,6 +303,7 @@ class DisclosureWorkflowTest extends FeatureTestCase
         $this->assertEquals('Explanation is satisfactory', $refreshed->resolution_notes);
     }
 
+    #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_dispute_clarification_answer()
     {
         $clarification = DisclosureClarification::factory()->answered()->create([
@@ -264,6 +318,7 @@ class DisclosureWorkflowTest extends FeatureTestCase
         $this->assertNotNull($refreshed->resolved_at);
     }
 
+    #[\PHPUnit\Framework\Attributes\Test]
     public function disclosure_data_can_be_updated_when_not_locked()
     {
         $disclosure = CompanyDisclosure::factory()->draft()->create([
@@ -276,14 +331,15 @@ class DisclosureWorkflowTest extends FeatureTestCase
             'revenue_streams' => [['name' => 'New stream', 'percentage' => 100]],
         ];
 
-        $disclosure->updateDisclosureData($newData, $this->companyUser->id);
+        $disclosure->updateDisclosureData($newData, $this->realCompanyUser->id, \App\Models\CompanyUser::class);
 
         $refreshed = $disclosure->fresh();
         $this->assertEquals($newData, $refreshed->disclosure_data);
-        $this->assertEquals($this->companyUser->id, $refreshed->last_modified_by);
+        $this->assertEquals($this->realCompanyUser->id, $refreshed->last_modified_by_id);
         $this->assertNotNull($refreshed->last_modified_at);
     }
 
+    #[\PHPUnit\Framework\Attributes\Test]
     public function cannot_update_locked_disclosure_data()
     {
         $disclosure = CompanyDisclosure::factory()->approved()->create([
@@ -295,9 +351,10 @@ class DisclosureWorkflowTest extends FeatureTestCase
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Cannot update locked disclosure');
 
-        $disclosure->updateDisclosureData(['test' => 'data'], $this->companyUser->id);
+        $disclosure->updateDisclosureData(['test' => 'data'], $this->realCompanyUser->id, \App\Models\CompanyUser::class);
     }
 
+    #[\PHPUnit\Framework\Attributes\Test]
     public function version_number_increments_on_subsequent_approvals()
     {
         $disclosure = CompanyDisclosure::factory()->create([
@@ -324,6 +381,7 @@ class DisclosureWorkflowTest extends FeatureTestCase
         $this->assertEquals(2, $version->version_number);
     }
 
+    #[\PHPUnit\Framework\Attributes\Test]
     public function disclosure_has_pending_clarifications_check()
     {
         $disclosure = CompanyDisclosure::factory()->create([
@@ -342,6 +400,7 @@ class DisclosureWorkflowTest extends FeatureTestCase
         $this->assertTrue($disclosure->hasPendingClarifications());
     }
 
+    #[\PHPUnit\Framework\Attributes\Test]
     public function disclosure_all_clarifications_answered_check()
     {
         $disclosure = CompanyDisclosure::factory()->create([
@@ -373,10 +432,12 @@ class DisclosureWorkflowTest extends FeatureTestCase
         $this->assertFalse($disclosure->allClarificationsAnswered());
     }
 
+    #[\PHPUnit\Framework\Attributes\Test]
     public function disclosure_approval_tracks_sla()
     {
         $approval = DisclosureApproval::factory()->create([
             'company_id' => $this->company->id,
+            'requested_by' => $this->realCompanyUser->id,
             'requested_at' => now()->subDays(6),
             'sla_due_date' => now()->subDays(1), // Overdue
             'status' => 'pending',
@@ -385,6 +446,7 @@ class DisclosureWorkflowTest extends FeatureTestCase
         $this->assertTrue($approval->fresh()->sla_due_date->isPast());
     }
 
+    #[\PHPUnit\Framework\Attributes\Test]
     public function cannot_approve_disclosure_with_open_clarifications()
     {
         // Create submitted disclosure
@@ -406,6 +468,7 @@ class DisclosureWorkflowTest extends FeatureTestCase
         $disclosure->approve($this->admin->id, 'Attempting to approve');
     }
 
+    #[\PHPUnit\Framework\Attributes\Test]
     public function can_approve_disclosure_when_all_clarifications_answered_and_accepted()
     {
         // Create submitted disclosure

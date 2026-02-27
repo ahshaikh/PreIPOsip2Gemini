@@ -60,13 +60,13 @@ class CompanyDisclosureTierService
         array $metadata = []
     ): Company {
         // Get current tier as enum
-        $currentTierValue = $company->disclosure_tier ?? DisclosureTier::TIER_0_PENDING->value;
-        $currentTier = DisclosureTier::tryFrom($currentTierValue);
+        $currentTierValue = $company->disclosure_tier ?? DisclosureTier::TIER_0_PENDING;
+        $currentTier = $currentTierValue instanceof DisclosureTier ? $currentTierValue : DisclosureTier::tryFrom($currentTierValue);
 
         if ($currentTier === null) {
             throw DisclosureTierImmutabilityException::invalidTier(
                 (string) $company->id,
-                $currentTierValue
+                (string) $currentTierValue
             );
         }
 
@@ -174,13 +174,13 @@ class CompanyDisclosureTierService
         string $justification,
         array $metadata = []
     ): Company {
-        $currentTierValue = $company->disclosure_tier ?? DisclosureTier::TIER_0_PENDING->value;
-        $currentTier = DisclosureTier::tryFrom($currentTierValue);
+        $currentTierValue = $company->disclosure_tier ?? DisclosureTier::TIER_0_PENDING;
+        $currentTier = $currentTierValue instanceof DisclosureTier ? $currentTierValue : DisclosureTier::tryFrom($currentTierValue);
 
         if ($currentTier === null) {
             throw DisclosureTierImmutabilityException::invalidTier(
                 (string) $company->id,
-                $currentTierValue
+                (string) $currentTierValue
             );
         }
 
@@ -201,13 +201,13 @@ class CompanyDisclosureTierService
      */
     public function getCurrentTier(Company $company): DisclosureTier
     {
-        $value = $company->disclosure_tier ?? DisclosureTier::TIER_0_PENDING->value;
-        $tier = DisclosureTier::tryFrom($value);
+        $value = $company->disclosure_tier ?? DisclosureTier::TIER_0_PENDING;
+        $tier = $value instanceof DisclosureTier ? $value : DisclosureTier::tryFrom($value);
 
         if ($tier === null) {
             Log::warning('Company has invalid disclosure_tier value', [
                 'company_id' => $company->id,
-                'invalid_value' => $value,
+                'invalid_value' => (string) $value,
             ]);
             return DisclosureTier::TIER_0_PENDING;
         }

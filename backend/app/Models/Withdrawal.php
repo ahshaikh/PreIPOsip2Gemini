@@ -84,7 +84,7 @@ class Withdrawal extends Model
     {
         return Attribute::make(
             get: fn ($value, $attributes) =>
-                ($attributes['amount_paise'] ?? 0) / 100
+                (float) (($attributes['amount_paise'] ?? 0) / 100)
         );
     }
 

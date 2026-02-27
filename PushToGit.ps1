@@ -8,12 +8,23 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "fix(factory): eliminate plan/amount drift in SubscriptionFactory
+$CommitMessage = "1 refactor(backend): stabilize test suite and enhance service integrity
+   2
+   3 - Migration: Added disclosure version immutability triggers and made user mobile nullable.
+   4 - Testing: Refactored 70+ tests to be deterministic by accounting for seeded data, using delta-based assertions, and flushing state between runs.
+   5 - Wallet: Updated WalletService to strictly use float amounts and improved balance vs. available_balance logic in WithdrawalService.
+   6 - Services: Enhanced ReportService, SmsService, and SupportService with better error handling, logging spies, and accurate environment mocking.
+   7 - Models: Fixed relationship tests (User, Profile, Wallet, KYC) to handle factory-driven side effects without record duplication.
+   8 - Security: Hardened SQL injection tests using Mockery and refined Admin IP restriction middleware.
 
-- Removed precomputed plan dependency in definition()
-- Derived amount and amount_paise from final resolved plan in configure()
-- Prevented mismatch between plan_id and subscription amount
-- Fixed nondeterministic upgrade failures in SubscriptionLifecycleTest"
+
+  Summary of Changes
+   - Migrations: Introduced 2026_02_27_000001_add_disclosure_version_immutability_triggers.php and 2026_02_27_000002_make_user_mobile_nullable.php.
+   - Test Suite: Major overhaul of backend/tests to ensure reliability when running against a seeded database. This includes using fresh() more consistently and
+     calculating expected values based on initial state.
+   - Financial Services: Standardized amount handling in WalletService and fixed logic in WithdrawalService to correctly reflect locked_balance transitions.
+   - Support & SMS: Improved ticket auto-assignment logic and updated SMS provider mocks to use specific URLs rather than catch-all globs.
+   - Models: Updated DisclosureVersion, ReferralCampaign, and Setting models to better support recent business logic changes."
 #----------------------
 
 function Get-GitCredential {

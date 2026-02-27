@@ -6,8 +6,8 @@ use App\Events\DisclosureApproved;
 use App\Events\ChargebackConfirmed;
 use App\Listeners\CheckTierPromotionOnDisclosureApproval;
 use App\Listeners\UpdateUserRiskProfile;
-use App\Models\{BulkPurchase, Company, CompanyDisclosure, DisclosureVersion, Withdrawal};
-use App\Observers\{BulkPurchaseObserver, CompanyObserver, CompanyDisclosureObserver, DisclosureVersionObserver, WithdrawalObserver};
+use App\Models\{BulkPurchase, Company, CompanyDisclosure, DisclosureVersion, Withdrawal, SupportTicket};
+use App\Observers\{BulkPurchaseObserver, CompanyObserver, CompanyDisclosureObserver, DisclosureVersionObserver, WithdrawalObserver, SupportTicketObserver};
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
@@ -54,6 +54,9 @@ class EventServiceProvider extends ServiceProvider
         // PHASE 4: Register CompanyDisclosure observer for auto-calculation
         // Triggers platform metrics and risk flag calculation when disclosure approved
         CompanyDisclosure::observe(CompanyDisclosureObserver::class);
+
+        // [FIX]: Support auto-assignment
+        SupportTicket::observe(SupportTicketObserver::class);
     }
 
     /**

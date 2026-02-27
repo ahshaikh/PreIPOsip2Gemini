@@ -255,4 +255,12 @@ class User extends Authenticatable
     {
         return $this->hasMany(CampaignUsage::class);
     }
+
+    /**
+     * Tickets assigned to this user (for support agents).
+     */
+    public function assignedTickets(): HasMany
+    {
+        return $this->hasMany(SupportTicket::class, 'assigned_to');
+    }
 }

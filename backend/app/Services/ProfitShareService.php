@@ -567,7 +567,9 @@ class ProfitShareService
             try {
                 DB::transaction(function () use ($user, $netAmount, $reason, $dist, $bonus) {
                     // 1. Debit from wallet
-                    $this->walletService->withdraw($user, $netAmount, 'reversal', "Reversal: {$reason}", $dist);
+                    // Use 'admin_adjustment' because 'reversal' is categorized as a CREDIT in TransactionType
+                    // and would fail the DB balance conservation constraint for a withdrawal.
+                    $this->walletService->withdraw($user, $netAmount, 'admin_adjustment', "Reversal: {$reason}", $dist);
 
                     // 2. Mark bonus transaction as reversed
                     $bonus->update(['description' => $bonus->description . " [REVERSED]"]);

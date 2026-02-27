@@ -126,9 +126,9 @@ class RazorpayService implements PaymentGatewayInterface
             $this->api->utility->verifyPaymentSignature($attributes);
             $this->log("Signature Verified Successfully");
             return true;
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             $this->log("Signature Verification Failed: " . $e->getMessage(), 'error');
-            throw $e;
+            return false;
         }
     }
 
@@ -148,9 +148,9 @@ class RazorpayService implements PaymentGatewayInterface
             $this->api->utility->verifyWebhookSignature($payload, $signature, $secret);
             $this->log("Webhook Signature Verified Successfully");
             return true;
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             $this->log("Webhook Signature Verification Failed: " . $e->getMessage(), 'error');
-            throw $e;
+            return false;
         }
     }
 

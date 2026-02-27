@@ -27,6 +27,11 @@ class ProfitShareServiceTest extends UnitTestCase
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
         $this->seed(\Database\Seeders\SettingsSeeder::class);
 
+        // Override settings for test to ensure eligibility
+        \App\Models\Setting::updateOrCreate(['key' => 'profit_share_min_investment'], ['value' => '100', 'type' => 'number']);
+        \App\Models\Setting::updateOrCreate(['key' => 'profit_share_min_months'], ['value' => '1', 'type' => 'number']);
+        \App\Models\Setting::updateOrCreate(['key' => 'profit_share_require_active_subscription'], ['value' => 'true', 'type' => 'boolean']);
+
         // --- Setup Plans ---
         // Plan A: 5% Share
         $this->planA = Plan::factory()->create(['monthly_amount' => 1000]);
@@ -36,21 +41,39 @@ class ProfitShareServiceTest extends UnitTestCase
         $this->planB = Plan::factory()->create(['monthly_amount' => 1000]);
         $this->planB->configs()->create(['config_key' => 'profit_share', 'value' => ['percentage' => 10]]);
 
+        // Fixed date for consistency
+        $baseDate = \Carbon\Carbon::parse('2025-01-01');
+        \Carbon\Carbon::setTestNow($baseDate);
+
         // --- Setup Users ---
         // User A: Eligible
-        $this->userA = User::factory()->create(['created_at' => now()->subMonths(4)]);
-        $this->userA->wallet()->create(['balance_paise' => 0, 'locked_balance_paise' => 0]);
-        Subscription::factory()->create(['user_id' => $this->userA->id, 'plan_id' => $this->planA->id, 'status' => 'active']);
+        $this->userA = User::factory()->create(['created_at' => $baseDate->copy()->subMonths(4)]);
+        $this->userA->wallet->update(['balance_paise' => 0, 'locked_balance_paise' => 0]);
+        Subscription::factory()->create([
+            'user_id' => $this->userA->id, 
+            'plan_id' => $this->planA->id, 
+            'status' => 'active',
+            'amount' => 1000,
+            'start_date' => $baseDate->copy()->subMonths(3)
+        ]);
 
         // User B: Eligible
-        $this->userB = User::factory()->create(['created_at' => now()->subMonths(4)]);
-        $this->userB->wallet()->create(['balance_paise' => 0, 'locked_balance_paise' => 0]);
-        Subscription::factory()->create(['user_id' => $this->userB->id, 'plan_id' => $this->planB->id, 'status' => 'active']);
+        $this->userB = User::factory()->create(['created_at' => $baseDate->copy()->subMonths(4)]);
+        $this->userB->wallet->update(['balance_paise' => 0, 'locked_balance_paise' => 0]);
+        Subscription::factory()->create([
+            'user_id' => $this->userB->id, 
+            'plan_id' => $this->planB->id, 
+            'status' => 'active',
+            'amount' => 1000,
+            'start_date' => $baseDate->copy()->subMonths(3)
+        ]);
 
         // --- Setup Profit Share ---
         $this->period = ProfitShare::factory()->create([
             'total_pool' => 10000, // ₹10k to distribute
-            'status' => 'pending'
+            'status' => 'pending',
+            'start_date' => $baseDate->copy()->subMonth(),
+            'end_date' => $baseDate->copy()
         ]);
     }
 
@@ -62,19 +85,18 @@ class ProfitShareServiceTest extends UnitTestCase
         // User B Ratio = 1000/2000 = 0.5
         // Pool = 10000
         
-        // User A (Plan A @ 5%): 10000 * 0.5 * (0.05 * 10) = 2500
-        // User B (Plan B @ 10%): 10000 * 0.5 * (0.10 * 10) = 5000
-        // (Note: Service has a 10x boost factor in formula)
+        // User A (Plan A @ 5%): 10000 * 0.5 * 0.05 = 250
+        // User B (Plan B @ 10%): 10000 * 0.5 * 0.10 = 500
 
         $this->service->calculateDistribution($this->period);
 
         $this->assertDatabaseHas('user_profit_shares', [
             'user_id' => $this->userA->id,
-            'amount' => 2500
+            'amount' => 250
         ]);
         $this->assertDatabaseHas('user_profit_shares', [
             'user_id' => $this->userB->id,
-            'amount' => 5000
+            'amount' => 500
         ]);
     }
 
@@ -83,7 +105,7 @@ class ProfitShareServiceTest extends UnitTestCase
     {
         // User C: Ineligible (New User)
         $userC = User::factory()->create(['created_at' => now()]); // Joined today
-        Subscription::factory()->create(['user_id' => $userC->id, 'plan_id' => $this->planA->id, 'status' => 'active']);
+        Subscription::factory()->create(['user_id' => $userC->id, 'plan_id' => $this->planA->id, 'status' => 'active', 'amount' => 1000]);
 
         $this->service->calculateDistribution($this->period);
 
@@ -96,12 +118,12 @@ class ProfitShareServiceTest extends UnitTestCase
     public function test_calculate_distribution_applies_plan_percentage()
     {
         // This is implicitly tested in test_calculate_profit_uses_correct_formula
-        // User A (5%) got 2500
-        // User B (10%) got 5000
+        // User A (5%) got 250
+        // User B (10%) got 500
         // This confirms the plan % was used.
         $this->service->calculateDistribution($this->period);
-        $this->assertDatabaseHas('user_profit_shares', ['user_id' => $this->userA->id, 'amount' => 2500]);
-        $this->assertDatabaseHas('user_profit_shares', ['user_id' => $this->userB->id, 'amount' => 5000]);
+        $this->assertDatabaseHas('user_profit_shares', ['user_id' => $this->userA->id, 'amount' => 250]);
+        $this->assertDatabaseHas('user_profit_shares', ['user_id' => $this->userB->id, 'amount' => 500]);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -116,8 +138,8 @@ class ProfitShareServiceTest extends UnitTestCase
         $this->service->distributeToWallets($this->period, $admin);
 
         // User A wallet should be credited
-        $this->assertEquals(2500, $this->userA->wallet->fresh()->balance);
-        $this->assertEquals(5000, $this->userB->wallet->fresh()->balance);
+        $this->assertEquals(250, $this->userA->wallet->fresh()->balance);
+        $this->assertEquals(500, $this->userB->wallet->fresh()->balance);
 
         // Status updated
         $this->assertEquals('distributed', $this->period->fresh()->status);
@@ -130,11 +152,11 @@ class ProfitShareServiceTest extends UnitTestCase
         $this->service->calculateDistribution($this->period);
         $this->service->distributeToWallets($this->period, $admin);
 
-        // Wallets are now 2500 and 5000
-        $this->assertEquals(2500, $this->userA->wallet->fresh()->balance);
+        // Wallets are now 250 and 500
+        $this->assertEquals(250, $this->userA->wallet->fresh()->balance);
 
         // --- REVERSE ---
-        $this->service->reverseDistribution($this->period);
+        $this->service->reverseDistribution($this->period->fresh(), 'Correction');
 
         // 1. Wallets should be debited
         $this->assertEquals(0, $this->userA->wallet->fresh()->balance);
@@ -146,8 +168,14 @@ class ProfitShareServiceTest extends UnitTestCase
         // 3. Reversal transactions created
         $this->assertDatabaseHas('transactions', [
             'user_id' => $this->userA->id,
-            'type' => 'reversal',
-            'amount' => -2500
+            'type' => 'admin_adjustment',
+            'amount_paise' => 25000 // ₹250 = 25000 paise
         ]);
+    }
+
+    protected function tearDown(): void
+    {
+        \Carbon\Carbon::setTestNow();
+        parent::tearDown();
     }
 }

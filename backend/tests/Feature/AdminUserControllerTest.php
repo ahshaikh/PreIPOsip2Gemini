@@ -31,10 +31,21 @@ class AdminUserControllerTest extends FeatureTestCase
 
         $this->user = User::factory()->create(['status' => 'active']);
         $this->user->assignRole('user');
-        UserProfile::create(['user_id' => $this->user->id, 'first_name' => 'John', 'last_name' => 'Doe']);
-        UserKyc::create(['user_id' => $this->user->id, 'status' => 'pending', 'pan_number' => 'ABCDE1234F']);
-        Wallet::create([
-            'user_id' => $this->user->id,
+        
+        UserProfile::updateOrCreate(['user_id' => $this->user->id], ['first_name' => 'John', 'last_name' => 'Doe']);
+        
+        // Bypass state machine guards during test setup
+        \Illuminate\Support\Facades\DB::table('user_kyc')->updateOrInsert(
+            ['user_id' => $this->user->id],
+            [
+                'status' => 'pending',
+                'pan_number' => 'ABCDE1234F',
+                'created_at' => now(),
+                'updated_at' => now()
+            ]
+        );
+
+        Wallet::updateOrCreate(['user_id' => $this->user->id], [
             'balance_paise' => 500000, // ₹5000 in paise
             'locked_balance_paise' => 50000 // ₹500 in paise
         ]);
@@ -748,10 +759,10 @@ class AdminUserControllerTest extends FeatureTestCase
     public function admin_can_export_users_to_csv()
     {
         $response = $this->actingAs($this->admin)
-            ->get('/api/v1/admin/users/export');
+            ->get('/api/v1/admin/users/export/csv');
 
         $response->assertStatus(200)
-            ->assertHeader('Content-Type', 'text/csv; charset=UTF-8')
+            ->assertHeader('Content-Type', 'text/csv; charset=utf-8')
             ->assertHeader('Content-Disposition', 'attachment; filename="users_export.csv"');
     }
 }

@@ -17,7 +17,7 @@ class RolesAndPermissionsSeeder extends Seeder
     public function run(): void
     {
         // Reset cached roles and permissions
-        app()[PermissionRegistrar::class]->forgetCachedPermissions();
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
 
         // ======================================================
         // 1. Declare canonical system roles
@@ -63,6 +63,33 @@ class RolesAndPermissionsSeeder extends Seeder
             'compliance.view_legal',
             // V-WAVE3-FIX: Add payments permissions used by refund routes
             'payments.refund',
+            // [FIX]: Settings permissions for tests
+            'settings.view_system',
+            'settings.edit_system',
+            // [FIX]: Bonus and User management permissions
+            'bonuses.manage_config',
+            'users.view',
+            'users.create',
+            'users.edit',
+            'users.delete',
+            'users.suspend',
+            'users.block',
+            'users.wallet',
+            'users.adjust_wallet',
+            // [FIX]: KYC permissions
+            'kyc.view_queue',
+            'kyc.approve',
+            'kyc.reject',
+            // [FIX]: Plan permissions
+            'plans.edit',
+            'reports.view_financial',
+            'reports.view_user',
+            'reports.view_compliance',
+            'reports.export',
+            'reports.manage_scheduled',
+            'system.view_health',
+            'system.view_logs',
+            'settings.manage_cms',
         ];
 
         foreach ($permissions as $permissionName) {
@@ -83,6 +110,29 @@ class RolesAndPermissionsSeeder extends Seeder
             'manage plans',
             'compliance.view_legal', // V-WAVE1-FIX: Added for dispute routes
             'payments.refund', // V-WAVE3-FIX: Added for refund routes
+            'settings.view_system',
+            'settings.edit_system',
+            'bonuses.manage_config',
+            'users.view',
+            'users.create',
+            'users.edit',
+            'users.delete',
+            'users.suspend',
+            'users.block',
+            'users.wallet',
+            'users.adjust_wallet',
+            'kyc.view_queue',
+            'kyc.approve',
+            'kyc.reject',
+            'plans.edit',
+            'reports.view_financial',
+            'reports.view_user',
+            'reports.view_compliance',
+            'reports.export',
+            'reports.manage_scheduled',
+            'system.view_health',
+            'system.view_logs',
+            'settings.manage_cms',
         ]);
 
         $roleInstances['kyc-officer']->givePermissionTo([
@@ -104,6 +154,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'access admin panel',
             'manage users',
             'manage kyc',
+            'users.edit',
         ]);
 
         $roleInstances['company']->givePermissionTo([

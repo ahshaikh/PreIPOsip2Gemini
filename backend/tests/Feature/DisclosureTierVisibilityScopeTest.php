@@ -200,37 +200,33 @@ class DisclosureTierVisibilityScopeTest extends FeatureTestCase
     public function test_product_publicly_visible_scope(): void
     {
         // Create products for each company - bypass global scope for setup
-        $productPending = Product::withoutGlobalScope(ProductPublicVisibilityScope::class)->create([
+        // Use factory to ensure all required fields (name, min_investment, etc.) are populated
+        $productPending = Product::factory()->create([
             'company_id' => $this->companyPending->id,
-            'name' => 'Product Pending',
-            'slug' => 'product-pending-' . uniqid(),
-            'face_value_per_unit' => 100,
-            'status' => 'approved',
+            'status' => 'draft',
         ]);
 
-        $productUpcoming = Product::withoutGlobalScope(ProductPublicVisibilityScope::class)->create([
+        $productUpcoming = Product::factory()->create([
             'company_id' => $this->companyUpcoming->id,
-            'name' => 'Product Upcoming',
-            'slug' => 'product-upcoming-' . uniqid(),
-            'face_value_per_unit' => 100,
-            'status' => 'approved',
+            'status' => 'draft',
         ]);
 
-        $productLive = Product::withoutGlobalScope(ProductPublicVisibilityScope::class)->create([
+        $productLive = Product::factory()->create([
             'company_id' => $this->companyLive->id,
-            'name' => 'Product Live',
-            'slug' => 'product-live-' . uniqid(),
-            'face_value_per_unit' => 100,
-            'status' => 'approved',
+            'status' => 'draft',
         ]);
 
-        $productFeatured = Product::withoutGlobalScope(ProductPublicVisibilityScope::class)->create([
+        $productFeatured = Product::factory()->create([
             'company_id' => $this->companyFeatured->id,
-            'name' => 'Product Featured',
-            'slug' => 'product-featured-' . uniqid(),
-            'face_value_per_unit' => 100,
-            'status' => 'approved',
+            'status' => 'draft',
         ]);
+
+        // Manually update status to bypass transition rules for test setup if needed, 
+        // though scopes should work regardless of product status (they check company tier).
+        // For visibility tests, 'approved' is the realistic state.
+        foreach ([$productPending, $productUpcoming, $productLive, $productFeatured] as $p) {
+            DB::table('products')->where('id', $p->id)->update(['status' => 'approved']);
+        }
 
         $visibleProducts = Product::withoutGlobalScope(ProductPublicVisibilityScope::class)
             ->publiclyVisible()
@@ -248,29 +244,24 @@ class DisclosureTierVisibilityScopeTest extends FeatureTestCase
      */
     public function test_product_by_company_disclosure_tier_scope(): void
     {
-        Product::withoutGlobalScope(ProductPublicVisibilityScope::class)->create([
+        $p1 = Product::factory()->create([
             'company_id' => $this->companyLive->id,
-            'name' => 'Product A',
-            'slug' => 'product-a-' . uniqid(),
-            'face_value_per_unit' => 100,
-            'status' => 'approved',
+            'status' => 'draft',
         ]);
 
-        Product::withoutGlobalScope(ProductPublicVisibilityScope::class)->create([
+        $p2 = Product::factory()->create([
             'company_id' => $this->companyLive->id,
-            'name' => 'Product B',
-            'slug' => 'product-b-' . uniqid(),
-            'face_value_per_unit' => 100,
-            'status' => 'approved',
+            'status' => 'draft',
         ]);
 
-        Product::withoutGlobalScope(ProductPublicVisibilityScope::class)->create([
+        $p3 = Product::factory()->create([
             'company_id' => $this->companyPending->id,
-            'name' => 'Product C',
-            'slug' => 'product-c-' . uniqid(),
-            'face_value_per_unit' => 100,
-            'status' => 'approved',
+            'status' => 'draft',
         ]);
+
+        foreach ([$p1, $p2, $p3] as $p) {
+            DB::table('products')->where('id', $p->id)->update(['status' => 'approved']);
+        }
 
         $liveProducts = Product::withoutGlobalScope(ProductPublicVisibilityScope::class)
             ->byCompanyDisclosureTier(DisclosureTier::TIER_2_LIVE)->get();
@@ -286,30 +277,26 @@ class DisclosureTierVisibilityScopeTest extends FeatureTestCase
      */
     public function test_product_from_companies_at_or_above_tier_scope(): void
     {
-        Product::withoutGlobalScope(ProductPublicVisibilityScope::class)->create([
+        $p1 = Product::factory()->create([
             'company_id' => $this->companyPending->id,
-            'slug' => 'p1-' . uniqid(),
-            'face_value_per_unit' => 100,
-            'status' => 'approved',
+            'status' => 'draft',
         ]);
-        Product::withoutGlobalScope(ProductPublicVisibilityScope::class)->create([
+        $p2 = Product::factory()->create([
             'company_id' => $this->companyUpcoming->id,
-            'slug' => 'p2-' . uniqid(),
-            'face_value_per_unit' => 100,
-            'status' => 'approved',
+            'status' => 'draft',
         ]);
-        Product::withoutGlobalScope(ProductPublicVisibilityScope::class)->create([
+        $p3 = Product::factory()->create([
             'company_id' => $this->companyLive->id,
-            'slug' => 'p3-' . uniqid(),
-            'face_value_per_unit' => 100,
-            'status' => 'approved',
+            'status' => 'draft',
         ]);
-        Product::withoutGlobalScope(ProductPublicVisibilityScope::class)->create([
+        $p4 = Product::factory()->create([
             'company_id' => $this->companyFeatured->id,
-            'slug' => 'p4-' . uniqid(),
-            'face_value_per_unit' => 100,
-            'status' => 'approved',
+            'status' => 'draft',
         ]);
+
+        foreach ([$p1, $p2, $p3, $p4] as $p) {
+            DB::table('products')->where('id', $p->id)->update(['status' => 'approved']);
+        }
 
         $products = Product::withoutGlobalScope(ProductPublicVisibilityScope::class)
             ->fromCompaniesAtOrAboveTier(DisclosureTier::TIER_2_LIVE)->get();
@@ -321,19 +308,19 @@ class DisclosureTierVisibilityScopeTest extends FeatureTestCase
      */
     public function test_product_is_publicly_visible_by_company_tier_helper(): void
     {
-        $productVisible = Product::withoutGlobalScope(ProductPublicVisibilityScope::class)->create([
+        $productVisible = Product::factory()->create([
             'company_id' => $this->companyLive->id,
-            'slug' => 'visible-' . uniqid(),
-            'face_value_per_unit' => 100,
-            'status' => 'approved',
+            'status' => 'draft',
         ]);
 
-        $productNotVisible = Product::withoutGlobalScope(ProductPublicVisibilityScope::class)->create([
+        $productNotVisible = Product::factory()->create([
             'company_id' => $this->companyPending->id,
-            'slug' => 'not-visible-' . uniqid(),
-            'face_value_per_unit' => 100,
-            'status' => 'approved',
+            'status' => 'draft',
         ]);
+
+        foreach ([$productVisible, $productNotVisible] as $p) {
+            DB::table('products')->where('id', $p->id)->update(['status' => 'approved']);
+        }
 
         $this->assertTrue($productVisible->isPubliclyVisibleByCompanyTier());
         $this->assertFalse($productNotVisible->isPubliclyVisibleByCompanyTier());
@@ -344,12 +331,13 @@ class DisclosureTierVisibilityScopeTest extends FeatureTestCase
      */
     public function test_product_get_visibility_status_helper(): void
     {
-        $product = Product::withoutGlobalScope(ProductPublicVisibilityScope::class)->create([
+        $product = Product::factory()->create([
             'company_id' => $this->companyLive->id,
-            'slug' => 'status-' . uniqid(),
-            'face_value_per_unit' => 100,
-            'status' => 'approved',
+            'status' => 'draft',
         ]);
+
+        DB::table('products')->where('id', $product->id)->update(['status' => 'approved']);
+        $product->refresh();
 
         $status = $product->getVisibilityStatus();
 
@@ -370,30 +358,26 @@ class DisclosureTierVisibilityScopeTest extends FeatureTestCase
     {
         // Create many products across all tiers
         for ($i = 0; $i < 5; $i++) {
-            Product::withoutGlobalScope(ProductPublicVisibilityScope::class)->create([
+            $p1 = Product::factory()->create([
                 'company_id' => $this->companyPending->id,
-                'slug' => 'pending-' . $i . '-' . uniqid(),
-                'face_value_per_unit' => 100,
-                'status' => 'approved',
+                'status' => 'draft',
             ]);
-            Product::withoutGlobalScope(ProductPublicVisibilityScope::class)->create([
+            $p2 = Product::factory()->create([
                 'company_id' => $this->companyUpcoming->id,
-                'slug' => 'upcoming-' . $i . '-' . uniqid(),
-                'face_value_per_unit' => 100,
-                'status' => 'approved',
+                'status' => 'draft',
             ]);
-            Product::withoutGlobalScope(ProductPublicVisibilityScope::class)->create([
+            $p3 = Product::factory()->create([
                 'company_id' => $this->companyLive->id,
-                'slug' => 'live-' . $i . '-' . uniqid(),
-                'face_value_per_unit' => 100,
-                'status' => 'approved',
+                'status' => 'draft',
             ]);
-            Product::withoutGlobalScope(ProductPublicVisibilityScope::class)->create([
+            $p4 = Product::factory()->create([
                 'company_id' => $this->companyFeatured->id,
-                'slug' => 'featured-' . $i . '-' . uniqid(),
-                'face_value_per_unit' => 100,
-                'status' => 'approved',
+                'status' => 'draft',
             ]);
+
+            foreach ([$p1, $p2, $p3, $p4] as $p) {
+                DB::table('products')->where('id', $p->id)->update(['status' => 'approved']);
+            }
         }
 
         $visibleProducts = Product::withoutGlobalScope(ProductPublicVisibilityScope::class)
@@ -428,30 +412,26 @@ class DisclosureTierVisibilityScopeTest extends FeatureTestCase
     {
         // Create products
         for ($i = 0; $i < 3; $i++) {
-            Product::withoutGlobalScope(ProductPublicVisibilityScope::class)->create([
+            $p1 = Product::factory()->create([
                 'company_id' => $this->companyPending->id,
-                'slug' => 'inv-pending-' . $i . '-' . uniqid(),
-                'face_value_per_unit' => 100,
-                'status' => 'approved',
+                'status' => 'draft',
             ]);
-            Product::withoutGlobalScope(ProductPublicVisibilityScope::class)->create([
+            $p2 = Product::factory()->create([
                 'company_id' => $this->companyUpcoming->id,
-                'slug' => 'inv-upcoming-' . $i . '-' . uniqid(),
-                'face_value_per_unit' => 100,
-                'status' => 'approved',
+                'status' => 'draft',
             ]);
-            Product::withoutGlobalScope(ProductPublicVisibilityScope::class)->create([
+            $p3 = Product::factory()->create([
                 'company_id' => $this->companyLive->id,
-                'slug' => 'inv-live-' . $i . '-' . uniqid(),
-                'face_value_per_unit' => 100,
-                'status' => 'approved',
+                'status' => 'draft',
             ]);
-            Product::withoutGlobalScope(ProductPublicVisibilityScope::class)->create([
+            $p4 = Product::factory()->create([
                 'company_id' => $this->companyFeatured->id,
-                'slug' => 'inv-featured-' . $i . '-' . uniqid(),
-                'face_value_per_unit' => 100,
-                'status' => 'approved',
+                'status' => 'draft',
             ]);
+
+            foreach ([$p1, $p2, $p3, $p4] as $p) {
+                DB::table('products')->where('id', $p->id)->update(['status' => 'approved']);
+            }
         }
 
         $visibleCompanyIds = Company::withoutGlobalScope(PublicVisibilityScope::class)

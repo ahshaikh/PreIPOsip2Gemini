@@ -89,6 +89,7 @@ class NotificationServiceTest extends UnitTestCase
         // 1. User opts out of 'auth_email'
         UserNotificationPreference::create([
             'user_id' => $this->user->id,
+            'notification_type' => 'auth',
             'preference_key' => 'auth_email',
             'is_enabled' => false
         ]);

@@ -65,19 +65,25 @@ class BonusCalculatorCelebrationTest extends UnitTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_birthday_bonus_awarded_on_user_birthday()
     {
-        // Travel to User A's birthday
+        // Travel to User A's birthday (Nov 14)
+        // User B's anniversary is ALSO Nov 14 (started 2024-11-14)
         $this->travelTo(Carbon::parse('2025-11-14'));
 
         $this->artisan('app:process-celebration-bonuses');
 
-        // User A gets bonus
+        // User A gets birthday bonus
         $this->assertDatabaseHas('bonus_transactions', [
             'user_id' => $this->userA->id,
-            'amount' => 50
+            'amount' => 50,
+            'description' => 'Happy Birthday!'
         ]);
         
-        // User B does not
-        $this->assertDatabaseMissing('bonus_transactions', ['user_id' => $this->userB->id]);
+        // User B does NOT get birthday bonus (his birthday is Jan 1st)
+        // Note: He DOES get an anniversary bonus today, so we must check description
+        $this->assertDatabaseMissing('bonus_transactions', [
+            'user_id' => $this->userB->id,
+            'description' => 'Happy Birthday!'
+        ]);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]

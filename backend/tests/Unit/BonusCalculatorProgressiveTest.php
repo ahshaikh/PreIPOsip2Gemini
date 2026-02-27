@@ -49,10 +49,14 @@ class BonusCalculatorProgressiveTest extends UnitTestCase
     public function test_progressive_bonus_not_awarded_before_start_month()
     {
         // Month 3 Payment
-        Payment::factory()->count(2)->create(['subscription_id' => $this->subscription->id, 'status' => 'paid']);
-        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount_paise' => 100000]); // ₹1000 in paise
+        $this->subscription->update(['consecutive_payments_count' => 3]);
+        $payment = Payment::factory()->create([
+            'subscription_id' => $this->subscription->id, 
+            'amount_paise' => 100000,
+            'amount' => 1000.00
+        ]);
 
-        $bonus = $this->service->calculateAndAwardBonuses($payment);
+        $this->service->calculateAndAwardBonuses($payment);
 
         $this->assertDatabaseMissing('bonus_transactions', ['type' => 'progressive']);
     }
@@ -62,8 +66,13 @@ class BonusCalculatorProgressiveTest extends UnitTestCase
     {
         // Month 4 Payment
         // Formula: (4 - 4 + 1) * 0.5% * 1000 = 1 * 0.005 * 1000 = 5
-        Payment::factory()->count(3)->create(['subscription_id' => $this->subscription->id, 'status' => 'paid']);
-        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount_paise' => 100000]); // ₹1000 in paise
+        $this->subscription->update(['consecutive_payments_count' => 4]);
+        $payment = Payment::factory()->create([
+            'subscription_id' => $this->subscription->id, 
+            'amount_paise' => 100000,
+            'amount' => 1000.00,
+            'status' => 'paid'
+        ]);
 
         $this->service->calculateAndAwardBonuses($payment);
 
@@ -78,8 +87,13 @@ class BonusCalculatorProgressiveTest extends UnitTestCase
     {
         // Month 5 Payment
         // Formula: (5 - 4 + 1) * 0.5% * 1000 = 2 * 0.005 * 1000 = 10
-        Payment::factory()->count(4)->create(['subscription_id' => $this->subscription->id, 'status' => 'paid']);
-        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount_paise' => 100000]); // ₹1000 in paise
+        $this->subscription->update(['consecutive_payments_count' => 5]);
+        $payment = Payment::factory()->create([
+            'subscription_id' => $this->subscription->id, 
+            'amount_paise' => 100000,
+            'amount' => 1000.00,
+            'status' => 'paid'
+        ]);
 
         $this->service->calculateAndAwardBonuses($payment);
 
@@ -92,18 +106,29 @@ class BonusCalculatorProgressiveTest extends UnitTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_progressive_bonus_respects_configured_rate()
     {
-        // Change rate to 1.0%
-        $this->plan->configs()->update([
-            'value' => ['rate' => 1.0, 'start_month' => 4, 'max_percentage' => 10]
+        // Setup Plan with 1.0% Rate
+        $plan = Plan::factory()->create(['monthly_amount' => 1000]);
+        $config = ['rate' => 1.0, 'start_month' => 4, 'max_percentage' => 10, 'overrides' => []];
+        $plan->configs()->create(['config_key' => 'progressive_config', 'value' => $config]);
+
+        $user = User::factory()->create();
+        $subscription = Subscription::factory()->create([
+            'user_id' => $user->id,
+            'plan_id' => $plan->id,
+            'bonus_multiplier' => 1.0,
+            'consecutive_payments_count' => 4
         ]);
 
-        // Month 4 Payment
-        // Formula: 1 * 1.0% * 1000 = 10
-        Payment::factory()->count(3)->create(['subscription_id' => $this->subscription->id, 'status' => 'paid']);
-        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount_paise' => 100000]); // ₹1000 in paise
+        $payment = Payment::factory()->create([
+            'subscription_id' => $subscription->id, 
+            'amount_paise' => 100000,
+            'amount' => 1000.00,
+            'status' => 'paid'
+        ]);
 
         $this->service->calculateAndAwardBonuses($payment);
 
+        // Formula: 1 * 1.0% * 1000 = 10
         $this->assertDatabaseHas('bonus_transactions', [
             'type' => 'progressive',
             'amount' => 10.00
@@ -114,12 +139,16 @@ class BonusCalculatorProgressiveTest extends UnitTestCase
     public function test_progressive_bonus_applies_referral_multiplier()
     {
         // Set Multiplier to 2.0
-        $this->subscription->update(['bonus_multiplier' => 2.0]);
+        $this->subscription->update(['bonus_multiplier' => 2.0, 'consecutive_payments_count' => 4]);
 
         // Month 4 Payment
         // Formula: (5.00 Base Bonus) * 2.0 = 10.00
-        Payment::factory()->count(3)->create(['subscription_id' => $this->subscription->id, 'status' => 'paid']);
-        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount_paise' => 100000]); // ₹1000 in paise
+        $payment = Payment::factory()->create([
+            'subscription_id' => $this->subscription->id, 
+            'amount_paise' => 100000,
+            'amount' => 1000.00,
+            'status' => 'paid'
+        ]);
 
         $this->service->calculateAndAwardBonuses($payment);
 
@@ -133,22 +162,34 @@ class BonusCalculatorProgressiveTest extends UnitTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_progressive_bonus_uses_month_override_if_configured()
     {
-        // Override Month 4 to be 5.0% (Instead of 0.5%)
-        $this->plan->configs()->update([
-            'value' => [
-                'rate' => 0.5, 
-                'start_month' => 4,
-                'overrides' => [4 => 5.0] // Month 4 override
-            ]
+        // Setup Plan with override
+        $plan = Plan::factory()->create(['monthly_amount' => 1000]);
+        $config = [
+            'rate' => 0.5, 
+            'start_month' => 4,
+            'max_percentage' => 10,
+            'overrides' => [4 => 5.0]
+        ];
+        $plan->configs()->create(['config_key' => 'progressive_config', 'value' => $config]);
+
+        $user = User::factory()->create();
+        $subscription = Subscription::factory()->create([
+            'user_id' => $user->id,
+            'plan_id' => $plan->id,
+            'bonus_multiplier' => 1.0,
+            'consecutive_payments_count' => 4
         ]);
 
-        // Month 4 Payment
-        // Formula: 5.0% * 1000 = 50.00
-        Payment::factory()->count(3)->create(['subscription_id' => $this->subscription->id, 'status' => 'paid']);
-        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount_paise' => 100000]); // ₹1000 in paise
+        $payment = Payment::factory()->create([
+            'subscription_id' => $subscription->id, 
+            'amount_paise' => 100000,
+            'amount' => 1000.00,
+            'status' => 'paid'
+        ]);
 
         $this->service->calculateAndAwardBonuses($payment);
 
+        // Formula: 5.0% * 1000 = 50.00
         $this->assertDatabaseHas('bonus_transactions', [
             'type' => 'progressive',
             'amount' => 50.00
@@ -158,14 +199,25 @@ class BonusCalculatorProgressiveTest extends UnitTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_progressive_bonus_caps_at_maximum_percentage()
     {
-        // Set Max Cap to 1%
-        // Set Month to 100 (Calculated rate would be ~48%)
-        $this->plan->configs()->update([
-            'value' => ['rate' => 0.5, 'start_month' => 4, 'max_percentage' => 1.0]
+        // Setup Plan with 1% cap
+        $plan = Plan::factory()->create(['monthly_amount' => 1000]);
+        $config = ['rate' => 0.5, 'start_month' => 4, 'max_percentage' => 1.0, 'overrides' => []];
+        $plan->configs()->create(['config_key' => 'progressive_config', 'value' => $config]);
+
+        $user = User::factory()->create();
+        $subscription = Subscription::factory()->create([
+            'user_id' => $user->id,
+            'plan_id' => $plan->id,
+            'bonus_multiplier' => 1.0,
+            'consecutive_payments_count' => 100
         ]);
 
-        Payment::factory()->count(99)->create(['subscription_id' => $this->subscription->id, 'status' => 'paid']);
-        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount_paise' => 100000]); // ₹1000 in paise
+        $payment = Payment::factory()->create([
+            'subscription_id' => $subscription->id, 
+            'amount_paise' => 100000,
+            'amount' => 1000.00,
+            'status' => 'paid'
+        ]);
 
         $this->service->calculateAndAwardBonuses($payment);
 
@@ -181,12 +233,18 @@ class BonusCalculatorProgressiveTest extends UnitTestCase
     {
         // Month 4 Payment of 5000
         // Formula: 0.5% * 5000 = 25.00
-        Payment::factory()->count(3)->create(['subscription_id' => $this->subscription->id, 'status' => 'paid']);
-        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount_paise' => 500000]); // ₹5000 in paise
+        $this->subscription->update(['consecutive_payments_count' => 4]);
+        $payment = Payment::factory()->create([
+            'subscription_id' => $this->subscription->id, 
+            'amount_paise' => 500000,
+            'amount' => 5000.00,
+            'status' => 'paid'
+        ]);
 
         $this->service->calculateAndAwardBonuses($payment);
 
         $this->assertDatabaseHas('bonus_transactions', [
+            'type' => 'progressive',
             'amount' => 25.00,
             'base_amount' => 5000.00
         ]);
@@ -199,8 +257,12 @@ class BonusCalculatorProgressiveTest extends UnitTestCase
         Setting::updateOrCreate(['key' => 'progressive_bonus_enabled'], ['value' => 'false']);
 
         // Month 4 Payment
-        Payment::factory()->count(3)->create(['subscription_id' => $this->subscription->id, 'status' => 'paid']);
-        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount_paise' => 100000]); // ₹1000 in paise
+        $this->subscription->update(['consecutive_payments_count' => 4]);
+        $payment = Payment::factory()->create([
+            'subscription_id' => $this->subscription->id, 
+            'amount_paise' => 100000,
+            'amount' => 1000.00
+        ]);
 
         $this->service->calculateAndAwardBonuses($payment);
 
@@ -218,8 +280,13 @@ class BonusCalculatorProgressiveTest extends UnitTestCase
         // 3 * 0.5% = 1.5%
         // 1.5% * 1000 = 15
         
-        Payment::factory()->count(5)->create(['subscription_id' => $this->subscription->id, 'status' => 'paid']);
-        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount_paise' => 100000]); // ₹1000 in paise
+        $this->subscription->update(['consecutive_payments_count' => 6]);
+        $payment = Payment::factory()->create([
+            'subscription_id' => $this->subscription->id, 
+            'amount_paise' => 100000,
+            'amount' => 1000.00,
+            'status' => 'paid'
+        ]);
 
         $this->service->calculateAndAwardBonuses($payment);
 

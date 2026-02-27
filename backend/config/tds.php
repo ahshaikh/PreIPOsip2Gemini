@@ -54,6 +54,12 @@ return [
          * Default: 10% (treated same as regular bonus)
          */
         'celebration' => env('TDS_RATE_CELEBRATION', 10.0),
+
+        /**
+         * TDS on lucky draw winnings
+         * Default: 30% as per Section 194B (winnings from lottery/crossword puzzle)
+         */
+        'lucky_draw' => env('TDS_RATE_LUCKY_DRAW', 30.0),
     ],
 
     /*
@@ -71,6 +77,7 @@ return [
         'withdrawal' => env('TDS_THRESHOLD_WITHDRAWAL', 0),
         'profit_share' => env('TDS_THRESHOLD_PROFIT_SHARE', 0),
         'celebration' => env('TDS_THRESHOLD_CELEBRATION', 0), // Birthday/anniversary/festival bonuses
+        'lucky_draw' => env('TDS_THRESHOLD_LUCKY_DRAW', 10000), // Section 194B: No TDS if winnings <= ₹10,000
     ],
 
     /*

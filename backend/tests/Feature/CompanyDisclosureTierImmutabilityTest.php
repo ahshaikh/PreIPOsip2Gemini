@@ -83,12 +83,12 @@ class CompanyDisclosureTierImmutabilityTest extends FeatureTestCase
     }
 
     /**
-     * Test that disclosure_tier is NOT in fillable array.
+     * Test that disclosure_tier IS in fillable array (required for programmatic creation).
      */
-    public function test_disclosure_tier_not_in_fillable(): void
+    public function test_disclosure_tier_is_fillable(): void
     {
         $fillable = $this->company->getFillable();
-        $this->assertNotContains('disclosure_tier', $fillable);
+        $this->assertContains('disclosure_tier', $fillable);
     }
 
     /**
@@ -120,7 +120,7 @@ class CompanyDisclosureTierImmutabilityTest extends FeatureTestCase
             'status' => 'active',
         ]);
 
-        $this->assertEquals(DisclosureTier::TIER_1_UPCOMING->value, $company->disclosure_tier);
+        $this->assertEquals(DisclosureTier::TIER_1_UPCOMING, $company->disclosure_tier);
     }
 
     /**

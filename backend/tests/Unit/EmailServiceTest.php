@@ -102,6 +102,7 @@ class EmailServiceTest extends UnitTestCase
         Queue::fake();
         
         $this->user->notificationPreferences()->create([
+            'notification_type' => 'test',
             'preference_key' => 'test_email',
             'is_enabled' => false
         ]);
@@ -116,7 +117,7 @@ class EmailServiceTest extends UnitTestCase
     public function test_send_email_validates_recipient()
     {
         Queue::fake();
-        $user = User::factory()->create(['email' => null]); // No email
+        $user = User::factory()->make(['email' => null]); // No email - use make() to avoid DB constraint
         
         $log = $this->service->send($user, 'test.welcome', []);
 

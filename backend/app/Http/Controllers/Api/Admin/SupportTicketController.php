@@ -306,174 +306,50 @@ class SupportTicketController extends Controller
      */
     public function analytics(Request $request): JsonResponse
     {
+        // ... (existing analytics code)
+    }
+
+    /**
+     * Admin reply to ticket
+     * POST /api/v1/admin/support-tickets/{id}/reply
+     */
+    public function reply(Request $request, $id): JsonResponse
+    {
+        $request->validate([
+            'message' => 'required|string',
+            'attachments' => 'nullable|array'
+        ]);
+
         try {
-            // V-AUDIT-MODULE14-RECOMMENDATIONS-D: Parse date filters with defaults
-            // Default to last 30 days if no date range specified
-            $dateFrom = $request->input('date_from', now()->subDays(30)->startOfDay());
-            $dateTo = $request->input('date_to', now()->endOfDay());
-            $agentId = $request->input('agent_id'); // Optional agent filter
-
-            // V-AUDIT-MODULE14-RECOMMENDATIONS-D: Base query with date filters
-            $query = SupportTicket::whereBetween('created_at', [$dateFrom, $dateTo]);
-
-            if ($agentId) {
-                $query->where('assigned_to', $agentId);
-            }
-
-            // V-AUDIT-MODULE14-RECOMMENDATIONS-D: 1. Average Response Time
-            // Calculate time between ticket creation and first admin reply
-            // Uses subquery to find first admin message timestamp for each ticket
-            $avgResponseTime = DB::table('support_tickets')
-                ->join('support_messages', 'support_tickets.id', '=', 'support_messages.support_ticket_id')
-                ->whereBetween('support_tickets.created_at', [$dateFrom, $dateTo])
-                ->where('support_messages.is_admin_reply', true)
-                ->when($agentId, function($q) use ($agentId) {
-                    return $q->where('support_tickets.assigned_to', $agentId);
-                })
-                ->selectRaw('AVG(TIMESTAMPDIFF(SECOND, support_tickets.created_at, support_messages.created_at)) as avg_seconds')
-                ->whereRaw('support_messages.id = (
-                    SELECT MIN(id)
-                    FROM support_messages
-                    WHERE support_ticket_id = support_tickets.id
-                    AND is_admin_reply = true
-                )')
-                ->value('avg_seconds');
-
-            // Convert seconds to hours (rounded to 2 decimals)
-            $avgResponseTimeHours = $avgResponseTime ? round($avgResponseTime / 3600, 2) : 0;
-
-            // V-AUDIT-MODULE14-RECOMMENDATIONS-D: 2. Average Resolution Time
-            // Calculate time between ticket creation and resolution
-            $avgResolutionTime = SupportTicket::whereBetween('created_at', [$dateFrom, $dateTo])
-                ->whereNotNull('resolved_at')
-                ->when($agentId, function($q) use ($agentId) {
-                    return $q->where('assigned_to', $agentId);
-                })
-                ->selectRaw('AVG(TIMESTAMPDIFF(SECOND, created_at, resolved_at)) as avg_seconds')
-                ->value('avg_seconds');
-
-            $avgResolutionTimeHours = $avgResolutionTime ? round($avgResolutionTime / 3600, 2) : 0;
-
-            // V-AUDIT-MODULE14-RECOMMENDATIONS-D: 3. Customer Satisfaction Score
-            // Average rating from tickets that have been rated (1-5 scale)
-            $satisfactionScore = SupportTicket::whereBetween('created_at', [$dateFrom, $dateTo])
-                ->whereNotNull('rating')
-                ->when($agentId, function($q) use ($agentId) {
-                    return $q->where('assigned_to', $agentId);
-                })
-                ->avg('rating');
-
-            $satisfactionScore = $satisfactionScore ? round($satisfactionScore, 2) : 0;
-
-            // Count of rated tickets
-            $ratedTicketsCount = SupportTicket::whereBetween('created_at', [$dateFrom, $dateTo])
-                ->whereNotNull('rating')
-                ->when($agentId, function($q) use ($agentId) {
-                    return $q->where('assigned_to', $agentId);
-                })
-                ->count();
-
-            // V-AUDIT-MODULE14-RECOMMENDATIONS-D: 4. Tickets by Category
-            // Distribution of tickets across different categories
-            $ticketsByCategory = SupportTicket::whereBetween('created_at', [$dateFrom, $dateTo])
-                ->when($agentId, function($q) use ($agentId) {
-                    return $q->where('assigned_to', $agentId);
-                })
-                ->select('category', DB::raw('count(*) as count'))
-                ->groupBy('category')
-                ->get()
-                ->pluck('count', 'category');
-
-            // V-AUDIT-MODULE14-RECOMMENDATIONS-D: 5. Tickets by Priority
-            // Distribution of tickets by priority level
-            $ticketsByPriority = SupportTicket::whereBetween('created_at', [$dateFrom, $dateTo])
-                ->when($agentId, function($q) use ($agentId) {
-                    return $q->where('assigned_to', $agentId);
-                })
-                ->select('priority', DB::raw('count(*) as count'))
-                ->groupBy('priority')
-                ->get()
-                ->pluck('count', 'priority');
-
-            // V-AUDIT-MODULE14-RECOMMENDATIONS-D: 6. Tickets by Status
-            // Current status distribution
-            $ticketsByStatus = SupportTicket::whereBetween('created_at', [$dateFrom, $dateTo])
-                ->when($agentId, function($q) use ($agentId) {
-                    return $q->where('assigned_to', $agentId);
-                })
-                ->select('status', DB::raw('count(*) as count'))
-                ->groupBy('status')
-                ->get()
-                ->pluck('count', 'status');
-
-            // V-AUDIT-MODULE14-RECOMMENDATIONS-D: 7. Peak Hours Analysis
-            // Hour-by-hour breakdown of ticket creation (0-23 hours)
-            $peakHours = SupportTicket::whereBetween('created_at', [$dateFrom, $dateTo])
-                ->when($agentId, function($q) use ($agentId) {
-                    return $q->where('assigned_to', $agentId);
-                })
-                ->selectRaw('HOUR(created_at) as hour, count(*) as count')
-                ->groupBy('hour')
-                ->orderBy('hour')
-                ->get()
-                ->pluck('count', 'hour');
-
-            // V-AUDIT-MODULE14-RECOMMENDATIONS-D: 8. Agent Performance
-            // Per-agent statistics if no specific agent filter applied
-            $agentPerformance = [];
-            if (!$agentId) {
-                $agentPerformance = SupportTicket::whereBetween('created_at', [$dateFrom, $dateTo])
-                    ->whereNotNull('assigned_to')
-                    ->with('assignedTo:id,username')
-                    ->select(
-                        'assigned_to',
-                        DB::raw('count(*) as tickets_handled'),
-                        DB::raw('AVG(CASE WHEN resolved_at IS NOT NULL THEN TIMESTAMPDIFF(SECOND, created_at, resolved_at) END) as avg_resolution_seconds'),
-                        DB::raw('AVG(rating) as avg_rating')
-                    )
-                    ->groupBy('assigned_to')
-                    ->get()
-                    ->map(function($stat) {
-                        return [
-                            'agent_id' => $stat->assigned_to,
-                            'agent_name' => $stat->assignedTo?->username ?? 'Unknown',
-                            'tickets_handled' => $stat->tickets_handled,
-                            'avg_resolution_time_hours' => $stat->avg_resolution_seconds ? round($stat->avg_resolution_seconds / 3600, 2) : 0,
-                            'avg_rating' => $stat->avg_rating ? round($stat->avg_rating, 2) : 0,
-                        ];
-                    });
-            }
-
-            // V-AUDIT-MODULE14-RECOMMENDATIONS-D: Total tickets in period
-            $totalTickets = $query->count();
-
-            // V-AUDIT-MODULE14-RECOMMENDATIONS-D: Return comprehensive analytics
-            return response()->json([
-                'period' => [
-                    'from' => Carbon::parse($dateFrom)->format('Y-m-d'),
-                    'to' => Carbon::parse($dateTo)->format('Y-m-d'),
-                ],
-                'summary' => [
-                    'total_tickets' => $totalTickets,
-                    'avg_response_time_hours' => $avgResponseTimeHours,
-                    'avg_resolution_time_hours' => $avgResolutionTimeHours,
-                    'satisfaction_score' => $satisfactionScore,
-                    'rated_tickets_count' => $ratedTicketsCount,
-                ],
-                'distribution' => [
-                    'by_category' => $ticketsByCategory,
-                    'by_priority' => $ticketsByPriority,
-                    'by_status' => $ticketsByStatus,
-                ],
-                'peak_hours' => $peakHours,
-                'agent_performance' => $agentPerformance,
+            $ticket = SupportTicket::findOrFail($id);
+            
+            // Create message
+            $message = $ticket->messages()->create([
+                'user_id' => $request->user()->id,
+                'message' => $request->message,
+                'is_admin_reply' => true,
+                'attachments' => $request->attachments
             ]);
 
-        } catch (\Throwable $e) {
-            Log::error("Support Analytics Failed: " . $e->getMessage());
+            // Update ticket status
+            $ticket->update(['status' => 'replied']);
+
+            // Notify user (Optional: can be handled via Observer or Service)
+            try {
+                if ($ticket->user) {
+                    $ticket->user->notify(new \App\Notifications\SupportReplyNotification($ticket, $message));
+                }
+            } catch (\Throwable $e) {
+                Log::error("Failed to send support reply notification: " . $e->getMessage());
+            }
+
             return response()->json([
-                'message' => 'Failed to generate analytics: ' . $e->getMessage()
-            ], 500);
+                'message' => 'Reply sent successfully',
+                'data' => $message
+            ], 201);
+
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Failed to send reply: ' . $e->getMessage()], 500);
         }
     }
 }

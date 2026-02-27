@@ -54,12 +54,12 @@ class PaymentTest extends UnitTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_payment_status_enum_validates()
     {
-        // Verify we can store valid statuses
-        $payment = Payment::factory()->create(['status' => 'paid']);
-        $this->assertEquals('paid', $payment->status);
+        // Verify we can store valid statuses following the state machine
+        $payment = Payment::factory()->create(['status' => 'pending']);
+        $this->assertEquals('pending', $payment->status);
 
-        $payment->update(['status' => 'failed']);
-        $this->assertEquals('failed', $payment->fresh()->status);
+        $payment->update(['status' => 'paid']);
+        $this->assertEquals('paid', $payment->fresh()->status);
         
         $payment->update(['status' => 'refunded']);
         $this->assertEquals('refunded', $payment->fresh()->status);
@@ -146,7 +146,9 @@ class PaymentTest extends UnitTestCase
     public function test_payment_scope_failed_returns_correct_records()
     {
         Payment::factory()->create(['status' => 'paid']);
-        Payment::factory()->create(['status' => 'failed']);
+        // Create as pending first, then fail, because pending -> failed is valid
+        $payment = Payment::factory()->create(['status' => 'pending']);
+        $payment->update(['status' => 'failed']);
 
         $this->assertEquals(1, Payment::failed()->count());
         $this->assertEquals('failed', Payment::failed()->first()->status);

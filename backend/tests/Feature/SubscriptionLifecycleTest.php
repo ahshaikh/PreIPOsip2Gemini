@@ -56,13 +56,6 @@ class SubscriptionLifecycleTest extends FeatureTestCase
             'balance_paise' => 1000000 // enough for upgrade
         ]);
 
-        dump([
-            'subscription_amount' => $sub->amount,
-            'subscription_plan_monthly' => $sub->plan->monthly_amount,
-            'planA_monthly' => $this->planA->monthly_amount,
-            'planB_monthly' => $this->planB->monthly_amount,
-        ]);
-        
         // Ensure no pending payments block the upgrade
         \App\Models\Payment::where('subscription_id', $sub->id)
             ->update(['status' => 'paid']);

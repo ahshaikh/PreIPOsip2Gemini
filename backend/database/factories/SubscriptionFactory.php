@@ -104,25 +104,32 @@ class SubscriptionFactory extends Factory
         $welcomeBonusConfig = $plan->getConfig('welcome_bonus_config', [
             'amount' => 500,
         ]);
+        $celebrationConfig = $plan->getConfig('celebration_bonus_config', [
+            'birthday_bonus' => 50,
+            'anniversary_bonuses' => [['year' => 1, 'amount' => 100]],
+        ]);
 
-        // Compute hash using same algorithm as SubscriptionConfigSnapshotService
-        $versionHash = $this->computeCanonicalHash(
-            $subscription->plan_id,
-            $snapshotAt,
-            $progressiveConfig,
-            $milestoneConfig,
-            $consistencyConfig,
-            $welcomeBonusConfig,
-            null, // referral_tiers
-            null, // celebration_bonus_config
-            null  // lucky_draw_entries
-        );
+        $snapshotData = [
+            'celebration_bonus_config' => $this->sortRecursively($celebrationConfig),
+            'config_snapshot_at' => $snapshotAt->toISOString(),
+            'consistency_config' => $this->sortRecursively($consistencyConfig),
+            'lucky_draw_entries' => null,
+            'milestone_config' => $this->sortRecursively($milestoneConfig),
+            'plan_id' => $subscription->plan_id,
+            'progressive_config' => $this->sortRecursively($progressiveConfig),
+            'referral_tiers' => null,
+            'welcome_bonus_config' => $this->sortRecursively($welcomeBonusConfig),
+        ];
+
+        // Compute hash using algorithm that matches SubscriptionConfigSnapshotService
+        $versionHash = $this->computeCanonicalHash($snapshotData);
 
         $subscription->forceFill([
             'progressive_config' => $progressiveConfig,
             'milestone_config' => $milestoneConfig,
             'consistency_config' => $consistencyConfig,
             'welcome_bonus_config' => $welcomeBonusConfig,
+            'celebration_bonus_config' => $celebrationConfig,
             'config_snapshot_at' => $snapshotAt,
             'config_snapshot_version' => $versionHash,
         ])->save();
@@ -131,32 +138,8 @@ class SubscriptionFactory extends Factory
     /**
      * V-WAVE2-FIX: Compute canonical hash matching SubscriptionConfigSnapshotService exactly
      */
-    private function computeCanonicalHash(
-        int $planId,
-        \DateTimeInterface $snapshotAt,
-        ?array $progressiveConfig,
-        ?array $milestoneConfig,
-        ?array $consistencyConfig,
-        ?array $welcomeBonusConfig,
-        ?array $referralTiers,
-        ?array $celebrationConfig,
-        ?array $luckyDrawConfig
-    ): string {
-        // V-WAVE2-FIX: Normalize timestamp to second precision (MySQL timestamp doesn't store microseconds)
-        $normalizedTimestamp = \Carbon\Carbon::parse($snapshotAt)->setMicroseconds(0);
-
-        $canonicalData = [
-            'celebration_bonus_config' => $this->sortRecursively($celebrationConfig),
-            'config_snapshot_at' => $normalizedTimestamp->format('Y-m-d\TH:i:s.000000P'), // Match service format
-            'consistency_config' => $this->sortRecursively($consistencyConfig),
-            'lucky_draw_entries' => $this->sortRecursively($luckyDrawConfig),
-            'milestone_config' => $this->sortRecursively($milestoneConfig),
-            'plan_id' => $planId,
-            'progressive_config' => $this->sortRecursively($progressiveConfig),
-            'referral_tiers' => $this->sortRecursively($referralTiers),
-            'welcome_bonus_config' => $this->sortRecursively($welcomeBonusConfig),
-        ];
-
+    private function computeCanonicalHash(array $canonicalData): string
+    {
         ksort($canonicalData);
         // V-WAVE2-FIX: Use same JSON flags as SubscriptionConfigSnapshotService
         $json = json_encode($canonicalData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION);

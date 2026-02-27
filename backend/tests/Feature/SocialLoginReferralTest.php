@@ -42,7 +42,8 @@ class SocialLoginReferralTest extends FeatureTestCase
         $response = $this->get('/api/v1/auth/google/callback?state=' . $state);
 
         // Should redirect to frontend with token
-        $this->assertTrue($response->isRedirection());
+        $response->assertStatus(302);
+        $this->assertStringContainsString('/login/social-callback', $response->headers->get('Location'));
 
         // Check that user was created
         $newUser = User::where('email', 'newuser@example.com')->first();
@@ -79,7 +80,7 @@ class SocialLoginReferralTest extends FeatureTestCase
         $response = $this->get('/api/v1/auth/google/callback?state=' . $state);
 
         // Should still succeed
-        $this->assertTrue($response->isRedirection());
+        $response->assertStatus(302);
 
         // User should be created without referral
         $newUser = User::where('email', 'user2@example.com')->first();
@@ -116,7 +117,7 @@ class SocialLoginReferralTest extends FeatureTestCase
         $response = $this->get('/api/v1/auth/google/callback?state=' . $state);
 
         // Should succeed but not create self-referral
-        $this->assertTrue($response->isRedirection());
+        $response->assertStatus(302);
 
         // No referral should be created
         $this->assertEquals(0, Referral::where('referrer_id', $user->id)
@@ -127,7 +128,17 @@ class SocialLoginReferralTest extends FeatureTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function google_redirect_includes_referral_code_in_state()
     {
-        $response = $this->get('/api/v1/auth/google?referral_code=TEST123');
+        // Mock Socialite redirect
+        $abstractTarget = Mockery::mock('StdClass');
+        $abstractTarget->shouldReceive('getTargetUrl')->andReturn('https://accounts.google.com/o/oauth2/auth?client_id=xxx&state=yyy');
+        
+        $driver = Mockery::mock('StdClass');
+        $driver->shouldReceive('with')->andReturnSelf();
+        $driver->shouldReceive('redirect')->andReturn($abstractTarget);
+
+        Socialite::shouldReceive('driver->stateless')->andReturn($driver);
+
+        $response = $this->get('/api/v1/auth/google/redirect?referral_code=TEST123');
 
         $response->assertStatus(200);
         $response->assertJsonStructure(['redirect_url']);

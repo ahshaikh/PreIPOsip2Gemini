@@ -62,25 +62,32 @@ class ProductPriceHistoryTest extends UnitTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_price_history_orders_by_date_descending()
     {
-        // Create 3 records out of order
-        $h1 = ProductPriceHistory::factory()->create([
+        $now = \Carbon\Carbon::parse('2025-01-01 12:00:00');
+        
+        // Create 3 records in chronological order
+        $h1 = ProductPriceHistory::create([
             'product_id' => $this->product->id,
-            'recorded_at' => now()->subDays(5)
+            'price' => 100,
+            'recorded_at' => $now->copy()->subDays(5)
         ]);
         
-        $h2 = ProductPriceHistory::factory()->create([
+        $h2 = ProductPriceHistory::create([
             'product_id' => $this->product->id,
-            'recorded_at' => now() // Newest
-        ]);
-        
-        $h3 = ProductPriceHistory::factory()->create([
-            'product_id' => $this->product->id,
-            'recorded_at' => now()->subDays(2)
+            'price' => 105,
+            'recorded_at' => $now->copy()->subDays(2)
         ]);
 
-        // Fetch using 'latest' (which means order by date descending)
-        $latest = $this->product->priceHistory()->latest('recorded_at')->first();
+        $h3 = ProductPriceHistory::create([
+            'product_id' => $this->product->id,
+            'price' => 110,
+            'recorded_at' => $now // Newest
+        ]);
 
-        $this->assertEquals($h2->id, $latest->id);
+        // Fetch using 'latest' (which means order by recorded_at descending)
+        // Since recorded_at is a DATE column, same-day order might depend on ID or timestamps
+        // Use reorder() to clear any default orderings from the relationship definition
+        $latest = $this->product->priceHistory()->reorder()->orderBy('recorded_at', 'desc')->orderBy('id', 'desc')->first();
+
+        $this->assertEquals($h3->id, $latest->id);
     }
 }

@@ -39,6 +39,3 @@ class ActivityLogFactory extends Factory
         ];
     }
 }
-
-in the above file:
-Action: Ensure old_values and new_values are being passed as JSON strings or arrays that Laravel can cast to JSON, rather than nulls or empty strings if they are triggered.

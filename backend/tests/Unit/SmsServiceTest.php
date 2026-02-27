@@ -21,13 +21,16 @@ class SmsServiceTest extends UnitTestCase
         $this->service = new SmsService();
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
         $this->user = User::factory()->create(['mobile' => '9876543210']);
+
+        // Default to msg91 for tests that expect provider-like behavior
+        \App\Models\Setting::updateOrCreate(['key' => 'sms_provider'], ['value' => 'msg91', 'type' => 'string']);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_send_sms_uses_correct_template_id()
     {
         Http::fake([
-            'api.msg91.com*' => Http::response(['message_id' => '123'], 200)
+            'https://api.msg91.com*' => Http::response(['message_id' => '123'], 200)
         ]);
 
         $this->service->send($this->user, "Test", "slug", "DLT123");
@@ -56,19 +59,21 @@ class SmsServiceTest extends UnitTestCase
         $longMessage = str_repeat('a', 200); // 200 chars
         $truncated = substr($longMessage, 0, 157) . '...'; // 160 chars
 
-        Log::shouldReceive('warning')->once(); // Expect a warning
+        \Illuminate\Support\Facades\Log::spy();
         
         $this->service->send($this->user, $longMessage, "slug");
 
         $this->assertDatabaseHas('sms_logs', [
             'message' => $truncated
         ]);
+        
+        \Illuminate\Support\Facades\Log::shouldHaveReceived('warning')->once();
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_send_sms_logs_delivery()
     {
-        Http::fake(['*' => Http::response(['message_id' => 'abc'], 200)]);
+        Http::fake(['https://api.msg91.com*' => Http::response(['message_id' => 'abc'], 200)]);
 
         $this->service->send($this->user, "Test", "slug");
 
@@ -85,7 +90,7 @@ class SmsServiceTest extends UnitTestCase
     public function test_send_sms_handles_msg91_failure()
     {
         // Simulate a 500 error from the gateway
-        Http::fake(['*' => Http::response('Server Error', 500)]);
+        Http::fake(['https://api.msg91.com*' => Http::response('Server Error', 500)]);
 
         $log = $this->service->send($this->user, "Test", "slug");
 

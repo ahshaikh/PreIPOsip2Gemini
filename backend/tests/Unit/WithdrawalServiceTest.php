@@ -28,17 +28,19 @@ class WithdrawalServiceTest extends UnitTestCase
 
         $this->user = User::factory()->create();
         $this->user->kyc->update(['status' => 'verified']);
-        $this->wallet = Wallet::create([
-            'user_id' => $this->user->id,
+        
+        // Update existing wallet instead of creating new one
+        $this->user->wallet->update([
             'balance_paise' => 500000, // ₹5000 in paise
             'locked_balance_paise' => 0
         ]);
+        $this->wallet = $this->user->wallet->fresh();
 
         $this->admin = User::factory()->create();
         $this->admin->assignRole('admin');
 
         // Set min withdrawal
-        Setting::create(['key' => 'min_withdrawal_amount', 'value' => 1000]);
+        \App\Models\Setting::updateOrCreate(['key' => 'min_withdrawal_amount'], ['value' => '1000', 'type' => 'number']);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -82,8 +84,9 @@ class WithdrawalServiceTest extends UnitTestCase
     {
         $withdrawal = $this->service->requestWithdrawal($this->user, 1000, []);
 
-        // At this point, balance is 4000, locked is 1000
-        $this->assertEquals(4000, $this->wallet->fresh()->balance);
+        // At this point, total balance is still 5000, but available is 4000, locked is 1000
+        $this->assertEquals(5000, $this->wallet->fresh()->balance);
+        $this->assertEquals(4000, $this->wallet->fresh()->available_balance);
         $this->assertEquals(1000, $this->wallet->fresh()->locked_balance);
 
         // Manually approve (to skip event)
@@ -91,8 +94,8 @@ class WithdrawalServiceTest extends UnitTestCase
 
         $this->service->completeWithdrawal($withdrawal, $this->admin, 'UTR123');
 
-        // Balances after completion
-        $this->assertEquals(4000, $this->wallet->fresh()->balance); // Balance unchanged
-        $this->assertEquals(0, $this->wallet->fresh()->locked_balance); // Locked is cleared
+        // Balances after completion: total balance is now 4000, locked is 0
+        $this->assertEquals(4000, $this->wallet->fresh()->balance);
+        $this->assertEquals(0, $this->wallet->fresh()->locked_balance);
     }
 }

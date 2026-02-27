@@ -18,6 +18,7 @@ class SupportTicketTest extends UnitTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
         $this->user = User::factory()->create();
         $this->admin = User::factory()->create();
         $this->admin->assignRole('admin');

@@ -19,6 +19,28 @@ use Illuminate\Support\Str;
 class SocialLoginController extends Controller
 {
     /**
+     * Get the redirect URL for a provider.
+     */
+    public function redirectToProvider(Request $request, $provider)
+    {
+        if ($provider !== 'google') {
+            return response()->json(['message' => 'Provider not supported'], 400);
+        }
+        return $this->redirectToGoogle($request);
+    }
+
+    /**
+     * Handle the callback from a provider.
+     */
+    public function handleProviderCallback(Request $request, $provider)
+    {
+        if ($provider !== 'google') {
+            return response()->json(['message' => 'Provider not supported'], 400);
+        }
+        return $this->handleGoogleCallback($request);
+    }
+
+    /**
      * Get the redirect URL for Google.
      */
     public function redirectToGoogle(Request $request)

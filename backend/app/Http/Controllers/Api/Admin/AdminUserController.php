@@ -20,6 +20,7 @@ use App\Services\EmailService;
 use App\Services\SmsService;
 use App\Services\AllocationService;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -34,6 +35,8 @@ class AdminUserController extends Controller
     protected $emailService;
     protected $smsService;
     protected $allocationService;
+
+    private const EXPECTED_CSV_HEADERS = ['username', 'email', 'mobile'];
 
     // Inject services
     public function __construct(
@@ -145,18 +148,6 @@ class AdminUserController extends Controller
             'wallet' => $user->wallet ? [
                 'balance' => $user->wallet->balance,
                 'locked_balance' => $user->wallet->locked_balance,
-                // [AUDIT FIX]: Map transactions for the frontend history tab
-                'transactions' => $user->wallet->transactions->map(function($tx) {
-                    return [
-                        'id' => $tx->id,
-                        'type' => $tx->type,
-                        'amount' => $tx->amount, // Uses Accessor (Paise -> Rupees)
-                        'balance_after' => $tx->balance_after, // Uses Accessor (Paise -> Rupees)
-                        'description' => $tx->description,
-                        'status' => $tx->status,
-                        'created_at' => $tx->created_at,
-                    ];
-                }),
             ] : null,
             'subscription' => $user->subscription ? [
                 'id' => $user->subscription->id,
@@ -206,8 +197,6 @@ class AdminUserController extends Controller
         ]);
     }
 
-    // ... (All other methods: suspend, adjustBalance, bulkAction, import, etc. remain unchanged) ...
-    
     public function suspend(Request $request, User $user)
     {
         $request->validate(['reason' => 'required|string|max:255']);
@@ -225,7 +214,6 @@ class AdminUserController extends Controller
         $validated = $request->validated();
         
         // [AUDIT FIX]: Unit Conversion - Rupees to Paise
-        // Frontend sends Rupees (e.g., 1500), WalletService expects Paise (150000)
         $amount = (float)$validated['amount'];
         $amountPaise = (int) round($amount * 100); 
 
@@ -239,10 +227,11 @@ class AdminUserController extends Controller
                     $amountPaise, 
                     TransactionType::DEPOSIT, 
                     $description, 
-                    $admin
+                    $admin,
+                    true // [NEW]: bypassComplianceCheck = true for Admin actions
                 );
             } else {
-                // [PROTOCOL 7 Fix]: Updated arguments to allow overdraft
+                // Do not allow overdraft for standard adjustments to ensure clean error message
                 $this->walletService->withdraw(
                     $user, 
                     $amountPaise, 
@@ -250,7 +239,7 @@ class AdminUserController extends Controller
                     $description, 
                     $admin, 
                     false, // lockBalance
-                    true   // [NEW ARGUMENT]: allowOverdraft = true for Admin actions
+                    false  // allowOverdraft = false
                 ); 
             }
             return response()->json(['message' => 'Wallet balance adjusted successfully.', 'new_balance' => $user->wallet->fresh()->balance]);
@@ -295,155 +284,6 @@ class AdminUserController extends Controller
         User::whereIn('id', $validated['user_ids'])->update(['status' => $status]);
 
         return response()->json(['message' => "$count users updated to $status."]);
-    }
-
-    private const EXPECTED_CSV_HEADERS = ['username', 'email', 'mobile'];
-
-    public function import(Request $request)
-    {
-        $request->validate(['file' => 'required|file|mimes:csv,txt|max:5120']); 
-
-        $file = $request->file('file');
-        $handle = fopen($file->getPathname(), 'r');
-
-        $header = fgetcsv($handle);
-        if (!$header || count($header) < 3) {
-            fclose($handle);
-            return response()->json([
-                'message' => 'Invalid CSV format. Expected headers: ' . implode(', ', self::EXPECTED_CSV_HEADERS)
-            ], 422);
-        }
-
-        $normalizedHeaders = array_map(fn($h) => strtolower(trim($h)), $header);
-
-        foreach (self::EXPECTED_CSV_HEADERS as $required) {
-            if (!in_array($required, $normalizedHeaders)) {
-                fclose($handle);
-                return response()->json([
-                    'message' => "Missing required column: '$required'. Expected headers: " . implode(', ', self::EXPECTED_CSV_HEADERS)
-                ], 422);
-            }
-        }
-
-        $columnMap = [
-            'username' => array_search('username', $normalizedHeaders),
-            'email' => array_search('email', $normalizedHeaders),
-            'mobile' => array_search('mobile', $normalizedHeaders),
-        ];
-
-        $imported = 0;
-        $skipped = 0;
-        $errors = [];
-        $lineNumber = 1;
-
-        DB::beginTransaction();
-        try {
-            while (($row = fgetcsv($handle)) !== false) {
-                $lineNumber++;
-                if (empty(array_filter($row))) {
-                    continue;
-                }
-                if (count($row) < 3) {
-                    $errors[] = "Line $lineNumber: Insufficient columns";
-                    $skipped++;
-                    continue;
-                }
-
-                $username = trim($row[$columnMap['username']] ?? '');
-                $email = trim($row[$columnMap['email']] ?? '');
-                $mobile = trim($row[$columnMap['mobile']] ?? '');
-
-                if (empty($username) || empty($email) || empty($mobile)) {
-                    $errors[] = "Line $lineNumber: Missing required field(s)";
-                    $skipped++;
-                    continue;
-                }
-
-                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                    $errors[] = "Line $lineNumber: Invalid email format";
-                    $skipped++;
-                    continue;
-                }
-
-                if (!preg_match('/^[0-9]{10}$/', $mobile)) {
-                    $errors[] = "Line $lineNumber: Invalid mobile format (expected 10 digits)";
-                    $skipped++;
-                    continue;
-                }
-
-                if (User::where('email', $email)->orWhere('mobile', $mobile)->exists()) {
-                    $errors[] = "Line $lineNumber: User with email/mobile already exists";
-                    $skipped++;
-                    continue;
-                }
-
-                $randomPassword = Str::random(12) . Str::random(4, '!@#$%^&*');
-
-                $user = User::create([
-                    'username' => $username,
-                    'email' => $email,
-                    'mobile' => $mobile,
-                    'password' => Hash::make($randomPassword),
-                    'referral_code' => Str::upper(Str::random(10)),
-                    'status' => 'active',
-                    'email_verified_at' => null,
-                    'mobile_verified_at' => null,
-                ]);
-
-                UserProfile::create(['user_id' => $user->id]);
-                UserKyc::create(['user_id' => $user->id, 'status' => 'pending']);
-                Wallet::create(['user_id' => $user->id]);
-                $user->assignRole('user');
-
-                $user->sendPasswordResetNotification(
-                    app('auth.password.broker')->createToken($user)
-                );
-
-                $imported++;
-            }
-            DB::commit();
-            fclose($handle);
-
-            return response()->json([
-                'message' => "Imported $imported users successfully. Password reset emails have been sent.",
-                'imported' => $imported,
-                'skipped' => $skipped,
-                'errors' => array_slice($errors, 0, 10), 
-            ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            fclose($handle);
-            return response()->json(['message' => 'Import failed: ' . $e->getMessage()], 500);
-        }
-    }
-
-    public function export()
-    {
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="users_export.csv"',
-        ];
-
-        $callback = function() {
-            $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['ID', 'Username', 'Email', 'Mobile', 'Status', 'Joined At']);
-
-            User::role('user')->with('profile')->chunk(200, function($users) use ($handle) {
-                foreach ($users as $user) {
-                    fputcsv($handle, [
-                        $user->id, 
-                        $user->username, 
-                        $user->email, 
-                        $user->mobile, 
-                        $user->status, 
-                        $user->created_at->toDateTimeString()
-                    ]);
-                }
-            });
-            fclose($handle);
-        };
-
-        return new StreamedResponse($callback, 200, $headers);
     }
 
     public function destroy(User $user)
@@ -599,8 +439,8 @@ class AdminUserController extends Controller
             $payment = Payment::create([
                 'user_id' => $user->id,
                 'subscription_id' => $subscription->id,
-                'amount_paise' => $amountPaise, // AUTHORITATIVE
-                'amount' => $validated['amount'], // Legacy compatibility
+                'amount_paise' => $amountPaise, 
+                'amount' => $validated['amount'], 
                 'status' => 'paid',
                 'payment_method' => 'admin_manual',
                 'payment_date' => now(),
@@ -783,14 +623,11 @@ class AdminUserController extends Controller
 
     public function segments()
     {
-        // FIX: Wrap in try-catch to prevent 500 errors, return safe defaults
-        // Each query is wrapped individually to identify which one fails
         try {
             $segmentData = [
                 [
                     'id' => 'all',
                     'name' => 'All Users',
-                    // FIX: Use whereHas('roles') instead of role() scope to avoid exceptions
                     'count' => User::whereHas('roles', function ($q) {
                         $q->where('name', 'user');
                     })->count()
@@ -844,12 +681,10 @@ class AdminUserController extends Controller
 
             return response()->json($segmentData);
         } catch (\Throwable $e) {
-            // FIX: Log error and return safe fallback to prevent UI breaking
             \Log::error('Segments endpoint error: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString()
             ]);
 
-            // Return minimal safe data so UI doesn't break
             return response()->json([
                 ['id' => 'all', 'name' => 'All Users', 'count' => User::count()],
             ]);
@@ -908,5 +743,128 @@ class AdminUserController extends Controller
         $users = $query->latest()->paginate(50);
 
         return response()->json($users);
+    }
+
+    /**
+     * Import users from CSV.
+     */
+    public function import(Request $request): JsonResponse
+    {
+        $request->validate(['file' => 'required|file|mimes:csv,txt|max:5120']);
+
+        $file = $request->file('file');
+        $handle = fopen($file->getPathname(), 'r');
+
+        $header = fgetcsv($handle);
+        if (!$header) {
+            fclose($handle);
+            return response()->json(['message' => 'Invalid CSV format'], 422);
+        }
+
+        $normalizedHeaders = array_map(fn($h) => strtolower(trim($h)), $header);
+
+        foreach (self::EXPECTED_CSV_HEADERS as $required) {
+            if (!in_array($required, $normalizedHeaders)) {
+                fclose($handle);
+                return response()->json([
+                    'message' => "Missing required column: '$required'. Expected headers: " . implode(', ', self::EXPECTED_CSV_HEADERS)
+                ], 422);
+            }
+        }
+
+        $columnMap = [
+            'username' => array_search('username', $normalizedHeaders),
+            'email' => array_search('email', $normalizedHeaders),
+            'mobile' => array_search('mobile', $normalizedHeaders),
+        ];
+
+        $imported = 0;
+        $skipped = 0;
+        $errors = [];
+        $lineNumber = 1;
+
+        while (($row = fgetcsv($handle)) !== false) {
+            $lineNumber++;
+            if (empty(array_filter($row))) continue;
+
+            $username = trim($row[$columnMap['username']] ?? '');
+            $email = trim($row[$columnMap['email']] ?? '');
+            $mobile = trim($row[$columnMap['mobile']] ?? '');
+
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $errors[] = "Line $lineNumber: Invalid email format";
+                $skipped++;
+                continue;
+            }
+
+            if (!preg_match('/^[0-9]{10}$/', $mobile)) {
+                $errors[] = "Line $lineNumber: Invalid mobile format";
+                $skipped++;
+                continue;
+            }
+
+            if (User::where('email', $email)->orWhere('mobile', $mobile)->exists()) {
+                $skipped++;
+                continue;
+            }
+
+            DB::transaction(function () use ($username, $email, $mobile, &$imported) {
+                $user = User::create([
+                    'username' => $username,
+                    'email' => $email,
+                    'mobile' => $mobile,
+                    'password' => Hash::make(Str::random(16)),
+                    'status' => 'active',
+                ]);
+
+                UserProfile::create(['user_id' => $user->id]);
+                UserKyc::create(['user_id' => $user->id, 'status' => 'pending']);
+                Wallet::create(['user_id' => $user->id]);
+                $user->assignRole('user');
+                $imported++;
+            });
+        }
+
+        fclose($handle);
+
+        return response()->json([
+            'message' => "Import completed",
+            'imported' => $imported,
+            'skipped' => $skipped,
+            'errors' => $errors
+        ]);
+    }
+
+    /**
+     * Export users to CSV.
+     */
+    public function export(): StreamedResponse
+    {
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="users_export.csv"',
+        ];
+
+        $callback = function() {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['ID', 'Username', 'Email', 'Mobile', 'Status', 'Joined At']);
+
+            User::role('user')->chunk(200, function($users) use ($handle) {
+                foreach ($users as $user) {
+                    fputcsv($handle, [
+                        $user->id,
+                        $user->username,
+                        $user->email,
+                        $user->mobile,
+                        $user->status,
+                        $user->created_at
+                    ]);
+                }
+            });
+
+            fclose($handle);
+        };
+
+        return new StreamedResponse($callback, 200, $headers);
     }
 }

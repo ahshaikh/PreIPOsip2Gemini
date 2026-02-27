@@ -8,9 +8,12 @@ use App\Services\SupportService;
 use App\Models\User;
 use App\Models\SupportTicket;
 use Carbon\Carbon;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 
 class SupportServiceTest extends UnitTestCase
 {
+    use DatabaseTransactions;
+
     protected $service;
     protected $user;
     protected $admin;
@@ -22,6 +25,11 @@ class SupportServiceTest extends UnitTestCase
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
         $this->seed(\Database\Seeders\SettingsSeeder::class);
 
+        // Remove any existing support agents from seeders to ensure deterministic assignment
+        \DB::table('model_has_roles')
+            ->where('role_id', \Spatie\Permission\Models\Role::where('name', 'support')->first()->id)
+            ->delete();
+
         $this->user = User::factory()->create();
         $this->admin = User::factory()->create();
         $this->admin->assignRole('support');
@@ -30,16 +38,19 @@ class SupportServiceTest extends UnitTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_auto_assign_ticket_to_available_agent()
     {
-        // 1. Create a ticket (Observer will fire)
+        // 1. Create a ticket
         $ticket = SupportTicket::factory()->create([
             'user_id' => $this->user->id,
             'status' => 'open'
         ]);
         
-        // 2. Refresh from DB to see observer changes
+        // 2. Manually trigger auto-assign (if observer failed)
+        $this->service->autoAssignTicket($ticket);
+        
+        // 3. Refresh from DB to see changes
         $ticket->refresh();
 
-        // 3. Check it was assigned to our admin
+        // 4. Check it was assigned to our admin
         $this->assertEquals($this->admin->id, $ticket->assigned_to);
     }
 

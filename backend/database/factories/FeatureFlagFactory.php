@@ -16,7 +16,7 @@ class FeatureFlagFactory extends Factory
             'key' => $this->faker->unique()->slug(3),
             'description' => $this->faker->sentence(),
             'is_active' => true,
-            'percentage' => null, // null = 100% rollout when active
+            'percentage' => 100, // 100% rollout when active
 	    'name' => $this->faker->word,
         ];
     }

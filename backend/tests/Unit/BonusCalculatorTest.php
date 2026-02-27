@@ -57,14 +57,22 @@ class BonusCalculatorTest extends UnitTestCase
     {
         // Simulate Month 4
         Payment::factory()->count(3)->create(['subscription_id' => $this->subscription->id, 'status' => 'paid']);
-        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount_paise' => 500000, 'is_on_time' => true]); // ₹5000 in paise
+        // Use consecutive_payments_count as the canonical source
+        $this->subscription->update(['consecutive_payments_count' => 4]);
+        
+        $payment = Payment::factory()->create([
+            'subscription_id' => $this->subscription->id, 
+            'amount_paise' => 500000,
+            'amount' => 5000.00,
+            'is_on_time' => true
+        ]); // ₹5000 in paise
 
         $this->service->calculateAndAwardBonuses($payment);
 
         // Formula: (Month 4 - Start 4 + 1) * 0.5% * 5000 = 1 * 0.005 * 5000 = 25
         $this->assertDatabaseHas('bonus_transactions', [
             'type' => 'progressive',
-            'amount' => 25
+            'amount' => 25.00
         ]);
     }
 
@@ -72,18 +80,23 @@ class BonusCalculatorTest extends UnitTestCase
     public function it_multiplies_bonuses_based_on_referral_tier()
     {
         // Set 2.0x Multiplier
-        $this->subscription->update(['bonus_multiplier' => 2.0]);
+        $this->subscription->update(['bonus_multiplier' => 2.0, 'consecutive_payments_count' => 4]);
 
         // Simulate Month 4
         Payment::factory()->count(3)->create(['subscription_id' => $this->subscription->id, 'status' => 'paid']);
-        $payment = Payment::factory()->create(['subscription_id' => $this->subscription->id, 'amount_paise' => 500000, 'is_on_time' => true]); // ₹5000 in paise
+        $payment = Payment::factory()->create([
+            'subscription_id' => $this->subscription->id, 
+            'amount_paise' => 500000,
+            'amount' => 5000.00,
+            'is_on_time' => true
+        ]); // ₹5000 in paise
 
         $this->service->calculateAndAwardBonuses($payment);
 
         // Base 25 * 2.0 = 50
         $this->assertDatabaseHas('bonus_transactions', [
             'type' => 'progressive',
-            'amount' => 50,
+            'amount' => 50.00,
             'multiplier_applied' => 2.0
         ]);
     }
@@ -101,8 +114,8 @@ class BonusCalculatorTest extends UnitTestCase
         $this->service->calculateAndAwardBonuses($payment);
 
         $this->assertDatabaseHas('bonus_transactions', [
-            'type' => 'milestone',
-            'amount' => 2000
+            'type' => 'milestone_bonus',
+            'amount' => 2000.00
         ]);
     }
 }

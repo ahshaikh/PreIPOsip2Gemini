@@ -51,9 +51,11 @@ class ReferralService
         $tiers = $defaultTiers;
         
         if ($config && !empty($config->value)) {
-            $decoded = json_decode($config->value, true);
+            $value = $config->value;
+            $decoded = is_array($value) ? $value : json_decode($value, true);
+            
             // Check if decode was successful AND is an array
-            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+            if ((is_array($value) || json_last_error() === JSON_ERROR_NONE) && is_array($decoded)) {
                 $tiers = $decoded;
             } else {
                 Log::warning("ReferralService: Invalid JSON in referral_tiers config for Plan {$referrer->subscription->plan->id}");

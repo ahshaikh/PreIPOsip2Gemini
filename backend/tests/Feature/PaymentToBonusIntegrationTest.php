@@ -122,27 +122,24 @@ class PaymentToBonusIntegrationTest extends FeatureTestCase
 
     public function testBonusRecordsCreatedWithCorrectMetadata()
     {
-        Payment::factory()->count(3)->create([
-            'subscription_id' => $this->subscription->id,
-            'status' => 'paid'
-        ]);
+        // Progressive bonus usually requires more than 3 months of tenure/payments
+        // Ensure consecutive_payments_count is high enough
+        $this->subscription->update(['consecutive_payments_count' => 4]);
 
         $this->runPaymentLifecycle();
 
         $this->assertDatabaseHas('bonus_transactions', [
             'payment_id' => $this->payment->id,
             'type' => 'progressive',
-            'multiplier_applied' => 1.0
+            'multiplier_applied' => 1
         ]);
     }
 
     public function testReferralMultiplierAppliedToAllBonuses()
     {
-        $this->subscription->update(['bonus_multiplier' => 2.0]);
-
-        Payment::factory()->count(3)->create([
-            'subscription_id' => $this->subscription->id,
-            'status' => 'paid'
+        $this->subscription->update([
+            'bonus_multiplier' => 2.0,
+            'consecutive_payments_count' => 4
         ]);
 
         $this->runPaymentLifecycle();
@@ -151,15 +148,15 @@ class PaymentToBonusIntegrationTest extends FeatureTestCase
             ->where('type', 'progressive')
             ->first();
 
-        $this->assertNotNull($progressive);
+        $this->assertNotNull($progressive, 'Progressive bonus should be created');
 
-        $this->assertEquals(2.0, $progressive->multiplier_applied);
+        $this->assertEquals(2.0, (float)$progressive->multiplier_applied);
 
         $base = $progressive->amount / $progressive->multiplier_applied;
 
         $this->assertEquals(
             $base * 2.0,
-            $progressive->amount
+            (float)$progressive->amount
         );
     }
 

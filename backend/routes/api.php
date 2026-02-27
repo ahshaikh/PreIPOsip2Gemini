@@ -530,6 +530,8 @@ Route::prefix('v1')->group(function () {
     // FIX: Correct middleware order: auth first, then IP check, then role check
     Route::prefix('admin')->as('admin.')->middleware(['auth:sanctum', 'admin.ip', 'role:admin|super-admin'])->group(function () {
             Route::get('/dashboard', [AdminDashboardController::class, 'index']);
+//            Route::get('/settings', [SettingsController::class, 'index']);
+//            Route::put('/settings', [SettingsController::class, 'update']);
 
             // Unified Dashboard (NEW: Comprehensive module consolidation)
             Route::prefix('dashboard')->group(function () {
@@ -643,6 +645,12 @@ Route::prefix('v1')->group(function () {
                 Route::get('/download/{filename}', [BackupController::class, 'downloadBackup']);
                 Route::delete('/{filename}', [BackupController::class, 'deleteBackup']);
                 Route::get('/db', [BackupController::class, 'downloadDbDump']); // Legacy endpoint
+            });
+
+            // Theme & SEO Settings
+            Route::prefix('settings')->group(function () {
+                Route::post('/theme', [SettingsController::class, 'updateTheme'])->middleware('permission:settings.edit_system');
+                Route::post('/seo', [SettingsController::class, 'updateSeo'])->middleware('permission:settings.edit_system');
             });
 
             // System Health

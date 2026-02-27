@@ -170,7 +170,7 @@ class ReferralController extends Controller
             ]));
             
             $campaign = DB::table('referral_campaigns')->find($id);
-            return response()->json(['message' => 'Campaign created', 'data' => $campaign]);
+            return response()->json(['message' => 'Campaign created', 'data' => $campaign], 201);
         } catch (\Throwable $e) {
             return response()->json(['message' => $e->getMessage()], 500);
         }

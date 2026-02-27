@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 /**
  * PHASE 1 - MODEL 3/5: DisclosureVersion
@@ -182,13 +183,13 @@ class DisclosureVersion extends Model
 
             if (!empty($immutableViolations)) {
                 \Illuminate\Support\Facades\Log::critical(
-                    'PHASE 1 AUDIT: DisclosureVersion IMMUTABLE field update blocked',
+                    'IMMUTABILITY VIOLATION: Attempted to modify locked disclosure version',
                     [
                         'version_id' => $version->id,
                         'company_id' => $version->company_id,
                         'disclosure_id' => $version->company_disclosure_id,
                         'violated_fields' => $immutableViolations,
-                        'all_attempted_changes' => $attemptedFields,
+                        'attempted_changes' => $attemptedFields,
                         'actor_id' => auth()->id(),
                         'severity' => 'CRITICAL',
                     ]
@@ -227,7 +228,7 @@ class DisclosureVersion extends Model
         // DEFENSE-IN-DEPTH: Block ALL deletes at model level
         static::deleting(function (DisclosureVersion $version) {
             \Illuminate\Support\Facades\Log::critical(
-                'PHASE 1 AUDIT: DisclosureVersion delete blocked at model level',
+                'IMMUTABILITY VIOLATION: Attempted to delete disclosure version',
                 [
                     'version_id' => $version->id,
                     'company_id' => $version->company_id,
@@ -282,18 +283,32 @@ class DisclosureVersion extends Model
      * Polymorphic: CompanyUser or User who triggered this version creation
      * Usually: CompanyUser creates (by submitting), Admin may also trigger
      */
-    public function createdBy()
+    public function createdByMorph()
     {
         return $this->morphTo(__FUNCTION__, 'created_by_type', 'created_by_id');
     }
 
     /**
-     * DEPRECATED: Use createdBy() instead (polymorphic)
+     * Backward compatibility for code expecting 'created_by' as a direct ID.
+     */
+    protected function createdBy(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->created_by_id,
+            set: fn ($value) => [
+                'created_by_id' => $value,
+                'created_by_type' => 'App\\Models\\User', // Default
+            ]
+        );
+    }
+
+    /**
+     * DEPRECATED: Use createdByMorph() instead (polymorphic)
      * Kept for backwards compatibility
      */
     public function creator()
     {
-        return $this->createdBy();
+        return $this->createdByMorph();
     }
 
     // =========================================================================
@@ -380,7 +395,8 @@ class DisclosureVersion extends Model
             'approval_notes' => $approvalNotes,
             'was_investor_visible' => false, // Set true when published
             'investor_view_count' => 0,
-            'created_by' => $disclosure->last_modified_by ?? $disclosure->submitted_by,
+            'created_by_id' => $disclosure->last_modified_by_id ?? $disclosure->submitted_by_id,
+            'created_by_type' => $disclosure->last_modified_by_type ?? $disclosure->submitted_by_type ?? 'App\\Models\\User',
             'created_by_ip' => $disclosure->last_modified_ip,
             'created_by_user_agent' => $disclosure->last_modified_user_agent,
         ]);

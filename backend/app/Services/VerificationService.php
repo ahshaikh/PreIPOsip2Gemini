@@ -193,29 +193,36 @@ class VerificationService
         // 1. Basic PAN format validation
         if (!preg_match('/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/', $pan)) {
             return [
-                'verified' => false,
-                'message' => 'Invalid PAN format. Expected format: ABCDE1234F'
+                'valid' => false,
+                'error' => 'Invalid PAN format. Expected format: ABCDE1234F'
             ];
         }
 
         // 2. Check if PAN verification API is configured
-        $apiUrl = env('PAN_VERIFICATION_URL');
-        $apiKey = env('PAN_API_KEY');
+        $apiUrl = config('services.kyc.url') . '/pan/verify';
+        $apiKey = config('services.kyc.key');
 
-        if (!$apiUrl || !$apiKey) {
+        if (empty($apiKey) || str_contains($apiUrl, 'example.com')) {
             // If API not configured, return basic validation success
             Log::info("PAN API not configured. Using basic format validation only.", ['pan' => $pan]);
 
             return [
-                'verified' => true,
+                'valid' => true,
                 'message' => 'PAN format is valid. API verification not configured.',
                 'validation_type' => 'format_only',
                 'pan' => $pan
             ];
         }
 
-        // 3. Call third-party PAN verification API
+        // 3. Check Cache
+        $cacheKey = "pan_verify_{$pan}";
+        if (Cache::has($cacheKey)) {
+            return Cache::get($cacheKey);
+        }
+
+        // 4. Call third-party PAN verification API
         try {
+            Log::info("Attempting PAN verification for {$pan}");
             $response = Http::timeout(10)->post($apiUrl, [
                 'pan' => $pan,
                 'name' => $name,
@@ -225,27 +232,62 @@ class VerificationService
 
             if ($response->successful()) {
                 $data = $response->json();
-
-                return [
-                    'verified' => $data['valid'] ?? false,
-                    'message' => $data['message'] ?? 'PAN verified successfully',
-                    'validation_type' => 'api',
-                    'name_on_card' => $data['name'] ?? null,
-                    'pan' => $pan
+                
+                $result = [
+                    'valid' => true,
+                    'name_on_card' => $data['full_name'] ?? ($data['name'] ?? null),
+                    'dob_on_card' => $data['dob'] ?? null,
                 ];
+
+                // Validate Name Match
+                if (!$this->checkNameMatch($name, $result['name_on_card'])) {
+                    return ['valid' => false, 'error' => 'Name mismatch on PAN'];
+                }
+
+                // Validate DOB Match (if provided)
+                if ($dob && $result['dob_on_card'] && $dob !== $result['dob_on_card']) {
+                    return ['valid' => false, 'error' => 'DOB mismatch on PAN'];
+                }
+
+                Cache::put($cacheKey, $result, 86400); // Cache for 24h
+                return $result;
             }
 
-            throw new \Exception("PAN API returned error: " . $response->body());
+            return ['valid' => false, 'error' => 'Service unavailable'];
         } catch (\Exception $e) {
             Log::error("PAN API call failed", ['error' => $e->getMessage()]);
+            return ['valid' => false, 'error' => 'Service unavailable'];
+        }
+    }
 
-            // Fallback to basic validation if API fails
-            return [
-                'verified' => true,
-                'message' => 'PAN format is valid. API verification unavailable.',
-                'validation_type' => 'format_fallback',
-                'pan' => $pan
-            ];
+    /**
+     * Verify Aadhaar number using third-party API.
+     */
+    public function verifyAadhaar(string $aadhaar, string $name): array
+    {
+        $apiUrl = config('services.kyc.url') . '/aadhaar/verify';
+        $apiKey = config('services.kyc.key');
+
+        try {
+            $response = Http::timeout(10)->post($apiUrl, [
+                'aadhaar_number' => $aadhaar,
+                'name' => $name,
+                'api_key' => $apiKey
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                
+                if (!$this->checkNameMatch($name, $data['name'] ?? '')) {
+                    return ['valid' => false, 'error' => 'Name mismatch'];
+                }
+
+                return ['valid' => true];
+            }
+
+            return ['valid' => false, 'error' => 'Service unavailable'];
+        } catch (\Exception $e) {
+            return ['valid' => false, 'error' => 'Service unavailable'];
         }
     }
 
@@ -257,17 +299,24 @@ class VerificationService
      */
     public function verifyBank(string $account, string $ifsc, string $name): array
     {
+        // Basic IFSC validation for test
+        if (!preg_match('/^[A-Z]{4}0[A-Z0-9]{6}$/', $ifsc)) {
+            return [
+                'valid' => false,
+                'error' => 'Invalid IFSC format'
+            ];
+        }
+
         // Check if Razorpay credentials are configured
-        $razorpayKey = env('RAZORPAY_KEY_ID');
-        $razorpaySecret = env('RAZORPAY_KEY_SECRET');
+        $razorpayKey = config('services.razorpay.key');
+        $razorpaySecret = config('services.razorpay.secret');
 
         if (!$razorpayKey || !$razorpaySecret) {
             Log::warning("Razorpay credentials not configured for bank verification");
 
             return [
-                'verified' => false,
-                'message' => 'Bank verification service not configured. Please contact support.',
-                'validation_type' => 'not_configured'
+                'valid' => false,
+                'error' => 'Bank verification service not configured. Please contact support.'
             ];
         }
 

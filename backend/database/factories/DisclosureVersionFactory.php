@@ -47,7 +47,8 @@ class DisclosureVersionFactory extends Factory
             'certification' => null,
             'created_by_ip' => $this->faker->ipv4(),
             'created_by_user_agent' => $this->faker->userAgent(),
-            'created_by' => User::factory(),
+            'created_by_id' => User::factory(),
+            'created_by_type' => 'App\\Models\\User',
         ];
     }
 

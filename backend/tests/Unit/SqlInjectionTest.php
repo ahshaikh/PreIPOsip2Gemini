@@ -14,22 +14,17 @@ class SqlInjectionTest extends UnitTestCase
         // The malicious payload
         $maliciousInput = "' OR '1'='1";
 
-        // Mock the database connection
-        $statementMock = $this->createMock(Statement::class);
-        $connectionMock = $this->createMock(Connection::class);
+        // Mock the database connection using Mockery
+        $statementMock = Mockery::mock('Statement');
+        $connectionMock = Mockery::mock('Connection');
 
-        // We expect the 'executeQuery' (or similar) method to be called
-        // with the *unaltered* malicious string as a *parameter*,
-        // not as part of the SQL query string itself.
-        $connectionMock->expects($this->once())
-            ->method('executeQuery')
+        $connectionMock->shouldReceive('executeQuery')
+            ->once()
             ->with(
-                // The SQL string should be a prepared statement
-                $this->stringContains('SELECT * FROM users WHERE username = ?'),
-                // The parameters array should contain the malicious input
-                $this->equalTo([$maliciousInput])
+                Mockery::pattern('/SELECT \* FROM users WHERE username = \?/'),
+                [$maliciousInput]
             )
-            ->willReturn($statementMock);
+            ->andReturn($statementMock);
 
         // Mock a UserRepository that takes this connection
         $userRepository = new class($connectionMock) {
@@ -47,7 +42,6 @@ class SqlInjectionTest extends UnitTestCase
 
         // Call the method with the malicious input
         $userRepository->findUserByUsername($maliciousInput);
-
-        // The test passes if the mock's expectations (set with expects()) are met.
+        $this->assertTrue(true); // Mockery will handle expectations
     }
 }

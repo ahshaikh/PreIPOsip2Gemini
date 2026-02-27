@@ -163,7 +163,7 @@ class DisputeStatsCache
         // Total disputes by severity
         $disputesBySeverity = Dispute::select('severity', DB::raw('COUNT(*) as count'))
             ->groupBy('severity')
-            ->pluck('count', 'status')
+            ->pluck('count', 'severity')
             ->toArray();
 
         // Total disputes by category

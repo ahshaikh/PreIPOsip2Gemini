@@ -19,12 +19,16 @@ class Otp extends Model
         'user_id',
         'type',
         'otp_code',
+        'attempts',
+        'blocked',
         'expires_at',
         'last_sent_at',
     ];
 
     protected $casts = [
         'expires_at' => 'datetime',
+        'last_sent_at' => 'datetime',
+        'blocked' => 'boolean',
     ];
 
     public function user(): BelongsTo

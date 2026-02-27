@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 /**
  * PHASE 1 - MODEL 4/5: DisclosureClarification
@@ -186,18 +187,32 @@ class DisclosureClarification extends Model
      * Polymorphic: CompanyUser or User who answered the clarification
      * Usually: CompanyUser answers, but Admin may also answer in some cases
      */
-    public function answeredBy()
+    public function answeredByMorph()
     {
         return $this->morphTo(__FUNCTION__, 'answered_by_type', 'answered_by_id');
     }
 
     /**
-     * DEPRECATED: Use answeredBy() instead (polymorphic)
+     * Backward compatibility for code expecting 'answered_by' as a direct ID.
+     */
+    protected function answeredBy(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->answered_by_id,
+            set: fn ($value) => [
+                'answered_by_id' => $value,
+                'answered_by_type' => 'App\\Models\\User', // Default
+            ]
+        );
+    }
+
+    /**
+     * DEPRECATED: Use answeredByMorph() instead (polymorphic)
      * Kept for backwards compatibility
      */
     public function answerer()
     {
-        return $this->answeredBy();
+        return $this->answeredByMorph();
     }
 
     /**
@@ -295,9 +310,10 @@ class DisclosureClarification extends Model
      * @param int $userId CompanyUser ID
      * @param string $answer Answer text
      * @param array|null $documents Supporting documents
+     * @param string $userType Model class of user answering
      * @throws \RuntimeException If already answered
      */
-    public function submitAnswer(int $userId, string $answer, ?array $documents = null): void
+    public function submitAnswer(int $userId, string $answer, ?array $documents = null, string $userType = 'App\\Models\\User'): void
     {
         if ($this->status !== 'open') {
             throw new \RuntimeException('Can only answer open clarifications');
@@ -305,7 +321,8 @@ class DisclosureClarification extends Model
 
         $this->update([
             'answer_body' => $answer,
-            'answered_by' => $userId,
+            'answered_by_id' => $userId,
+            'answered_by_type' => $userType,
             'answered_at' => now(),
             'supporting_documents' => $documents,
             'status' => 'answered',

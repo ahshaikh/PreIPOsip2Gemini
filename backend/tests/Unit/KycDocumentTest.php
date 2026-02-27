@@ -17,6 +17,7 @@ class KycDocumentTest extends UnitTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
         $user = User::factory()->create();
         $this->kyc = UserKyc::create(['user_id' => $user->id]);
         

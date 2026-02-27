@@ -10,9 +10,12 @@ use App\Models\PlanFeature;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Database\QueryException;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 
 class PlanTest extends UnitTestCase
 {
+    use DatabaseTransactions;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -62,10 +65,12 @@ class PlanTest extends UnitTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_plan_scope_active_returns_only_active()
     {
+        $initialActive = Plan::active()->count();
+
         Plan::factory()->create(['is_active' => true]);
         Plan::factory()->create(['is_active' => false]);
 
-        $this->assertEquals(1, Plan::active()->count());
+        $this->assertEquals($initialActive + 1, Plan::active()->count());
     }
 
     #[\PHPUnit\Framework\Attributes\Test]

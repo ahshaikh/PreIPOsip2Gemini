@@ -90,7 +90,7 @@ class UserKycTest extends UnitTestCase
         $kyc = UserKyc::create([
             'user_id' => $user->id,
             'pan_number' => 'ABCDE1234F',
-            'aadhaar_number' => '123456789012'
+            'aadhaar_number' => '234567890123'
             // Bank and Demat missing
         ]);
 
@@ -160,8 +160,8 @@ class UserKycTest extends UnitTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_aadhaar_number_format_validates()
     {
-        // Valid Aadhaar (12 digits)
-        $this->assertMatchesRegularExpression(UserKyc::AADHAAR_REGEX, '123456789012');
+        // Valid Aadhaar (12 digits, starts with 2-9)
+        $this->assertMatchesRegularExpression(UserKyc::AADHAAR_REGEX, '234567890123');
 
         // Invalid
         $this->assertDoesNotMatchRegularExpression(UserKyc::AADHAAR_REGEX, '1234'); // Too short

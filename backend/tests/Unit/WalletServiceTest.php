@@ -85,10 +85,10 @@ class WalletServiceTest extends BaseTestCase
     public function deposit_records_balance_before_and_after()
     {
         // First deposit
-        $this->service->deposit($this->user, 100, 'deposit', 'First');
+        $this->service->deposit($this->user, 100.0, 'deposit', 'First');
 
         // Second deposit
-        $transaction = $this->service->deposit($this->user, 200, 'deposit', 'Second');
+        $transaction = $this->service->deposit($this->user, 200.0, 'deposit', 'Second');
 
         $this->assertEquals(100.00, $transaction->balance_before);
         $this->assertEquals(300.00, $transaction->balance_after);
@@ -127,13 +127,13 @@ class WalletServiceTest extends BaseTestCase
             'subscription_id' => $subscription->id,
             'payment_id' => $payment->id,
             'type' => 'consistency',
-            'amount' => 50,
+            'amount' => 50.0,
             'multiplier_applied' => 1.0
         ]);
 
         $transaction = $this->service->deposit(
             $this->user,
-            50,
+            50.0,
             'bonus_credit',
             'Consistency bonus',
             $bonusTransaction
@@ -149,7 +149,7 @@ class WalletServiceTest extends BaseTestCase
     {
         $this->wallet->update(['balance_paise' => 100000]); // ₹1000
 
-        $this->service->withdraw($this->user, 300, 'withdrawal', 'Test withdrawal');
+        $this->service->withdraw($this->user, 300.0, 'withdrawal', 'Test withdrawal');
 
         $this->assertEquals(700.00, $this->wallet->fresh()->balance); // Virtual accessor
     }
@@ -159,7 +159,7 @@ class WalletServiceTest extends BaseTestCase
     {
         $this->wallet->update(['balance_paise' => 50000]); // ₹500
 
-        $this->service->withdraw($this->user, 200, 'admin_adjustment', 'Admin debit');
+        $this->service->withdraw($this->user, 200.0, 'admin_adjustment', 'Admin debit');
 
         $this->assertDatabaseHas('transactions', [
             'wallet_id' => $this->wallet->id,
@@ -176,7 +176,7 @@ class WalletServiceTest extends BaseTestCase
 
         $this->expectException(\Exception::class);
 
-        $this->service->withdraw($this->user, 500, 'withdrawal', 'Test');
+        $this->service->withdraw($this->user, 500.0, 'withdrawal', 'Test');
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -197,7 +197,7 @@ class WalletServiceTest extends BaseTestCase
 
         $transaction = $this->service->withdraw(
             $this->user,
-            300,
+            300.0,
             'withdrawal_request',
             'Withdrawal request',
             null,
@@ -217,7 +217,7 @@ class WalletServiceTest extends BaseTestCase
 
         $transaction = $this->service->withdraw(
             $this->user,
-            300,
+            300.0,
             'admin_adjustment',
             'Admin debit',
             null,
@@ -236,7 +236,7 @@ class WalletServiceTest extends BaseTestCase
     {
         $this->wallet->update(['balance_paise' => 100000, 'locked_balance_paise' => 0]); // ₹1000
 
-        $this->service->lockFunds($this->user, 300, 'Withdrawal pending');
+        $this->service->lockFunds($this->user, 300.0, 'Withdrawal pending');
 
         $wallet = $this->wallet->fresh();
         $this->assertEquals(1000.00, $wallet->balance); // Balance unchanged
@@ -248,7 +248,7 @@ class WalletServiceTest extends BaseTestCase
     {
         $this->wallet->update(['balance_paise' => 100000, 'locked_balance_paise' => 30000]); // ₹1000, ₹300 locked
 
-        $this->service->unlockFunds($this->user, 200, 'Withdrawal cancelled');
+        $this->service->unlockFunds($this->user, 200.0, 'Withdrawal cancelled');
 
         $wallet = $this->wallet->fresh();
         $this->assertEquals(1000.00, $wallet->balance); // Balance unchanged
@@ -262,7 +262,7 @@ class WalletServiceTest extends BaseTestCase
 
         $this->expectException(\RuntimeException::class);
 
-        $this->service->unlockFunds($this->user, 500, 'Test');
+        $this->service->unlockFunds($this->user, 500.0, 'Test');
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -284,7 +284,7 @@ class WalletServiceTest extends BaseTestCase
         $results = [];
 
         for ($i = 0; $i < 5; $i++) {
-            $results[] = $this->service->deposit($this->user, 100, 'deposit', "Deposit $i");
+            $results[] = $this->service->deposit($this->user, 100.0, 'deposit', "Deposit $i");
         }
 
         // All deposits should succeed and total should be ₹500 (50000 paise)
@@ -299,12 +299,12 @@ class WalletServiceTest extends BaseTestCase
         $this->wallet->update(['balance_paise' => 20000]); // ₹200
 
         // First withdrawal should succeed
-        $this->service->withdraw($this->user, 150, 'withdrawal', 'First');
+        $this->service->withdraw($this->user, 150.0, 'withdrawal', 'First');
 
         // Second withdrawal should fail
         $this->expectException(\Exception::class);
 
-        $this->service->withdraw($this->user, 100, 'withdrawal', 'Second');
+        $this->service->withdraw($this->user, 100.0, 'withdrawal', 'Second');
     }
 
     // ==================== TRANSACTION INTEGRITY TESTS ====================
@@ -332,7 +332,7 @@ class WalletServiceTest extends BaseTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function transaction_records_are_immutable()
     {
-        $transaction = $this->service->deposit($this->user, 100, 'deposit', 'Test');
+        $transaction = $this->service->deposit($this->user, 100.0, 'deposit', 'Test');
 
         // Verify transaction exists with paise amount
         $this->assertDatabaseHas('transactions', [
@@ -365,7 +365,7 @@ class WalletServiceTest extends BaseTestCase
     {
         $this->wallet->update(['balance_paise' => 50000]); // ₹500
 
-        $this->service->withdraw($this->user, 500, 'withdrawal', 'Full withdrawal');
+        $this->service->withdraw($this->user, 500.0, 'withdrawal', 'Full withdrawal');
 
         $this->assertEquals(0.00, $this->wallet->fresh()->balance);
         $this->assertEquals(0, $this->wallet->fresh()->balance_paise);
@@ -375,21 +375,21 @@ class WalletServiceTest extends BaseTestCase
     public function multiple_operations_maintain_correct_running_balance()
     {
         // Deposit ₹1000 (100000 paise)
-        $t1 = $this->service->deposit($this->user, 1000, 'deposit', 'Initial');
+        $t1 = $this->service->deposit($this->user, 1000.0, 'deposit', 'Initial');
         $this->assertEquals(0, $t1->balance_before); // Virtual accessor (₹)
         $this->assertEquals(1000, $t1->balance_after); // Virtual accessor (₹)
         $this->assertEquals(0, $t1->balance_before_paise); // Canonical paise
         $this->assertEquals(100000, $t1->balance_after_paise); // Canonical paise
 
         // Withdraw ₹300 (30000 paise)
-        $t2 = $this->service->withdraw($this->user, 300, 'withdrawal', 'First withdrawal');
+        $t2 = $this->service->withdraw($this->user, 300.0, 'withdrawal', 'First withdrawal');
         $this->assertEquals(1000, $t2->balance_before);
         $this->assertEquals(700, $t2->balance_after);
         $this->assertEquals(100000, $t2->balance_before_paise);
         $this->assertEquals(70000, $t2->balance_after_paise);
 
         // Deposit ₹500 (50000 paise)
-        $t3 = $this->service->deposit($this->user, 500, 'bonus_credit', 'Bonus');
+        $t3 = $this->service->deposit($this->user, 500.0, 'bonus_credit', 'Bonus');
         $this->assertEquals(700, $t3->balance_before);
         $this->assertEquals(1200, $t3->balance_after);
 

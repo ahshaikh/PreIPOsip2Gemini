@@ -28,14 +28,14 @@ class FeatureFlagTest extends UnitTestCase
         $flagOn = FeatureFlag::factory()->create([
             'key' => 'test.on',
             'is_active' => true,
-            'percentage' => null // 100% on
+            'percentage' => 100 // 100% on
         ]);
 
         // 2. Simple OFF flag
         $flagOff = FeatureFlag::factory()->create([
             'key' => 'test.off',
             'is_active' => false,
-            'percentage' => null
+            'percentage' => 100
         ]);
 
         $this->assertTrue($flagOn->isEnabled($this->user1));

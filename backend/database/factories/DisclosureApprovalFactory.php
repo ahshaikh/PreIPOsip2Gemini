@@ -23,7 +23,7 @@ class DisclosureApprovalFactory extends Factory
     public function definition(): array
     {
         $requestedAt = now()->subDays($this->faker->numberBetween(1, 10));
-        $slaDueDate = $requestedAt->copy()->addBusinessDays(5);
+        $slaDueDate = $requestedAt->copy()->addDays(7); // Roughly 5 business days
 
         return [
             'company_disclosure_id' => CompanyDisclosure::factory(),

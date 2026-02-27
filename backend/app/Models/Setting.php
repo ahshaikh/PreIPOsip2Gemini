@@ -30,12 +30,23 @@ class Setting extends Model
     protected static function booted()
     {
         static::saved(function ($setting) {
-            // Invalidate this specific key
-            \Illuminate\Support\Facades\Cache::forget('setting.' . $setting->key);
-            // Invalidate the "all settings" cache
-            \Illuminate\Support\Facades\Cache::forget('settings');
-            \Illuminate\Support\Facades\Cache::forget('settings.all_grouped_full');
+            $setting->bustCache();
         });
+
+        static::deleted(function ($setting) {
+            $setting->bustCache();
+        });
+    }
+
+    /**
+     * Invalidate all related caches for this setting.
+     */
+    public function bustCache()
+    {
+        \Illuminate\Support\Facades\Cache::forget('setting.' . $this->key);
+        \Illuminate\Support\Facades\Cache::forget('settings');
+        \Illuminate\Support\Facades\Cache::forget('settings.all_grouped');
+        \Illuminate\Support\Facades\Cache::forget('settings.all_grouped_full');
     }
 
     // --- RELATIONSHIPS ---

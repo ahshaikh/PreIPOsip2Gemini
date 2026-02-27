@@ -23,18 +23,32 @@ class ProfitShareTest extends FeatureTestCase
         $this->admin->assignRole('admin');
 
         // Create a Plan with 10% share
-        $plan = Plan::factory()->create();
+        $plan = Plan::factory()->create([
+            'monthly_amount' => 50000, // Large enough for min investment check
+        ]);
         $plan->configs()->create([
             'config_key' => 'profit_share', 
             'value' => ['percentage' => 10] // 10%
         ]);
 
-        // Create 2 Users with this plan
-        $u1 = User::factory()->create();
-        Subscription::factory()->create(['user_id' => $u1->id, 'plan_id' => $plan->id, 'start_date' => now()->subMonths(3)]);
+        // Create 2 Users with this plan - ensure tenure > 3 months
+        $u1 = User::factory()->create(['created_at' => now()->subMonths(6)]);
+        Subscription::factory()->create([
+            'user_id' => $u1->id, 
+            'plan_id' => $plan->id, 
+            'status' => 'active',
+            'amount' => 50000,
+            'start_date' => now()->subMonths(5)
+        ]);
         
-        $u2 = User::factory()->create();
-        Subscription::factory()->create(['user_id' => $u2->id, 'plan_id' => $plan->id, 'start_date' => now()->subMonths(3)]);
+        $u2 = User::factory()->create(['created_at' => now()->subMonths(6)]);
+        Subscription::factory()->create([
+            'user_id' => $u2->id, 
+            'plan_id' => $plan->id, 
+            'status' => 'active',
+            'amount' => 50000,
+            'start_date' => now()->subMonths(5)
+        ]);
 
         // Create Period
         $this->period = ProfitShare::create([

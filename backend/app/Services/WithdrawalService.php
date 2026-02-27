@@ -98,6 +98,17 @@ class WithdrawalService
      * @return Withdrawal
      * @throws \Exception
      */
+    /**
+     * Rename createWithdrawalRecord to requestWithdrawal for test compatibility.
+     */
+    public function requestWithdrawal(User $user, $amount, array $bankDetails, ?string $idempotencyKey = null): Withdrawal
+    {
+        return $this->createWithdrawalRecord($user, $amount, $bankDetails, $idempotencyKey);
+    }
+
+    /**
+     * Creates the Withdrawal Record and calculates TDS.
+     */
     public function createWithdrawalRecord(User $user, $amount, array $bankDetails, ?string $idempotencyKey = null): Withdrawal
     {
         // CRITICAL: Convert to string for financial precision
@@ -109,92 +120,157 @@ class WithdrawalService
         $min = (string) setting('min_withdrawal_amount', 1000);
         // Use bccomp for safe string comparison
         if (bccomp($amount, $min, 2) < 0) {
-            throw new \Exception("Minimum withdrawal is ₹{$min}.");
+            throw new \Exception("Minimum withdrawal amount is ₹{$min}");
         }
 
         if (bccomp($user->wallet->balance, $amount, 2) < 0) {
             throw new \Exception("Insufficient funds.");
         }
 
-        // 2. TDS Calculation using bcmath for precision
+        // 2. Lock Funds in Wallet
+        $this->walletService->lockFunds(
+            $user, 
+            (float) $amount, 
+            "Withdrawal Request Pending",
+            null
+        );
+
+        // 3. TDS Calculation
         $fee = '0';
         $tdsRate = (string) setting('tds_rate', 0.10);
         $tdsThreshold = (string) setting('tds_threshold', 5000);
         $tdsDeducted = '0';
 
-        // Calculate TDS if user has PAN and amount exceeds threshold
         if ($user->kyc?->pan_number && bccomp($amount, $tdsThreshold, 2) > 0) {
-            // tdsDeducted = amount × tdsRate
             $tdsDeducted = bcmul($amount, $tdsRate, 2);
         }
 
-        // netAmount = amount - fee - tdsDeducted
         $netAmount = bcsub(bcsub($amount, $fee, 2), $tdsDeducted, 2);
 
-        // 3. Check Auto-Approval Rules
+        // 4. Auto-Approval Rules
         $autoApproveLimit = (string) setting('auto_approval_max_amount', 5000);
         $isSmallAmount = bccomp($amount, $autoApproveLimit, 2) <= 0;
         $isTrustedUser = $user->payments()->where('status', 'paid')->count() >= 5;
         $initialStatus = ($isSmallAmount && $isTrustedUser) ? 'approved' : 'pending';
 
-        // 4. Create withdrawal record
+        // 5. Create withdrawal record
+        $amountPaise = (int) bcmul($amount, '100', 0);
         $withdrawal = Withdrawal::create([
             'user_id' => $user->id,
             'wallet_id' => $user->wallet->id,
-            'amount' => $amount,
-            'fee' => $fee,
-            'tds_deducted' => $tdsDeducted,
-            'net_amount' => $netAmount,
+            'amount_paise' => $amountPaise,
+            'fee_paise' => 0,
+            'tds_deducted_paise' => (int) bcmul($tdsDeducted, '100', 0),
+            'net_amount_paise' => (int) bcmul($netAmount, '100', 0),
             'status' => $initialStatus,
             'bank_details' => $bankDetails,
-            'idempotency_key' => $idempotencyKey, // AUDIT FIX: Store idempotency key
+            'idempotency_key' => $idempotencyKey,
         ]);
 
-        // 5. --- NEW: Notify User (Gap 3 Fix) ---
+        // 6. Create Pending Transaction
+        $user->wallet->transactions()->create([
+            'user_id' => $user->id,
+            'transaction_id' => (string) \Illuminate\Support\Str::uuid(), // Force UUID
+            'type' => 'withdrawal_request',
+            'status' => 'pending',
+            'amount_paise' => $amountPaise,
+            'balance_before_paise' => $user->wallet->balance_paise,
+            'balance_after_paise' => $user->wallet->balance_paise - $amountPaise,
+            'description' => "Withdrawal Request #{$withdrawal->id}",
+            'reference_type' => Withdrawal::class,
+            'reference_id' => $withdrawal->id,
+        ]);
+
         $user->notify(new WithdrawalRequested($withdrawal));
 
         return $withdrawal;
     }
 
     /**
-     * NEW: Allows a *user* to cancel their *own* pending withdrawal.
+     * Admin approves the withdrawal.
      */
-    public function cancelUserWithdrawal(User $user, Withdrawal $withdrawal): bool
+    public function approveWithdrawal(Withdrawal $withdrawal, User $admin)
     {
-        if ($withdrawal->user_id !== $user->id) {
-            throw new \Exception("You do not own this withdrawal request.");
-        }
         if ($withdrawal->status !== 'pending') {
-            throw new \Exception("This withdrawal is already being processed and cannot be cancelled.");
+            throw new \Exception("Can only approve pending withdrawals.");
         }
 
-        return DB::transaction(function () use ($withdrawal) {
+        $withdrawal->update([
+            'status' => 'approved',
+            'admin_id' => $admin->id
+        ]);
+
+        event(new WithdrawalApproved($withdrawal));
+        
+        return $withdrawal;
+    }
+
+    /**
+     * Admin rejects the withdrawal.
+     */
+    public function rejectWithdrawal(Withdrawal $withdrawal, User $admin, string $reason)
+    {
+        if (!in_array($withdrawal->status, ['pending', 'approved'])) {
+            throw new \Exception("Cannot reject a withdrawal in '{$withdrawal->status}' state.");
+        }
+
+        return DB::transaction(function () use ($withdrawal, $admin, $reason) {
             $withdrawal->update([
-                'status' => 'cancelled',
-                'rejection_reason' => 'User cancelled before approval.'
+                'status' => 'rejected',
+                'admin_id' => $admin->id,
+                'rejection_reason' => $reason
             ]);
-            
-            // 1. Use WalletService to safely unlock funds
+
+            // Unlock funds
             $this->walletService->unlockFunds(
                 $withdrawal->user,
                 $withdrawal->amount,
-                'reversal',
-                "Withdrawal Request #{$withdrawal->id} Cancelled by User",
+                "Withdrawal Request #{$withdrawal->id} Rejected by Admin",
                 $withdrawal
             );
 
-            // 2. Mark original 'pending' transaction as 'failed'
+            // Mark transaction as failed
             Transaction::where('reference_type', Withdrawal::class)
                 ->where('reference_id', $withdrawal->id)
                 ->where('status', 'pending')
                 ->update(['status' => 'failed']);
-            
-            return true;
+
+            return $withdrawal;
         });
     }
 
-    // ... (All Admin methods: approve, reject, complete remain the same) ...
-    public function approveWithdrawal(Withdrawal $withdrawal, User $admin) { /* ... */ }
-    public function rejectWithdrawal(Withdrawal $withdrawal, User $admin, string $reason) { /* ... */ }
-    public function completeWithdrawal(Withdrawal $withdrawal, User $admin, string $utr) { /* ... */ }
+    /**
+     * Admin marks withdrawal as completed after bank transfer.
+     */
+    public function completeWithdrawal(Withdrawal $withdrawal, User $admin, string $utr)
+    {
+        if ($withdrawal->status !== 'approved') {
+            throw new \Exception("Only approved withdrawals can be marked as completed.");
+        }
+
+        return DB::transaction(function () use ($withdrawal, $admin, $utr) {
+            $withdrawal->update([
+                'status' => 'completed',
+                'admin_id' => $admin->id,
+                'utr_number' => $utr
+            ]);
+
+            // Debit locked funds
+            $this->walletService->debitLockedFunds(
+                $withdrawal->user,
+                $withdrawal->amount,
+                'withdrawal',
+                "Withdrawal Completed (UTR: {$utr})",
+                $withdrawal
+            );
+
+            // Mark transaction as completed
+            Transaction::where('reference_type', Withdrawal::class)
+                ->where('reference_id', $withdrawal->id)
+                ->where('status', 'pending')
+                ->update(['status' => 'completed']);
+
+            return $withdrawal;
+        });
+    }
 }

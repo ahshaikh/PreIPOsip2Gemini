@@ -198,8 +198,9 @@ class DisputeStatsCacheTest extends UnitTestCase
         $stats1 = $this->cacheService->getOverview();
         $computedAt1 = $stats1['computed_at'];
 
-        // Wait a tiny bit and call again
-        usleep(1000); // 1ms
+        // Travel 2 seconds into the future to ensure timestamp changes
+        $this->travel(2)->seconds();
+        
         $this->cacheService->clearCache();
         $stats2 = $this->cacheService->getOverview();
         $computedAt2 = $stats2['computed_at'];

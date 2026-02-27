@@ -213,29 +213,58 @@ class AuthController extends Controller
             'otp' => 'required|digits:6',
         ]);
 
-        // TEST MODE: Accept 987654 as valid OTP for development/testing
-        if ($request->otp === '987654') {
-            $user = User::findOrFail($request->user_id);
+        $user = User::findOrFail($request->user_id);
 
-            if ($request->type === 'email') {
-                $user->update(['email_verified_at' => now()]);
-            } else {
-                $user->update(['mobile_verified_at' => now()]);
+        // Actual verification logic
+        $otpRecord = \App\Models\Otp::where('user_id', $user->id)
+            ->where('type', $request->type)
+            ->where('otp_code', $request->otp)
+            ->where('expires_at', '>', now())
+            ->first();
+
+        if (!$otpRecord) {
+            // Handle test mode fallback if real OTP doesn't exist
+            if ($request->otp === '987654') {
+                if ($request->type === 'email') {
+                    $user->update(['email_verified_at' => now()]);
+                } else {
+                    $user->update(['mobile_verified_at' => now()]);
+                }
+
+                if ($user->email_verified_at && $user->mobile_verified_at) {
+                    $user->update(['status' => 'active']);
+                }
+
+                return response()->json([
+                    'message' => 'OTP Verified successfully (TEST MODE)',
+                    'user' => $user->fresh()
+                ]);
             }
 
-            // If both verified, activate account
-            if ($user->email_verified_at && $user->mobile_verified_at) {
-                $user->update(['status' => 'active']);
-            }
-
-            return response()->json([
-                'message' => 'OTP Verified successfully (TEST MODE)',
-                'user' => $user->fresh()
-            ]);
+            return response()->json(['message' => 'Invalid or expired OTP.'], 400);
         }
 
-        // TODO: Implement actual OTP verification logic here
-        return response()->json(['message' => 'OTP Verified successfully.']);
+        // Mark as verified
+        if ($request->type === 'email') {
+            $user->update(['email_verified_at' => now()]);
+            $message = 'Email verified successfully.';
+        } else {
+            $user->update(['mobile_verified_at' => now()]);
+            $message = 'Mobile verified successfully.';
+        }
+
+        // Clean up used OTP
+        $otpRecord->delete();
+
+        // If both verified, activate account
+        if ($user->email_verified_at && $user->mobile_verified_at) {
+            $user->update(['status' => 'active']);
+        }
+
+        return response()->json([
+            'message' => $message,
+            'user' => $user->fresh()
+        ]);
     }
 
     public function logout(Request $request): JsonResponse

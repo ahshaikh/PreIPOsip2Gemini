@@ -297,7 +297,8 @@ class WalletService
             }
 
             if (!$allowOverdraft && $wallet->balance_paise < $amountPaise) {
-                throw new InsufficientBalanceException($wallet->balance_paise, $amountPaise);
+                $availableRupees = $wallet->balance_paise / 100;
+                throw new \Exception("Insufficient funds. Available: ₹{$availableRupees}");
             }
 
             $balanceBefore = $wallet->balance_paise;

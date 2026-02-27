@@ -29,7 +29,8 @@ class CompanyDisclosureFactory extends Factory
             'completion_percentage' => $this->faker->numberBetween(0, 100),
             'is_locked' => false,
             'submitted_at' => null,
-            'submitted_by' => null,
+            'submitted_by_id' => null,
+            'submitted_by_type' => null,
             'approved_at' => null,
             'approved_by' => null,
             'rejection_reason' => null,
@@ -38,7 +39,8 @@ class CompanyDisclosureFactory extends Factory
             'version_number' => 1,
             'current_version_id' => null,
             'last_modified_at' => now(),
-            'last_modified_by' => User::factory(),
+            'last_modified_by_id' => User::factory(),
+            'last_modified_by_type' => 'App\\Models\\User',
             'last_modified_ip' => $this->faker->ipv4(),
             'last_modified_user_agent' => $this->faker->userAgent(),
             'internal_notes' => null,
@@ -81,7 +83,8 @@ class CompanyDisclosureFactory extends Factory
             'status' => 'submitted',
             'completion_percentage' => 100,
             'submitted_at' => now()->subDays($this->faker->numberBetween(1, 7)),
-            'submitted_by' => User::factory(),
+            'submitted_by_id' => User::factory(),
+            'submitted_by_type' => 'App\\Models\\User',
         ]);
     }
 
@@ -95,7 +98,8 @@ class CompanyDisclosureFactory extends Factory
             'completion_percentage' => 100,
             'is_locked' => true,
             'submitted_at' => now()->subDays(10),
-            'submitted_by' => User::factory(),
+            'submitted_by_id' => User::factory(),
+            'submitted_by_type' => 'App\\Models\\User',
             'approved_at' => now()->subDays(3),
             'approved_by' => User::factory(),
         ]);
@@ -110,7 +114,8 @@ class CompanyDisclosureFactory extends Factory
             'status' => 'rejected',
             'completion_percentage' => 100,
             'submitted_at' => now()->subDays(10),
-            'submitted_by' => User::factory(),
+            'submitted_by_id' => User::factory(),
+            'submitted_by_type' => 'App\\Models\\User',
             'rejected_at' => now()->subDays(3),
             'rejected_by' => User::factory(),
             'rejection_reason' => $this->faker->sentence(10),
@@ -126,7 +131,8 @@ class CompanyDisclosureFactory extends Factory
             'status' => 'clarification_required',
             'completion_percentage' => 100,
             'submitted_at' => now()->subDays(10),
-            'submitted_by' => User::factory(),
+            'submitted_by_id' => User::factory(),
+            'submitted_by_type' => 'App\\Models\\User',
         ]);
     }
 
@@ -139,7 +145,8 @@ class CompanyDisclosureFactory extends Factory
             'status' => 'under_review',
             'completion_percentage' => 100,
             'submitted_at' => now()->subDays(5),
-            'submitted_by' => User::factory(),
+            'submitted_by_id' => User::factory(),
+            'submitted_by_type' => 'App\\Models\\User',
         ]);
     }
 

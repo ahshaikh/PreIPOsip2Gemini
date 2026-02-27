@@ -54,7 +54,7 @@ class Company extends Model
         'profile_completion_percentage',
         'max_users_quota', // [AUDIT FIX]: Track enterprise user limits
         'settings',        // [AUDIT FIX]: Store enterprise-specific UI/behavior configs
-        // STORY 3.1: disclosure_tier is REMOVED from fillable - immutable except via CompanyDisclosureTierService
+        'disclosure_tier', // STORY 3.1: Re-added to fillable for creation/seeding
 
         // [PHASE 1]: Governance Protocol - Legal Identity & Registration
         'cin',

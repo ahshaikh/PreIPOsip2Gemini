@@ -31,7 +31,7 @@ class PaymentLifecycleTest extends FeatureTestCase
      */
     public function test_full_payment_lifecycle_succeeds()
     {
-	$this->markTestSkipped('Skipping until production SIP lifecycle is implemented.');
+	// $this->markTestSkipped('Skipping until production SIP lifecycle is implemented.');
 
         // 1. Setup: Create all the needed models
         $user = User::factory()->create(['status' => 'active']);

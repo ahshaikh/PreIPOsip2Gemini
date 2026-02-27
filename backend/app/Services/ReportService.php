@@ -178,21 +178,53 @@ class ReportService
     }
 
     /**
+     * Get KYC completion percentage.
+     */
+    public function getKycCompletion()
+    {
+        $total = User::count();
+        if ($total === 0) return 0;
+        
+        $verified = DB::table('user_kyc')->where('status', 'verified')->count();
+        return round(($verified / $total) * 100, 2);
+    }
+
+    /**
+     * Get TDS report for a period.
+     */
+    public function getTdsReport($start, $end)
+    {
+        return BonusTransaction::whereBetween('created_at', [$start, $end])
+            ->where('tds_deducted', '>', 0)
+            ->with('user:id,username')
+            ->get()
+            ->map(function ($bonus) {
+                return [
+                    'user' => $bonus->user->username ?? 'N/A',
+                    'gross_amount' => (float) $bonus->amount,
+                    'tds_deducted' => (float) $bonus->tds_deducted,
+                    'net_amount' => (float) ($bonus->amount - $bonus->tds_deducted),
+                    'date' => $bonus->created_at->format('Y-m-d'),
+                ];
+            });
+    }
+
+    /**
      * Bonus Distribution Report
      */
     public function getBonusDistributionReport($start, $end)
     {
         $totalBonuses = BonusTransaction::whereBetween('created_at', [$start, $end])
-            ->selectRaw('SUM(gross_amount) as total_gross, SUM(net_amount) as total_net, COUNT(*) as count')
+            ->selectRaw('SUM(amount) as total_gross, SUM(amount - tds_deducted) as total_net, COUNT(*) as count')
             ->first();
 
         $bonusByType = BonusTransaction::whereBetween('created_at', [$start, $end])
-            ->selectRaw('bonus_type, SUM(net_amount) as total, COUNT(*) as count')
+            ->selectRaw('type as bonus_type, SUM(amount - tds_deducted) as total, COUNT(*) as count')
             ->groupBy('bonus_type')
             ->get();
 
         $bonusByUser = BonusTransaction::whereBetween('created_at', [$start, $end])
-            ->select('user_id', DB::raw('SUM(net_amount) as total'))
+            ->select('user_id', DB::raw('SUM(amount - tds_deducted) as total'))
             ->groupBy('user_id')
             ->orderByDesc('total')
             ->limit(10)
@@ -200,7 +232,7 @@ class ReportService
             ->get();
 
         $dailyDistribution = BonusTransaction::whereBetween('created_at', [$start, $end])
-            ->selectRaw('DATE(created_at) as date, SUM(net_amount) as total, COUNT(*) as count')
+            ->selectRaw('DATE(created_at) as date, SUM(amount - tds_deducted) as total, COUNT(*) as count')
             ->groupBy('date')
             ->orderBy('date')
             ->get();

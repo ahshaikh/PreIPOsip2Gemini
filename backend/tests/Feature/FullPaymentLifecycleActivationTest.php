@@ -171,14 +171,8 @@ class FullPaymentLifecycleActivationTest extends FeatureTestCase
         // STEP 7 & 8 & 9: Process Payment Job (Wallet, Ledger, Bonus)
         // =====================================================================
 
-        // Run the payment processing job
-        $job = new ProcessSuccessfulPaymentJob($payment);
-        $job->handle(
-            app(BonusCalculatorService::class),
-            app(AllocationService::class),
-            app(ReferralService::class),
-            app(WalletService::class)
-        );
+        // Run the payment processing job using dispatchSync to let container inject dependencies
+        ProcessSuccessfulPaymentJob::dispatchSync($payment->fresh());
 
         // STEP 7: Wallet Mutation
         $this->user->wallet->refresh();
@@ -235,13 +229,13 @@ class FullPaymentLifecycleActivationTest extends FeatureTestCase
         // FINAL: Investment Created (Share Allocation)
         // =====================================================================
 
-        $investment = Investment::where('user_id', $this->user->id)
+        $investment = \App\Models\UserInvestment::where('user_id', $this->user->id)
             ->where('payment_id', $payment->id)
             ->first();
 
         if ($investment) {
-            $this->assertNotNull($investment->units);
-            $this->assertGreaterThan(0, $investment->units);
+            $this->assertNotNull($investment->units_allocated);
+            $this->assertGreaterThan(0, $investment->units_allocated);
         }
     }
 
@@ -331,7 +325,7 @@ class FullPaymentLifecycleActivationTest extends FeatureTestCase
 
         // Process failed webhook
         $webhookService = app(PaymentWebhookService::class);
-        $webhookService->handlePaymentFailed([
+        $webhookService->handleFailedPayment([
             'order_id' => 'order_fail_test',
             'reason' => 'Insufficient funds',
         ]);

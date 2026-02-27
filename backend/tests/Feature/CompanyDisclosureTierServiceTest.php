@@ -33,6 +33,8 @@ class CompanyDisclosureTierServiceTest extends FeatureTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
 
         $this->service = new CompanyDisclosureTierService();
 
@@ -63,9 +65,9 @@ class CompanyDisclosureTierServiceTest extends FeatureTestCase
             'Disclosure submission received'
         );
 
-        $this->assertEquals(DisclosureTier::TIER_1_UPCOMING->value, $result->disclosure_tier);
+        $this->assertEquals(DisclosureTier::TIER_1_UPCOMING, $result->disclosure_tier);
         $this->company->refresh();
-        $this->assertEquals(DisclosureTier::TIER_1_UPCOMING->value, $this->company->disclosure_tier);
+        $this->assertEquals(DisclosureTier::TIER_1_UPCOMING, $this->company->disclosure_tier);
     }
 
     /**
@@ -80,8 +82,9 @@ class CompanyDisclosureTierServiceTest extends FeatureTestCase
         $this->company->refresh();
 
         // Create at least one approved disclosure (required for tier_2)
+        $module = \App\Models\DisclosureModule::factory()->create();
         $this->company->disclosures()->create([
-            'module_id' => 1,
+            'disclosure_module_id' => $module->id,
             'status' => 'approved',
             'disclosure_data' => [],
         ]);
@@ -93,7 +96,7 @@ class CompanyDisclosureTierServiceTest extends FeatureTestCase
             'Disclosures approved, going live'
         );
 
-        $this->assertEquals(DisclosureTier::TIER_2_LIVE->value, $result->disclosure_tier);
+        $this->assertEquals(DisclosureTier::TIER_2_LIVE, $result->disclosure_tier);
     }
 
     /**
@@ -114,7 +117,7 @@ class CompanyDisclosureTierServiceTest extends FeatureTestCase
             'Editorial selection for featured status'
         );
 
-        $this->assertEquals(DisclosureTier::TIER_3_FEATURED->value, $result->disclosure_tier);
+        $this->assertEquals(DisclosureTier::TIER_3_FEATURED, $result->disclosure_tier);
     }
 
     /**
@@ -124,7 +127,7 @@ class CompanyDisclosureTierServiceTest extends FeatureTestCase
     public function test_tier_skip_is_rejected(): void
     {
         $this->expectException(DisclosureTierImmutabilityException::class);
-        $this->expectExceptionMessage('tier skipping is forbidden');
+        $this->expectExceptionMessage('Tier skipping is forbidden');
 
         $this->service->promote(
             $this->company,
@@ -183,7 +186,7 @@ class CompanyDisclosureTierServiceTest extends FeatureTestCase
             'Progressing to next tier'
         );
 
-        $this->assertEquals(DisclosureTier::TIER_1_UPCOMING->value, $result->disclosure_tier);
+        $this->assertEquals(DisclosureTier::TIER_1_UPCOMING, $result->disclosure_tier);
     }
 
     /**
@@ -289,7 +292,7 @@ class CompanyDisclosureTierServiceTest extends FeatureTestCase
      */
     public function test_closure_promotion_succeeds_through_service(): void
     {
-        $this->assertEquals(DisclosureTier::TIER_0_PENDING->value, $this->company->disclosure_tier);
+        $this->assertEquals(DisclosureTier::TIER_0_PENDING, $this->company->disclosure_tier);
 
         $result = $this->service->promote(
             $this->company,
@@ -298,7 +301,7 @@ class CompanyDisclosureTierServiceTest extends FeatureTestCase
             'Closure test promotion'
         );
 
-        $this->assertEquals(DisclosureTier::TIER_1_UPCOMING->value, $result->disclosure_tier);
+        $this->assertEquals(DisclosureTier::TIER_1_UPCOMING, $result->disclosure_tier);
 
         // Verify in database
         $dbValue = DB::table('companies')->where('id', $this->company->id)->value('disclosure_tier');
