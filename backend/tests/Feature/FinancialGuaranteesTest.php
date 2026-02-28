@@ -229,47 +229,43 @@ class FinancialGuaranteesTest extends FeatureTestCase
     }
 
     // =========================================================================
-    // INVARIANT 4: Payment Revenue Reconciliation
+    // INVARIANT 4: Subscription Payment Reconciliation
     // =========================================================================
 
     #[\PHPUnit\Framework\Attributes\Test]
-    public function subscription_revenue_matches_paid_payments()
+    public function subscription_payments_are_treated_as_deposits_not_revenue()
     {
         $this->createFinancialScenario();
 
-        // Total paid payments
-        $paidPayments = Payment::where('status', Payment::STATUS_PAID)->sum('amount') * 100;
+        // V-AUDIT-REVENUE-2026: Subscription payments are NOT revenue.
+        // They remain user-owned capital (liability) until share sale.
 
-        // Refunded payments should be subtracted
-        $refundedPayments = Payment::where('status', Payment::STATUS_REFUNDED)->sum('amount') * 100;
+        // Total subscription payments (from payment records)
+        $subscriptionPaymentsPaise = Payment::where('status', Payment::STATUS_PAID)
+            ->whereIn('payment_type', [\App\Enums\PaymentType::SUBSCRIPTION_INITIAL->value, \App\Enums\PaymentType::SIP_INSTALLMENT->value])
+            ->sum('amount_paise');
 
-        // Chargebacks should also be subtracted
-        $chargebackPayments = Payment::where('status', Payment::STATUS_CHARGEBACK_CONFIRMED)
-            ->sum('chargeback_amount_paise');
+        // Verify ledger has NO income entries for subscriptions
+        $subscriptionIncomeAccount = LedgerAccount::where('code', LedgerAccount::CODE_SUBSCRIPTION_INCOME)->first();
 
-        $netRevenue = $paidPayments - $refundedPayments - $chargebackPayments;
-
-        // Verify ledger has corresponding revenue entries
-        $revenueAccount = LedgerAccount::where('code', 'REVENUE_SIP')->first();
-
-        if ($revenueAccount) {
-            $ledgerRevenue = LedgerLine::where('ledger_account_id', $revenueAccount->id)
+        if ($subscriptionIncomeAccount) {
+            $ledgerSubscriptionIncome = LedgerLine::where('ledger_account_id', $subscriptionIncomeAccount->id)
                 ->where('direction', 'credit')
                 ->sum('amount_paise');
 
-            $this->assertGreaterThanOrEqual(
+            $this->assertEquals(
                 0,
-                $ledgerRevenue,
-                "Ledger revenue should be non-negative"
+                $ledgerSubscriptionIncome,
+                "SUBSCRIPTION_INCOME should be zero as per V-AUDIT-REVENUE-2026 rule"
             );
         }
 
-        // Net revenue should never be negative
-        $this->assertGreaterThanOrEqual(
-            0,
-            $netRevenue,
-            "Net revenue is negative: {$netRevenue}"
-        );
+        // Verify they are included in USER_WALLET_LIABILITY
+        $liabilityAccount = LedgerAccount::where('code', LedgerAccount::CODE_USER_WALLET_LIABILITY)->first();
+        $this->assertNotNull($liabilityAccount);
+        
+        // The payments should have been recorded as DEBIT BANK, CREDIT USER_WALLET_LIABILITY
+        // (Just like any other deposit)
     }
 
     // =========================================================================

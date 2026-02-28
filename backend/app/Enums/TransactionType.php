@@ -110,6 +110,7 @@ enum TransactionType: string
             self::REFUND,
             self::REVERSAL,
             self::INTEREST,
+            self::SUBSCRIPTION_PAYMENT,
         ];
     }
 
@@ -125,7 +126,6 @@ enum TransactionType: string
             self::WITHDRAWAL_REQUEST,
             self::INVESTMENT,
             self::TDS_DEDUCTION,
-            self::SUBSCRIPTION_PAYMENT,
             self::CHARGEBACK,
         ];
     }
@@ -181,7 +181,7 @@ enum TransactionType: string
     public function icon(): string
     {
         return match($this) {
-            self::DEPOSIT => 'arrow-down-circle',
+            self::DEPOSIT, self::SUBSCRIPTION_PAYMENT => 'arrow-down-circle',
             self::BONUS_CREDIT => 'gift',
             self::REFUND => 'arrow-left-circle',
             self::ADMIN_ADJUSTMENT => 'tool',
@@ -190,7 +190,6 @@ enum TransactionType: string
             self::INVESTMENT => 'trending-up',
             self::INTEREST => 'percent',
             self::TDS_DEDUCTION => 'receipt',
-            self::SUBSCRIPTION_PAYMENT => 'calendar-check',
             self::CHARGEBACK => 'alert-triangle',
         };
     }
@@ -203,8 +202,8 @@ enum TransactionType: string
     public function color(): string
     {
         return match($this) {
-            self::DEPOSIT, self::BONUS_CREDIT, self::REFUND, self::INTEREST => 'green',
-            self::WITHDRAWAL, self::WITHDRAWAL_REQUEST, self::TDS_DEDUCTION, self::SUBSCRIPTION_PAYMENT => 'red',
+            self::DEPOSIT, self::BONUS_CREDIT, self::REFUND, self::INTEREST, self::SUBSCRIPTION_PAYMENT => 'green',
+            self::WITHDRAWAL, self::WITHDRAWAL_REQUEST, self::TDS_DEDUCTION => 'red',
             self::REVERSAL => 'blue',
             self::INVESTMENT => 'purple',
             self::ADMIN_ADJUSTMENT => 'gray',

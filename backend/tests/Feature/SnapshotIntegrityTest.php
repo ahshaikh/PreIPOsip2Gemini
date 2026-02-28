@@ -250,35 +250,43 @@ class SnapshotIntegrityTest extends FeatureTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function payment_sum_matches_revenue_ledger()
     {
+        // Ensure canonical revenue account exists (deterministic setup)
+        LedgerAccount::create([
+            'code' => 'REVENUE_SIP',
+            'name' => 'SIP Revenue',
+            'type' => 'income',          // revenue is income category
+            'normal_balance' => 'credit'
+        ]);
+
         $this->createFinancialActivity();
 
         // Sum of paid payments
         $paidPaymentsSum = Payment::where('status', Payment::STATUS_PAID)
             ->sum('amount_paise');
 
-        // Revenue ledger account
-        $revenueAccount = LedgerAccount::where('code', 'REVENUE_SIP')->first();
+        // Fetch revenue ledger account (must exist)
+        $revenueAccount = LedgerAccount::where('code', 'REVENUE_SIP')
+            ->firstOrFail();
 
-        if ($revenueAccount && $paidPaymentsSum > 0) {
-            $ledgerRevenue = LedgerLine::where('ledger_account_id', $revenueAccount->id)
-                ->where('direction', 'credit') // Revenue is credit-normal
-                ->sum('amount_paise');
+        // Revenue credits
+        $ledgerCredits = LedgerLine::where('ledger_account_id', $revenueAccount->id)
+            ->where('direction', 'credit')
+            ->sum('amount_paise');
 
-            // Allow for refunds/chargebacks
-            $refundsAndChargebacks = LedgerLine::where('ledger_account_id', $revenueAccount->id)
-                ->where('direction', 'debit')
-                ->sum('amount_paise');
+        // Revenue debits (refunds/chargebacks)
+        $ledgerDebits = LedgerLine::where('ledger_account_id', $revenueAccount->id)
+            ->where('direction', 'debit')
+            ->sum('amount_paise');
 
-            $netRevenue = $ledgerRevenue - $refundsAndChargebacks;
+        $netRevenue = $ledgerCredits - $ledgerDebits;
 
-            $this->assertGreaterThanOrEqual(
-                0,
-                $netRevenue,
-                'Net revenue should not be negative'
-            );
-        }
+        // Core reconciliation invariant
+        $this->assertEquals(
+            $paidPaymentsSum,
+            $netRevenue,
+            'Paid payments must equal net revenue ledger balance'
+        );
     }
-
     // =========================================================================
     // TEST 7: Wallet Balance Consistency
     // =========================================================================

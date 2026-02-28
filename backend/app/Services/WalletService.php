@@ -151,10 +151,20 @@ class WalletService
             // PHASE 4.1: Record in double-entry ledger
             // DEBIT BANK (cash received), CREDIT USER_WALLET_LIABILITY (we owe user)
             // Only for actual deposits (not internal transfers like bonus conversions)
-            if ($type === TransactionType::DEPOSIT) {
+            //
+            // V-AUDIT-REVENUE-2026: Subscription payments are NOT revenue.
+            // Treat SUBSCRIPTION_PAYMENT exactly like DEPOSIT (user-owned capital).
+            if ($type === TransactionType::DEPOSIT || $type === TransactionType::SUBSCRIPTION_PAYMENT) {
                 $amountRupees = $amountPaise / 100;
                 $payment = $reference instanceof Payment ? $reference : null;
                 $this->ledgerService->recordUserDeposit($user, $payment ?? $transaction->id, $amountRupees);
+            }
+
+            // PHASE 4.1: Record refund in ledger
+            // DEBIT SHARE_SALE_INCOME (reverse revenue), CREDIT USER_WALLET_LIABILITY
+            if ($type === TransactionType::REFUND) {
+                $amountRupees = $amountPaise / 100;
+                $this->ledgerService->recordRefund($reference?->id ?? $transaction->id, $amountRupees);
             }
 
             // PHASE 4 SECTION 7.2: Step 7.2 - Bonus credit to wallet
@@ -306,11 +316,14 @@ class WalletService
             $status = 'completed';
 
             if ($lockBalance) {
-                // Move funds to locked balance (pending withdrawal)
-                $wallet->decrement('balance_paise', $amountPaise);
+                // PHASE 4.1 FIX: balance_paise is TOTAL balance (including locked).
+                // When locking funds, we do NOT decrement balance_paise (total),
+                // we only increment locked_balance_paise.
+                // This ensures balance_paise remains the SSOT for "total funds owned by user".
                 $wallet->increment('locked_balance_paise', $amountPaise);
                 $status = 'pending';
             } else {
+                // Direct withdrawal: decrement total balance
                 $wallet->decrement('balance_paise', $amountPaise);
             }
 
@@ -343,9 +356,8 @@ class WalletService
             if ($type === TransactionType::WITHDRAWAL && $status === 'completed') {
                 $amountRupees = $amountPaise / 100;
                 $withdrawal = $reference instanceof Withdrawal ? $reference : null;
-                if ($withdrawal) {
-                    $this->ledgerService->recordWithdrawal($withdrawal, $amountRupees);
-                }
+                // Use transaction ID as fallback if Withdrawal model is missing
+                $this->ledgerService->recordWithdrawal($withdrawal ?? $transaction->id, $amountRupees);
             }
 
             // PHASE 4 SECTION 7.2: Record investment ledger entries
@@ -397,25 +409,24 @@ class WalletService
             if ($type === TransactionType::CHARGEBACK && $status === 'completed') {
                 // Reference must be a Payment for chargebacks
                 $payment = $reference instanceof Payment ? $reference : null;
+                $amountRupees = $amountPaise / 100;
 
-                if ($payment) {
-                    $amountRupees = $amountPaise / 100;
-                    $this->ledgerService->recordChargeback($payment, $amountRupees);
+                // Use transaction ID as fallback if Payment model is missing
+                $this->ledgerService->recordChargeback($payment ?? $transaction->id, $amountRupees);
 
-                    Log::channel('financial_contract')->info('V-DISPUTE-REMEDIATION-2026: Chargeback ledger entry recorded', [
-                        'user_id' => $user->id,
-                        'payment_id' => $payment->id,
-                        'transaction_id' => $transaction->id,
-                        'amount_paise' => $amountPaise,
-                    ]);
-                } else {
-                    Log::channel('financial_contract')->warning('V-DISPUTE-REMEDIATION-2026: Chargeback without Payment reference - ledger entry skipped', [
-                        'user_id' => $user->id,
-                        'transaction_id' => $transaction->id,
-                        'amount_paise' => $amountPaise,
-                        'reference_type' => $reference ? get_class($reference) : null,
-                    ]);
-                }
+                Log::channel('financial_contract')->info('V-DISPUTE-REMEDIATION-2026: Chargeback ledger entry recorded', [
+                    'user_id' => $user->id,
+                    'payment_id' => $payment?->id,
+                    'transaction_id' => $transaction->id,
+                    'amount_paise' => $amountPaise,
+                ]);
+            }
+
+            // PHASE 4.1: Record TDS deduction in ledger
+            // DEBIT USER_WALLET_LIABILITY (decrease user debt), CREDIT TDS_PAYABLE
+            if ($type === TransactionType::TDS_DEDUCTION && $status === 'completed') {
+                $amountRupees = $amountPaise / 100;
+                $this->ledgerService->recordTdsDeduction($reference?->id ?? $transaction->id, $amountRupees);
             }
 
             return $transaction;
@@ -570,9 +581,10 @@ class WalletService
      * balance, wallet is debited to ZERO and shortfall is returned for the
      * caller to record as receivable. Transaction MUST commit (no rollback).
      *
-     * LEDGER NOTE: This method does NOT create ledger entries. The caller
-     * (handleChargebackConfirmed) is responsible for recordRefund(),
-     * recordChargeback(), and recordChargebackReceivable() calls.
+     * LEDGER INTEGRATION: This method handles ALL ledger entries internally.
+     * - recordRefund(): For credit restorations
+     * - recordChargeback(): For bank clawbacks
+     * - recordChargebackReceivable(): For shortfalls
      *
      * @param User $user The user whose wallet to adjust
      * @param int $netChangePaise Net change in paise (negative = debit, positive = credit)
@@ -606,23 +618,23 @@ class WalletService
         if ($netChangePaise < 0) {
             // DEBIT: Chargeback exceeds investment reversal
             // User owes more than what was returned from investment reversal
-            $debitAmount = abs($netChangePaise);
+            $debitAmountPaise = abs($netChangePaise);
             $shortfallPaise = 0;
-            $actualDebitPaise = $debitAmount;
+            $actualDebitPaise = $debitAmountPaise;
 
             // V-CHARGEBACK-HARDENING-2026: NO OVERDRAFT - DEBIT TO ZERO
             // Chargeback MUST complete (bank finality). If insufficient balance:
             // 1. Debit wallet to zero
-            // 2. Record shortfall as receivable (handled by caller)
-            if ($wallet->balance_paise < $debitAmount) {
-                $shortfallPaise = $debitAmount - $wallet->balance_paise;
+            // 2. Record shortfall as receivable
+            if ($wallet->balance_paise < $debitAmountPaise) {
+                $shortfallPaise = $debitAmountPaise - $wallet->balance_paise;
                 $actualDebitPaise = $wallet->balance_paise; // Only debit what's available
 
                 Log::channel('financial_contract')->warning('CHARGEBACK SHORTFALL: Wallet insufficient', [
                     'user_id' => $user->id,
                     'payment_id' => $payment->id,
                     'wallet_balance_paise' => $wallet->balance_paise,
-                    'required_debit_paise' => $debitAmount,
+                    'required_debit_paise' => $debitAmountPaise,
                     'actual_debit_paise' => $actualDebitPaise,
                     'shortfall_paise' => $shortfallPaise,
                     'action' => 'DEBIT_TO_ZERO_RECORD_RECEIVABLE',
@@ -638,12 +650,22 @@ class WalletService
                         'payment_id' => $payment->id,
                         'user_id' => $user->id,
                         'wallet_balance_paise' => $wallet->balance_paise,
-                        'required_debit_paise' => $debitAmount,
+                        'required_debit_paise' => $debitAmountPaise,
                         'actual_debit_paise' => $actualDebitPaise,
                         'shortfall_paise' => $shortfallPaise,
                         'chargeback_gateway_id' => $payment->chargeback_gateway_id,
                     ],
                 ]);
+            }
+
+            // A. Record bank clawback in ledger (DEBIT USER_WALLET_LIABILITY, CREDIT BANK)
+            // This represents the bank taking the full amount from us.
+            $this->ledgerService->recordChargeback($payment, $debitAmountPaise / 100);
+
+            // B. Record receivable if shortfall exists (DEBIT ACCOUNTS_RECEIVABLE, CREDIT USER_WALLET_LIABILITY)
+            // This balances the liability side for the portion we couldn't debit from wallet.
+            if ($shortfallPaise > 0) {
+                $this->ledgerService->recordChargebackReceivable($payment, $shortfallPaise / 100, $user->id);
             }
 
             // Debit wallet (to zero if insufficient)
@@ -669,7 +691,7 @@ class WalletService
                 Log::channel('financial_contract')->info('CHARGEBACK WALLET DEBIT via WalletService', [
                     'user_id' => $user->id,
                     'payment_id' => $payment->id,
-                    'requested_debit_paise' => $debitAmount,
+                    'requested_debit_paise' => $debitAmountPaise,
                     'actual_debit_paise' => $actualDebitPaise,
                     'shortfall_paise' => $shortfallPaise,
                     'balance_before' => $balanceBefore,
@@ -681,9 +703,12 @@ class WalletService
         } else {
             // CREDIT: Investment reversal exceeds chargeback (partial chargeback)
             // User gets back the excess from investment reversal
-            $creditAmount = $netChangePaise;
+            $creditAmountPaise = $netChangePaise;
 
-            $wallet->increment('balance_paise', $creditAmount);
+            // Record revenue reversal in ledger (DEBIT SHARE_SALE_INCOME, CREDIT USER_WALLET_LIABILITY)
+            $this->ledgerService->recordRefund($payment->id, $creditAmountPaise / 100);
+
+            $wallet->increment('balance_paise', $creditAmountPaise);
             $wallet->refresh();
 
             // Runtime invariant check
@@ -695,7 +720,7 @@ class WalletService
                 'user_id' => $user->id,
                 'type' => TransactionType::REFUND->value, // Credit uses REFUND type
                 'status' => 'completed',
-                'amount_paise' => $creditAmount,
+                'amount_paise' => $creditAmountPaise,
                 'balance_before_paise' => $balanceBefore,
                 'balance_after_paise' => $wallet->balance_paise,
                 'description' => "Chargeback partial restoration for Payment #{$payment->id}",
@@ -706,9 +731,9 @@ class WalletService
             Log::channel('financial_contract')->info('CHARGEBACK WALLET CREDIT via WalletService', [
                 'user_id' => $user->id,
                 'payment_id' => $payment->id,
-                'credit_paise' => $creditAmount,
+                'credit_paise' => $creditAmountPaise,
                 'balance_before' => $balanceBefore,
-                'balance_after' => $wallet->balance_paise,
+                'after_paise' => $wallet->balance_paise,
             ]);
 
             return ['transaction' => $transaction, 'shortfall_paise' => 0];
@@ -863,6 +888,7 @@ class WalletService
             $balanceBefore = $wallet->balance_paise;
 
             // Debit from both balances atomically
+            // balance_paise = Total, locked_balance_paise = portion of total that is locked
             $wallet->decrement('balance_paise', $amountPaise);
             $wallet->decrement('locked_balance_paise', $amountPaise);
             $wallet->refresh();
@@ -890,13 +916,17 @@ class WalletService
             ]);
 
             // PHASE 4.1: Record in double-entry ledger for completed withdrawals
-            // DEBIT USER_WALLET_LIABILITY (we owe less), CREDIT BANK (cash paid out)
+            // DEBIT USER_WALLET_LIABILITY (gross amount - we owe less)
+            // CREDIT BANK (net payout), CREDIT TDS_PAYABLE (government liability)
             if ($type === TransactionType::WITHDRAWAL) {
                 $amountRupees = $amountPaise / 100;
                 $withdrawal = $reference instanceof Withdrawal ? $reference : null;
+                $tdsRupees = 0;
                 if ($withdrawal) {
-                    $this->ledgerService->recordWithdrawal($withdrawal, $amountRupees);
+                    $tdsRupees = ($withdrawal->tds_deducted_paise ?? 0) / 100;
                 }
+                // Use transaction ID as fallback if Withdrawal model is missing
+                $this->ledgerService->recordWithdrawal($withdrawal ?? $transaction->id, $amountRupees, $tdsRupees);
             }
 
             return $transaction;

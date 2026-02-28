@@ -301,33 +301,25 @@ class ChargebackResolutionService
 
         // Perform wallet debit (partial if insufficient)
         if ($actualDebitPaise > 0) {
-            $balanceBefore = $wallet->balance_paise;
-            $wallet->decrement('balance_paise', $actualDebitPaise);
-            $wallet->refresh();
-
-            // Create transaction record
-            $wallet->transactions()->create([
-                'user_id' => $user->id,
-                'type' => TransactionType::CHARGEBACK->value,
-                'status' => 'completed',
-                'amount_paise' => $actualDebitPaise,
-                'balance_before_paise' => $balanceBefore,
-                'balance_after_paise' => $wallet->balance_paise,
-                'description' => $shortfallPaise > 0
+            // V-WAVE3-REVERSAL-FIX: Use WalletService::withdraw instead of direct decrement
+            // This ensures DOUBLE-ENTRY LEDGER is automatically updated via WalletService
+            $this->walletService->withdraw(
+                user: $user,
+                amount: $actualDebitPaise,
+                type: TransactionType::CHARGEBACK,
+                description: $shortfallPaise > 0
                     ? "Bonus recovery (partial) for refunded Payment #{$payment->id}: {$reason}"
                     : "Bonus recovery for refunded Payment #{$payment->id}: {$reason}",
-                'reference_type' => Payment::class,
-                'reference_id' => $payment->id,
-            ]);
+                reference: $payment,
+                allowOverdraft: true // Bank-initiated, must complete
+            );
 
-            Log::channel('financial_contract')->info('BONUS REVERSAL WALLET DEBIT', [
+            Log::channel('financial_contract')->info('BONUS REVERSAL WALLET DEBIT via WalletService', [
                 'user_id' => $user->id,
                 'payment_id' => $payment->id,
                 'total_to_recover_paise' => $totalNetToRecoverPaise,
                 'actual_debit_paise' => $actualDebitPaise,
                 'shortfall_paise' => $shortfallPaise,
-                'balance_before' => $balanceBefore,
-                'balance_after' => $wallet->balance_paise,
             ]);
         }
 

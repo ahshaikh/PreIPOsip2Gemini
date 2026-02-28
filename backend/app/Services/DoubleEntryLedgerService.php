@@ -526,8 +526,10 @@ class DoubleEntryLedgerService
                 $description
             );
 
-            // DEBIT: Decrease bonus liability (user redeemed their bonus)
-            $this->addLine($entry, LedgerAccount::CODE_BONUS_LIABILITY, 'DEBIT', $amount);
+            // DEBIT: Decrease User Wallet Liability (user spent their bonus which was in wallet)
+            // PHASE 4 FIX: Spendable bonuses are credited to USER_WALLET_LIABILITY via recordBonusToWallet()
+            // during WalletService::deposit(). Redeeming them must reduce the wallet liability.
+            $this->addLine($entry, LedgerAccount::CODE_USER_WALLET_LIABILITY, 'DEBIT', $amount);
 
             // CREDIT: Offset cost of shares (cost was covered by marketing expense at grant time)
             $this->addLine($entry, LedgerAccount::CODE_COST_OF_SHARES, 'CREDIT', $amount);
@@ -701,33 +703,57 @@ class DoubleEntryLedgerService
     }
 
     /**
-     * Record user withdrawal.
+     * Record user withdrawal with optional TDS.
      *
      * ACCOUNTING:
-     *   DEBIT  USER_WALLET_LIABILITY   (decrease liability - user took funds)
-     *   CREDIT BANK                    (decrease asset - cash paid out)
+     *   DEBIT  USER_WALLET_LIABILITY   (gross amount - decrease liability to user)
+     *   CREDIT BANK                    (net amount - decrease asset - cash paid out)
+     *   CREDIT TDS_PAYABLE             (TDS amount - increase government liability)
+     *
+     * RATIONALE:
+     * Bank credit must match the actual funds transferred to the user.
+     * The TDS portion is withheld by the platform and owed to the government.
      *
      * @param Withdrawal $withdrawal The withdrawal record
-     * @param float $amount Amount withdrawn (in rupees)
+     * @param float $amount Gross amount in rupees
+     * @param float $tdsAmount TDS amount in rupees (default: 0)
      * @return LedgerEntry
      */
     public function recordWithdrawal(
-        Withdrawal $withdrawal,
-        float $amount
+        $reference,
+        float $amount,
+        float $tdsAmount = 0
     ): LedgerEntry {
         $this->validatePositiveAmount($amount);
+        $referenceId = $reference instanceof Withdrawal ? $reference->id : $reference;
+        
+        $netAmount = $amount - $tdsAmount;
+        
+        // INVARIANT: Gross = Net + TDS (must reconcile)
+        if (abs($amount - ($netAmount + $tdsAmount)) > 0.01) {
+            throw new \RuntimeException(
+                "WITHDRAWAL TDS RECONCILIATION FAILED: Gross (₹{$amount}) != Net (₹{$netAmount}) + TDS (₹{$tdsAmount})"
+            );
+        }
 
         $entry = $this->createEntry(
             LedgerEntry::REF_WITHDRAWAL,
-            $withdrawal->id,
-            "Withdrawal: ₹" . number_format($amount, 2)
+            $referenceId,
+            "Withdrawal: ₹" . number_format($amount, 2) . ($tdsAmount > 0 ? " (TDS: ₹" . number_format($tdsAmount, 2) . ")" : "")
         );
 
-        // DEBIT: Decrease User Wallet Liability (we owe less)
+        // DEBIT: Decrease User Wallet Liability (gross amount - we owe user less)
         $this->addLine($entry, LedgerAccount::CODE_USER_WALLET_LIABILITY, 'DEBIT', $amount);
 
-        // CREDIT: Decrease Bank (cash paid out)
-        $this->addLine($entry, LedgerAccount::CODE_BANK, 'CREDIT', $amount);
+        // CREDIT: Decrease Bank (net amount actually paid out)
+        if ($netAmount > 0) {
+            $this->addLine($entry, LedgerAccount::CODE_BANK, 'CREDIT', $netAmount);
+        }
+        
+        // CREDIT: Increase TDS Payable (government liability)
+        if ($tdsAmount > 0) {
+            $this->addLine($entry, LedgerAccount::CODE_TDS_PAYABLE, 'CREDIT', $tdsAmount);
+        }
 
         $this->validateBalanced($entry);
 
@@ -829,22 +855,23 @@ class DoubleEntryLedgerService
      * For chargebacks, the user's wallet is debited directly (via WalletService),
      * so we decrease both sides of the equation.
      *
-     * @param Payment $payment The payment being charged back
+     * @param Payment|int $reference The payment record or ID being charged back
      * @param float $amount Chargeback amount (in rupees)
      * @return LedgerEntry
      */
     public function recordChargeback(
-        Payment $payment,
+        $reference,
         float $amount
     ): LedgerEntry {
         $this->validatePositiveAmount($amount);
+        $referenceId = $reference instanceof Payment ? $reference->id : $reference;
 
         // Ledger entries use SEMANTIC reference types (event type), not polymorphic model classes
         // Semantic > polymorphic for financial audit trail
         $entry = $this->createEntry(
             LedgerEntry::REF_CHARGEBACK,
-            $payment->id,
-            "Chargeback reversal for Payment #{$payment->id}: ₹" . number_format($amount, 2)
+            $referenceId,
+            "Chargeback reversal for Payment #{$referenceId}: ₹" . number_format($amount, 2)
         );
 
         // DEBIT: Decrease User Wallet Liability (we no longer owe user this amount)
@@ -907,44 +934,8 @@ class DoubleEntryLedgerService
     }
 
     // =========================================================================
-    // SUBSCRIPTION & PLATFORM OPERATIONS
+    // PLATFORM OPERATIONS
     // =========================================================================
-
-    /**
-     * Record subscription fee earned by platform.
-     *
-     * ACCOUNTING:
-     *   DEBIT  USER_WALLET_LIABILITY  (decrease liability - user paid fee)
-     *   CREDIT SUBSCRIPTION_INCOME    (recognize revenue)
-     *
-     * This records the platform's fee for subscription services.
-     *
-     * @param int $subscriptionId Subscription ID
-     * @param float $amount Fee amount (in rupees)
-     * @return LedgerEntry
-     */
-    public function recordSubscriptionIncome(
-        int $subscriptionId,
-        float $amount
-    ): LedgerEntry {
-        $this->validatePositiveAmount($amount);
-
-        $entry = $this->createEntry(
-            LedgerEntry::REF_SUBSCRIPTION_FEE,
-            $subscriptionId,
-            "Subscription fee: ₹" . number_format($amount, 2)
-        );
-
-        // DEBIT: Decrease User Wallet Liability (user paid fee)
-        $this->addLine($entry, LedgerAccount::CODE_USER_WALLET_LIABILITY, 'DEBIT', $amount);
-
-        // CREDIT: Recognize subscription income
-        $this->addLine($entry, LedgerAccount::CODE_SUBSCRIPTION_INCOME, 'CREDIT', $amount);
-
-        $this->validateBalanced($entry);
-
-        return $entry;
-    }
 
     /**
      * Record platform operating expense (rent, salaries, vendors, etc.)

@@ -589,19 +589,10 @@ class PaymentWebhookService
                 );
             }
 
-            // 2. Credit wallet with refunded amount AND create ledger entries
-            // V-CHARGEBACK-SEMANTICS-2026: Refund must create proper ledger entries
-            // to maintain accounting symmetry and wallet ↔ liability mirror
+            // 2. Credit wallet with refunded amount (WalletService handles ledger)
+            // V-CHARGEBACK-SEMANTICS-2026: WalletService::deposit() handles both
+            // operational wallet credit AND double-entry ledger recordRefund().
             if ($refundAmountRupees > 0 && $payment->user) {
-                // 2a. Create ledger entry for revenue reversal
-                // DEBIT SHARE_SALE_INCOME (reverse revenue recognition)
-                // CREDIT USER_WALLET_LIABILITY (we owe user the refund amount)
-                $ledgerService = app(\App\Services\DoubleEntryLedgerService::class);
-                $ledgerService->recordRefund($payment->id, $refundAmountRupees);
-
-                // 2b. Credit wallet (operational wallet update)
-                // Note: This does NOT create a ledger entry because type is REFUND
-                // The ledger entry was created above via recordRefund()
                 $this->walletService->deposit(
                     $payment->user,
                     (string) $refundAmountRupees,
@@ -1141,46 +1132,20 @@ class PaymentWebhookService
                 ->where('is_reversed', true)
                 ->sum('value_allocated') * 100);
 
-            // 3. Create ledger entries (order matters for reconciliation)
-            $ledgerService = app(\App\Services\DoubleEntryLedgerService::class);
-
-            // 3a. Reverse revenue if investments existed
-            if ($investmentReversedPaise > 0) {
-                $revenueToReversePaise = min($investmentReversedPaise, $chargebackAmountPaise);
-                $ledgerService->recordRefund($payment->id, $revenueToReversePaise / 100);
-
-                Log::channel('financial_contract')->info('CHARGEBACK REVENUE REVERSAL', [
-                    'payment_id' => $payment->id,
-                    'investment_reversed_paise' => $investmentReversedPaise,
-                    'revenue_reversed_paise' => $revenueToReversePaise,
-                ]);
-            }
-
-            // 3b. Record bank clawback (always)
-            $ledgerService->recordChargeback($payment, $chargebackAmountPaise / 100);
-
-            // 4. WALLET ADJUSTMENT: Debit FULL chargeback amount via WalletService
-            //
+            // 3. Calculate net wallet change
             // V-AUDIT-FIX-2026: Investment reversal (via UserInvestment::booted observer)
             // ALREADY credits the wallet with $investmentReversedPaise. Therefore, we must
             // debit the FULL chargeback amount, not just the difference.
-            //
-            // Example: Deposit 1000, Invest 600, Wallet 400, Chargeback 1000
-            // 1. Investment reversal: wallet credited +600 → wallet = 1000
-            // 2. Chargeback debit: -1000 → wallet = 0
-            //
-            // HARDENING: All wallet mutations go through WalletService.
-            // No direct $wallet->increment/decrement allowed.
             $netWalletChangePaise = -$chargebackAmountPaise;
-            // Always debit the full chargeback amount (negative value = debit)
 
+            // 4. WALLET ADJUSTMENT & LEDGER RECORDING
+            // WalletService::processChargebackAdjustment handles:
+            // - Row locking
+            // - Balance validation
+            // - Transaction record creation
+            // - DOUBLE-ENTRY LEDGER: recordChargeback, recordChargebackReceivable, recordRefund
             $shortfallPaise = 0;
             if ($user && $netWalletChangePaise !== 0) {
-                // WalletService handles:
-                // - Row locking
-                // - Balance validation
-                // - Transaction record creation
-                // - Audit trail logging
                 $result = $this->walletService->processChargebackAdjustment(
                     $user,
                     $netWalletChangePaise,
@@ -1189,24 +1154,12 @@ class PaymentWebhookService
                 $shortfallPaise = $result['shortfall_paise'] ?? 0;
             }
 
-            // V-AUDIT-FIX-2026: Record receivable for shortfall (user owes us money)
-            // This happens when wallet balance < chargeback amount
-            if ($shortfallPaise > 0 && $user) {
-                $ledgerService->recordChargebackReceivable($payment, $shortfallPaise / 100, $user->id);
-
-                Log::channel('financial_contract')->info('CHARGEBACK RECEIVABLE RECORDED', [
-                    'payment_id' => $payment->id,
-                    'shortfall_paise' => $shortfallPaise,
-                    'shortfall_rupees' => $shortfallPaise / 100,
-                    'user_id' => $user->id,
-                ]);
-            }
-
             Log::channel('financial_contract')->info('CHARGEBACK FULL UNWIND COMPLETE', [
                 'payment_id' => $payment->id,
                 'chargeback_amount_paise' => $chargebackAmountPaise,
                 'investment_reversed_paise' => $investmentReversedPaise,
                 'net_wallet_change_paise' => $netWalletChangePaise,
+                'shortfall_paise' => $shortfallPaise,
                 'final_wallet_paise' => $user?->wallet?->fresh()?->balance_paise,
             ]);
 

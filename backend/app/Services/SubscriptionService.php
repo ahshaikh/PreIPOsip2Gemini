@@ -109,25 +109,23 @@ class SubscriptionService
                 'payment_method' => $hasWalletFunds ? 'wallet' : null,
             ]);
 
-            // If wallet has sufficient funds, pay from wallet immediately
-            // Subscription grants entitlement (access rights of the PreIPOsip platform), 
-            // but subscription payments do not constitute platform revenue.
+            // If wallet has sufficient funds, subscription is paid immediately.
+            // V-AUDIT-REVENUE-2026: Subscription payments are NOT revenue.
             // All subscription funds remain user-owned capital until used for investments.
+            // Therefore, we no longer deduct funds from the wallet for subscriptions.
             
             if ($hasWalletFunds) {
-                // Deduct from wallet and link to payment
-                $this->walletService->withdraw(
-                    $user,
-                    $amountPaise,
-                    \App\Enums\TransactionType::SUBSCRIPTION_PAYMENT,
-                    "Subscription payment: {$plan->name}",
-                    $payment
-                );
+                Log::info("Subscription activated via existing wallet funds (user-owned capital)", [
+                    'user_id' => $user->id,
+                    'subscription_id' => $subscription->id,
+                    'amount_paise' => $amountPaise,
+                ]);
 
                 // Mark payment as completed
                 $payment->update([
                     'status' => 'paid',
                     'paid_at' => now(),
+                    'payment_method' => 'wallet',
                 ]);
 
                 // Activate subscription

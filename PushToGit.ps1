@@ -8,16 +8,36 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "feat(allocation): make share allocation transactional + DB-auditable
+$CommitMessage = "refactor(financial-core): enforce subscription liability model, centralize chargebacks, align invariants
 
-- Add AuditLog::create() inside allocateSharesLegacy() transaction
-- Capture created UserInvestment for relational audit linkage
-- Remove Log::warning() file-based logging
-- Ensure audit persists only on successful commit
-- Update AllocationServiceTest to assert audit_logs entry
-- Remove diversification constraint test (not part of domain design)
+- Enforce SYSTEM_CONTEXT rule: subscription payments are NOT revenue
+  - Remove recordSubscriptionIncome
+  - Treat SUBSCRIPTION_PAYMENT as wallet credit (liability)
+  - Revenue recognized only in recordShareSaleFromWallet
 
-Allocation now atomic, concurrency-safe (lockForUpdate), and regulator-grade auditable."
+- Fix bonus ledger double-debit
+  - recordBonusUsage now debits USER_WALLET_LIABILITY
+  - Preserve wallet–ledger symmetry
+
+- Harden chargeback flow
+  - processChargebackAdjustment now owns all ledger orchestration
+  - Remove manual ledger calls from webhook layer
+  - Eliminate wallet-ledger desync risk
+
+- Standardize WalletService balance semantics
+  - balance_paise = total balance (including locked)
+  - Prevent double-decrement during lock flows
+
+- Refactor financial tests
+  - Update FinancialGuaranteesTest for liability-based subscriptions
+  - Update FinancialIntegrityInvariantTest for new credit logic
+  - Align Epic4 tests with lifecycle + DB constraints
+
+All core financial invariants passing:
+- Double-entry integrity
+- Wallet ↔ liability reconciliation
+- Refund symmetry
+- Balance sheet invariant"
 #----------------------
 
 function Get-GitCredential {
