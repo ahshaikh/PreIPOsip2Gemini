@@ -127,8 +127,19 @@ class WithdrawalService
             throw new \Exception("Insufficient funds.");
         }
 
-        // NOTE: Funds are locked by the controller calling walletService->withdraw() with lockBalance: true
-        // Do NOT call lockFunds here to avoid double-locking
+        // Check available balance (not just total balance)
+        $availableBalance = $user->wallet->available_balance;
+        if (bccomp($availableBalance, $amount, 2) < 0) {
+            throw new \Exception("Insufficient available funds. Some funds are locked.");
+        }
+
+        // 2. Lock funds for this withdrawal request
+        $this->walletService->lockFunds(
+            $user,
+            (float) $amount,
+            "Withdrawal Request Pending",
+            null // Reference will be set after withdrawal creation
+        );
 
         // 3. TDS Calculation
         $fee = '0';

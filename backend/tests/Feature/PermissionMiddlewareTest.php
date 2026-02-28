@@ -52,23 +52,37 @@ class PermissionMiddlewareTest extends FeatureTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_permission_checks_granular_permissions()
     {
-        // 1. Manually remove 'plans.view' from admin
-        $this->adminUser->removePermissionTo('plans.view');
+        // Admin routes require role:admin|super-admin middleware first
+        // Then specific permissions are checked via permission: middleware
 
-        // 2. Try to view plans (should fail)
-        $response = $this->actingAs($this->adminUser)
+        // 1. Create a user with admin role but WITHOUT the specific permission
+        $adminWithoutPermission = User::factory()->create();
+        $adminRole = Role::findByName('admin', 'web');
+
+        // Remove the plans.edit permission from admin role for this test
+        $plansEditPermission = Permission::firstOrCreate(['name' => 'plans.edit', 'guard_name' => 'web']);
+        $adminRole->revokePermissionTo($plansEditPermission);
+
+        // Assign the modified role to user
+        $adminWithoutPermission->assignRole('admin');
+        $adminWithoutPermission->forgetCachedPermissions();
+
+        // 2. Try to access plans (should fail due to missing permission)
+        $response = $this->actingAs($adminWithoutPermission)
                          ->getJson('/api/v1/admin/plans');
-        
         $response->assertStatus(403);
 
-        // 3. Now, give *only* 'plans.view'
-        $this->adminUser->givePermissionTo('plans.view');
+        // 3. Now grant the specific permission
+        $adminWithoutPermission->givePermissionTo($plansEditPermission);
+        $adminWithoutPermission->forgetCachedPermissions();
 
         // 4. Try again (should pass)
-        $response = $this->actingAs($this->adminUser)
+        $response = $this->actingAs($adminWithoutPermission)
                          ->getJson('/api/v1/admin/plans');
-        
         $response->assertStatus(200);
+
+        // Restore the permission to admin role for other tests
+        $adminRole->givePermissionTo($plansEditPermission);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]

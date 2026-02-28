@@ -97,12 +97,24 @@ class AllocationServiceTest extends UnitTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_allocation_logs_audit_trail_on_success()
     {
-        // V-WAVE3-FIX: AllocationService logs to Laravel Log, not activity_logs table
-        // Activity logging is handled at the orchestration layer (ProcessSuccessfulPaymentJob)
-        $this->markTestSkipped(
-            'V-AUDIT-FIX-2026: AllocationService uses Log facade, not activity_logs table. ' .
-            'Audit trail is captured via Laravel logs and orchestration-level activity logging.'
-        );
+        $this->service->allocateSharesLegacy($this->payment, 1000);
+
+        // Verify audit log entry exists with correct actor
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'share_allocation',
+            'actor_id' => $this->user->id,
+            'actor_type' => 'user',
+            'target_type' => 'user_investment',
+        ]);
+
+        // Verify audit entry is linked to the created UserInvestment
+        $investment = UserInvestment::where('payment_id', $this->payment->id)->first();
+        $this->assertNotNull($investment);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'share_allocation',
+            'target_id' => $investment->id,
+        ]);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -134,14 +146,5 @@ class AllocationServiceTest extends UnitTestCase
             'payment_id' => $this->payment->id,
             'value_allocated' => 1100
         ]);
-    }
-
-    #[\PHPUnit\Framework\Attributes\Test]
-    public function test_allocation_distribution_respects_limits()
-    {
-        // This confirms the FSD requirement is not yet implemented
-        $this->markTestSkipped(
-            'V2 Feature: Portfolio diversification (FSD-PROD-006) not yet implemented.'
-        );
     }
 }

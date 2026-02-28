@@ -5,6 +5,7 @@ namespace Tests\Feature;
 
 use Tests\FeatureTestCase;
 use App\Models\User;
+use App\Models\Plan;
 use App\Models\Referral;
 use App\Models\Subscription;
 use App\Services\ReferralService;
@@ -21,10 +22,10 @@ class ReferralTest extends FeatureTestCase
         $this->service = new ReferralService();
 
         $this->referrer = User::factory()->create();
-        // Give referrer a subscription so they can have a multiplier
+        $plan = Plan::first();
         Subscription::factory()->create([
             'user_id' => $this->referrer->id,
-            'plan_id' => 1, // Plan A from seeder
+            'plan_id' => $plan->id, // Robust ID lookup
             'bonus_multiplier' => 1.0
         ]);
     }

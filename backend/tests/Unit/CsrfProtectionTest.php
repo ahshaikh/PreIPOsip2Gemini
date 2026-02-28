@@ -10,6 +10,7 @@ use App\Models\User;
 class CsrfProtectionTest extends UnitTestCase // Or WebTestCase
 {
     private $client;
+    private $user;
 
     protected function setUp(): void
     {
@@ -21,7 +22,7 @@ class CsrfProtectionTest extends UnitTestCase // Or WebTestCase
                 if ($this->user === null) {
                     return new class { public function getStatusCode() { return 401; }};
                 }
-                
+
                 // Simulate CSRF token check
                 if ($method === 'POST') {
                     if (empty($payload['_token']) || $payload['_token'] !== 'valid_token_for_' . $this->user->id) {

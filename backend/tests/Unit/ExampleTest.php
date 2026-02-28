@@ -17,7 +17,7 @@ class ExampleTest extends UnitTestCase
 
 	public function test_database_name()
 	{
-	    dump(DB::getDatabaseName());
+	    // dump(DB::getDatabaseName());
 	    $this->assertTrue(true);
 	}
 }

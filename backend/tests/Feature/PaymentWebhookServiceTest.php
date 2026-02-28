@@ -497,14 +497,20 @@ class PaymentWebhookServiceTest extends FeatureTestCase
     {
         Queue::fake();
 
+        // Create a plan with specific amount for this test
+        $plan = \App\Models\Plan::factory()->create(['monthly_amount' => 1000]);
+
         // Create subscription with contract amount of 1000
         $subscription = Subscription::factory()->create([
             'user_id' => $this->user->id,
-            'amount' => 1000.00,
+            'plan_id' => $plan->id,
             'razorpay_subscription_id' => 'sub_match_123',
             'status' => 'active',
             'next_payment_date' => now(),
         ]);
+
+        // Factory derives amount from plan, so verify it's correct
+        $this->assertEquals(1000, $subscription->fresh()->amount);
 
         $initialPaymentCount = Payment::count();
 
@@ -534,14 +540,20 @@ class PaymentWebhookServiceTest extends FeatureTestCase
     {
         Queue::fake();
 
+        // Create a plan with specific decimal amount for this test
+        $plan = \App\Models\Plan::factory()->create(['monthly_amount' => 999.99]);
+
         // Test with decimal amounts that need precision handling
         $subscription = Subscription::factory()->create([
             'user_id' => $this->user->id,
-            'amount' => 999.99,
+            'plan_id' => $plan->id,
             'razorpay_subscription_id' => 'sub_decimal_123',
             'status' => 'active',
             'next_payment_date' => now(),
         ]);
+
+        // Factory derives amount from plan, so verify it's correct
+        $this->assertEquals(999.99, (float) $subscription->fresh()->amount);
 
         $webhookService = app(PaymentWebhookService::class);
 

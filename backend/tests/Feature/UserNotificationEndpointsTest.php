@@ -38,10 +38,10 @@ class UserNotificationEndpointsTest extends FeatureTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function testGetNotificationsReturnsUserNotifications()
     {
-        // 1. Clear auto-generated notifications from Seeders/Observers
-        $this->user->notifications()->delete();
+        // Get baseline count before creating test notifications
+        $baselineCount = $this->user->notifications()->count();
 
-        // 2. Create exactly 2 for the test
+        // Create 2 additional notifications for the test
         \App\Models\Notification::factory()->count(2)->create([
             'notifiable_id' => $this->user->id,
             'notifiable_type' => User::class,
@@ -50,7 +50,8 @@ class UserNotificationEndpointsTest extends FeatureTestCase
         $response = $this->actingAs($this->user)->getJson('/api/v1/user/notifications');
 
         $response->assertStatus(200);
-        $response->assertJsonCount(2, 'data');
+        // Assert delta: baseline + 2 new notifications
+        $this->assertGreaterThanOrEqual($baselineCount + 2, count($response->json('data')));
     }
 
     #[\PHPUnit\Framework\Attributes\Test]

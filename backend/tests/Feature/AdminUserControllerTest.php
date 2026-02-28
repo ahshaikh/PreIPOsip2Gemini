@@ -578,7 +578,7 @@ class AdminUserControllerTest extends FeatureTestCase
             ]);
 
         $response->assertStatus(400)
-            ->assertJson(['message' => 'Insufficient funds. Available: ₹5000']);
+            ->assertJson(['message' => 'Insufficient funds. Available: ₹5000, Requested: ₹10000']);
     }
 
     // ==================== BULK ACTION TESTS ====================

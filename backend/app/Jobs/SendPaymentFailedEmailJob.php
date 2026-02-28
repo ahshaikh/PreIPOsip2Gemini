@@ -5,6 +5,7 @@ namespace App\Jobs;
 
 use App\Mail\PaymentFailedMail;
 use App\Models\Payment;
+use App\Services\EmailService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;

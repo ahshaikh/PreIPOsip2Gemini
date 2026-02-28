@@ -171,7 +171,7 @@ class EdgeCaseResilienceTest extends FeatureTestCase
         $bonusCount = BonusTransaction::where('payment_id', $payment->id)->count();
 
         // Now process refund
-        $this->webhookService->handleRefund([
+        $this->webhookService->handleRefundProcessed([
             'payment_id' => 'pay_bonus_refund',
             'refund_id' => 'rfnd_bonus_clawback',
             'amount' => $this->plan->monthly_amount * 100,
@@ -505,7 +505,7 @@ class EdgeCaseResilienceTest extends FeatureTestCase
 
         // Try to refund more than payment amount
         try {
-            $this->webhookService->handleRefund([
+            $this->webhookService->handleRefundProcessed([
                 'payment_id' => 'pay_partial_refund',
                 'refund_id' => 'rfnd_oversized',
                 'amount' => 200000, // Double the payment

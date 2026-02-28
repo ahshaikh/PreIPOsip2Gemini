@@ -42,7 +42,7 @@ class GenerateSitemapTest extends FeatureTestCase
 
         // Run the Artisan command
         $this->artisan('sitemap:generate')
-             ->expectsOutput('Generating sitemap...')
+             ->expectsOutput('Generating sitemap.xml...')
              ->expectsOutputToContain('sitemap.xml generated successfully')
              ->assertExitCode(0);
 

@@ -27,6 +27,7 @@ class WebhookRetrySystemTest extends FeatureTestCase
             'payload' => ['test' => 'data'],
             'status' => 'processing',
             'retry_count' => 0,
+            'max_retries' => 5, // Must set max_retries to allow pending status
         ]);
 
         $webhookLog->markAsFailed('Test error', 500);

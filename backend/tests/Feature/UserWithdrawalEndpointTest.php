@@ -133,9 +133,7 @@ class UserWithdrawalEndpointTest extends FeatureTestCase
         $response->assertJsonValidationErrors('amount');
     }
 
-    /**
-     * @group rate-limiting
-     */
+
     public function testWithdrawalRespectsRateLimiting()
     {
         // Skip if rate limiting is disabled in testing environment

@@ -15,7 +15,7 @@ namespace App\Services;
 use App\Models\Payment;
 use App\Models\BulkPurchase;
 use App\Models\UserInvestment;
-use App\Models\ActivityLog;
+use App\Models\AuditLog;
 use App\Services\InventoryService;
 use App\Services\WalletService;
 use App\Services\InventoryConservationService;
@@ -231,12 +231,6 @@ class AllocationService
 
             $available = $batches->sum('value_remaining');
             if ($available < $totalInvestmentValue) {
-                // V-AUDIT-FIX-2026: Throw typed exception instead of return false
-                Log::warning("LEGACY ALLOCATION BLOCKED: Insufficient global inventory", [
-                    'payment_id' => $payment->id,
-                    'requested' => $totalInvestmentValue,
-                    'available' => $available,
-                ]);
                 throw InsufficientInventoryException::forGlobalInventory($totalInvestmentValue, $available, 'legacy_allocation');
             }
 
@@ -268,7 +262,7 @@ class AllocationService
 
                 // 2. Create the Investment Record (Linked to specific batch)
                 // [P0.1 FIX]: Added subscription_id to enable querying investments by subscription
-                UserInvestment::create([
+                $userInvestment = UserInvestment::create([
                     'user_id' => $user->id,
                     'product_id' => $product->id,
                     'payment_id' => $payment->id,
@@ -283,6 +277,25 @@ class AllocationService
                 // 3. Atomic Deduction
                 $batch->decrement('value_remaining', $amountToTake);
                 $remainingNeeded -= $amountToTake;
+
+                // 4. DB Audit Record (inside transaction - only persists on success)
+                AuditLog::create([
+                    'actor_id' => $user->id,
+                    'actor_type' => 'user',
+                    'action' => 'share_allocation',
+                    'module' => 'investments',
+                    'target_type' => 'user_investment',
+                    'target_id' => $userInvestment->id,
+                    'description' => "Allocated {$unitsToAllocate} units ({$amountToTake} value) from bulk purchase #{$batch->id}",
+                    'metadata' => [
+                        'payment_id' => $payment->id,
+                        'product_id' => $product->id,
+                        'bulk_purchase_id' => $batch->id,
+                        'value_allocated' => $amountToTake,
+                        'units_allocated' => $unitsToAllocate,
+                        'value_remaining' => $batch->value_remaining,
+                    ],
+                ]);
             }
 
             // [AUDIT FIX]: Automated Fractional Refund

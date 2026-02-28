@@ -50,7 +50,7 @@ class UserLuckyDrawEndpointsTest extends FeatureTestCase
         // Create an entry for the user
         $sub = Subscription::factory()->create(['user_id' => $this->user->id]);
         $payment = Payment::factory()->create(['subscription_id' => $sub->id]);
-        
+
         LuckyDrawEntry::create([
             'user_id' => $this->user->id,
             'lucky_draw_id' => $this->draw->id,
@@ -71,13 +71,17 @@ class UserLuckyDrawEndpointsTest extends FeatureTestCase
 
         // Assert
         $response->assertStatus(200);
-        
-        // Check that the user_entry object is correct
-        $response->assertJsonPath('user_entry.user_id', $this->user->id);
-        $response->assertJsonPath('user_entry.base_entries', 5);
-        $response->assertJsonPath('user_entry.bonus_entries', 3);
-        
-        // Check the 'total_entries' accessor
-        $response->assertJsonPath('user_entry.total_entries', 8);
+
+        // Check that the active_draw contains user's entries
+        // The API returns my_entries as an array and total_tickets as a count
+        $response->assertJsonPath('active_draw.total_tickets', 8); // 5 base + 3 bonus
+        $this->assertCount(8, $response->json('active_draw.my_entries'));
+
+        // Verify entries contain expected structure
+        $myEntries = $response->json('active_draw.my_entries');
+        $baseEntries = collect($myEntries)->where('type', 'base')->count();
+        $bonusEntries = collect($myEntries)->where('type', 'bonus')->count();
+        $this->assertEquals(5, $baseEntries);
+        $this->assertEquals(3, $bonusEntries);
     }
 }

@@ -16,7 +16,9 @@ class AdminRoutesSecurityTest extends UnitTestCase // Replace with WebTestCase i
 {
     // Mocks for a client and user creation
     private $client;
-    
+    private $regularUser;
+    private $adminUser;
+
     protected function setUp(): void
     {
         // This would initialize a test client, e.g., static::createClient();

@@ -78,28 +78,20 @@ class ProcessAutoDebitsTest extends FeatureTestCase
 
     public function test_retries_failed_payments()
     {
-        // This test belongs on the Retry JOB (RetryAutoDebitJobTest),
-        // but we test that the *main* command queues it on first failure.
+        // V-AUDIT-MODULE7-004: The command now dispatches ProcessSubscriptionChargeJob
+        // instead of calling attemptAutoDebit directly. Test the job dispatch.
         Queue::fake();
-        
+
         $user = User::factory()->create();
         $sub = Subscription::factory()->create(['user_id' => $user->id]);
 
         $this->serviceMock->shouldReceive('getDueSubscriptions')->once()->andReturn(collect([$sub]));
         $this->serviceMock->shouldReceive('sendReminders')->once();
-        
-        // Force 'attemptAutoDebit' to return FALSE (payment failed)
-        $this->serviceMock->shouldReceive('attemptAutoDebit')
-            ->once()
-            ->with($sub)
-            ->andReturn(false); // FAILED
 
         $this->artisan('app:process-auto-debits');
-        
-        // We CANNOT test if RetryAutoDebitJob was dispatched because
-        // the *service* is mocked. We test this logic in the 
-        // AutoDebitServiceTest. This test *proves* the command calls the service.
-        $this->assertTrue(true); // Assertion is in the mock expectations
+
+        // Verify ProcessSubscriptionChargeJob was dispatched for the subscription
+        Queue::assertPushed(\App\Jobs\ProcessSubscriptionChargeJob::class, 1);
     }
 
     public function test_sends_reminder_before_due_date()
@@ -111,7 +103,7 @@ class ProcessAutoDebitsTest extends FeatureTestCase
         // Run the command and expect its output
         $this->artisan('app:process-auto-debits')
              ->expectsOutput('Starting auto-debit process...')
-             ->expectsOutput('Found 0 subscriptions due.')
+             ->expectsOutput('Found 0 subscriptions due for payment.')
              ->expectsOutput('Sent 3 payment reminders.')
              ->assertExitCode(0);
     }

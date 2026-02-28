@@ -9,6 +9,8 @@ use Tests\UnitTestCase;
 class UserDataSecurityTest extends UnitTestCase // Or WebTestCase
 {
     private $client;
+    private $user123;
+    private $user456;
 
     protected function setUp(): void
     {
@@ -28,7 +30,7 @@ class UserDataSecurityTest extends UnitTestCase // Or WebTestCase
                     return new class { public function getStatusCode() { return 403; }}; // Forbidden
                 }
                 if ($requestedUserId && $this->user->id == $requestedUserId) {
-                     return new class { 
+                     return new class {
                          public function getStatusCode() { return 200; }
                          public function getContent() { return json_encode(['email' => 'user123@test.com']); }
                      };
