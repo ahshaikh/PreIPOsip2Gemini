@@ -54,11 +54,17 @@ class FullUserJourneyIntegrationTest extends FeatureTestCase
     {
         // ==================== STEP 1: USER REGISTRATION ====================
         $response = $this->postJson('/api/v1/auth/register', [
+            'first_name' => 'Journey',
+            'last_name' => 'User',
             'username' => 'journey_user',
             'email' => 'journey@test.com',
             'mobile' => '9876543210',
             'password' => 'SecurePass123!',
-            'password_confirmation' => 'SecurePass123!'
+            'password_confirmation' => 'SecurePass123!',
+            'accept_terms' => true,
+            'accept_privacy' => true,
+            'accept_risk_disclosure' => true,
+            'accept_aml_kyc' => true,
         ]);
 
         $response->assertStatus(201);

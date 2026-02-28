@@ -99,4 +99,116 @@ class SettingsController extends Controller
 
         return response()->json(['message' => 'Settings updated successfully.']);
     }
+
+    /**
+     * Update theme settings.
+     */
+    public function updateTheme(Request $request)
+    {
+        $validated = $request->validate([
+            'primary_color' => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
+            'secondary_color' => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
+            'font_family' => ['nullable', 'string', 'max:100'],
+            'logo' => ['nullable', 'image', 'mimes:png,jpg,jpeg,svg', 'max:2048'],
+            'favicon' => ['nullable', 'image', 'mimes:png', 'max:512'],
+        ]);
+
+        $adminId = $request->user() ? $request->user()->id : null;
+
+        // Handle text settings
+        $textSettings = [
+            'primary_color' => 'theme_primary_color',
+            'secondary_color' => 'theme_secondary_color',
+            'font_family' => 'theme_font_family',
+        ];
+
+        foreach ($textSettings as $inputKey => $settingKey) {
+            if ($request->has($inputKey)) {
+                Setting::updateOrCreate(
+                    ['key' => $settingKey],
+                    [
+                        'value' => $validated[$inputKey],
+                        'updated_by' => $adminId,
+                        'group' => 'theme',
+                        'type' => 'string'
+                    ]
+                );
+            }
+        }
+
+        // Handle file uploads
+        if ($request->hasFile('logo')) {
+            $path = $request->file('logo')->store('theme', 'public');
+            Setting::updateOrCreate(
+                ['key' => 'site_logo'],
+                [
+                    'value' => $path,
+                    'updated_by' => $adminId,
+                    'group' => 'theme',
+                    'type' => 'string'
+                ]
+            );
+        }
+
+        if ($request->hasFile('favicon')) {
+            $path = $request->file('favicon')->store('theme', 'public');
+            Setting::updateOrCreate(
+                ['key' => 'site_favicon'],
+                [
+                    'value' => $path,
+                    'updated_by' => $adminId,
+                    'group' => 'theme',
+                    'type' => 'string'
+                ]
+            );
+        }
+
+        Cache::forget('settings');
+        Cache::forget('settings.all_grouped');
+
+        return response()->json(['message' => 'Theme updated successfully']);
+    }
+
+    /**
+     * Update SEO settings.
+     */
+    public function updateSeo(Request $request)
+    {
+        $validated = $request->validate([
+            'robots_txt' => ['nullable', 'string', 'max:5000'],
+            'meta_title_suffix' => ['nullable', 'string', 'max:100'],
+            'google_analytics_id' => ['nullable', 'string', 'regex:/^(G-[A-Z0-9]{10}|UA-[0-9]{4,10}-[0-9]{1,2})$/'],
+        ]);
+
+        $adminId = $request->user() ? $request->user()->id : null;
+
+        $seoSettings = [
+            'robots_txt' => 'seo_robots_txt',
+            'meta_title_suffix' => 'seo_meta_title_suffix',
+            'google_analytics_id' => 'seo_google_analytics_id',
+        ];
+
+        $rawInput = json_decode($request->getContent(), true);
+
+        foreach ($seoSettings as $inputKey => $settingKey) {
+            if ($request->has($inputKey)) {
+                $value = (isset($rawInput[$inputKey])) ? $rawInput[$inputKey] : $validated[$inputKey];
+
+                Setting::updateOrCreate(
+                    ['key' => $settingKey],
+                    [
+                        'value' => $value,
+                        'updated_by' => $adminId,
+                        'group' => 'seo',
+                        'type' => 'string'
+                    ]
+                );
+            }
+        }
+
+        Cache::forget('settings');
+        Cache::forget('settings.all_grouped');
+
+        return response()->json(['message' => 'SEO settings updated']);
+    }
 }

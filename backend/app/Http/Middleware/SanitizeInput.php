@@ -15,7 +15,8 @@ class SanitizeInput
 {
     protected array $except = [
         'password', 'password_confirmation', 'current_password', 
-        'new_password', 'html_content', 'body_html'
+        'new_password', 'html_content', 'body_html',
+        'meta_title_suffix', 'robots_txt'
     ];
 
     public function handle(Request $request, Closure $next): Response

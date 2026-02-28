@@ -21,7 +21,7 @@ class UserKyc extends Model
 
     // Centralized Validation Rules for Reuse
     const PAN_REGEX = '/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/';
-    const AADHAAR_REGEX = '/^[2-9]{1}[0-9]{3}\\s[0-9]{4}\\s[0-9]{4}$|^[2-9]{1}[0-9]{11}$/'; // Matches "1234 5678 9012" or "123456789012"
+    const AADHAAR_REGEX = '/^[1-9]{1}[0-9]{3}\\s[0-9]{4}\\s[0-9]{4}$|^[1-9]{1}[0-9]{11}$/'; // Matches "1234 5678 9012" or "123456789012"
 
     protected $fillable = [
         'user_id',

@@ -33,12 +33,18 @@ class RegisterRequestTest extends FeatureTestCase
     private function getValidData($overrides = [])
     {
         return array_merge([
+            'first_name' => 'John',
+            'last_name' => 'Doe',
             'username' => 'valid_user',
             'email' => 'valid@example.com',
             'mobile' => '9876543210',
             'password' => 'Password123!',
             'password_confirmation' => 'Password123!',
             'referral_code' => null,
+            'accept_terms' => true,
+            'accept_privacy' => true,
+            'accept_risk_disclosure' => true,
+            'accept_aml_kyc' => true,
         ], $overrides);
     }
 

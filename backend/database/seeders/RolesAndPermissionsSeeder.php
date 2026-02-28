@@ -90,6 +90,11 @@ class RolesAndPermissionsSeeder extends Seeder
             'system.view_health',
             'system.view_logs',
             'settings.manage_cms',
+            // [FIX]: Withdrawal permissions
+            'withdrawals.view_queue',
+            'withdrawals.approve',
+            'withdrawals.complete',
+            'withdrawals.reject',
         ];
 
         foreach ($permissions as $permissionName) {
@@ -133,6 +138,10 @@ class RolesAndPermissionsSeeder extends Seeder
             'system.view_health',
             'system.view_logs',
             'settings.manage_cms',
+            'withdrawals.view_queue',
+            'withdrawals.approve',
+            'withdrawals.complete',
+            'withdrawals.reject',
         ]);
 
         $roleInstances['kyc-officer']->givePermissionTo([

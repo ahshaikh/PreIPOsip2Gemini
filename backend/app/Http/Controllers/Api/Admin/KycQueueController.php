@@ -107,36 +107,43 @@ class KycQueueController extends Controller
         $kyc = UserKyc::with('user')->findOrFail($id);
         $admin = $request->user();
 
+        // Normalize kyc status to enum for comparison
+        $currentStatus = $kyc->status instanceof KycStatus ? $kyc->status : KycStatus::from($kyc->status);
+
         // Allow approval of both 'processing' and 'submitted' statuses
-        if (!in_array($kyc->status, [KycStatus::PROCESSING->value, KycStatus::SUBMITTED->value])) {
-            return response()->json(['message' => 'This submission is not pending approval.'], 400);
+        if (!in_array($currentStatus, [KycStatus::PROCESSING, KycStatus::SUBMITTED])) {
+            return response()->json(['message' => 'This submission is not pending approval. Current status: ' . $currentStatus->value], 400);
         }
 
-        DB::transaction(function () use ($kyc, $admin, $request) {
-            // V-FIX-STATE-MACHINE: If status is SUBMITTED, must transition to PROCESSING first
-            // State flow: submitted → processing → verified (cannot skip processing)
-            if ($kyc->status === KycStatus::SUBMITTED->value) {
-                $this->kycStatusService->transitionTo($kyc, KycStatus::PROCESSING, [
+        try {
+            DB::transaction(function () use ($kyc, $admin, $request, $currentStatus) {
+                // V-FIX-STATE-MACHINE: If status is SUBMITTED, must transition to PROCESSING first
+                // State flow: submitted → processing → verified (cannot skip processing)
+                if ($currentStatus === KycStatus::SUBMITTED) {
+                    $this->kycStatusService->transitionTo($kyc, KycStatus::PROCESSING, [
+                        'verified_by' => $admin->id,
+                    ]);
+                }
+
+                // Now transition to VERIFIED (from PROCESSING status)
+                $this->kycStatusService->transitionTo($kyc, KycStatus::VERIFIED, [
                     'verified_by' => $admin->id,
+                    'rejection_reason' => null,
+                    'verification_checklist' => $request->verification_checklist,
                 ]);
-            }
 
-            // Now transition to VERIFIED (from PROCESSING status)
-            $this->kycStatusService->transitionTo($kyc, KycStatus::VERIFIED, [
-                'verified_by' => $admin->id,
-                'rejection_reason' => null,
-                'verification_checklist' => $request->verification_checklist,
-            ]);
+                if ($request->notes) {
+                    $kyc->verificationNotes()->create([
+                        'admin_id' => $admin->id,
+                        'note' => $request->notes,
+                    ]);
+                }
 
-            if ($request->notes) {
-                $kyc->verificationNotes()->create([
-                    'admin_id' => $admin->id,
-                    'note' => $request->notes,
-                ]);
-            }
-
-            $kyc->documents()->update(['status' => 'approved']);
-        });
+                $kyc->documents()->update(['status' => 'approved']);
+            });
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 400);
+        }
 
         try {
             $kyc->user->notify(new KycVerified());

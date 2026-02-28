@@ -17,9 +17,7 @@ class KycSubmitRequest extends FormRequest
     {
         // Use the centralized Regex from the model for consistency
         $panRegex = UserKyc::PAN_REGEX;
-        
-        // This is a simplified 12-digit regex for input, as Aadhaar can have spaces
-        $aadhaarRegex = '/^\d{4}\s?\d{4}\s?\d{4}$/';
+        $aadhaarRegex = UserKyc::AADHAAR_REGEX;
         
         $ifscRegex = '/^[A-Z]{4}0[A-Z0-9]{6}$/';
 

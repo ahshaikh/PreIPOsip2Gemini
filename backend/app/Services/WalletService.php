@@ -297,8 +297,9 @@ class WalletService
             }
 
             if (!$allowOverdraft && $wallet->balance_paise < $amountPaise) {
-                $availableRupees = $wallet->balance_paise / 100;
-                throw new \Exception("Insufficient funds. Available: ₹{$availableRupees}");
+                $availableRupees = (string) ($wallet->balance_paise / 100);
+                $requestedRupees = (string) ($amountPaise / 100);
+                throw new InsufficientBalanceException($availableRupees, $requestedRupees);
             }
 
             $balanceBefore = $wallet->balance_paise;
@@ -455,7 +456,9 @@ class WalletService
             $availableBalance = $wallet->balance_paise - $wallet->locked_balance_paise;
 
             if ($availableBalance < $amountPaise) {
-                throw new InsufficientBalanceException($availableBalance, $amountPaise);
+                $availableRupees = (string) ($availableBalance / 100);
+                $requestedRupees = (string) ($amountPaise / 100);
+                throw new InsufficientBalanceException($availableRupees, $requestedRupees);
             }
 
             // Move to locked balance
@@ -852,7 +855,9 @@ class WalletService
             }
 
             if ($wallet->balance_paise < $amountPaise) {
-                throw new InsufficientBalanceException($wallet->balance_paise, $amountPaise);
+                $availableRupees = (string) ($wallet->balance_paise / 100);
+                $requestedRupees = (string) ($amountPaise / 100);
+                throw new InsufficientBalanceException($availableRupees, $requestedRupees);
             }
 
             $balanceBefore = $wallet->balance_paise;

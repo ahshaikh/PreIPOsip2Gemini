@@ -40,28 +40,36 @@ class CompleteUserJourneyTest extends FeatureTestCase
     protected $user;
     protected $plan;
     protected $product;
+    protected $subscription;
 
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Seed the core data
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
         $this->seed(\Database\Seeders\SettingsSeeder::class);
         // ProductSeeder is now self-contained - no UserSeeder coupling required
         $this->seed(\Database\Seeders\PlanSeeder::class);
         $this->seed(\Database\Seeders\ProductSeeder::class);
-        
+
         // Setup shared models
         $this->admin = User::factory()->create();
         $this->admin->assignRole('admin');
-        
+
         $this->user = User::factory()->create();
         $this->user->assignRole('user');
         $this->user->wallet()->create(['balance_paise' => 0, 'locked_balance_paise' => 0]);
-        
+
         $this->plan = Plan::first();
         $this->product = Product::first();
+
+        // Create a subscription for tests that need it
+        $this->subscription = Subscription::factory()->create([
+            'user_id' => $this->user->id,
+            'plan_id' => $this->plan->id,
+            'status' => 'active',
+        ]);
 
         // Add inventory
         BulkPurchase::factory()->create([
@@ -130,11 +138,15 @@ class CompleteUserJourneyTest extends FeatureTestCase
             'demat_account' => '12345678',
             'bank_account' => '0987654321',
             'bank_ifsc' => 'HDFC0001234',
+            'bank_name' => 'HDFC Bank',
             'pan' => UploadedFile::fake()->image('pan.jpg'),
             'aadhaar_front' => UploadedFile::fake()->image('front.jpg'),
             'aadhaar_back' => UploadedFile::fake()->image('back.jpg'),
-            'bank_proof' => UploadedFile::fake()->pdf('bank.pdf'),
-            'demat_proof' => UploadedFile::fake()->pdf('demat.pdf'),
+            'bank_proof' => UploadedFile::fake()->create('bank.pdf', 100),
+            'demat_proof' => UploadedFile::fake()->create('demat.pdf', 100),
+            'address_proof' => UploadedFile::fake()->create('address.pdf', 100),
+            'photo' => UploadedFile::fake()->image('photo.jpg'),
+            'signature' => UploadedFile::fake()->image('signature.jpg'),
         ]);
         $response->assertStatus(201);
         $this->assertEquals('processing', $this->user->kyc->fresh()->status);

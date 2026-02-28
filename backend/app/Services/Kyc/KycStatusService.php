@@ -60,7 +60,8 @@ class KycStatusService
         return DB::transaction(function () use ($kyc, $newStatus, $data) {
             // Normalize to enum immediately (flexible input, strict internal handling)
             $newStatus = is_string($newStatus) ? KycStatus::from($newStatus) : $newStatus;
-            $oldStatus = $kyc->status; // Already enum from cast
+            // V-FIX-STATUS-NORMALIZE: Handle both string and enum status values
+            $oldStatus = is_string($kyc->status) ? KycStatus::from($kyc->status) : $kyc->status;
 
             // [P1.2 FIX]: Validate state transition (enum-to-enum)
             if (!$this->canTransitionTo($oldStatus, $newStatus)) {

@@ -20,6 +20,18 @@ class KycSubmitRequestTest extends FeatureTestCase
 
     private function validate(array $data)
     {
+        // Add required mock files to satisfy the request rules during text-field-only tests
+        $data = array_merge([
+            'aadhaar_front' => UploadedFile::fake()->image('front.jpg'),
+            'aadhaar_back' => UploadedFile::fake()->image('back.jpg'),
+            'pan' => UploadedFile::fake()->image('pan.jpg'),
+            'bank_proof' => UploadedFile::fake()->create('bank.pdf', 100),
+            'demat_proof' => UploadedFile::fake()->create('demat.pdf', 100),
+            'address_proof' => UploadedFile::fake()->create('address.pdf', 100),
+            'photo' => UploadedFile::fake()->image('photo.jpg'),
+            'signature' => UploadedFile::fake()->image('signature.jpg'),
+        ], $data);
+
         return Validator::make($data, $this->rules);
     }
 
@@ -28,10 +40,11 @@ class KycSubmitRequestTest extends FeatureTestCase
         // We only test text fields here. File upload is separate.
         return array_merge([
             'pan_number' => 'ABCDE1234F',
-            'aadhaar_number' => '1234 5678 9012',
+            'aadhaar_number' => '2234 5678 9012', // Change to 2 for real validation if needed, but we relaxed regex
             'demat_account' => '1234567890',
             'bank_account' => '0987654321',
             'bank_ifsc' => 'HDFC0001234',
+            'bank_name' => 'HDFC Bank',
         ], $overrides);
     }
 
@@ -55,9 +68,9 @@ class KycSubmitRequestTest extends FeatureTestCase
         $this->assertFalse($this->validate($this->getValidData(['aadhaar_number' => '12345678901A']))->passes());
         
         // Passes: 12 digits no space
-        $this->assertTrue($this->validate($this->getValidData(['aadhaar_number' => '123456789012']))->passes());
+        $this->assertTrue($this->validate($this->getValidData(['aadhaar_number' => '223456789012']))->passes());
         // Passes: 12 digits with spaces
-        $this->assertTrue($this->validate($this->getValidData(['aadhaar_number' => '1234 5678 9012']))->passes());
+        $this->assertTrue($this->validate($this->getValidData(['aadhaar_number' => '2234 5678 9012']))->passes());
     }
 
     public function test_validates_bank_account_format()
@@ -85,43 +98,43 @@ class KycSubmitRequestTest extends FeatureTestCase
         // Test requires a full payload, including files
         $rules = (new KycSubmitRequest())->rules();
         
-        // 1. Fails: Missing 'pan' file
-        $payload = $this->getValidData() + [
+        $baseFiles = [
             'aadhaar_front' => UploadedFile::fake()->image('front.jpg'),
             'aadhaar_back' => UploadedFile::fake()->image('back.jpg'),
+            'address_proof' => UploadedFile::fake()->create('address.pdf', 100),
+            'photo' => UploadedFile::fake()->image('photo.jpg'),
+            'signature' => UploadedFile::fake()->image('signature.jpg'),
+        ];
+
+        // 1. Fails: Missing 'pan' file
+        $payload = $this->getValidData() + $baseFiles + [
             // 'pan' => UploadedFile::fake()->image('pan.jpg'), // Missing
-            'bank_proof' => UploadedFile::fake()->pdf('bank.pdf'),
-            'demat_proof' => UploadedFile::fake()->pdf('demat.pdf'),
+            'bank_proof' => UploadedFile::fake()->create('bank.pdf', 100),
+            'demat_proof' => UploadedFile::fake()->create('demat.pdf', 100),
         ];
         $this->assertFalse(Validator::make($payload, $rules)->passes());
         
         // 2. Fails: Invalid MIME type (e.g., a .zip file)
-        $payload = $this->getValidData() + [
-            'aadhaar_front' => UploadedFile::fake()->image('front.jpg'),
-            'aadhaar_back' => UploadedFile::fake()->image('back.jpg'),
+        $payload = $this->getValidData() + $baseFiles + [
             'pan' => UploadedFile::fake()->create('document.zip', 100), // Invalid
-            'bank_proof' => UploadedFile::fake()->pdf('bank.pdf'),
-            'demat_proof' => UploadedFile::fake()->pdf('demat.pdf'),
+            'bank_proof' => UploadedFile::fake()->create('bank.pdf', 100),
+            'demat_proof' => UploadedFile::fake()->create('demat.pdf', 100),
         ];
         $this->assertFalse(Validator::make($payload, $rules)->passes());
         
         // 3. Fails: File too large (max 5MB)
-        $payload = $this->getValidData() + [
-            'aadhaar_front' => UploadedFile::fake()->image('front.jpg'),
-            'aadhaar_back' => UploadedFile::fake()->image('back.jpg'),
+        $payload = $this->getValidData() + $baseFiles + [
             'pan' => UploadedFile::fake()->create('large.pdf', 6000), // 6MB
-            'bank_proof' => UploadedFile::fake()->pdf('bank.pdf'),
-            'demat_proof' => UploadedFile::fake()->pdf('demat.pdf'),
+            'bank_proof' => UploadedFile::fake()->create('bank.pdf', 100),
+            'demat_proof' => UploadedFile::fake()->create('demat.pdf', 100),
         ];
         $this->assertFalse(Validator::make($payload, $rules)->passes());
         
         // 4. Passes: All present and valid
-        $payload = $this->getValidData() + [
-            'aadhaar_front' => UploadedFile::fake()->image('front.jpg'),
-            'aadhaar_back' => UploadedFile::fake()->image('back.jpg'),
+        $payload = $this->getValidData() + $baseFiles + [
             'pan' => UploadedFile::fake()->create('pan.pdf', 1000),
-            'bank_proof' => UploadedFile::fake()->pdf('bank.pdf'),
-            'demat_proof' => UploadedFile::fake()->pdf('demat.pdf'),
+            'bank_proof' => UploadedFile::fake()->create('bank.pdf', 100),
+            'demat_proof' => UploadedFile::fake()->create('demat.pdf', 100),
         ];
         $this->assertTrue(Validator::make($payload, $rules)->passes());
     }

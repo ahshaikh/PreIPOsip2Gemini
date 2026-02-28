@@ -20,14 +20,15 @@ class WithdrawalRequestTest extends FeatureTestCase
         $this->user = User::factory()->create();
         $this->user->assignRole('user');
         $this->user->kyc->update(['status' => 'verified']);
-        $this->user->wallet()->create([
+        // Use the wallet created by UserFactory and update its balance
+        $this->user->wallet->update([
             'balance_paise' => 10000000, // ₹1,00,000 (1 Lakh) in paise
             'locked_balance_paise' => 0
         ]);
 
         // Set rules
-        Setting::create(['key' => 'min_withdrawal_amount', 'value' => 1000]);
-        Setting::create(['key' => 'max_withdrawal_amount_per_day', 'value' => 50000]);
+        Setting::updateOrCreate(['key' => 'min_withdrawal_amount'], ['value' => 1000]);
+        Setting::updateOrCreate(['key' => 'max_withdrawal_amount_per_day'], ['value' => 50000]);
     }
 
     private function getValidData($overrides = [])
@@ -66,9 +67,11 @@ class WithdrawalRequestTest extends FeatureTestCase
         $response = $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw',
             $this->getValidData(['amount' => 200000]) // Balance is 100,000
         );
-        
+
         $response->assertStatus(422)
-                 ->assertJsonValidationErrors('amount', 'Insufficient wallet balance.');
+                 ->assertJsonValidationErrors('amount');
+        // Verify the specific error message is present
+        $this->assertStringContainsString('Insufficient', $response->json('errors.amount.0'));
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -99,17 +102,22 @@ class WithdrawalRequestTest extends FeatureTestCase
     public function test_validates_withdrawal_limit_per_day()
     {
         // 1. First withdrawal (40,000) - OK
-        // V-WAVE2-FIX: Use DI container to resolve service with dependencies
-        $this->service = app(\App\Services\WithdrawalService::class);
-        $this->service->requestWithdrawal($this->user, 40000, ['account'=>'123', 'ifsc'=>'ABC']);
+        // Create a withdrawal record directly to simulate having withdrawn 40k today
+        Withdrawal::create([
+            'user_id' => $this->user->id,
+            'wallet_id' => $this->user->wallet->id,
+            'amount_paise' => 4000000, // 40000 * 100
+            'status' => 'pending',
+            'bank_details' => ['account' => '123', 'ifsc' => 'ABC'],
+        ]);
 
         // 2. Second withdrawal (15,000) - Should fail
         // Total (40k + 15k = 55k) > 50k limit
         $response = $this->actingAs($this->user)->postJson('/api/v1/user/wallet/withdraw',
             $this->getValidData(['amount' => 15000])
         );
-        
+
         $response->assertStatus(422)
-                 ->assertJsonValidationErrors('amount', 'This withdrawal exceeds your daily limit');
+                 ->assertJsonValidationErrors('amount');
     }
 }

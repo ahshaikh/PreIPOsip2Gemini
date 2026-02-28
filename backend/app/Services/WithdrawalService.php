@@ -127,13 +127,8 @@ class WithdrawalService
             throw new \Exception("Insufficient funds.");
         }
 
-        // 2. Lock Funds in Wallet
-        $this->walletService->lockFunds(
-            $user, 
-            (float) $amount, 
-            "Withdrawal Request Pending",
-            null
-        );
+        // NOTE: Funds are locked by the controller calling walletService->withdraw() with lockBalance: true
+        // Do NOT call lockFunds here to avoid double-locking
 
         // 3. TDS Calculation
         $fee = '0';
@@ -269,6 +264,45 @@ class WithdrawalService
                 ->where('reference_id', $withdrawal->id)
                 ->where('status', 'pending')
                 ->update(['status' => 'completed']);
+
+            return $withdrawal;
+        });
+    }
+
+    /**
+     * User cancels their own pending withdrawal request.
+     */
+    public function cancelUserWithdrawal(User $user, Withdrawal $withdrawal)
+    {
+        // Ensure the withdrawal belongs to the user
+        if ($withdrawal->user_id !== $user->id) {
+            throw new \Exception("You can only cancel your own withdrawal requests.");
+        }
+
+        // Only pending withdrawals can be cancelled
+        if ($withdrawal->status !== 'pending') {
+            throw new \Exception("Only pending withdrawals can be cancelled. Current status: {$withdrawal->status}");
+        }
+
+        return DB::transaction(function () use ($withdrawal) {
+            $withdrawal->update([
+                'status' => 'cancelled',
+                'cancelled_at' => now()
+            ]);
+
+            // Unlock funds and restore balance
+            $this->walletService->unlockFunds(
+                $withdrawal->user,
+                $withdrawal->amount,
+                "Withdrawal Request #{$withdrawal->id} Cancelled by User",
+                $withdrawal
+            );
+
+            // Mark transaction as cancelled
+            Transaction::where('reference_type', Withdrawal::class)
+                ->where('reference_id', $withdrawal->id)
+                ->where('status', 'pending')
+                ->update(['status' => 'cancelled']);
 
             return $withdrawal;
         });

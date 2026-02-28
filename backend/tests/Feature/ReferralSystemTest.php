@@ -32,7 +32,7 @@ class ReferralSystemTest extends FeatureTestCase
 
         Setting::updateOrCreate(
             ['key' => 'referral_kyc_required'],
-            ['value' => '1', 'type' => 'boolean', 'group' => 'referral']
+            ['value' => '0', 'type' => 'boolean', 'group' => 'referral']
         );
     }
 
@@ -46,6 +46,8 @@ class ReferralSystemTest extends FeatureTestCase
             'is_active' => 1,
             'start_date' => now()->subDay(),
             'end_date' => now()->addDay(),
+            'starts_at' => now()->subDay(),
+            'ends_at' => now()->addDay(),
         ]);
 
         // =====================================================
@@ -91,6 +93,18 @@ class ReferralSystemTest extends FeatureTestCase
             'referral_campaign_id' => $campaign->id,
         ]);
 
+        // Create a SECOND referee to trigger multiplier upgrade
+        $referee2 = User::factory()->create([
+            'referred_by' => $referrer->id
+        ]);
+        $referee2->kyc()->create(['status' => 'verified']);
+        Referral::create([
+            'referrer_id' => $referrer->id,
+            'referred_id' => $referee2->id,
+            'status' => 'pending',
+            'referral_campaign_id' => $campaign->id,
+        ]);
+
         // Capture wallet state before execution
         $walletBefore = $referrer->wallet->balance_paise;
 
@@ -98,6 +112,7 @@ class ReferralSystemTest extends FeatureTestCase
         // 4️⃣ Execute Job (Production-Accurate Execution)
         // =====================================================
         ProcessReferralJob::dispatchSync($referee);
+        ProcessReferralJob::dispatchSync($referee2);
 
         $referrer->refresh();
 

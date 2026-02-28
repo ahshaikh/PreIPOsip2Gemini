@@ -21,8 +21,8 @@ class KycTest extends FeatureTestCase
         
         $this->user = User::factory()->create();
         $this->user->assignRole('user');
-        // Ensure KYC record exists
-        UserKyc::create(['user_id' => $this->user->id, 'status' => 'pending']);
+        // Reset KYC to pending status for testing (factory creates it as verified)
+        $this->user->kyc->forceFill(['status' => 'pending', 'verified_at' => null, 'submitted_at' => null])->save();
 
         $this->admin = User::factory()->create();
         $this->admin->assignRole('admin');
@@ -40,12 +40,16 @@ class KycTest extends FeatureTestCase
                              'demat_account' => '12345678',
                              'bank_account' => '9876543210',
                              'bank_ifsc' => 'HDFC0001234',
+                             'bank_name' => 'HDFC Bank',
                              // Fake files
                              'pan' => UploadedFile::fake()->image('pan.jpg'),
                              'aadhaar_front' => UploadedFile::fake()->image('front.jpg'),
                              'aadhaar_back' => UploadedFile::fake()->image('back.jpg'),
-                             'bank_proof' => UploadedFile::fake()->pdf('bank.pdf'),
-                             'demat_proof' => UploadedFile::fake()->pdf('demat.pdf'),
+                             'bank_proof' => UploadedFile::fake()->create('bank.pdf', 100),
+                             'demat_proof' => UploadedFile::fake()->create('demat.pdf', 100),
+                             'address_proof' => UploadedFile::fake()->create('address.pdf', 100),
+                             'photo' => UploadedFile::fake()->image('photo.jpg'),
+                             'signature' => UploadedFile::fake()->image('signature.jpg'),
                          ]);
 
         $response->assertStatus(201);
@@ -53,11 +57,11 @@ class KycTest extends FeatureTestCase
         $this->assertDatabaseHas('user_kyc', [
             'user_id' => $this->user->id,
             'pan_number' => 'ABCDE1234F',
-            'status' => 'submitted'
+            'status' => 'processing' // Status transitions to 'processing' after submission
         ]);
         
-        // Ensure documents were created
-        $this->assertDatabaseCount('kyc_documents', 5);
+        // Ensure documents were created (8 total: pan, aadhaar_front, aadhaar_back, bank_proof, demat_proof, address_proof, photo, signature)
+        $this->assertDatabaseCount('kyc_documents', 8);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]

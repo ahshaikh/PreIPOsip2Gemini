@@ -209,7 +209,7 @@ class UserProfileEndpointsTest extends FeatureTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function testUpdateBankDetailsWithValidData()
     {
-        $response = $this->actingAs($this->user)->postJson('/api/v1/user/profile/bank-details', [
+        $response = $this->actingAs($this->user)->putJson('/api/v1/user/bank-details', [
             'bank_account' => '1234567890123',
             'bank_ifsc' => 'HDFC0001234',
         ]);
@@ -227,7 +227,7 @@ class UserProfileEndpointsTest extends FeatureTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function testUpdateBankDetailsValidatesIfscFormat()
     {
-        $response = $this->actingAs($this->user)->postJson('/api/v1/user/profile/bank-details', [
+        $response = $this->actingAs($this->user)->putJson('/api/v1/user/bank-details', [
             'bank_account' => '1234567890123',
             'bank_ifsc' => 'INVALIDIFSC', // Invalid IFSC format
         ]);
@@ -239,7 +239,7 @@ class UserProfileEndpointsTest extends FeatureTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function testUpdateBankDetailsValidatesAccountNumberLength()
     {
-        $response = $this->actingAs($this->user)->postJson('/api/v1/user/profile/bank-details', [
+        $response = $this->actingAs($this->user)->putJson('/api/v1/user/bank-details', [
             'bank_account' => '123', // Too short
             'bank_ifsc' => 'HDFC0001234',
         ]);
@@ -257,7 +257,7 @@ class UserProfileEndpointsTest extends FeatureTestCase
             'bank_ifsc' => 'ICIC0004567',
         ]);
 
-        $response = $this->actingAs($this->user)->getJson('/api/v1/user/profile/bank-details');
+        $response = $this->actingAs($this->user)->getJson('/api/v1/user/bank-details');
 
         $response->assertStatus(200);
         $response->assertJson([

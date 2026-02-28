@@ -355,8 +355,9 @@ Route::prefix('v1')->group(function () {
             Route::prefix('notifications')->group(function () {
                 Route::get('/', [UserNotificationController::class, 'index']); // Use Alias
                 Route::get('unread-count', [UserNotificationController::class, 'unreadCount']);
-                Route::patch('{id}/read', [UserNotificationController::class, 'markAsRead']);
+                Route::match(['patch', 'post'], '{id}/read', [UserNotificationController::class, 'markAsRead']);
                 Route::post('mark-all-read', [UserNotificationController::class, 'markAllAsRead']);
+                Route::delete('{id}', [UserNotificationController::class, 'destroy']);
             });
 
             // Payments - Financial operations rate limited

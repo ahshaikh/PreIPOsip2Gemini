@@ -243,8 +243,8 @@ class WalletController extends Controller
             $withdrawal = DB::transaction(function () use ($user, $amount, $amountPaise, $validated, $idempotencyKey) {
 
                 $safeBankDetails = [
-                    'account_number' => $validated['bank_details']['account_number'] ?? null,
-                    'ifsc_code' => $validated['bank_details']['ifsc_code'] ?? null,
+                    'account_number' => $validated['bank_details']['account'] ?? $validated['bank_details']['account_number'] ?? null,
+                    'ifsc_code' => $validated['bank_details']['ifsc'] ?? $validated['bank_details']['ifsc_code'] ?? null,
                     'account_holder_name' => $validated['bank_details']['account_holder_name'] ?? null,
                     'bank_name' => $validated['bank_details']['bank_name'] ?? null,
                 ];

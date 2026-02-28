@@ -30,15 +30,25 @@ class AdminWorkflowTest extends FeatureTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_approve_kyc()
     {
-        $kyc = UserKyc::create([
+        $kyc = \App\Models\UserKyc::factory()->create([
             'user_id' => $this->user->id,
-            'status' => 'submitted',
+            'status' => 'processing',
             'pan_number' => 'ABCDE1234F',
-            'submitted_at' => now()
         ]);
 
+        // Create required documents to pass potential document checks
+        foreach (['pan', 'aadhaar_front', 'aadhaar_back', 'bank_proof'] as $type) {
+            \App\Models\KycDocument::factory()->create([
+                'user_kyc_id' => $kyc->id,
+                'doc_type' => $type,
+                'status' => 'pending'
+            ]);
+        }
+
         $response = $this->actingAs($this->admin)
-                         ->postJson("/api/v1/admin/kyc-queue/{$kyc->id}/approve");
+                         ->postJson("/api/v1/admin/kyc-queue/{$kyc->id}/approve", [
+                             'verification_checklist' => ['pan' => true, 'aadhaar' => true]
+                         ]);
 
         $response->assertStatus(200);
         $this->assertDatabaseHas('user_kyc', [
@@ -50,26 +60,49 @@ class AdminWorkflowTest extends FeatureTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function admin_can_approve_and_complete_withdrawal()
     {
-        $wallet = Wallet::create(['user_id' => $this->user->id, 'balance_paise' => 500000, 'locked_balance_paise' => 0]); // ₹5000
+        // 1. Setup user wallet and KYC
+        $amountPaise = 100000; // ₹1000
+        $wallet = Wallet::updateOrCreate(
+            ['user_id' => $this->user->id],
+            [
+                'balance_paise' => 400000,
+                'locked_balance_paise' => $amountPaise,
+            ]
+        );
         
-        // Create pending withdrawal
-        $withdrawal = Withdrawal::create([
+        $wallet->refresh();
+
+        // 2. Create withdrawal as draft first (to avoid triggering WithdrawalObserver on 'pending' status)
+        $withdrawal = \App\Models\Withdrawal::factory()->create([
             'user_id' => $this->user->id,
             'wallet_id' => $wallet->id,
-            'amount_paise' => 100000, // ₹1000 in paise
-            'net_amount_paise' => 100000, // ₹1000 in paise
-            'status' => 'pending',
-            'bank_details' => ['acc' => '123']
+            'amount_paise' => $amountPaise,
+            'net_amount_paise' => $amountPaise,
+            'status' => 'draft' // Bypasses created observer for 'pending'
+        ]);
+        
+        // Now set to pending directly in DB
+        \Illuminate\Support\Facades\DB::table('withdrawals')
+            ->where('id', $withdrawal->id)
+            ->update(['status' => 'pending']);
+            
+        $withdrawal->refresh();
+        $withdrawal = \App\Models\Withdrawal::factory()->create([
+            'user_id' => $this->user->id,
+            'wallet_id' => $wallet->id,
+            'amount_paise' => $amountPaise,
+            'net_amount_paise' => $amountPaise,
+            'status' => 'pending'
         ]);
 
-        // 1. Approve
+        // 3. Approve
         $this->actingAs($this->admin)
              ->postJson("/api/v1/admin/withdrawal-queue/{$withdrawal->id}/approve")
              ->assertStatus(200);
 
         $this->assertDatabaseHas('withdrawals', ['id' => $withdrawal->id, 'status' => 'approved']);
 
-        // 2. Complete
+        // 4. Complete
         $this->actingAs($this->admin)
              ->postJson("/api/v1/admin/withdrawal-queue/{$withdrawal->id}/complete", ['utr_number' => 'UTR12345'])
              ->assertStatus(200);
