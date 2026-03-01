@@ -20,18 +20,20 @@ class ProductSeeder extends Seeder
      */
     public function run(): void
     {
-        // Self-contained: Create seeder admin if none exists (removes UserSeeder coupling)
-        $admin = User::where('username', 'admin')->first();
+        // Self-contained: resolve an existing admin first, otherwise create one idempotently.
+        $admin = User::whereIn('username', ['admin', 'seeder_admin'])->first();
         if (!$admin) {
-            $admin = User::create([
-                'username' => 'seeder_admin',
-                'email' => 'seeder_admin@preipo.local',
-                'mobile' => '9000000001', // Required field
-                'password' => bcrypt('seeder_password_not_for_production'),
-                'status' => 'active',
-                'email_verified_at' => now(),
-                'mobile_verified_at' => now(),
-            ]);
+            $admin = User::firstOrCreate(
+                ['username' => 'seeder_admin'],
+                [
+                    'email' => 'seeder_admin@preipo.local',
+                    'mobile' => '9000000001', // Required field
+                    'password' => bcrypt('seeder_password_not_for_production'),
+                    'status' => 'active',
+                    'email_verified_at' => now(),
+                    'mobile_verified_at' => now(),
+                ]
+            );
         }
 
         // 2. CREATE A DUMMY COMPANY FOR SEEDING
@@ -85,11 +87,22 @@ class ProductSeeder extends Seeder
             // 3. INJECT THE company_id INTO THE DATA BEFORE CREATION
             $productData['company_id'] = $dummyCompany->id;
 
-            // Use updateOrCreate to make seeder re-runnable
-            $product = Product::updateOrCreate(
-                ['slug' => $productData['slug']],
-                $productData
-            );
+            // V-WAVE3-FIX: Extract status before upsert - status transitions must respect state machine
+            $initialStatus = $productData['status'] ?? 'draft';
+            unset($productData['status']);
+
+            // Use firstOrCreate for initial creation, then handle status separately
+            // This prevents illegal state transitions when re-running seeder
+            $product = Product::where('slug', $productData['slug'])->first();
+
+            if (!$product) {
+                // New product - create with draft status (state machine start)
+                $productData['status'] = 'draft';
+                $product = Product::create($productData);
+            } else {
+                // Existing product - update non-status fields only
+                $product->update($productData);
+            }
 
             // Simulate the workflow: draft -> submitted -> approved for testing
             // V-WAVE3-FIX: Match actual seeded slugs (not old placeholders)

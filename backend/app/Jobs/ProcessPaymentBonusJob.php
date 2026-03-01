@@ -1,7 +1,6 @@
 <?php
 // V-AUDIT-MODULE4-008 (Created) - Separate job for non-critical bonus processing
-// This job is dispatched after the critical payment and share allocation succeeds.
-// If bonus calculation fails, it can be retried without affecting the core payment.
+// V-WALLET-FIRST-2026: Bonus credited as cash, user decides how to use it
 
 namespace App\Jobs;
 
@@ -18,18 +17,16 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * ProcessPaymentBonusJob - Non-Critical Bonus Calculation and Allocation
+ * ProcessPaymentBonusJob - Bonus Calculation and Wallet Credit
  *
- * This job handles bonus calculation and allocation separately from the critical
- * payment processing to ensure that bonus calculation bugs don't roll back payments.
+ * V-WALLET-FIRST-2026:
+ * - Calculate bonuses based on payment
+ * - Credit bonus to user's wallet as CASH
+ * - NO automatic share purchase - user decides
  *
- * Workflow:
- * 1. Calculate bonuses based on payment
- * 2. Credit bonus to user's wallet
- * 3. Debit wallet for bonus share purchase
- * 4. Allocate bonus shares from inventory
- *
- * If any step fails, it can be retried independently without affecting the base payment.
+ * User can then:
+ * - Use bonus to buy shares (via "Buy Shares" button)
+ * - Or withdraw bonus to bank account
  */
 class ProcessPaymentBonusJob implements ShouldQueue
 {
@@ -48,12 +45,13 @@ class ProcessPaymentBonusJob implements ShouldQueue
 
     /**
      * Execute the bonus processing job.
+     *
+     * V-WALLET-FIRST-2026:
+     * - Calculate eligible bonuses
+     * - Credit to wallet as cash (via BonusCalculatorService)
+     * - User decides what to do with the bonus
      */
-    public function handle(
-        BonusCalculatorService $bonusService,
-        AllocationService $allocationService,
-        WalletService $walletService
-    ): void
+    public function handle(BonusCalculatorService $bonusService): void
     {
         // Skip if payment is no longer valid
         if ($this->payment->status !== 'paid') {
@@ -72,57 +70,34 @@ class ProcessPaymentBonusJob implements ShouldQueue
         }
 
         try {
-            // Wrap bonus operations in a transaction
-            DB::transaction(function () use ($bonusService, $allocationService, $walletService) {
-                $user = $this->payment->user;
+            $user = $this->payment->user;
 
-                // 1. Calculate and Award Bonuses
-                // V-WAVE3-FIX: calculateAndAwardBonuses() already credits wallet via
-                // createBonusTransaction() -> depositTaxable(). Do NOT double-credit.
-                $totalGrossBonus = $bonusService->calculateAndAwardBonuses($this->payment);
+            // Calculate and Credit Bonuses to Wallet
+            // BonusCalculatorService::calculateAndAwardBonuses() handles:
+            // - Bonus eligibility calculation
+            // - TDS deduction
+            // - Wallet credit via depositTaxable()
+            $totalGrossBonus = $bonusService->calculateAndAwardBonuses($this->payment);
 
-                // If no bonus, exit gracefully
-                if ($totalGrossBonus <= 0) {
-                    Log::info("No bonus calculated for Payment {$this->payment->id}.");
-                    return;
-                }
+            if ($totalGrossBonus <= 0) {
+                Log::info("No bonus calculated for Payment {$this->payment->id}.");
+                return;
+            }
 
-                // V-WAVE3-FIX: Calculate NET total (what wallet actually received after TDS)
-                // Wallet receives NET = GROSS - TDS, so use NET for share purchase
-                $netBonusTotal = $user->bonuses()
-                    ->where('payment_id', $this->payment->id)
-                    ->sum(DB::raw('amount - tds_deducted'));
+            // Calculate NET bonus (after TDS)
+            $netBonusTotal = $user->bonuses()
+                ->where('payment_id', $this->payment->id)
+                ->sum(DB::raw('amount - tds_deducted'));
 
-                Log::info("Payment #{$this->payment->id}: Bonus calculated - Gross: ₹{$totalGrossBonus}, Net: ₹{$netBonusTotal}");
+            Log::info("WALLET +₹{$netBonusTotal}: Bonus credited for Payment #{$this->payment->id} (Gross: ₹{$totalGrossBonus})");
 
-                // Skip share purchase if net bonus is zero (all went to TDS)
-                if ($netBonusTotal <= 0) {
-                    Log::info("No net bonus after TDS for Payment {$this->payment->id}. Skipping share purchase.");
-                    return;
-                }
-
-                // 2. Debit Wallet for Bonus Share Purchase
-                // V-WAVE3-FIX: Use NET amount (what wallet actually has)
-                $walletService->withdraw(
-                    $user,
-                    $netBonusTotal,
-                    'investment',
-                    "Bonus share purchase from Payment #{$this->payment->id}",
-                    $this->payment,
-                    false // Immediate debit
-                );
-                Log::info("Payment #{$this->payment->id}: Debited ₹{$netBonusTotal} from wallet for bonus share purchase");
-
-                // 3. Allocate Bonus Shares
-                // V-WAVE3-FIX: Allocate based on NET amount (user's actual purchasing power)
-                $allocationService->allocateSharesLegacy($this->payment, $netBonusTotal);
-
-                Log::info("Bonus processing completed successfully for Payment {$this->payment->id}");
-            });
+            // V-WALLET-FIRST-2026: Bonus remains as cash in wallet
+            // User can:
+            // - Buy shares via "Buy Shares" button
+            // - Withdraw to bank account
 
         } catch (\Exception $e) {
             Log::error("Bonus processing failed for Payment {$this->payment->id}: " . $e->getMessage());
-            // Re-throw to trigger job retry
             throw $e;
         }
     }
@@ -137,7 +112,5 @@ class ProcessPaymentBonusJob implements ShouldQueue
             'payment_id' => $this->payment->id,
             'user_id' => $this->payment->user_id,
         ]);
-
-        // TODO: Send alert to admin or create a support ticket for manual review
     }
 }

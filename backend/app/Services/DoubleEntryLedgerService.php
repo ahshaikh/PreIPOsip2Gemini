@@ -1229,7 +1229,12 @@ class DoubleEntryLedgerService
 
         $leftSide = $assets;
         $rightSide = $liabilities + $totalEquity;
-        $isBalanced = bccomp((string) $leftSide, (string) $rightSide, 2) === 0;
+
+        // Compare using paise integers to avoid float string edge-cases in bccomp()
+        // (e.g., scientific notation / malformed decimal string).
+        $leftSidePaise = (int) round($leftSide * 100);
+        $rightSidePaise = (int) round($rightSide * 100);
+        $isBalanced = $leftSidePaise === $rightSidePaise;
 
         return [
             'assets' => $assets,
@@ -1241,7 +1246,7 @@ class DoubleEntryLedgerService
             'total_equity' => $totalEquity,
             'left_side' => $leftSide,
             'right_side' => $rightSide,
-            'difference' => abs($leftSide - $rightSide),
+            'difference' => abs($leftSidePaise - $rightSidePaise) / 100,
             'is_balanced' => $isBalanced,
         ];
     }

@@ -39,7 +39,9 @@
       "Bash(DB_DATABASE=preipo_test php artisan migrate:*)",
       "Bash(DB_DATABASE=preipo_test php artisan migrate:fresh:*)",
       "Bash(git checkout:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(php artisan:*)",
+      "Bash(rm:*)"
     ]
   }
 }

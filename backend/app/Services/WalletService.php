@@ -126,6 +126,13 @@ class WalletService
 
             $balanceBefore = $wallet->balance_paise;
 
+            Log::debug("WALLET_DEPOSIT_TRACE", [
+                'user_id' => $user->id,
+                'type' => $type instanceof TransactionType ? $type->value : $type,
+                'amount' => $amountPaise,
+                'before' => $balanceBefore,
+            ]);
+
             // [AUDIT FIX]: Atomic increment at the database level.
             $wallet->increment('balance_paise', $amountPaise);
             $wallet->refresh();
@@ -306,6 +313,14 @@ class WalletService
                 $wallet = Wallet::where('id', $wallet->id)->lockForUpdate()->first();
             }
 
+            Log::debug("WALLET_WITHDRAW_TRACE", [
+                'user_id' => $user->id,
+                'type' => $type instanceof TransactionType ? $type->value : $type,
+                'amount' => $amountPaise,
+                'balance' => $wallet->balance_paise,
+                'locked' => $wallet->locked_balance_paise,
+            ]);
+
             if (!$allowOverdraft && $wallet->balance_paise < $amountPaise) {
                 $availableRupees = (string) ($wallet->balance_paise / 100);
                 $requestedRupees = (string) ($amountPaise / 100);
@@ -476,6 +491,21 @@ class WalletService
             $wallet->increment('locked_balance_paise', $amountPaise);
             $wallet->refresh();
 
+            // Create Transaction record for balance conservation
+            // V-FIX: lockFunds must create a transaction so balance_after matches balance_before + net change.
+            // Since balance_paise (total) doesn't change, net change is 0.
+            $transaction = $wallet->transactions()->create([
+                'user_id' => $user->id,
+                'type' => TransactionType::ADMIN_ADJUSTMENT->value,
+                'status' => 'completed',
+                'amount_paise' => 0, // No change to total balance
+                'balance_before_paise' => $balanceBefore,
+                'balance_after_paise' => $wallet->balance_paise,
+                'description' => "LOCK: " . $reason,
+                'reference_type' => $reference ? get_class($reference) : null,
+                'reference_id' => $reference?->id,
+            ]);
+
             // Log to audit
             \App\Models\AuditLog::create([
                 'action' => 'wallet.lock_funds',
@@ -485,6 +515,7 @@ class WalletService
                 'metadata' => [
                     'wallet_id' => $wallet->id,
                     'user_id' => $user->id,
+                    'transaction_id' => $transaction->id,
                     'amount_paise' => $amountPaise,
                     'amount_rupees' => $amountPaise / 100,
                     'reference_type' => $reference ? get_class($reference) : null,
@@ -497,6 +528,7 @@ class WalletService
                 'user_id' => $user->id,
                 'amount_paise' => $amountPaise,
                 'reason' => $reason,
+                'transaction_id' => $transaction->id,
             ]);
         });
     }
@@ -537,9 +569,24 @@ class WalletService
                 );
             }
 
+            $balanceBefore = $wallet->balance_paise;
+
             // Release from locked balance
             $wallet->decrement('locked_balance_paise', $amountPaise);
             $wallet->refresh();
+
+            // Create Transaction record for balance conservation
+            $transaction = $wallet->transactions()->create([
+                'user_id' => $user->id,
+                'type' => TransactionType::ADMIN_ADJUSTMENT->value,
+                'status' => 'completed',
+                'amount_paise' => 0, // No change to total balance
+                'balance_before_paise' => $balanceBefore,
+                'balance_after_paise' => $wallet->balance_paise,
+                'description' => "UNLOCK: " . $reason,
+                'reference_type' => $reference ? get_class($reference) : null,
+                'reference_id' => $reference?->id,
+            ]);
 
             // Log to audit
             \App\Models\AuditLog::create([
@@ -550,6 +597,7 @@ class WalletService
                 'metadata' => [
                     'wallet_id' => $wallet->id,
                     'user_id' => $user->id,
+                    'transaction_id' => $transaction->id,
                     'amount_paise' => $amountPaise,
                     'amount_rupees' => $amountPaise / 100,
                     'reference_type' => $reference ? get_class($reference) : null,
@@ -562,6 +610,7 @@ class WalletService
                 'user_id' => $user->id,
                 'amount_paise' => $amountPaise,
                 'reason' => $reason,
+                'transaction_id' => $transaction->id,
             ]);
         });
     }
@@ -902,7 +951,8 @@ class WalletService
                 throw new \RuntimeException('Invariant violation: negative locked balance after debit');
             }
 
-            // Create immutable transaction
+            // V-WALLET-FIRST-2026: This is a DEBIT operation (balance IS decremented),
+            // so the DB constraint will pass correctly. No workaround needed.
             $transaction = $wallet->transactions()->create([
                 'user_id' => $user->id,
                 'type' => $type->value,

@@ -58,32 +58,41 @@ class PlanSeeder extends Seeder
         $consistencyConfig = ['amount_per_payment' => 10, 'streaks' => [['months' => 6, 'multiplier' => 3]]];
 
         foreach ($plans as $planData) {
-            $plan = Plan::create([
-                'name' => $planData['name'],
-                'slug' => Str::slug($planData['name']),
-                'monthly_amount' => $planData['monthly_amount'],
-                'duration_months' => $planData['duration_months'],
-                'description' => $planData['description'],
-                'is_featured' => $planData['is_featured'] ?? false,
-                'display_order' => $planData['display_order'],
-            ]);
-            
-            $plan->features()->createMany([
-                ['feature_text' => 'Maximum reward eligibility'],
-                ['feature_text' => 'Access to exclusive listings'],
-                ['feature_text' => 'Maximum participation in incentive programs'],
-            ]);
+            // V-WALLET-FIRST-2026: Use firstOrCreate to make seeder idempotent
+            $plan = Plan::firstOrCreate(
+                ['slug' => Str::slug($planData['name'])],
+                [
+                    'name' => $planData['name'],
+                    'monthly_amount' => $planData['monthly_amount'],
+                    'duration_months' => $planData['duration_months'],
+                    'description' => $planData['description'],
+                    'is_featured' => $planData['is_featured'] ?? false,
+                    'display_order' => $planData['display_order'],
+                ]
+            );
+
+            // Only add features if none exist
+            if ($plan->features()->count() === 0) {
+                $plan->features()->createMany([
+                    ['feature_text' => 'Maximum reward eligibility'],
+                    ['feature_text' => 'Access to exclusive listings'],
+                    ['feature_text' => 'Maximum participation in incentive programs'],
+                ]);
+            }
 
             // V-WAVE3-FIX: Do NOT json_encode - the model's 'value' cast handles encoding
             // Double encoding was causing plan configs to be stored/retrieved as strings
-            $plan->configs()->createMany([
-                ['config_key' => 'progressive_config', 'value' => $progressiveConfig],
-                ['config_key' => 'milestone_config', 'value' => $milestoneConfig],
-                ['config_key' => 'consistency_config', 'value' => $consistencyConfig],
-                ['config_key' => 'lucky_draw_entries', 'value' => ['count' => $planData['display_order'] * 2]],
-                ['config_key' => 'referral_tiers', 'value' => $defaultReferralTiers],
-                ['config_key' => 'profit_share', 'value' => ['percentage' => ($planData['display_order'] * 5)]]
-            ]);
+            // Only add configs if none exist
+            if ($plan->configs()->count() === 0) {
+                $plan->configs()->createMany([
+                    ['config_key' => 'progressive_config', 'value' => $progressiveConfig],
+                    ['config_key' => 'milestone_config', 'value' => $milestoneConfig],
+                    ['config_key' => 'consistency_config', 'value' => $consistencyConfig],
+                    ['config_key' => 'lucky_draw_entries', 'value' => ['count' => $planData['display_order'] * 2]],
+                    ['config_key' => 'referral_tiers', 'value' => $defaultReferralTiers],
+                    ['config_key' => 'profit_share', 'value' => ['percentage' => ($planData['display_order'] * 5)]]
+                ]);
+            }
         }
     }
 }

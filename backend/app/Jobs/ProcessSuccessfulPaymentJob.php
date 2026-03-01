@@ -1,6 +1,6 @@
 <?php
 // V-PHASE3-1730-082 (Created) | V-FINAL-1730-455 (WalletService Refactor)
-// V-PAYMENT-INTEGRITY-2026: Wallet credit moved to PaymentWebhookService (atomic)
+// V-WALLET-FIRST-2026: Wallet-first architecture - user controls investment decisions
 
 namespace App\Jobs;
 
@@ -8,6 +8,8 @@ use App\Models\Payment;
 use App\Services\BonusCalculatorService;
 use App\Services\AllocationService;
 use App\Services\ReferralService;
+use App\Services\WalletService;
+use App\Enums\TransactionType;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -17,21 +19,21 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * ProcessSuccessfulPaymentJob - Post-Payment Non-Critical Operations
+ * ProcessSuccessfulPaymentJob - Payment Processing (Wallet-First Model)
  *
- * V-PAYMENT-INTEGRITY-2026:
- * - Wallet credit is now done ATOMICALLY in PaymentWebhookService::fulfillPayment()
- * - This job only handles NON-CRITICAL operations that can retry independently
- * - If this job fails, the payment and wallet credit are still valid
+ * V-WALLET-FIRST-2026:
+ * - Payment credits wallet, user decides when/where to invest
+ * - NO automatic share allocation - user must click "Buy Shares"
+ * - Bonus also credited as cash - user chooses how to use it
  *
- * NON-CRITICAL PATH:
- * - Bonus calculation and allocation
- * - Referral processing
- * - Lucky draw entries
- * - Email notifications
+ * FLOW:
+ * 1. Payment received → Credit to wallet (+₹5000)
+ * 2. Bonus calculated → Credit to wallet (+₹10)
+ * 3. User browses available companies
+ * 4. User clicks "Buy Shares" → Separate endpoint handles allocation
  *
- * BENEFIT: If bonus calculation has a bug, it doesn't roll back the
- * payment status or wallet credit. Financial integrity is preserved.
+ * WALLET SHOWS: +₹5010 (principal + bonus)
+ * USER DECIDES: Invest in Company A, B, or withdraw to bank
  */
 class ProcessSuccessfulPaymentJob implements ShouldQueue
 {
@@ -52,37 +54,63 @@ class ProcessSuccessfulPaymentJob implements ShouldQueue
     /**
      * Execute the job.
      *
-     * V-PAYMENT-INTEGRITY-2026:
-     * - Wallet credit already done atomically in PaymentWebhookService
-     * - This job handles only non-critical post-payment operations
-     * - Uses idempotency to prevent duplicate bonus/referral processing
+     * V-WALLET-FIRST-2026:
+     * - Credit payment to wallet
+     * - Calculate and credit bonus to wallet
+     * - NO auto-investment - user decides when to buy shares
      */
     public function handle(\App\Services\IdempotencyService $idempotency): void
     {
-        $idempotencyKey = "payment_post_processing:{$this->payment->id}";
+        $idempotencyKey = "payment_processing:{$this->payment->id}";
 
         // Check if already processed
         if ($idempotency->isAlreadyExecuted($idempotencyKey, self::class)) {
-            Log::info("Payment #{$this->payment->id} post-processing already done. Skipping.");
+            Log::info("Payment #{$this->payment->id} already processed. Skipping.");
             return;
         }
 
         $idempotency->executeOnce($idempotencyKey, function () {
-            Log::info("Starting post-payment processing for Payment #{$this->payment->id}");
+            Log::info("Processing payment #{$this->payment->id}");
 
-            // 1. Calculate and Award Bonuses (Separate Job for isolation)
+            $user = $this->payment->user;
+            if (!$user) {
+                throw new \RuntimeException("Payment #{$this->payment->id} has no associated user");
+            }
+
+            $amountPaise = $this->payment->getAmountPaiseStrict();
+            $amountRupees = $amountPaise / 100;
+            $walletService = app(WalletService::class);
+
+            // 1. CREDIT PRINCIPAL TO WALLET
+            // V-WALLET-FIRST-2026: User receives funds in wallet, decides what to do
+            $walletService->deposit(
+                $user,
+                $amountPaise,
+                TransactionType::DEPOSIT,
+                "Payment received for SIP installment #{$this->payment->id}",
+                $this->payment
+            );
+            Log::info("WALLET +₹{$amountRupees}: Payment #{$this->payment->id} credited to user #{$user->id}");
+
+            // 2. CALCULATE AND CREDIT BONUSES
+            // V-WALLET-FIRST-2026: Bonus credited as cash, user decides how to use it
             ProcessPaymentBonusJob::dispatch($this->payment);
 
-            // 2. Process Referrals (if first payment)
+            // 3. PROCESS REFERRALS (if first payment)
             $this->processReferralIfFirstPayment();
 
-            // 3. Generate Lucky Draw Entries
+            // 4. GENERATE LUCKY DRAW ENTRIES
             GenerateLuckyDrawEntryJob::dispatch($this->payment);
 
-            // 4. Send Notifications
+            // 5. SEND NOTIFICATIONS
             SendPaymentConfirmationEmailJob::dispatch($this->payment);
 
-            Log::info("Post-payment processing dispatched for Payment #{$this->payment->id}");
+            Log::info("Payment #{$this->payment->id} processed. User wallet credited ₹{$amountRupees}");
+
+            // NOTE: No auto-investment. User will:
+            // - Browse available companies
+            // - Click "Buy Shares" on chosen company
+            // - That triggers withdrawal + share allocation
 
         }, [
             'job_class' => self::class,
@@ -121,12 +149,9 @@ class ProcessSuccessfulPaymentJob implements ShouldQueue
      */
     public function failed(\Throwable $exception): void
     {
-        Log::error("Post-payment processing failed for Payment #{$this->payment->id}", [
+        Log::error("Payment processing failed for Payment #{$this->payment->id}", [
             'error' => $exception->getMessage(),
             'trace' => $exception->getTraceAsString(),
         ]);
-
-        // Note: Wallet credit is already done - only post-processing failed
-        // These can be retried manually or will be picked up by retry system
     }
 }

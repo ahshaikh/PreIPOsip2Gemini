@@ -1,6 +1,7 @@
 <?php
 // V-PHASE3-1730-081 (Created) | V-FINAL-1730-338 | V-FINAL-1730-454 (Idempotent) | V-AUDIT-FIX-MODULE8 (Race Condition Fix)
 // V-CONTRACT-HARDENING-FINAL: Payment amount validation against subscription contract
+// V-PASSBOOK-MODEL-2026: Wallet credit moved to ProcessSuccessfulPaymentJob (bank passbook architecture)
 
 namespace App\Services;
 
@@ -725,19 +726,17 @@ class PaymentWebhookService
                     }
                     $sub->save();
 
-                    // V-PAYMENT-INTEGRITY-2026: CRITICAL - Wallet credit INSIDE transaction
-                    // This ensures payment status and wallet credit are atomic
-                    // Refresh the payment instance to reflect updates
-                    $lockedPayment->refresh();
-                    $this->creditWalletAtomically($lockedPayment);
+                    // V-PASSBOOK-MODEL-2026: Wallet credit moved to ProcessSuccessfulPaymentJob
+                    // All financial mutations (deposit → withdraw → bonus) happen in ONE execution context
+                    // This ensures perfect passbook ledger: +1000, -1000, +10
 
                     return true;
                 });
 
                 if ($fulfilled) {
-                    // Dispatch non-critical jobs AFTER transaction commits
-                    // These jobs handle bonus calculation, referrals, notifications
-                    // If they fail, the payment is still valid (wallet already credited)
+                    // V-PASSBOOK-MODEL-2026: Dispatch lifecycle job AFTER payment status commits
+                    // Job handles ALL financial mutations: deposit → withdraw → allocate → bonus
+                    // This ensures perfect passbook ledger in ONE execution context
                     $payment->refresh();
                     ProcessSuccessfulPaymentJob::dispatch($payment)->afterCommit();
 

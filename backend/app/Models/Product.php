@@ -291,7 +291,7 @@ class Product extends Model
                     'performed_by_type' => auth()->check() ? get_class(auth()->user()) : 'System',
                     'ip_address' => request()->ip(),
                     'user_agent' => request()->userAgent(),
-                    'reason' => 'Product deleted',
+                    'change_description' => 'Product deleted',
                 ]);
             } catch (\Exception $e) {
                 \Log::error('Failed to create product deletion audit log', [

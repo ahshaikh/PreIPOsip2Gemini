@@ -32,7 +32,9 @@ class ProductAudit extends Model
         'performed_by_type',    // User, Admin, System
         'ip_address',
         'user_agent',
-        'reason',               // Optional reason for the change
+        'change_description',   // [FIXED] HUMAN-READABLE DESCRIPTION
+        'compliance_notes',     // [FIXED] COMPLIANCE NOTES
+        'is_critical',          // [FIXED] CRITICAL FLAG
         'metadata',             // Additional context
     ];
 
@@ -40,6 +42,7 @@ class ProductAudit extends Model
         'changed_fields' => 'array',
         'old_values' => 'array',
         'new_values' => 'array',
+        'is_critical' => 'boolean',
         'metadata' => 'array',
     ];
 
@@ -78,7 +81,7 @@ class ProductAudit extends Model
         ?array $changedFields = null,
         ?array $oldValues = null,
         ?array $newValues = null,
-        ?string $reason = null
+        ?string $description = null
     ): self {
         // Auto-detect changed fields if not provided
         if ($changedFields === null && $product->isDirty()) {
@@ -106,7 +109,7 @@ class ProductAudit extends Model
             'performed_by_type' => auth()->check() ? get_class(auth()->user()) : 'System',
             'ip_address' => request()->ip(),
             'user_agent' => request()->userAgent(),
-            'reason' => $reason,
+            'change_description' => $description,
             'metadata' => [
                 'timestamp' => now()->toISOString(),
                 'route' => request()->path(),

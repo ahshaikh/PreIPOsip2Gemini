@@ -24,10 +24,9 @@ class FinancialIntegrityInvariantTest extends TestCase
         $this->walletService = app(WalletService::class);
     }
 
-    /**
-     * @test
-     * [INVARIANT]: SUM(Wallet.balance_paise) == LedgerAccount(USER_WALLET_LIABILITY).balance_paise
-     */
+     // [INVARIANT]: SUM(Wallet.balance_paise) == LedgerAccount(USER_WALLET_LIABILITY).balance_paise
+
+    #[\PHPUnit\Framework\Attributes\Test]
     public function test_balance_sheet_invariant_holds_after_complex_operations()
     {
         // 1. Setup Users

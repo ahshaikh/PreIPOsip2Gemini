@@ -79,7 +79,8 @@ class FullPaymentLifecycleActivationTest extends FeatureTestCase
         // Wallet is auto-created by UserFactory
         $this->user->wallet->update(['balance_paise' => 0]);
 
-        $this->plan = Plan::first();
+        // V-WAVE3-FIX: Get a plan with positive amount (skip One-Time plans with 0 amount)
+        $this->plan = Plan::where('monthly_amount', '>', 0)->first();
 
         // Ensure inventory exists
         $product = Product::first();
@@ -219,10 +220,11 @@ class FullPaymentLifecycleActivationTest extends FeatureTestCase
             'At least one bonus should be triggered'
         );
 
-        // Verify bonus was credited
+        // Verify bonus was created with valid amount
+        // Note: BonusTransaction has no status column - creation implies credited via wallet
         $consistencyBonus = $bonusTransactions->where('type', 'consistency')->first();
         if ($consistencyBonus) {
-            $this->assertEquals('credited', $consistencyBonus->status);
+            $this->assertGreaterThan(0, $consistencyBonus->amount, 'Bonus amount should be positive');
         }
 
         // =====================================================================
@@ -307,7 +309,8 @@ class FullPaymentLifecycleActivationTest extends FeatureTestCase
             $progressiveBonus,
             'Progressive bonus should be triggered at month 4'
         );
-        $this->assertEquals('credited', $progressiveBonus->status);
+        // Note: BonusTransaction has no status column - verify amount instead
+        $this->assertGreaterThan(0, $progressiveBonus->amount, 'Progressive bonus amount should be positive');
     }
 
     // =========================================================================

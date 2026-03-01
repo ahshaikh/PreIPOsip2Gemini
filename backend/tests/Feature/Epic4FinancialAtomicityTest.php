@@ -30,7 +30,7 @@ class Epic4FinancialAtomicityTest extends FeatureTestCase
 {
 // <!-- GAP 4: PLATFORM LEDGER ENTRY IMMUTABILITY -->
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function platform_ledger_entry_cannot_be_updated()
     {
         // Create a ledger entry
@@ -55,7 +55,7 @@ class Epic4FinancialAtomicityTest extends FeatureTestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function platform_ledger_entry_cannot_be_deleted()
     {
         // Create a ledger entry
@@ -78,7 +78,7 @@ class Epic4FinancialAtomicityTest extends FeatureTestCase
         $entry->delete();
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function platform_ledger_entry_tracks_running_balance()
     {
         // Skip this test if legacy ledger writes are disabled
@@ -121,7 +121,7 @@ class Epic4FinancialAtomicityTest extends FeatureTestCase
         $this->assertEquals(-500000, $entry3->balance_after_paise);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function platform_ledger_debit_requires_positive_amount()
     {
         // Skip this test if legacy ledger writes are disabled
@@ -140,7 +140,7 @@ class Epic4FinancialAtomicityTest extends FeatureTestCase
         );
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function platform_ledger_prevents_double_reversal()
     {
         // Skip this test if legacy ledger writes are disabled
@@ -180,7 +180,7 @@ class Epic4FinancialAtomicityTest extends FeatureTestCase
 
 //<!-- GAP 1: BULK PURCHASE CREATION WITH LEDGER ATOMICITY -->
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function bulk_purchase_controller_creates_ledger_entry_atomically()
     {
         // Create required related models
@@ -225,7 +225,7 @@ class Epic4FinancialAtomicityTest extends FeatureTestCase
         }
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function bulk_purchase_has_proven_capital_movement_helper()
     {
         // Create bulk purchase with ledger entry
@@ -282,7 +282,7 @@ class Epic4FinancialAtomicityTest extends FeatureTestCase
 
 //<!-- GAP 3: DEAL INVENTORY SUFFICIENCY AT MODEL LEVEL -->
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function deal_creation_fails_without_inventory()
     {
         // Create product with NO inventory
@@ -307,7 +307,7 @@ class Epic4FinancialAtomicityTest extends FeatureTestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function deal_creation_succeeds_with_inventory()
     {
         // Create product WITH inventory
@@ -348,7 +348,7 @@ class Epic4FinancialAtomicityTest extends FeatureTestCase
         $this->assertEquals('draft', $deal->status);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function deal_activation_fails_without_inventory()
     {
         // Create product WITH inventory initially
@@ -394,7 +394,7 @@ class Epic4FinancialAtomicityTest extends FeatureTestCase
         $deal->update(['status' => 'active']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function deal_activation_fails_when_max_investment_exceeds_inventory()
     {
         // Create product with limited inventory
@@ -439,7 +439,7 @@ class Epic4FinancialAtomicityTest extends FeatureTestCase
         $deal->update(['status' => 'active']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function deal_inventory_check_is_enforced_at_model_level()
     {
         $product = Product::factory()->create(['status' => 'draft']);
@@ -463,7 +463,7 @@ class Epic4FinancialAtomicityTest extends FeatureTestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function ledger_integrity_verification_detects_balance_mismatches()
     {
         // Skip this test if legacy ledger writes are disabled
@@ -483,7 +483,7 @@ class Epic4FinancialAtomicityTest extends FeatureTestCase
         $this->assertEmpty($result['violations']);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function ledger_summary_returns_accurate_totals()
     {
         // Skip this test if legacy ledger writes are disabled
