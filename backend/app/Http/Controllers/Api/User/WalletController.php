@@ -256,17 +256,6 @@ class WalletController extends Controller
                     $idempotencyKey
                 );
 
-                // Lock funds in wallet using TransactionType enum
-                $this->walletService->withdraw(
-                    $user,
-                    $amountPaise, // [AUDIT FIX]: Pass Paise integer
-                    TransactionType::WITHDRAWAL_REQUEST, 
-                    "Withdrawal request #{$withdrawal->id}",
-                    $withdrawal,
-                    true, // Lock balance
-                    false // Allow overdraft? NO for user withdrawals
-                );
-
                 return $withdrawal;
             });
 

@@ -346,14 +346,16 @@ class FullUserJourneyIntegrationTest extends FeatureTestCase
             true // Lock the balance
         );
 
-        // Verify balance moved to locked
+        // Verify funds are locked (total balance unchanged, available decreased)
         $wallet->refresh();
-        $this->assertEquals(3000, $wallet->balance);
+        $this->assertEquals(5000, $wallet->balance);           // Total unchanged
+        $this->assertEquals(3000, $wallet->available_balance); // Available = total - locked
         $this->assertEquals(2000, $wallet->locked_balance);
         $this->assertEquals('pending', $transaction->status);
 
         // ==================== ADMIN REJECTS WITHDRAWAL ====================
-        // unlockFunds releases the lock but funds need to be re-deposited to return to user
+        // unlockFunds releases the lock. Since locking doesn't decrement balance_paise
+        // (only marks funds as unavailable), unlocking restores available balance automatically.
         $walletService->unlockFunds(
             $user,
             2000.0,
@@ -361,12 +363,11 @@ class FullUserJourneyIntegrationTest extends FeatureTestCase
             null // Reference is optional Model
         );
 
-        // Re-deposit the unlocked funds to return them to user balance
-        $walletService->deposit($user, 2000.0, 'refund', 'Withdrawal cancelled - funds returned');
-
+        // Verify funds are fully available again (no re-deposit needed)
         $wallet->refresh();
-        $this->assertEquals(5000, $wallet->balance); // Back to original
-        $this->assertEquals(0, $wallet->locked_balance);
+        $this->assertEquals(5000, $wallet->balance);           // Total unchanged
+        $this->assertEquals(5000, $wallet->available_balance); // All funds available again
+        $this->assertEquals(0, $wallet->locked_balance);       // Nothing locked
     }
 
     #[\PHPUnit\Framework\Attributes\Test]

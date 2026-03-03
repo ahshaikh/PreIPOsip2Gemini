@@ -167,14 +167,4 @@ class WebhookValidationTest extends FeatureTestCase
         // Idempotency is handled at the service layer, not signature verification
         $this->assertContains($response2->status(), [200, 201]);
     }
-
-    #[\PHPUnit\Framework\Attributes\Test]
-    public function testWebhookRetryHandling()
-    {
-        // This is the same functional test as Idempotency.
-        // A "retry" from Razorpay is just a duplicate event.
-        $this->markTestSkipped(
-            'Covered by testWebhookIdempotency, as a retry is a duplicate event.'
-        );
-    }
 }

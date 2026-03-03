@@ -295,7 +295,7 @@ class ChargebackResolutionService
             throw new \RuntimeException("Wallet not found for user #{$user->id}");
         }
 
-        $walletBalancePaise = $wallet->balance_paise;
+        $walletBalancePaise = $wallet->available_balance_paise;
         $actualDebitPaise = min($walletBalancePaise, $totalNetToRecoverPaise);
         $shortfallPaise = $totalNetToRecoverPaise - $actualDebitPaise;
 

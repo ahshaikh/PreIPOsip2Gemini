@@ -205,7 +205,8 @@ class WalletServiceTest extends BaseTestCase
         );
 
         $wallet = $this->wallet->fresh();
-        $this->assertEquals(700.00, $wallet->balance); // Virtual accessor
+        $this->assertEquals(1000.00, $wallet->balance); // Virtual accessor
+	$this->assertEquals(700.00, $wallet->available_balance);
         $this->assertEquals(300.00, $wallet->locked_balance); // Virtual accessor
         $this->assertEquals('pending', $transaction->status);
     }

@@ -483,12 +483,6 @@ class CompleteUserJourneyTest extends FeatureTestCase
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
-    public function testAutoDebitFailureAndRetryFlow()
-    {
-        $this->markTestSkipped('V-REFACTOR-2026: Auto-debit retry counting uses DB query, not payment.retry_count field.');
-    }
-
-    #[\PHPUnit\Framework\Attributes\Test]
     public function testKycRejectionAndResubmissionFlow()
     {
         $this->user->kyc->update(['status' => 'pending', 'verified_at' => null]);

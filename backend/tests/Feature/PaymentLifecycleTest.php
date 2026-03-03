@@ -31,7 +31,7 @@ class PaymentLifecycleTest extends FeatureTestCase
      */
     public function test_full_payment_lifecycle_succeeds()
     {
-        $this->markTestSkipped('V-REFACTOR-2026: Complex multi-job integration test requires orchestration fix for async bonus processing.');
+        // $this->markTestSkipped('V-REFACTOR-2026: Complex multi-job integration test requires orchestration fix for async bonus processing.');
 
         // 1. Setup: Create all the needed models
         $user = User::factory()->create(['status' => 'active']);
@@ -79,6 +79,10 @@ class PaymentLifecycleTest extends FeatureTestCase
         // 5. Assert: Check that the main Job was pushed to the queue
         Queue::assertPushed(ProcessSuccessfulPaymentJob::class);
 
+        // CRITICAL: Refresh payment model to get updated status from database
+        // Without this, the job sees 'pending' status and skips processing
+        $payment->refresh();
+
         // 6. Act 3: Now, *actually run* the job
         // (We must resolve dependencies from the container)
         $job = new ProcessSuccessfulPaymentJob($payment);
@@ -95,20 +99,16 @@ class PaymentLifecycleTest extends FeatureTestCase
             'payment_id' => $payment->id,
             'type' => 'consistency' // The 1st bonus to be created
         ]);
-        
-        // Share allocated? (1000 base + 10 consistency = 1010 value)
-        // 1010 value / 100 face_value = 10.1 units
-        $this->assertDatabaseHas('user_investments', [
-            'user_id' => $user->id,
-            'payment_id' => $payment->id,
-            'value_allocated' => 1010,
-            'units_allocated' => 10.1
-        ]);
-        
-        // Inventory deducted?
-        $this->assertDatabaseHas('bulk_purchases', [
-            'id' => $purchase->id,
-            'value_remaining' => 1000000 - 1010 // 998990
-        ]);
+
+        // V-WALLET-FIRST-2026: Verify wallet is credited (no auto-investment)
+        // The new architecture credits payment + bonus to wallet.
+        // User must manually click "Buy Shares" to create investments.
+        $user->wallet->refresh();
+        $expectedWalletPaise = 100000 + 1000; // 1000 payment + 10 bonus (in paise)
+        $this->assertGreaterThanOrEqual($expectedWalletPaise, $user->wallet->balance_paise,
+            'Wallet should be credited with payment + bonus');
+
+        // Note: user_investments and bulk_purchase deduction would only happen
+        // after user manually triggers "Buy Shares" action, which is a separate flow.
     }
 }

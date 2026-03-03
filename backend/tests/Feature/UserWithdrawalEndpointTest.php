@@ -72,11 +72,12 @@ class UserWithdrawalEndpointTest extends FeatureTestCase
 
         $response->assertStatus(201);
 
-        // Withdrawal flow: createWithdrawalRecord locks funds, then withdraw() also decrements balance
-        // Net effect: balance decreases, locked_balance increases by 2x (known behavior)
+        // Withdrawal locking: balance_paise stays the same (total funds unchanged),
+        // locked_balance_paise increases (funds reserved), available_balance decreases.
         $wallet = $this->wallet->fresh();
-        $this->assertEquals(7000, $wallet->balance); // 10000 - 3000
-        $this->assertGreaterThan(0, $wallet->locked_balance);
+        $this->assertEquals(10000, $wallet->balance);           // Total unchanged
+        $this->assertEquals(7000, $wallet->available_balance);  // Available = total - locked
+        $this->assertEquals(3000, $wallet->locked_balance);     // Locked = requested amount
     }
 
     public function testUserCanCancelPendingWithdrawal()

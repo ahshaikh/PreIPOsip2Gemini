@@ -89,9 +89,16 @@ class WithdrawalService
             'bank_details' => $bankDetails,
             'idempotency_key' => $idempotencyKey,
         ]);
-
-        // NOTE: Wallet locking and transaction creation are handled by the controller
-        // via WalletService::withdraw(..., lockBalance: true).
+        // Lock funds immediately (service-layer responsibility)
+        $this->walletService->withdraw(
+            user: $user,
+            amount: $amount,
+            type: 'withdrawal_request',
+            description: "Withdrawal Request #{$withdrawal->id}",
+            reference: $withdrawal,
+            lockBalance: true,
+            allowOverdraft: false
+        );
 
         $user->notify(new WithdrawalRequested($withdrawal));
 

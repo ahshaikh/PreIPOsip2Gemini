@@ -248,7 +248,7 @@ class FullPaymentLifecycleActivationTest extends FeatureTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function lifecycle_triggers_progressive_bonus_at_month_4()
     {
-        $this->markTestSkipped('V-REFACTOR-2026: Complex multi-job integration test requires orchestration fix for async bonus processing.');
+        // $this->markTestSkipped('V-REFACTOR-2026: Complex multi-job integration test requires orchestration fix for async bonus processing.');
 
         // Create subscription with 3 prior payments (month 4 triggers progressive)
         $subscription = Subscription::factory()->create([

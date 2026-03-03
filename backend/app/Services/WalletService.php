@@ -33,6 +33,7 @@ use App\Exceptions\Financial\InsufficientBalanceException;
 use App\Exceptions\Financial\ComplianceBlockedException; // [C.8]: KYC enforcement
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class WalletService
 {
@@ -153,6 +154,7 @@ class WalletService
                 'description' => $description,
                 'reference_type' => $reference ? get_class($reference) : null,
                 'reference_id' => $reference?->id,
+                'transaction_id' => (string) Str::uuid(),
             ]);
 
             // PHASE 4.1: Record in double-entry ledger
@@ -331,10 +333,9 @@ class WalletService
             $status = 'completed';
 
             if ($lockBalance) {
-                // PHASE 4.1 FIX: balance_paise is TOTAL balance (including locked).
-                // When locking funds, we do NOT decrement balance_paise (total),
-                // we only increment locked_balance_paise.
-                // This ensures balance_paise remains the SSOT for "total funds owned by user".
+                // Move funds to locked balance for pending debit.
+                // balance_paise stays the same (total), locked_balance_paise increases.
+                // available_balance = balance_paise - locked_balance_paise (auto-computed).
                 $wallet->increment('locked_balance_paise', $amountPaise);
                 $status = 'pending';
             } else {
@@ -363,6 +364,7 @@ class WalletService
                 'description' => $description,
                 'reference_type' => $reference ? get_class($reference) : null,
                 'reference_id' => $reference?->id,
+                'transaction_id' => (string) Str::uuid(),
             ]);
 
             // PHASE 4.1: Record in double-entry ledger for completed withdrawals
@@ -491,21 +493,6 @@ class WalletService
             $wallet->increment('locked_balance_paise', $amountPaise);
             $wallet->refresh();
 
-            // Create Transaction record for balance conservation
-            // V-FIX: lockFunds must create a transaction so balance_after matches balance_before + net change.
-            // Since balance_paise (total) doesn't change, net change is 0.
-            $transaction = $wallet->transactions()->create([
-                'user_id' => $user->id,
-                'type' => TransactionType::ADMIN_ADJUSTMENT->value,
-                'status' => 'completed',
-                'amount_paise' => 0, // No change to total balance
-                'balance_before_paise' => $balanceBefore,
-                'balance_after_paise' => $wallet->balance_paise,
-                'description' => "LOCK: " . $reason,
-                'reference_type' => $reference ? get_class($reference) : null,
-                'reference_id' => $reference?->id,
-            ]);
-
             // Log to audit
             \App\Models\AuditLog::create([
                 'action' => 'wallet.lock_funds',
@@ -515,7 +502,7 @@ class WalletService
                 'metadata' => [
                     'wallet_id' => $wallet->id,
                     'user_id' => $user->id,
-                    'transaction_id' => $transaction->id,
+                    'transaction_id' => null,
                     'amount_paise' => $amountPaise,
                     'amount_rupees' => $amountPaise / 100,
                     'reference_type' => $reference ? get_class($reference) : null,
@@ -528,7 +515,7 @@ class WalletService
                 'user_id' => $user->id,
                 'amount_paise' => $amountPaise,
                 'reason' => $reason,
-                'transaction_id' => $transaction->id,
+                'transaction_id' => null,
             ]);
         });
     }
@@ -575,19 +562,6 @@ class WalletService
             $wallet->decrement('locked_balance_paise', $amountPaise);
             $wallet->refresh();
 
-            // Create Transaction record for balance conservation
-            $transaction = $wallet->transactions()->create([
-                'user_id' => $user->id,
-                'type' => TransactionType::ADMIN_ADJUSTMENT->value,
-                'status' => 'completed',
-                'amount_paise' => 0, // No change to total balance
-                'balance_before_paise' => $balanceBefore,
-                'balance_after_paise' => $wallet->balance_paise,
-                'description' => "UNLOCK: " . $reason,
-                'reference_type' => $reference ? get_class($reference) : null,
-                'reference_id' => $reference?->id,
-            ]);
-
             // Log to audit
             \App\Models\AuditLog::create([
                 'action' => 'wallet.unlock_funds',
@@ -597,7 +571,7 @@ class WalletService
                 'metadata' => [
                     'wallet_id' => $wallet->id,
                     'user_id' => $user->id,
-                    'transaction_id' => $transaction->id,
+                    'transaction_id' => null,
                     'amount_paise' => $amountPaise,
                     'amount_rupees' => $amountPaise / 100,
                     'reference_type' => $reference ? get_class($reference) : null,
@@ -610,7 +584,7 @@ class WalletService
                 'user_id' => $user->id,
                 'amount_paise' => $amountPaise,
                 'reason' => $reason,
-                'transaction_id' => $transaction->id,
+                'transaction_id' => null,
             ]);
         });
     }
@@ -646,6 +620,19 @@ class WalletService
         int $netChangePaise,
         Payment $payment
     ): array {
+        // SINGLE SOURCE OF TRUTH: Derive investment revenue from database, not parameters.
+        // This prevents drift if allocation logic changes elsewhere.
+        $investmentReversedPaise = (int) ($payment->investments()
+            ->where('is_reversed', true)
+            ->sum('value_allocated') * 100);
+
+        Log::channel('financial_contract')->debug('Chargeback adjustment: computed investment reversal from DB', [
+            'payment_id' => $payment->id,
+            'user_id' => $user->id,
+            'investment_reversed_paise' => $investmentReversedPaise,
+            'net_change_paise' => $netChangePaise,
+        ]);
+
         if ($netChangePaise === 0) {
             // No adjustment needed (most common: full unwind where investment == chargeback)
             Log::channel('financial_contract')->debug('Chargeback wallet adjustment: no change needed', [
@@ -707,11 +694,17 @@ class WalletService
                 ]);
             }
 
-            // A. Record bank clawback in ledger (DEBIT USER_WALLET_LIABILITY, CREDIT BANK)
+            // A. Reverse income if investments were reversed (DEBIT SHARE_SALE_INCOME, CREDIT USER_WALLET_LIABILITY)
+            // This reverses the revenue recognition from the original share sale.
+            if ($investmentReversedPaise > 0) {
+                $this->ledgerService->recordRefund($payment->id, $investmentReversedPaise / 100);
+            }
+
+            // B. Record bank clawback in ledger (DEBIT USER_WALLET_LIABILITY, CREDIT BANK)
             // This represents the bank taking the full amount from us.
             $this->ledgerService->recordChargeback($payment, $debitAmountPaise / 100);
 
-            // B. Record receivable if shortfall exists (DEBIT ACCOUNTS_RECEIVABLE, CREDIT USER_WALLET_LIABILITY)
+            // C. Record receivable if shortfall exists (DEBIT ACCOUNTS_RECEIVABLE, CREDIT USER_WALLET_LIABILITY)
             // This balances the liability side for the portion we couldn't debit from wallet.
             if ($shortfallPaise > 0) {
                 $this->ledgerService->recordChargebackReceivable($payment, $shortfallPaise / 100, $user->id);
@@ -735,6 +728,7 @@ class WalletService
                         : "Chargeback adjustment for Payment #{$payment->id}",
                     'reference_type' => Payment::class,
                     'reference_id' => $payment->id,
+                    'transaction_id' => (string) Str::uuid(),
                 ]);
 
                 Log::channel('financial_contract')->info('CHARGEBACK WALLET DEBIT via WalletService', [
@@ -775,6 +769,7 @@ class WalletService
                 'description' => "Chargeback partial restoration for Payment #{$payment->id}",
                 'reference_type' => Payment::class,
                 'reference_id' => $payment->id,
+                'transaction_id' => (string) Str::uuid(),
             ]);
 
             Log::channel('financial_contract')->info('CHARGEBACK WALLET CREDIT via WalletService', [
@@ -963,6 +958,7 @@ class WalletService
                 'description' => $description,
                 'reference_type' => $reference ? get_class($reference) : null,
                 'reference_id' => $reference?->id,
+                'transaction_id' => (string) Str::uuid(),
             ]);
 
             // PHASE 4.1: Record in double-entry ledger for completed withdrawals

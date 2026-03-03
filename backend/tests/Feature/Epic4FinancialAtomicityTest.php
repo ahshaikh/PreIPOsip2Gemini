@@ -82,8 +82,9 @@ class Epic4FinancialAtomicityTest extends FeatureTestCase
     public function platform_ledger_entry_tracks_running_balance()
     {
         // Skip this test if legacy ledger writes are disabled
-        $this->markTestSkipped('Legacy PlatformLedgerService writes are disabled in Phase 4.2');
-        
+        if (!method_exists(app(\App\Services\PlatformLedgerService::class), 'write')) {
+            $this->markTestSkipped('Legacy ledger write API removed in Phase 4.2');
+        }        
         $service = app(PlatformLedgerService::class);
 
         // First debit
@@ -183,13 +184,19 @@ class Epic4FinancialAtomicityTest extends FeatureTestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function bulk_purchase_controller_creates_ledger_entry_atomically()
     {
+        // Seed roles and permissions (required for authorization)
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+
         // Create required related models
         $admin = User::factory()->create();
+        $admin->assignRole('admin');
+        // Route requires 'products.edit' permission - assign it directly
+        $admin->givePermissionTo('products.edit');
         $product = Product::factory()->create(['status' => 'draft']);
         $company = Company::factory()->create();
 
-        // Authenticate as admin
-        $this->actingAs($admin);
+        // Authenticate as admin with Sanctum guard (admin routes use sanctum)
+        $this->actingAs($admin, 'sanctum');
 
         // Create bulk purchase via controller
         $response = $this->postJson('/api/v1/admin/bulk-purchases', [

@@ -8,36 +8,22 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "refactor(financial-core): enforce subscription liability model, centralize chargebacks, align invariants
+$CommitMessage = "Stabilize financial core: fix chargeback accounting, normalize wallet locking semantics, eliminate dual source of truth, and ensure full test determinism
 
-- Enforce SYSTEM_CONTEXT rule: subscription payments are NOT revenue
-  - Remove recordSubscriptionIncome
-  - Treat SUBSCRIPTION_PAYMENT as wallet credit (liability)
-  - Revenue recognized only in recordShareSaleFromWallet
+- Fix incorrect account usage in recordChargeback() (debit USER_WALLET_LIABILITY instead of SHARE_SALE_INCOME)
+- Add explicit revenue reversal (recordRefund) for chargebacks involving investments
+- Derive investment reversal amount directly from Payment model (single source of truth)
+- Remove parameter-based revenue reversal to prevent drift
+- Normalize wallet locking semantics:
+  - balance_paise = total funds
+  - locked_balance_paise = reserved portion
+  - available_balance = balance - locked
+- Update withdrawal and user journey tests to reflect correct locking model
+- Fix authorization expectations in bulk purchase atomicity test
+- Ensure ledger symmetry and atomic chargeback unwind invariants
+- Resolve cross-suite state leakage causing tests to fail when run together
 
-- Fix bonus ledger double-debit
-  - recordBonusUsage now debits USER_WALLET_LIABILITY
-  - Preserve wallet–ledger symmetry
-
-- Harden chargeback flow
-  - processChargebackAdjustment now owns all ledger orchestration
-  - Remove manual ledger calls from webhook layer
-  - Eliminate wallet-ledger desync risk
-
-- Standardize WalletService balance semantics
-  - balance_paise = total balance (including locked)
-  - Prevent double-decrement during lock flows
-
-- Refactor financial tests
-  - Update FinancialGuaranteesTest for liability-based subscriptions
-  - Update FinancialIntegrityInvariantTest for new credit logic
-  - Align Epic4 tests with lifecycle + DB constraints
-
-All core financial invariants passing:
-- Double-entry integrity
-- Wallet ↔ liability reconciliation
-- Refund symmetry
-- Balance sheet invariant"
+All financial, withdrawal, chargeback, and lifecycle test suites now pass deterministically."
 #----------------------
 
 function Get-GitCredential {

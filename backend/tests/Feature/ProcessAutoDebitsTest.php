@@ -108,12 +108,4 @@ class ProcessAutoDebitsTest extends FeatureTestCase
              ->assertExitCode(0);
     }
 
-    public function test_suspends_subscription_after_max_failures()
-    {
-        // This logic is in the Retry Job, not the main command.
-        // We test this in AutoDebitServiceTest.
-        $this->markTestSkipped(
-            'Suspension logic is in RetryAutoDebitJob, not the main command. Tested in AutoDebitServiceTest.'
-        );
-    }
 }

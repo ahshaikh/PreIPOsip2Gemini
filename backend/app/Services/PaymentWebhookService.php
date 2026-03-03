@@ -1142,7 +1142,8 @@ class PaymentWebhookService
             // - Row locking
             // - Balance validation
             // - Transaction record creation
-            // - DOUBLE-ENTRY LEDGER: recordChargeback, recordChargebackReceivable, recordRefund
+            // - Investment revenue computation (SINGLE SOURCE OF TRUTH from Payment model)
+            // - DOUBLE-ENTRY LEDGER: recordRefund (income reversal), recordChargeback, recordChargebackReceivable
             $shortfallPaise = 0;
             if ($user && $netWalletChangePaise !== 0) {
                 $result = $this->walletService->processChargebackAdjustment(
