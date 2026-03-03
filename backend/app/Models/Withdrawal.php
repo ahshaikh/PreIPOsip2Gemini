@@ -117,4 +117,13 @@ class Withdrawal extends Model
     public function user(): BelongsTo { return $this->belongsTo(User::class); }
     public function wallet(): BelongsTo { return $this->belongsTo(Wallet::class); }
     public function admin(): BelongsTo { return $this->belongsTo(User::class, 'admin_id'); }
+
+    /**
+     * V-DISPUTE-MGMT-2026: Polymorphic relationship to disputes.
+     * Withdrawals can be the subject of disputes (fraud, unauthorized, etc.)
+     */
+    public function disputes()
+    {
+        return $this->morphMany(Dispute::class, 'disputable');
+    }
 }

@@ -189,6 +189,8 @@ class Epic4FinancialAtomicityTest extends FeatureTestCase
 
         // Create required related models
         $admin = User::factory()->create();
+        // Force Spatie to use sanctum guard for this user instance
+        $admin->guard_name = 'sanctum';
         $admin->assignRole('admin');
         // Route requires 'products.edit' permission - assign it directly
         $admin->givePermissionTo('products.edit');

@@ -410,6 +410,21 @@ Route::prefix('v1')->group(function () {
             Route::post('/support-tickets/{supportTicket}/rate', [UserSupportTicketController::class, 'rate']);
 
             // ============================================
+            // V-DISPUTE-MGMT-2026: USER DISPUTE MANAGEMENT
+            // ============================================
+            Route::prefix('disputes')->group(function () {
+                Route::get('/', [App\Http\Controllers\Api\User\DisputeController::class, 'index']);
+                Route::post('/', [App\Http\Controllers\Api\User\DisputeController::class, 'store']);
+                Route::get('/{dispute}', [App\Http\Controllers\Api\User\DisputeController::class, 'show'])->where('dispute', '[0-9]+');
+                Route::get('/{dispute}/actions', [App\Http\Controllers\Api\User\DisputeController::class, 'actions'])->where('dispute', '[0-9]+');
+                Route::post('/{dispute}/comment', [App\Http\Controllers\Api\User\DisputeController::class, 'addComment'])->where('dispute', '[0-9]+');
+                Route::post('/{dispute}/evidence', [App\Http\Controllers\Api\User\DisputeController::class, 'addEvidence'])->where('dispute', '[0-9]+');
+                Route::post('/{dispute}/respond', [App\Http\Controllers\Api\User\DisputeController::class, 'respond'])->where('dispute', '[0-9]+');
+                Route::post('/{dispute}/withdraw', [App\Http\Controllers\Api\User\DisputeController::class, 'withdraw'])->where('dispute', '[0-9]+');
+                Route::post('/{dispute}/appeal', [App\Http\Controllers\Api\User\DisputeController::class, 'appeal'])->where('dispute', '[0-9]+');
+            });
+
+            // ============================================
             // AI-POWERED SUPPORT FEATURES
             // ============================================
             Route::prefix('support/ai')->group(function () {
@@ -620,6 +635,32 @@ Route::prefix('v1')->group(function () {
                 Route::get('/{id}/ledger', [App\Http\Controllers\Api\Admin\DisputeController::class, 'ledger'])->where('id', '[0-9]+');
                 Route::get('/{id}/risk', [App\Http\Controllers\Api\Admin\DisputeController::class, 'risk'])->where('id', '[0-9]+');
                 Route::get('/{id}/audit', [App\Http\Controllers\Api\Admin\DisputeController::class, 'audit'])->where('id', '[0-9]+');
+
+                // V-DISPUTE-MGMT-2026: Dispute Management Actions
+                Route::get('/integrity-audit', [App\Http\Controllers\Api\Admin\DisputeController::class, 'integrityAudit']);
+                Route::get('/{dispute}/verify-integrity', [App\Http\Controllers\Api\Admin\DisputeController::class, 'verifyIntegrity'])->where('dispute', '[0-9]+');
+                Route::get('/{dispute}/recommended-settlement', [App\Http\Controllers\Api\Admin\DisputeController::class, 'recommendedSettlement'])->where('dispute', '[0-9]+');
+                Route::post('/{dispute}/transition', [App\Http\Controllers\Api\Admin\DisputeController::class, 'transition'])->where('dispute', '[0-9]+');
+                Route::post('/{dispute}/resolve', [App\Http\Controllers\Api\Admin\DisputeController::class, 'resolve'])->where('dispute', '[0-9]+');
+                Route::post('/{dispute}/close', [App\Http\Controllers\Api\Admin\DisputeController::class, 'close'])->where('dispute', '[0-9]+');
+                Route::post('/{dispute}/comment', [App\Http\Controllers\Api\Admin\DisputeController::class, 'addComment'])->where('dispute', '[0-9]+');
+                Route::post('/{dispute}/request-response', [App\Http\Controllers\Api\Admin\DisputeController::class, 'requestResponse'])->where('dispute', '[0-9]+');
+                Route::post('/{dispute}/escalate', [App\Http\Controllers\Api\Admin\DisputeController::class, 'escalate'])->where('dispute', '[0-9]+');
+                Route::post('/{dispute}/assign', [App\Http\Controllers\Api\Admin\DisputeController::class, 'assign'])->where('dispute', '[0-9]+');
+            });
+
+            // V-DISPUTE-MGMT-2026: Full Dispute Management Controller
+            // Admin dashboard with permission flags
+            // NOTE: Routes are already protected by role:admin|super-admin in the parent group
+            Route::prefix('dispute-management')->group(function () {
+                Route::get('/', [App\Http\Controllers\Api\Admin\DisputeManagementController::class, 'index']);
+                Route::get('/{dispute}', [App\Http\Controllers\Api\Admin\DisputeManagementController::class, 'show']);
+                Route::post('/{dispute}/transition', [App\Http\Controllers\Api\Admin\DisputeManagementController::class, 'transition']);
+                Route::post('/{dispute}/resolve', [App\Http\Controllers\Api\Admin\DisputeManagementController::class, 'resolve']);
+                Route::post('/{dispute}/escalate', [App\Http\Controllers\Api\Admin\DisputeManagementController::class, 'escalate']);
+                Route::post('/{dispute}/close', [App\Http\Controllers\Api\Admin\DisputeManagementController::class, 'close']);
+                Route::post('/{dispute}/settle', [App\Http\Controllers\Api\Admin\DisputeManagementController::class, 'settle']);
+                Route::post('/{dispute}/override-defensibility', [App\Http\Controllers\Api\Admin\DisputeManagementController::class, 'overrideDefensibility']);
             });
 
             // Scheduled Reports Management

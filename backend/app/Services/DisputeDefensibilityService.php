@@ -4,13 +4,16 @@ namespace App\Services;
 
 use App\Models\Company;
 use App\Models\CompanyInvestment;
+use App\Models\Dispute;
 use App\Models\InvestorJourney;
 use App\Models\User;
+use App\Services\SnapshotIntegrityService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
  * P0 FIX (GAP 31-33): Dispute Defensibility Service
+ * V-DISPUTE-MGMT-2026: Enhanced with SnapshotIntegrityService integration
  *
  * PURPOSE:
  * Provide complete audit trail and snapshot retrieval for dispute resolution.
@@ -29,6 +32,97 @@ use Illuminate\Support\Facades\Log;
  */
 class DisputeDefensibilityService
 {
+    private ?SnapshotIntegrityService $integrityService = null;
+
+    /**
+     * V-DISPUTE-MGMT-2026: Get integrity service (lazy loaded)
+     */
+    protected function getIntegrityService(): SnapshotIntegrityService
+    {
+        if ($this->integrityService === null) {
+            $this->integrityService = app(SnapshotIntegrityService::class);
+        }
+        return $this->integrityService;
+    }
+
+    /**
+     * V-DISPUTE-MGMT-2026: Verify dispute snapshot integrity
+     *
+     * Integrates with the new SnapshotIntegrityService to verify
+     * that dispute snapshots have not been tampered with.
+     *
+     * @param Dispute $dispute
+     * @return array Integrity verification result
+     */
+    public function verifyDisputeSnapshotIntegrity(Dispute $dispute): array
+    {
+        return $this->getIntegrityService()->verifyForDispute($dispute);
+    }
+
+    /**
+     * V-DISPUTE-MGMT-2026: Assert dispute can be resolved (integrity check)
+     *
+     * @param Dispute $dispute
+     * @throws \RuntimeException If integrity check fails
+     */
+    public function assertDisputeResolutionAllowed(Dispute $dispute): void
+    {
+        $this->getIntegrityService()->assertResolutionAllowed($dispute);
+    }
+
+    /**
+     * V-DISPUTE-MGMT-2026: Get combined defensibility report for a dispute
+     *
+     * Combines legacy investment defensibility data with new snapshot integrity.
+     *
+     * @param Dispute $dispute
+     * @return array Complete defensibility report
+     */
+    public function getDisputeDefensibilityReport(Dispute $dispute): array
+    {
+        $report = [
+            'dispute_id' => $dispute->id,
+            'generated_at' => now()->toIso8601String(),
+        ];
+
+        // Get snapshot integrity
+        $integrityResult = $this->verifyDisputeSnapshotIntegrity($dispute);
+        $report['snapshot_integrity'] = $integrityResult;
+
+        // If dispute has polymorphic disputable, get context
+        if ($dispute->disputable_type && $dispute->disputable_id) {
+            $disputable = $dispute->disputable;
+            if ($disputable) {
+                $report['disputable_context'] = [
+                    'type' => $dispute->getDisputableTypeName(),
+                    'id' => $dispute->disputable_id,
+                    'exists' => true,
+                ];
+
+                // For investments, get full defensibility snapshot
+                if ($disputable instanceof \App\Models\UserInvestment) {
+                    $report['investment_defensibility'] = $this->getDisputeSnapshot($disputable->id);
+                }
+            } else {
+                $report['disputable_context'] = [
+                    'type' => $dispute->disputable_type,
+                    'id' => $dispute->disputable_id,
+                    'exists' => false,
+                    'error' => 'Disputable entity not found',
+                ];
+            }
+        }
+
+        // Overall defensibility assessment
+        $report['defensibility_assessment'] = [
+            'snapshot_valid' => $integrityResult['valid'] ?? false,
+            'disputable_exists' => ($report['disputable_context']['exists'] ?? true),
+            'is_defensible' => ($integrityResult['valid'] ?? false) && ($report['disputable_context']['exists'] ?? true),
+        ];
+
+        return $report;
+    }
+
     /**
      * GAP 31: Get complete dispute snapshot for an investment
      *

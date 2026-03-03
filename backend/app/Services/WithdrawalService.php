@@ -10,8 +10,10 @@ use App\Models\Wallet;
 use App\Models\Withdrawal;
 use App\Models\Payment;
 use App\Models\Transaction;
+use App\Models\FundLock;
 use App\Events\WithdrawalApproved;
 use App\Services\WalletService;
+use App\Services\DoubleEntryLedgerService;
 use App\Notifications\WithdrawalRequested;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -19,9 +21,12 @@ use Illuminate\Support\Facades\Log;
 class WithdrawalService
 {
     protected $walletService;
-    public function __construct(WalletService $walletService)
+    protected $ledgerService;
+
+    public function __construct(WalletService $walletService, DoubleEntryLedgerService $ledgerService)
     {
         $this->walletService = $walletService;
+        $this->ledgerService = $ledgerService;
     }
     
     /**
@@ -48,26 +53,14 @@ class WithdrawalService
             throw new \Exception("Minimum withdrawal amount is ₹{$min}");
         }
 
-        if (bccomp($user->wallet->balance, $amount, 2) < 0) {
-            throw new \Exception("Insufficient funds.");
+        if (!$user->wallet->hasSufficientFunds($amount)) {
+            throw new \Exception("Insufficient wallet balance.");
         }
 
-        // Check available balance (not just total balance)
-        $availableBalance = $user->wallet->available_balance;
-        if (bccomp($availableBalance, $amount, 2) < 0) {
-            throw new \Exception("Insufficient available funds. Some funds are locked.");
-        }
-
-        // 2. TDS Calculation
-        $fee = '0';
-        $tdsRate = (string) setting('tds_rate', 0.10);
-        $tdsThreshold = (string) setting('tds_threshold', 5000);
-        $tdsDeducted = '0';
-
-        if ($user->kyc?->pan_number && bccomp($amount, $tdsThreshold, 2) > 0) {
-            $tdsDeducted = bcmul($amount, $tdsRate, 2);
-        }
-
+        // 2. Fees & TDS Calculation
+        $fee = '0.00';
+        $tdsRate = setting('tds_rate', 5);
+        $tdsDeducted = bcmul($amount, bcdiv($tdsRate, '100', 4), 2);
         $netAmount = bcsub(bcsub($amount, $fee, 2), $tdsDeducted, 2);
 
         // 3. Auto-Approval Rules
@@ -76,33 +69,53 @@ class WithdrawalService
         $isTrustedUser = $user->payments()->where('status', 'paid')->count() >= 5;
         $initialStatus = ($isSmallAmount && $isTrustedUser) ? 'approved' : 'pending';
 
-        // 4. Create withdrawal record
-        $amountPaise = (int) bcmul($amount, '100', 0);
-        $withdrawal = Withdrawal::create([
-            'user_id' => $user->id,
-            'wallet_id' => $user->wallet->id,
-            'amount_paise' => $amountPaise,
-            'fee_paise' => 0,
-            'tds_deducted_paise' => (int) bcmul($tdsDeducted, '100', 0),
-            'net_amount_paise' => (int) bcmul($netAmount, '100', 0),
-            'status' => $initialStatus,
-            'bank_details' => $bankDetails,
-            'idempotency_key' => $idempotencyKey,
-        ]);
-        // Lock funds immediately (service-layer responsibility)
-        $this->walletService->withdraw(
-            user: $user,
-            amount: $amount,
-            type: 'withdrawal_request',
-            description: "Withdrawal Request #{$withdrawal->id}",
-            reference: $withdrawal,
-            lockBalance: true,
-            allowOverdraft: false
-        );
+        return DB::transaction(function () use ($user, $amount, $fee, $tdsDeducted, $netAmount, $initialStatus, $bankDetails, $idempotencyKey) {
+            // 4. Create withdrawal record
+            $amountPaise = (int) bcmul($amount, '100', 0);
+            $withdrawal = Withdrawal::create([
+                'user_id' => $user->id,
+                'wallet_id' => $user->wallet->id,
+                'amount_paise' => $amountPaise,
+                'fee_paise' => 0,
+                'tds_deducted_paise' => (int) bcmul($tdsDeducted, '100', 0),
+                'net_amount_paise' => (int) bcmul($netAmount, '100', 0),
+                'status' => $initialStatus,
+                'bank_details' => $bankDetails,
+                'idempotency_key' => $idempotencyKey,
+            ]);
 
-        $user->notify(new WithdrawalRequested($withdrawal));
+            // 5. Lock funds immediately (Service-layer handles both balance and FundLock record)
+            if ($initialStatus === 'pending') {
+                $this->walletService->withdraw(
+                    user: $user,
+                    amount: $amount,
+                    type: 'withdrawal_request',
+                    description: "Withdrawal Request #{$withdrawal->id}",
+                    reference: $withdrawal,
+                    lockBalance: true,
+                    allowOverdraft: false
+                );
 
-        return $withdrawal;
+                // Create explicit FundLock for audit trail (V-PRECISION-2026)
+                // Note: We bypass Wallet::lockFunds() to prevent double-incrementing balance
+                FundLock::create([
+                    'user_id' => $user->id,
+                    'lock_type' => 'withdrawal',
+                    'lockable_type' => Withdrawal::class,
+                    'lockable_id' => $withdrawal->id,
+                    'amount_paise' => $amountPaise,
+                    'status' => 'active',
+                    'locked_at' => now(),
+                    'locked_by' => auth()->id(),
+                ]);
+
+                $withdrawal->update(['funds_locked' => true, 'funds_locked_at' => now()]);
+            }
+
+            $user->notify(new WithdrawalRequested($withdrawal));
+
+            return $withdrawal;
+        });
     }
 
     /**
@@ -119,7 +132,7 @@ class WithdrawalService
             'admin_id' => $admin->id
         ]);
 
-        event(new \App\Events\WithdrawalApproved($withdrawal));
+        event(new WithdrawalApproved($withdrawal));
         
         return $withdrawal;
     }
@@ -147,6 +160,17 @@ class WithdrawalService
                 "Withdrawal Request #{$withdrawal->id} Rejected by Admin: {$reason}",
                 $withdrawal
             );
+
+            // Release FundLock record
+            $lock = FundLock::where('lockable_type', Withdrawal::class)
+                ->where('lockable_id', $withdrawal->id)
+                ->where('status', 'active')
+                ->first();
+            
+            if ($lock) {
+                // Mark as released but don't call $lock->release() to avoid double-decrement
+                $lock->update(['status' => 'released', 'released_at' => now(), 'released_by' => $admin->id]);
+            }
 
             // Mark the PENDING transaction as failed
             Transaction::where('reference_type', Withdrawal::class)
@@ -183,6 +207,18 @@ class WithdrawalService
                 $withdrawal
             );
 
+            // Release FundLock record
+            $lock = FundLock::where('lockable_type', Withdrawal::class)
+                ->where('lockable_id', $withdrawal->id)
+                ->where('status', 'active')
+                ->first();
+            
+            if ($lock) {
+                // Mark as released but don't call $lock->release() to avoid double-decrement
+                // (debitLockedFunds already decremented locked_balance_paise)
+                $lock->update(['status' => 'released', 'released_at' => now(), 'released_by' => $admin->id]);
+            }
+
             // Mark the PENDING transaction as completed
             Transaction::where('reference_type', Withdrawal::class)
                 ->where('reference_id', $withdrawal->id)
@@ -206,7 +242,7 @@ class WithdrawalService
             throw new \Exception("Only pending withdrawals can be cancelled. Current status: {$withdrawal->status}");
         }
 
-        return DB::transaction(function () use ($withdrawal) {
+        return DB::transaction(function () use ($withdrawal, $user) {
             $withdrawal->update([
                 'status' => 'cancelled',
                 'cancelled_at' => now()
@@ -219,6 +255,16 @@ class WithdrawalService
                 "Withdrawal Request #{$withdrawal->id} Cancelled by User",
                 $withdrawal
             );
+
+            // Release FundLock record
+            $lock = FundLock::where('lockable_type', Withdrawal::class)
+                ->where('lockable_id', $withdrawal->id)
+                ->where('status', 'active')
+                ->first();
+            
+            if ($lock) {
+                $lock->update(['status' => 'released', 'released_at' => now(), 'released_by' => $user->id]);
+            }
 
             // Mark the PENDING transaction as cancelled
             Transaction::where('reference_type', Withdrawal::class)

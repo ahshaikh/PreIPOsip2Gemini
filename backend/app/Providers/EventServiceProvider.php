@@ -46,7 +46,7 @@ class EventServiceProvider extends ServiceProvider
         Company::observe(CompanyObserver::class);
 
         // FIX 18: Register Withdrawal observer for automatic fund locking
-        Withdrawal::observe(WithdrawalObserver::class);
+        // Withdrawal::observe(WithdrawalObserver::class);
 
         // PHASE 1: Register DisclosureVersion observer for immutability enforcement
         DisclosureVersion::observe(DisclosureVersionObserver::class);

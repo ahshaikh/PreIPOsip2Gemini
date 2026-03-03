@@ -8,22 +8,17 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "Stabilize financial core: fix chargeback accounting, normalize wallet locking semantics, eliminate dual source of truth, and ensure full test determinism
+$CommitMessage = "feat(disputes): complete admin-first dispute management system
 
-- Fix incorrect account usage in recordChargeback() (debit USER_WALLET_LIABILITY instead of SHARE_SALE_INCOME)
-- Add explicit revenue reversal (recordRefund) for chargebacks involving investments
-- Derive investment reversal amount directly from Payment model (single source of truth)
-- Remove parameter-based revenue reversal to prevent drift
-- Normalize wallet locking semantics:
-  - balance_paise = total funds
-  - locked_balance_paise = reserved portion
-  - available_balance = balance - locked
-- Update withdrawal and user journey tests to reflect correct locking model
-- Fix authorization expectations in bulk purchase atomicity test
-- Ensure ledger symmetry and atomic chargeback unwind invariants
-- Resolve cross-suite state leakage causing tests to fail when run together
+- Implement polymorphic dispute backend (state machine, snapshots, settlement orchestrator)
+- Add backend-authoritative investor permission flags
+- Remove frontend status-derived behavior (zero-drift enforcement)
+- Complete admin + investor dispute UI
+- Add dispute link to admin sidebar
+- Expand dispute test suite and fix state machine/test inconsistencies
+- Stabilize permission and settlement tests
 
-All financial, withdrawal, chargeback, and lifecycle test suites now pass deterministically."
+All dispute domain tests passing; isolated state leak under investigation."
 #----------------------
 
 function Get-GitCredential {

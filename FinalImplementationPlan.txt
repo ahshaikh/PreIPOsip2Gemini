@@ -1,0 +1,446 @@
+● FINAL IMPLEMENTATION PLAN
+
+  ---
+  1. FILE MODIFICATION LIST
+
+  NEW FILES — Backend Enums
+
+  backend/app/Enums/DisputeStatus.php
+  backend/app/Enums/DisputeType.php
+
+  NEW FILES — Backend Migrations
+
+  backend/database/migrations/2026_03_03_100001_enhance_disputes_for_polymorphic_and_state_machine.php
+  backend/database/migrations/2026_03_03_100002_create_dispute_snapshots_table.php
+  backend/database/migrations/2026_03_03_100003_create_dispute_timelines_table.php
+
+  NEW FILES — Backend Models
+
+  backend/app/Models/DisputeSnapshot.php
+  backend/app/Models/DisputeTimeline.php
+
+  NEW FILES — Backend Services
+
+  backend/app/Services/DisputeStateMachine.php
+  backend/app/Services/DisputeSnapshotService.php
+  backend/app/Services/SnapshotIntegrityService.php
+  backend/app/Services/DisputeSettlementOrchestrator.php
+
+  NEW FILES — Backend Controllers
+
+  backend/app/Http/Controllers/Api/Admin/DisputeManagementController.php
+  backend/app/Http/Controllers/Api/User/DisputeController.php
+
+  NEW FILES — Backend Requests
+
+  backend/app/Http/Requests/Admin/TransitionDisputeRequest.php
+  backend/app/Http/Requests/Admin/ResolveDisputeRequest.php
+  backend/app/Http/Requests/Admin/OverrideDefensibilityRequest.php
+  backend/app/Http/Requests/User/FileDisputeRequest.php
+  backend/app/Http/Requests/User/AddDisputeEvidenceRequest.php
+
+  NEW FILES — Backend Tests
+
+  backend/tests/Unit/DisputeStateMachineTest.php
+  backend/tests/Unit/DisputeTypeDisputableMappingTest.php
+  backend/tests/Unit/SnapshotIntegrityServiceTest.php
+  backend/tests/Unit/DisputeSettlementOrchestratorTest.php
+  backend/tests/Unit/DisputeTimelineImmutabilityTest.php
+  backend/tests/Feature/AdminDisputeManagementTest.php
+  backend/tests/Feature/UserDisputeFlowTest.php
+  backend/tests/Feature/DisputeAutoEscalationTest.php
+  backend/tests/Feature/DisputeRefundIntegrationTest.php
+  backend/tests/Feature/DisputePermissionFlagsTest.php
+
+  NEW FILES — Frontend Admin
+
+  frontend/app/admin/disputes/page.tsx
+  frontend/app/admin/disputes/[id]/page.tsx
+  frontend/lib/api/disputes.ts
+  frontend/components/admin/disputes/DisputeTable.tsx
+  frontend/components/admin/disputes/DisputeFilters.tsx
+  frontend/components/admin/disputes/DisputeSummaryBar.tsx
+  frontend/components/admin/disputes/SnapshotIntegrityPanel.tsx
+  frontend/components/admin/disputes/DefensibilityPanel.tsx
+  frontend/components/admin/disputes/TimelineView.tsx
+  frontend/components/admin/disputes/FinancialBreakdown.tsx
+  frontend/components/admin/disputes/OverrideModal.tsx
+  frontend/components/admin/disputes/ActionButtons.tsx
+
+  NEW FILES — Frontend Investor
+
+  frontend/app/(user)/disputes/page.tsx
+  frontend/app/(user)/disputes/[id]/page.tsx
+  frontend/app/(user)/disputes/new/page.tsx
+  frontend/components/user/disputes/MyDisputesTable.tsx
+  frontend/components/user/disputes/DisputeForm.tsx
+  frontend/components/user/disputes/InvestorTimeline.tsx
+  frontend/components/user/disputes/EvidenceUpload.tsx
+
+  NEW FILES — Frontend Tests
+
+  frontend/__tests__/admin/disputes/DisputeTable.test.tsx
+  frontend/__tests__/admin/disputes/DisputeDetail.test.tsx
+  frontend/__tests__/admin/disputes/PermissionFlags.test.tsx
+  frontend/__tests__/user/disputes/FileDispute.test.tsx
+  frontend/__tests__/user/disputes/AccessControl.test.tsx
+
+  MODIFIED FILES
+
+  backend/app/Models/Dispute.php                      # Polymorphic, enums, state machine integration
+  backend/app/Models/Payment.php                      # Add disputes() morphMany
+  backend/app/Models/UserInvestment.php               # Add disputes() morphMany
+  backend/app/Models/Withdrawal.php                   # Add disputes() morphMany
+  backend/app/Models/BonusTransaction.php             # Add disputes() morphMany
+  backend/routes/api.php                              # New dispute routes
+  backend/app/Services/DisputeDefensibilityService.php # Integrate with new snapshot
+  backend/config/dispute.php                          # Add escalation thresholds
+
+  ---
+  2. MIGRATION CHANGES
+
+  Migration 1: Enhance Disputes Table
+
+  Schema::table('disputes', function (Blueprint $table) {
+      // Polymorphic target (replaces company_id as primary target)
+      $table->string('disputable_type')->nullable()->after('id');
+      $table->unsignedBigInteger('disputable_id')->nullable()->after('disputable_type');
+      $table->index(['disputable_type', 'disputable_id']);
+
+      // Risk-ordered type (A/B/C/D)
+      $table->string('type', 1)->default('A')->after('disputable_id');
+      $table->index('type');
+
+      // Snapshot linkage
+      $table->unsignedBigInteger('snapshot_id')->nullable()->after('type');
+      $table->foreign('snapshot_id')->references('id')->on('dispute_snapshots');
+
+      // Integrity tracking (computed, not stored blindly)
+      $table->string('integrity_status')->default('pending')->after('snapshot_id');
+
+      // Disputed amount (frozen at filing)
+      $table->bigInteger('disputed_amount_paise')->default(0)->after('integrity_status');
+
+      // Settlement tracking
+      $table->string('settlement_type')->nullable();
+      $table->unsignedBigInteger('settlement_reference_id')->nullable();
+  });
+
+  Migration 2: Create Dispute Snapshots Table
+
+  Schema::create('dispute_snapshots', function (Blueprint $table) {
+      $table->id();
+      $table->bigInteger('disputed_amount_paise');
+      $table->json('ledger_snapshot');           // Frozen ledger state
+      $table->json('allocation_snapshot')->nullable();
+      $table->json('saga_snapshot')->nullable();
+      $table->json('disclosure_version_snapshot')->nullable();
+      $table->json('inventory_lock_snapshot')->nullable();
+      $table->string('snapshot_hash', 64);       // SHA-256 for tampering detection
+      $table->timestamp('created_at');
+      // NO updated_at - immutable
+  });
+
+  // Add DB trigger to prevent updates
+  DB::statement("
+      CREATE TRIGGER prevent_dispute_snapshot_update
+      BEFORE UPDATE ON dispute_snapshots
+      FOR EACH ROW
+      BEGIN
+          SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'DisputeSnapshot is immutable';
+      END
+  ");
+
+  Migration 3: Create Dispute Timelines Table
+
+  Schema::create('dispute_timelines', function (Blueprint $table) {
+      $table->id();
+      $table->foreignId('dispute_id')->constrained()->onDelete('cascade');
+      $table->string('event_type');              // state_change, comment, evidence, override
+      $table->string('actor_type');              // system, admin, investor
+      $table->unsignedBigInteger('actor_id')->nullable();
+      $table->string('from_state')->nullable();
+      $table->string('to_state')->nullable();
+      $table->text('description');
+      $table->json('metadata')->nullable();
+      $table->timestamp('created_at');
+      // NO updated_at - append-only
+
+      $table->index(['dispute_id', 'created_at']);
+  });
+
+  // Add DB triggers to prevent updates and deletes
+  DB::statement("
+      CREATE TRIGGER prevent_dispute_timeline_update
+      BEFORE UPDATE ON dispute_timelines
+      FOR EACH ROW
+      BEGIN
+          SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'DisputeTimeline is immutable';
+      END
+  ");
+
+  DB::statement("
+      CREATE TRIGGER prevent_dispute_timeline_delete
+      BEFORE DELETE ON dispute_timelines
+      FOR EACH ROW
+      BEGIN
+          SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'DisputeTimeline cannot be deleted';
+      END
+  ");
+
+  ---
+  3. ENUM DEFINITIONS
+
+  DisputeStatus.php
+
+  <?php
+
+  namespace App\Enums;
+
+  enum DisputeStatus: string
+  {
+      case OPEN = 'open';
+      case UNDER_REVIEW = 'under_review';
+      case AWAITING_INVESTOR = 'awaiting_investor';
+      case ESCALATED = 'escalated';
+      case RESOLVED_APPROVED = 'resolved_approved';
+      case RESOLVED_REJECTED = 'resolved_rejected';
+      case CLOSED = 'closed';
+
+      public function isTerminal(): bool
+      {
+          return $this === self::CLOSED;
+      }
+
+      public function isResolved(): bool
+      {
+          return in_array($this, [self::RESOLVED_APPROVED, self::RESOLVED_REJECTED]);
+      }
+
+      public function allowsRefund(): bool
+      {
+          return $this === self::RESOLVED_APPROVED;
+      }
+
+      public static function activeStates(): array
+      {
+          return [self::OPEN, self::UNDER_REVIEW, self::AWAITING_INVESTOR, self::ESCALATED];
+      }
+  }
+
+  DisputeType.php
+
+  <?php
+
+  namespace App\Enums;
+
+  use App\Models\Payment;
+  use App\Models\UserInvestment;
+  use App\Models\Withdrawal;
+  use App\Models\BonusTransaction;
+
+  enum DisputeType: string
+  {
+      case TYPE_A_CONFUSION = 'A';      // Lowest risk - user confusion
+      case TYPE_B_PAYMENT = 'B';        // Payment failure inconsistency
+      case TYPE_C_ALLOCATION = 'C';     // Allocation mismatch
+      case TYPE_D_FRAUD = 'D';          // Fraud/Chargeback - Highest risk
+
+      public function riskLevel(): int
+      {
+          return match($this) {
+              self::TYPE_A_CONFUSION => 1,
+              self::TYPE_B_PAYMENT => 2,
+              self::TYPE_C_ALLOCATION => 3,
+              self::TYPE_D_FRAUD => 4,
+          };
+      }
+
+      public function requiresAutoEscalation(): bool
+      {
+          return $this === self::TYPE_D_FRAUD;
+      }
+
+      public function allowedDisputableTypes(): array
+      {
+          return match($this) {
+              self::TYPE_A_CONFUSION => [UserInvestment::class, BonusTransaction::class],
+              self::TYPE_B_PAYMENT => [Payment::class],
+              self::TYPE_C_ALLOCATION => [UserInvestment::class],
+              self::TYPE_D_FRAUD => [Payment::class, Withdrawal::class],
+          };
+      }
+
+      public function isValidDisputable(string $disputableType): bool
+      {
+          return in_array($disputableType, $this->allowedDisputableTypes());
+      }
+
+      public function label(): string
+      {
+          return match($this) {
+              self::TYPE_A_CONFUSION => 'User Confusion',
+              self::TYPE_B_PAYMENT => 'Payment Failure',
+              self::TYPE_C_ALLOCATION => 'Allocation Mismatch',
+              self::TYPE_D_FRAUD => 'Fraud / Chargeback',
+          };
+      }
+  }
+
+  ---
+  4. NEW SERVICE CLASS OUTLINES
+
+  DisputeStateMachine.php
+
+  class DisputeStateMachine
+  {
+      // Transition matrix - defines allowed state transitions
+      private const TRANSITIONS = [
+          'open' => ['under_review', 'escalated'],
+          'under_review' => ['awaiting_investor', 'escalated', 'resolved_approved', 'resolved_rejected'],
+          'awaiting_investor' => ['under_review', 'escalated'],
+          'escalated' => ['resolved_approved', 'resolved_rejected'],
+          'resolved_approved' => ['closed'],
+          'resolved_rejected' => ['closed'],
+          'closed' => [], // Terminal - no transitions
+      ];
+
+      public function canTransition(DisputeStatus $from, DisputeStatus $to): bool;
+      public function transition(Dispute $dispute, DisputeStatus $to, int $actorId, string $reason): Dispute;
+      public function validateTransition(DisputeStatus $from, DisputeStatus $to): void; // Throws on invalid
+      public function getAvailableTransitions(DisputeStatus $current): array;
+      public function isDowngrade(DisputeStatus $from, DisputeStatus $to): bool;
+  }
+
+  DisputeSnapshotService.php
+
+  class DisputeSnapshotService
+  {
+      public function createSnapshot(Model $disputable, int $disputedAmountPaise): DisputeSnapshot;
+      public function captureLedgerState(Model $disputable): array;
+      public function captureAllocationState(Model $disputable): ?array;
+      public function captureSagaState(Model $disputable): ?array;
+      public function captureDisclosureVersion(Model $disputable): ?array;
+      public function captureInventoryLockState(Model $disputable): ?array;
+      public function computeSnapshotHash(array $data): string;
+  }
+
+  SnapshotIntegrityService.php
+
+  class SnapshotIntegrityService
+  {
+      // Returns computed integrity - NEVER stored blindly
+      public function evaluateIntegrity(DisputeSnapshot $snapshot, Model $disputable): array;
+      // Returns: { integrity_status: 'clean'|'warning'|'compromised', issues: [...] }
+
+      public function checkLedgerBalance(array $ledgerSnapshot, Model $disputable): array;
+      public function checkAllocationConsistency(array $allocationSnapshot, Model $disputable): array;
+      public function checkSagaFinality(array $sagaSnapshot): array;
+      public function checkInventoryLock(array $inventorySnapshot): array;
+
+      public function shouldAutoEscalate(array $integrityReport): bool;
+  }
+
+  DisputeSettlementOrchestrator.php
+
+  class DisputeSettlementOrchestrator
+  {
+      public function __construct(
+          private ChargebackResolutionService $chargebackService,
+          private AllocationService $allocationService,
+          private DoubleEntryLedgerService $ledgerService,
+          private WalletService $walletService
+      ) {}
+
+      public function settle(Dispute $dispute, string $settlementType, int $adminId): array;
+
+      // Routes based on dispute type
+      public function settleFraud(Dispute $dispute, int $adminId): array;      // Via ChargebackResolution
+      public function settleAllocation(Dispute $dispute, int $adminId): array; // Reallocation flow
+      public function settlePayment(Dispute $dispute, int $adminId): array;    // Ledger correction
+      public function settleConfusion(Dispute $dispute, int $adminId): array;  // No financial mutation
+
+      // Idempotency enforcement
+      public function isAlreadySettled(Dispute $dispute): bool;
+      public function getSettlementIdempotencyKey(Dispute $dispute): string;
+  }
+
+  ---
+  5. TRANSITION MATRIX ENFORCEMENT APPROACH
+
+  ┌─────────────────────┬────────────────────────────────────────────────────────┐
+  │ Current State       │ Allowed Transitions                                    │
+  ├─────────────────────┼────────────────────────────────────────────────────────┤
+  │ OPEN                │ → UNDER_REVIEW, ESCALATED                              │
+  │ UNDER_REVIEW        │ → AWAITING_INVESTOR, ESCALATED, RESOLVED_*             │
+  │ AWAITING_INVESTOR   │ → UNDER_REVIEW, ESCALATED                              │
+  │ ESCALATED           │ → RESOLVED_APPROVED, RESOLVED_REJECTED (NO DOWNGRADE)  │
+  │ RESOLVED_APPROVED   │ → CLOSED                                               │
+  │ RESOLVED_REJECTED   │ → CLOSED                                               │
+  │ CLOSED              │ (TERMINAL - NO TRANSITIONS)                            │
+  └─────────────────────┴────────────────────────────────────────────────────────┘
+
+  ENFORCEMENT LAYERS:
+  1. DisputeStateMachine::validateTransition() - throws InvalidStateTransitionException
+  2. Dispute model boot() - prevents direct status changes, forces use of state machine
+  3. Controller layer - validates before attempting transition
+  4. Database trigger (optional) - last line of defense
+
+  AUTO-ESCALATION TRIGGERS:
+  - DisputeType::TYPE_D_FRAUD → always escalate on creation
+  - SnapshotIntegrityService returns 'compromised' → auto-escalate
+  - disputed_amount_paise > config('dispute.escalation_threshold') → auto-escalate
+  - Ledger imbalance detected → auto-escalate
+
+  DOWNGRADE PREVENTION:
+  - ESCALATED cannot transition to OPEN, UNDER_REVIEW, or AWAITING_INVESTOR
+  - DisputeStateMachine::isDowngrade() returns true for these attempts
+  - Blocked at validation layer with clear exception message
+
+  ---
+  6. PERMISSION FLAGS STRUCTURE
+
+  Every admin dispute detail response includes:
+
+  {
+    "dispute": { ... },
+    "permissions": {
+      "can_transition": true,
+      "can_escalate": true,
+      "can_resolve": false,
+      "can_override_defensibility": true,
+      "can_refund": false,
+      "can_close": false,
+      "available_transitions": ["under_review", "escalated"]
+    }
+  }
+
+  Computed by:
+  class DisputePermissionResolver
+  {
+      public function resolve(Dispute $dispute, User $admin): array
+      {
+          $status = $dispute->status;
+          $stateMachine = app(DisputeStateMachine::class);
+
+          return [
+              'can_transition' => !$status->isTerminal(),
+              'can_escalate' => $stateMachine->canTransition($status, DisputeStatus::ESCALATED),
+              'can_resolve' => in_array($status, [DisputeStatus::UNDER_REVIEW, DisputeStatus::ESCALATED]),
+              'can_override_defensibility' => !$status->isTerminal() && !$status->isResolved(),
+              'can_refund' => $status === DisputeStatus::RESOLVED_APPROVED && !$dispute->isSettled(),
+              'can_close' => $status->isResolved(),
+              'available_transitions' => $stateMachine->getAvailableTransitions($status),
+          ];
+      }
+  }
+
+  ---
+  READY FOR IMPLEMENTATION
+
+  Total Files:
+  - Backend: 25 new files, 7 modified files
+  - Frontend: 22 new files
+  - Tests: 15 test files (backend + frontend)
+
+  Awaiting your confirmation to begin coding.

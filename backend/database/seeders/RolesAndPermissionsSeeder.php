@@ -34,12 +34,19 @@ class RolesAndPermissionsSeeder extends Seeder
         ];
 
         $roleInstances = [];
+        $guards = ['web', 'sanctum'];
 
         foreach ($roles as $roleName) {
-            $roleInstances[$roleName] = Role::firstOrCreate([
-                'name' => $roleName,
-                'guard_name' => 'web',
-            ]);
+            foreach ($guards as $guard) {
+                $role = Role::firstOrCreate([
+                    'name' => $roleName,
+                    'guard_name' => $guard,
+                ]);
+                
+                if ($guard === 'web') {
+                    $roleInstances[$roleName] = $role;
+                }
+            }
         }
 
         // ======================================================
@@ -95,85 +102,116 @@ class RolesAndPermissionsSeeder extends Seeder
             'withdrawals.approve',
             'withdrawals.complete',
             'withdrawals.reject',
+            // [FIX]: Product permissions
+            'products.view',
+            'products.create',
+            'products.edit',
+            'products.delete',
         ];
 
         foreach ($permissions as $permissionName) {
-            Permission::firstOrCreate([
-                'name' => $permissionName,
-                'guard_name' => 'web',
-            ]);
+            foreach ($guards as $guard) {
+                Permission::firstOrCreate([
+                    'name' => $permissionName,
+                    'guard_name' => $guard,
+                ]);
+            }
         }
 
         // ======================================================
         // 4. Assign permissions per role
         // V-WAVE3-FIX: Use syncPermissions to ensure fresh assignment in tests
         // ======================================================
-        $roleInstances['admin']->syncPermissions([
-            'access admin panel',
-            'manage users',
-            'manage kyc',
-            'manage plans',
-            'compliance.view_legal', // V-WAVE1-FIX: Added for dispute routes
-            'payments.refund', // V-WAVE3-FIX: Added for refund routes
-            'settings.view_system',
-            'settings.edit_system',
-            'bonuses.manage_config',
-            'users.view',
-            'users.create',
-            'users.edit',
-            'users.delete',
-            'users.suspend',
-            'users.block',
-            'users.wallet',
-            'users.adjust_wallet',
-            'kyc.view_queue',
-            'kyc.approve',
-            'kyc.reject',
-            'plans.edit',
-            'reports.view_financial',
-            'reports.view_user',
-            'reports.view_compliance',
-            'reports.export',
-            'reports.manage_scheduled',
-            'system.view_health',
-            'system.view_logs',
-            'settings.manage_cms',
-            'withdrawals.view_queue',
-            'withdrawals.approve',
-            'withdrawals.complete',
-            'withdrawals.reject',
-        ]);
+        foreach ($guards as $guard) {
+            $adminRole = Role::where('name', 'admin')->where('guard_name', $guard)->first();
+            if ($adminRole) {
+                $adminRole->syncPermissions([
+                    'access admin panel',
+                    'manage users',
+                    'manage kyc',
+                    'manage plans',
+                    'compliance.view_legal',
+                    'payments.refund',
+                    'settings.view_system',
+                    'settings.edit_system',
+                    'bonuses.manage_config',
+                    'users.view',
+                    'users.create',
+                    'users.edit',
+                    'users.delete',
+                    'users.suspend',
+                    'users.block',
+                    'users.wallet',
+                    'users.adjust_wallet',
+                    'kyc.view_queue',
+                    'kyc.approve',
+                    'kyc.reject',
+                    'plans.edit',
+                    'reports.view_financial',
+                    'reports.view_user',
+                    'reports.view_compliance',
+                    'reports.export',
+                    'reports.manage_scheduled',
+                    'system.view_health',
+                    'system.view_logs',
+                    'settings.manage_cms',
+                    'withdrawals.view_queue',
+                    'withdrawals.approve',
+                    'withdrawals.complete',
+                    'withdrawals.reject',
+                    'products.view',
+                    'products.create',
+                    'products.edit',
+                    'products.delete',
+                ]);
+            }
 
-        $roleInstances['kyc-officer']->givePermissionTo([
-            'access admin panel',
-            'manage kyc',
-        ]);
+            $superAdminRole = Role::where('name', 'super-admin')->where('guard_name', $guard)->first();
+            if ($superAdminRole) {
+                $superAdminRole->syncPermissions(Permission::where('guard_name', $guard)->get());
+            }
 
-        $roleInstances['finance-manager']->givePermissionTo([
-            'access admin panel',
-            'manage plans',
-        ]);
+            $kycRole = Role::where('name', 'kyc-officer')->where('guard_name', $guard)->first();
+            if ($kycRole) {
+                $kycRole->givePermissionTo([
+                    'access admin panel',
+                    'manage kyc',
+                ]);
+            }
 
-        $roleInstances['finance']->givePermissionTo([
-            'access admin panel',
-            'manage plans',
-        ]);
+            $financeManagerRole = Role::where('name', 'finance-manager')->where('guard_name', $guard)->first();
+            if ($financeManagerRole) {
+                $financeManagerRole->givePermissionTo([
+                    'access admin panel',
+                    'manage plans',
+                ]);
+            }
 
-        $roleInstances['support']->givePermissionTo([
-            'access admin panel',
-            'manage users',
-            'manage kyc',
-            'users.edit',
-        ]);
+            $financeRole = Role::where('name', 'finance')->where('guard_name', $guard)->first();
+            if ($financeRole) {
+                $financeRole->givePermissionTo([
+                    'access admin panel',
+                    'manage plans',
+                ]);
+            }
 
-        $roleInstances['company']->givePermissionTo([
-            'access admin panel',
-            'manage plans',
-        ]);
+            $supportRole = Role::where('name', 'support')->where('guard_name', $guard)->first();
+            if ($supportRole) {
+                $supportRole->givePermissionTo([
+                    'access admin panel',
+                    'manage users',
+                    'manage kyc',
+                    'users.edit',
+                ]);
+            }
 
-        // ======================================================
-        // 5. Super-admin gets everything
-        // ======================================================
-        $roleInstances['super-admin']->syncPermissions(Permission::all());
+            $companyRole = Role::where('name', 'company')->where('guard_name', $guard)->first();
+            if ($companyRole) {
+                $companyRole->givePermissionTo([
+                    'access admin panel',
+                    'manage plans',
+                ]);
+            }
+        }
     }
 }

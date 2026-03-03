@@ -41,6 +41,7 @@ import {
   CheckSquare,
   Eye,
   Scale, // EPIC 6: Audit & Compliance icon
+  AlertTriangle, // Disputes icon
 } from 'lucide-react';
 
 const navItems = [
@@ -73,6 +74,7 @@ const auditDashboardNav = [
     { href: '/admin/product-audits', label: 'Product Audit Trail', icon: FileSearch },
     { href: '/admin/deal-approvals', label: 'Deal Approvals', icon: CheckSquare },
     { href: '/admin/sagas', label: 'Payment Sagas', icon: Activity },
+    { href: '/admin/disputes', label: 'Disputes', icon: AlertTriangle },
 ];
 
 /**

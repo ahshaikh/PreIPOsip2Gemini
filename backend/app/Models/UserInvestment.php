@@ -155,6 +155,15 @@ class UserInvestment extends Model
         return $this->belongsTo(Payment::class);
     }
 
+    /**
+     * V-DISPUTE-MGMT-2026: Polymorphic relationship to disputes.
+     * Investments can be the subject of disputes (allocation issues, etc.)
+     */
+    public function disputes()
+    {
+        return $this->morphMany(Dispute::class, 'disputable');
+    }
+
     // --- ANALYTICS ACCESSORS (Backend-Driven Valuation) ---
 
     /**

@@ -1,0 +1,62 @@
+● FINAL IMPLEMENTATION PLAN
+
+---
+1. FILE MODIFICATION LIST
+
+NEW FILES — Backend Controllers
+backend/app/Http/Controllers/Api/Admin/DisputeManagementController.php
+
+NEW FILES — Backend Requests
+backend/app/Http/Requests/Admin/OverrideDefensibilityRequest.php
+backend/app/Http/Requests/User/AddDisputeEvidenceRequest.php
+
+NEW FILES — Backend Tests
+backend/tests/Unit/DisputeTypeDisputableMappingTest.php
+backend/tests/Unit/SnapshotIntegrityServiceTest.php
+backend/tests/Unit/DisputeSettlementOrchestratorTest.php
+backend/tests/Unit/DisputeTimelineImmutabilityTest.php
+backend/tests/Feature/AdminDisputeManagementTest.php
+backend/tests/Feature/UserDisputeFlowTest.php
+backend/tests/Feature/DisputeAutoEscalationTest.php
+backend/tests/Feature/DisputeRefundIntegrationTest.php
+backend/tests/Feature/DisputePermissionFlagsTest.php
+
+NEW FILES — Frontend Admin
+frontend/app/admin/disputes/page.tsx
+frontend/app/admin/disputes/[id]/page.tsx
+frontend/lib/api/disputes.ts
+frontend/components/admin/disputes/DisputeTable.tsx
+frontend/components/admin/disputes/DisputeFilters.tsx
+frontend/components/admin/disputes/DisputeSummaryBar.tsx
+frontend/components/admin/disputes/SnapshotIntegrityPanel.tsx
+frontend/components/admin/disputes/DefensibilityPanel.tsx
+frontend/components/admin/disputes/TimelineView.tsx
+frontend/components/admin/disputes/FinancialBreakdown.tsx
+frontend/components/admin/disputes/OverrideModal.tsx
+frontend/components/admin/disputes/ActionButtons.tsx
+
+NEW FILES — Frontend Investor
+frontend/app/(user)/disputes/page.tsx
+frontend/app/(user)/disputes/[id]/page.tsx
+frontend/app/(user)/disputes/new/page.tsx
+frontend/components/user/disputes/MyDisputesTable.tsx
+frontend/components/user/disputes/DisputeForm.tsx
+frontend/components/user/disputes/InvestorTimeline.tsx
+frontend/components/user/disputes/EvidenceUpload.tsx
+
+NEW FILES — Frontend Tests
+frontend/__tests__/admin/disputes/DisputeTable.test.tsx
+frontend/__tests__/admin/disputes/DisputeDetail.test.tsx
+frontend/__tests__/admin/disputes/PermissionFlags.test.tsx
+frontend/__tests__/user/disputes/FileDispute.test.tsx
+frontend/__tests__/user/disputes/AccessControl.test.tsx
+
+MODIFIED FILES
+backend/app/Models/Dispute.php                      # Polymorphic, enums, state machine integration - Prove you added all of these
+backend/app/Models/Payment.php                      # Add disputes() morphMany - nothing added
+backend/app/Models/UserInvestment.php               # Add disputes() morphMany - Prove you added
+backend/app/Models/Withdrawal.php                   # Add disputes() morphMany  - nothing added
+backend/app/Models/BonusTransaction.php             # Add disputes() morphMany  - nothing added
+backend/routes/api.php                              # New dispute routes - Prove you added
+backend/app/Services/DisputeDefensibilityService.php # Integrate with new snapshot  - nothing added
+backend/config/dispute.php                          # Add escalation thresholds  - nothing added

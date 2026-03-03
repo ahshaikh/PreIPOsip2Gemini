@@ -1126,6 +1126,61 @@ class DoubleEntryLedgerService
     }
 
     // =========================================================================
+    // DISPUTE SETTLEMENT
+    // =========================================================================
+
+    /**
+     * V-DISPUTE-MGMT-2026: Record dispute settlement transaction.
+     *
+     * When a dispute is resolved in favor of the investor, this creates
+     * the appropriate ledger entries based on settlement type.
+     *
+     * SETTLEMENT TYPES:
+     * - refund: Credits wallet (marketing expense for customer retention)
+     * - goodwill_credit: Credits wallet as goodwill (marketing expense)
+     *
+     * ACCOUNTING (both types):
+     *   DEBIT  MARKETING_EXPENSE        (platform expense for settlement)
+     *   CREDIT USER_WALLET_LIABILITY    (user now has claimable funds)
+     *
+     * RATIONALE:
+     * - Dispute settlements are treated as marketing/retention expenses
+     * - Not booked against SHARE_SALE_INCOME (would distort margin tracking)
+     * - Not booked against OPERATING_EXPENSES (different category)
+     * - Marketing expense is appropriate for customer satisfaction spending
+     *
+     * @param int $disputeId Dispute being settled
+     * @param float $amount Settlement amount (in rupees)
+     * @param string $settlementType Type: 'refund', 'goodwill_credit'
+     * @param string $description Settlement description
+     * @return LedgerEntry
+     */
+    public function recordDisputeSettlement(
+        int $disputeId,
+        float $amount,
+        string $settlementType,
+        string $description
+    ): LedgerEntry {
+        $this->validatePositiveAmount($amount);
+
+        $entry = $this->createEntry(
+            'dispute_settlement', // Semantic reference type
+            $disputeId,
+            "{$description} - ₹" . number_format($amount, 2)
+        );
+
+        // DEBIT: Marketing expense (customer satisfaction)
+        $this->addLine($entry, LedgerAccount::CODE_MARKETING_EXPENSE, 'DEBIT', $amount);
+
+        // CREDIT: Increase user wallet liability
+        $this->addLine($entry, LedgerAccount::CODE_USER_WALLET_LIABILITY, 'CREDIT', $amount);
+
+        $this->validateBalanced($entry);
+
+        return $entry;
+    }
+
+    // =========================================================================
     // REPORTING METHODS
     // =========================================================================
 

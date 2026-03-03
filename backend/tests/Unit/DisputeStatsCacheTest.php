@@ -22,6 +22,7 @@ class DisputeStatsCacheTest extends UnitTestCase
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
 
         $this->cacheService = new DisputeStatsCache();
+        $this->cacheService->clearCache();
     }
 
     // ==================== OVERVIEW TESTS ====================

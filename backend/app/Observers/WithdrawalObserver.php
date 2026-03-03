@@ -47,6 +47,17 @@ class WithdrawalObserver
                     'funds_locked_at' => now(),
                 ]);
 
+                // Create a pending transaction record for the wallet statement
+                $withdrawal->user->wallet->transactions()->create([
+                    'user_id' => $withdrawal->user_id,
+                    'amount_paise' => (int) round($withdrawal->amount * 100),
+                    'type' => 'withdrawal_request',
+                    'status' => 'pending',
+                    'description' => "Withdrawal Request #{$withdrawal->id}",
+                    'reference_type' => get_class($withdrawal),
+                    'reference_id' => $withdrawal->id,
+                ]);
+
                 DB::commit();
 
                 Log::info('Withdrawal funds locked', [

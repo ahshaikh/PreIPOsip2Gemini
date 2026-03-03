@@ -75,4 +75,109 @@ return [
         'max_range_days' => (int) env('DISPUTE_REPORT_MAX_RANGE_DAYS', 365),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | V-DISPUTE-MGMT-2026: Escalation Settings
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for automatic dispute escalation.
+    |
+    */
+
+    'escalation' => [
+        // Amount threshold (in paise) above which disputes auto-escalate
+        'amount_threshold_paise' => (int) env('DISPUTE_ESCALATION_AMOUNT_THRESHOLD', 10000000), // 1 lakh
+
+        // Dispute types that require immediate escalation
+        'auto_escalate_types' => [
+            'fraud', // D_FRAUD always escalates
+        ],
+
+        // Hours before auto-escalation due to inactivity (per type)
+        'inactivity_hours' => [
+            'confusion' => 72,  // Low priority - 3 days
+            'payment' => 48,    // Medium priority - 2 days
+            'allocation' => 36, // Higher priority - 1.5 days
+            'fraud' => 24,      // Highest priority - 1 day
+        ],
+
+        // Risk score threshold for auto-escalation
+        'risk_score_threshold' => (int) env('DISPUTE_ESCALATION_RISK_THRESHOLD', 4),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | V-DISPUTE-MGMT-2026: SLA Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Service Level Agreement configuration per dispute type.
+    | SLA is measured from dispute creation to resolution.
+    |
+    */
+
+    'sla' => [
+        // SLA hours per dispute type
+        'hours_by_type' => [
+            'confusion' => 72,   // 3 days for user confusion issues
+            'payment' => 48,     // 2 days for payment issues
+            'allocation' => 36,  // 1.5 days for allocation discrepancies
+            'fraud' => 24,       // 1 day for fraud/chargeback (urgent)
+        ],
+
+        // Default SLA if type not specified
+        'default_hours' => 48,
+
+        // Warning before SLA breach (hours)
+        'warning_hours_before' => 4,
+
+        // Send notifications for SLA warnings
+        'notify_on_warning' => true,
+
+        // Send notifications on SLA breach
+        'notify_on_breach' => true,
+
+        // Notification channels for SLA events
+        'notification_channels' => ['database', 'mail'],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | V-DISPUTE-MGMT-2026: Snapshot Integrity Settings
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for dispute snapshot integrity verification.
+    |
+    */
+
+    'snapshot' => [
+        // Hash algorithm for integrity verification
+        'hash_algorithm' => 'sha256',
+
+        // Whether to block resolution on integrity failure
+        'block_resolution_on_failure' => true,
+
+        // Number of recent snapshots to check in dashboard
+        'dashboard_sample_size' => 100,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | V-DISPUTE-MGMT-2026: Settlement Settings
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for dispute settlement actions.
+    |
+    */
+
+    'settlement' => [
+        // Available settlement actions
+        'actions' => ['refund', 'credit', 'allocation_correction', 'none'],
+
+        // Require approval for settlements above this amount (paise)
+        'approval_threshold_paise' => (int) env('DISPUTE_SETTLEMENT_APPROVAL_THRESHOLD', 5000000), // 50k
+
+        // Log settlement to financial_contract channel
+        'log_to_financial_channel' => true,
+    ],
+
 ];

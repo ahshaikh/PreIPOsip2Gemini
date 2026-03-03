@@ -2,29 +2,46 @@
 
 /**
  * V-DISPUTE-RISK-2026-010: Admin Dispute Controller
+ * V-DISPUTE-MGMT-2026: Enhanced with full dispute management capabilities
  *
- * Read-only endpoints for dispute and chargeback management.
- * All endpoints are RBAC-protected and produce no financial mutations.
+ * Read and write endpoints for dispute and chargeback management.
+ * All endpoints are RBAC-protected.
  *
- * ENDPOINTS:
+ * READ ENDPOINTS:
  * - GET /admin/api/disputes         - List all disputes (paginated, filterable)
  * - GET /admin/api/disputes/overview - Cached statistics overview
  * - GET /admin/api/disputes/:id     - Single dispute details
  * - GET /admin/api/disputes/:id/ledger - Related ledger entries
  * - GET /admin/api/disputes/:id/risk - User risk profile
  * - GET /admin/api/disputes/:id/audit - Related audit logs
+ *
+ * MANAGEMENT ENDPOINTS (V-DISPUTE-MGMT-2026):
+ * - POST /admin/api/disputes/:id/transition - Transition dispute status
+ * - POST /admin/api/disputes/:id/resolve    - Resolve dispute (approve/reject)
+ * - POST /admin/api/disputes/:id/close      - Close dispute
+ * - POST /admin/api/disputes/:id/comment    - Add comment
+ * - POST /admin/api/disputes/:id/request-response - Request investor response
+ * - POST /admin/api/disputes/:id/escalate   - Escalate dispute
+ * - POST /admin/api/disputes/:id/assign     - Assign to admin
+ * - GET  /admin/api/disputes/:id/verify-integrity - Verify snapshot integrity
+ * - GET  /admin/api/disputes/integrity-audit - Batch integrity check
  */
 
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ResolveDisputeRequest;
+use App\Http\Requests\Admin\TransitionDisputeRequest;
 use App\Models\Dispute;
 use App\Models\Payment;
 use App\Models\User;
 use App\Models\AuditLog;
 use App\Models\LedgerEntry;
+use App\Services\DisputeService;
+use App\Services\DisputeStateMachine;
 use App\Services\DisputeStatsCache;
 use App\Services\RiskScoringService;
+use App\Services\SnapshotIntegrityService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -32,11 +49,19 @@ class DisputeController extends Controller
 {
     protected DisputeStatsCache $statsCache;
     protected RiskScoringService $riskService;
+    protected DisputeService $disputeService;
+    protected SnapshotIntegrityService $integrityService;
 
-    public function __construct(DisputeStatsCache $statsCache, RiskScoringService $riskService)
-    {
+    public function __construct(
+        DisputeStatsCache $statsCache,
+        RiskScoringService $riskService,
+        DisputeService $disputeService,
+        SnapshotIntegrityService $integrityService
+    ) {
         $this->statsCache = $statsCache;
         $this->riskService = $riskService;
+        $this->disputeService = $disputeService;
+        $this->integrityService = $integrityService;
     }
 
     /**
@@ -370,5 +395,298 @@ class DisputeController extends Controller
         $perPage = min((int) $request->get('per_page', 20), 100);
 
         return response()->json($query->paginate($perPage));
+    }
+
+    // =========================================================================
+    // V-DISPUTE-MGMT-2026: DISPUTE MANAGEMENT ENDPOINTS
+    // =========================================================================
+
+    /**
+     * Transition dispute to a new status.
+     *
+     * POST /admin/api/disputes/:id/transition
+     */
+    public function transition(TransitionDisputeRequest $request, Dispute $dispute): JsonResponse
+    {
+        try {
+            $targetStatus = $request->getTargetStatus();
+
+            $dispute = app(DisputeStateMachine::class)->transition(
+                $dispute,
+                $targetStatus,
+                $request->user(),
+                $request->comment
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Dispute status updated successfully.',
+                'data' => $dispute->fresh(['timeline']),
+            ]);
+
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Invalid transition',
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
+     * Resolve a dispute.
+     *
+     * POST /admin/api/disputes/:id/resolve
+     */
+    public function resolve(ResolveDisputeRequest $request, Dispute $dispute): JsonResponse
+    {
+        try {
+            if ($request->outcome === 'approved') {
+                $dispute = $this->disputeService->resolveApproved(
+                    $dispute,
+                    $request->user(),
+                    $request->resolution,
+                    $request->settlement_action,
+                    $request->getSettlementAmountPaise(),
+                    $request->settlement_details ?? []
+                );
+            } else {
+                $dispute = $this->disputeService->resolveRejected(
+                    $dispute,
+                    $request->user(),
+                    $request->resolution
+                );
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Dispute resolved successfully.',
+                'data' => $dispute->fresh(['timeline']),
+            ]);
+
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Resolution failed',
+                'message' => $e->getMessage(),
+            ], 422);
+
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Resolution failed',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Close a dispute.
+     *
+     * POST /admin/api/disputes/:id/close
+     */
+    public function close(Request $request, Dispute $dispute): JsonResponse
+    {
+        $request->validate([
+            'notes' => 'nullable|string|max:2000',
+        ]);
+
+        try {
+            $dispute = $this->disputeService->close(
+                $dispute,
+                $request->user(),
+                $request->notes
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Dispute closed successfully.',
+                'data' => $dispute,
+            ]);
+
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Close failed',
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
+     * Add a comment to a dispute.
+     *
+     * POST /admin/api/disputes/:id/comment
+     */
+    public function addComment(Request $request, Dispute $dispute): JsonResponse
+    {
+        $request->validate([
+            'comment' => 'required|string|max:5000',
+            'is_internal' => 'boolean',
+            'attachments' => 'nullable|array',
+        ]);
+
+        $timeline = $this->disputeService->addComment(
+            $dispute,
+            $request->user(),
+            $request->comment,
+            $request->boolean('is_internal'),
+            $request->attachments ?? []
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Comment added successfully.',
+            'data' => $timeline,
+        ], 201);
+    }
+
+    /**
+     * Request investor response.
+     *
+     * POST /admin/api/disputes/:id/request-response
+     */
+    public function requestResponse(Request $request, Dispute $dispute): JsonResponse
+    {
+        $request->validate([
+            'question' => 'required|string|max:2000',
+        ]);
+
+        try {
+            $dispute = $this->disputeService->requestInvestorResponse(
+                $dispute,
+                $request->user(),
+                $request->question
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Response requested from investor.',
+                'data' => $dispute->fresh(['timeline']),
+            ]);
+
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Request failed',
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
+     * Escalate a dispute.
+     *
+     * POST /admin/api/disputes/:id/escalate
+     */
+    public function escalate(Request $request, Dispute $dispute): JsonResponse
+    {
+        $request->validate([
+            'reason' => 'required|string|max:2000',
+        ]);
+
+        try {
+            $dispute = $this->disputeService->escalate(
+                $dispute,
+                $request->user(),
+                $request->reason
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Dispute escalated successfully.',
+                'data' => $dispute->fresh(['timeline']),
+            ]);
+
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Escalation failed',
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
+     * Assign dispute to an admin.
+     *
+     * POST /admin/api/disputes/:id/assign
+     */
+    public function assign(Request $request, Dispute $dispute): JsonResponse
+    {
+        $request->validate([
+            'admin_id' => 'required|integer|exists:users,id',
+        ]);
+
+        $admin = User::findOrFail($request->admin_id);
+
+        // Verify the target user is an admin
+        if (!$admin->hasRole('admin') && !$admin->hasRole('super-admin')) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Invalid assignment',
+                'message' => 'Target user is not an admin.',
+            ], 422);
+        }
+
+        $dispute = $this->disputeService->assignToAdmin(
+            $dispute,
+            $admin,
+            $request->user()
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Dispute assigned successfully.',
+            'data' => $dispute,
+        ]);
+    }
+
+    /**
+     * Verify snapshot integrity.
+     *
+     * GET /admin/api/disputes/:id/verify-integrity
+     */
+    public function verifyIntegrity(Dispute $dispute): JsonResponse
+    {
+        $result = $this->integrityService->verifyForDispute($dispute);
+
+        return response()->json([
+            'success' => true,
+            'dispute_id' => $dispute->id,
+            'integrity' => $result,
+        ]);
+    }
+
+    /**
+     * Run batch integrity check.
+     *
+     * GET /admin/api/disputes/integrity-audit
+     */
+    public function integrityAudit(): JsonResponse
+    {
+        $results = $this->integrityService->verifyAll();
+
+        return response()->json([
+            'success' => true,
+            'data' => $results,
+        ]);
+    }
+
+    /**
+     * Get recommended settlement for a dispute.
+     *
+     * GET /admin/api/disputes/:id/recommended-settlement
+     */
+    public function recommendedSettlement(Dispute $dispute): JsonResponse
+    {
+        $recommendation = app(\App\Services\DisputeSettlementOrchestrator::class)
+            ->getRecommendedAction($dispute);
+
+        return response()->json([
+            'success' => true,
+            'dispute_id' => $dispute->id,
+            'recommendation' => $recommendation,
+        ]);
     }
 }

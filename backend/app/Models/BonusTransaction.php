@@ -109,6 +109,15 @@ class BonusTransaction extends Model
         return $this->reversal()->exists();
     }
 
+    /**
+     * V-DISPUTE-MGMT-2026: Polymorphic relationship to disputes.
+     * Bonus transactions can be the subject of disputes (confusion, discrepancies, etc.)
+     */
+    public function disputes()
+    {
+        return $this->morphMany(Dispute::class, 'disputable');
+    }
+
     // --- HELPERS ---
 
     /**

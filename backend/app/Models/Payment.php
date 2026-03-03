@@ -584,6 +584,15 @@ class Payment extends Model
     }
 
     /**
+     * V-DISPUTE-MGMT-2026: Polymorphic relationship to disputes.
+     * Payments can be the subject of disputes (payment issues, fraud, etc.)
+     */
+    public function disputes()
+    {
+        return $this->morphMany(Dispute::class, 'disputable');
+    }
+
+    /**
      * FIX 44: Relationship for payment sagas
      * Tracks multi-step payment operations
      */

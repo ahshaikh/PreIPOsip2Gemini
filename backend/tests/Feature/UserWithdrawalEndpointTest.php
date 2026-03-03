@@ -31,7 +31,7 @@ class UserWithdrawalEndpointTest extends FeatureTestCase
             'locked_balance_paise' => 0
         ]);
         
-        Setting::create(['key' => 'min_withdrawal_amount', 'value' => 1000]);
+        Setting::updateOrCreate(['key' => 'min_withdrawal_amount'], ['value' => 1000]);
     }
 
     private function getValidData($overrides = [])
