@@ -14,6 +14,7 @@ use App\Http\Middleware\RedirectMiddleware;
 use App\Http\Middleware\EnsureLegalAcceptance;
 use App\Http\Middleware\SanitizeInput;
 use App\Http\Middleware\VerifyWebhookSignature;
+use App\Http\Middleware\WebhookReplayGuard;
 use App\Http\Middleware\ConcurrentSessionControl;
 use App\Http\Middleware\ValidateFileUpload;
 use App\Http\Middleware\ForceHttps;
@@ -66,6 +67,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
             'permission' => CheckPermission::class,
             'legal.accept' => EnsureLegalAcceptance::class,
             'webhook.verify' => VerifyWebhookSignature::class,
+            'webhook.replay' => WebhookReplayGuard::class,
             'session.control' => ConcurrentSessionControl::class,
             'file.validate' => ValidateFileUpload::class,
 

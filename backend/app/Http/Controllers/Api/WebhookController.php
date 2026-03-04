@@ -1,83 +1,70 @@
 <?php
-// V-PHASE3-1730-088 (Created) | V-FINAL-1730-337 (Testable & Secure) | V-FIX-1730-605 (Middleware Verification)
 
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\WebhookLog;
-use App\Jobs\ProcessWebhookRetryJob;
-use App\Services\PaymentWebhookService;
+use App\Jobs\ProcessWebhookJob;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class WebhookController extends Controller
 {
-    public function __construct(
-        protected PaymentWebhookService $paymentWebhookService
-    ) {}
+    /**
+     * Institutional-Grade Webhook Entry Point
+     * ReplayGuard middleware handles:
+     * - Signature verification
+     * - Timestamp tolerance (for Stripe)
+     * - Forensic ledger entry
+     * - Replay detection (Anti-Replay)
+     */
+    public function handle(Request $request, string $provider)
+    {
+        $payload = $request->getContent();
+        $data = json_decode($payload, true);
+
+        // Retrieve attributes set by ReplayGuard middleware
+        $ledgerId = $request->attributes->get('webhook_ledger_id');
+        $verifier = $request->attributes->get('webhook_verifier');
+
+        if (!$ledgerId || !$verifier) {
+            Log::error("WebhookController: Missing ledger or verifier for {$provider}. Middleware bypass?");
+            return response()->json(['error' => 'Security check failure'], 400);
+        }
+
+        // 1. Extract event metadata
+        $event = $verifier->extractEventType($payload);
+        $eventId = $verifier->extractEventId($payload);
+
+        // 2. Create WebhookLog for backward-compatible forensic trace & retry capability
+        $webhookLog = WebhookLog::create([
+            'event_type' => $event,
+            'webhook_id' => $eventId,
+            'payload' => $data,
+            'headers' => [
+                'provider' => $provider,
+                'user_agent' => $request->header('User-Agent'),
+                'ip' => $request->ip(),
+                'ledger_id' => $ledgerId,
+            ],
+            'status' => 'pending',
+        ]);
+
+        // 3. Dispatch isolated processing job
+        ProcessWebhookJob::dispatch($webhookLog, $ledgerId);
+
+        // 4. Return immediate 200 OK as per institutional standards
+        return response()->json([
+            'status' => 'accepted',
+            'message' => 'Webhook received and recorded'
+        ], 200);
+    }
 
     /**
-     * Handle incoming webhooks from Razorpay.
-     * * Security Note:* Signature verification is handled by the 
-     * 'webhook.verify:razorpay' middleware defined in routes/api.php.
+     * Backward compatibility for Razorpay specific route.
      */
     public function handleRazorpay(Request $request)
     {
-        // 1. Prepare Payload (Verification already done by middleware)
-        $payload = $request->getContent();
-        $signature = $request->header('X-Razorpay-Signature');
-        
-        $data = json_decode($payload, true);
-        $event = $data['event'] ?? null;
-        $webhookId = $data['payload']['payment']['entity']['id'] ?? $data['payload']['refund']['entity']['id'] ?? null;
-
-        Log::info('Razorpay webhook processed', ['event' => $event, 'webhook_id' => $webhookId]);
-
-        // 2. Create webhook log for tracking and retry capability
-        $webhookLog = WebhookLog::create([
-            'event_type' => $event,
-            'webhook_id' => $webhookId,
-            'payload' => $data,
-            'headers' => [
-                'signature' => $signature,
-                'user_agent' => $request->header('User-Agent'),
-                'ip' => $request->ip(),
-            ],
-            'status' => 'processing',
-        ]);
-
-        try {
-            match ($event) {
-                'payment.captured' => $this->paymentWebhookService->handleSuccessfulPayment($data['payload']['payment']['entity']),
-                'subscription.charged' => $this->paymentWebhookService->handleSubscriptionCharged($data['payload']['payment']['entity']),
-                'payment.failed' => $this->paymentWebhookService->handleFailedPayment($data['payload']['payment']['entity']),
-                'refund.processed' => $this->paymentWebhookService->handleRefundProcessed($data['payload']['refund']['entity']),
-                default => Log::info('Unhandled Razorpay event', ['event' => $event]),
-            };
-
-            // Mark webhook as successful
-            $webhookLog->markAsSuccess(['message' => 'Processed successfully'], 200);
-        } catch (\Exception $e) {
-            Log::error('Error processing webhook', [
-                'event' => $event,
-                'webhook_id' => $webhookId,
-                'error' => $e->getMessage()
-            ]);
-
-            // Mark webhook as failed and schedule retry
-            $webhookLog->markAsFailed($e->getMessage(), 500);
-
-            // Queue retry job with delay
-            ProcessWebhookRetryJob::dispatch($webhookLog)
-                ->delay($webhookLog->next_retry_at);
-
-            // Return 200 to Razorpay to prevent them from retrying immediately
-            return response()->json([
-                'status' => 'accepted',
-                'message' => 'Webhook received, will retry processing'
-            ], 200);
-        }
-
-        return response()->json(['status' => 'ok']);
+        return $this->handle($request, 'razorpay');
     }
 }

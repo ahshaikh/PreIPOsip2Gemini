@@ -13,6 +13,12 @@ class WebhookLog extends Model
 {
     use HasFactory, Prunable;
 
+    protected $attributes = [
+        'max_retries' => 5,
+        'retry_count' => 0,
+        'status' => 'pending',
+    ];
+
     protected $fillable = [
         'event_type',
         'webhook_id',

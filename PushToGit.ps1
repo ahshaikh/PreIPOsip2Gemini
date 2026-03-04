@@ -8,17 +8,46 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "feat(disputes): complete admin-first dispute management system
+$CommitMessage = "feat(webhooks): institutional-grade webhook architecture + security hardening
 
-- Implement polymorphic dispute backend (state machine, snapshots, settlement orchestrator)
-- Add backend-authoritative investor permission flags
-- Remove frontend status-derived behavior (zero-drift enforcement)
-- Complete admin + investor dispute UI
-- Add dispute link to admin sidebar
-- Expand dispute test suite and fix state machine/test inconsistencies
-- Stabilize permission and settlement tests
+Major webhook subsystem upgrade implementing provider-agnostic verification,
+replay protection, event routing, and forensic audit logging.
 
-All dispute domain tests passing; isolated state leak under investigation."
+Architecture
+- Replace provider match logic with WebhookVerifier strategy pattern
+- Introduce WebhookVerifierRegistry for provider resolution
+- Implement EventRouter + WebhookEventHandler architecture
+- Move webhook event routing to config/webhook_events.php
+- Remove legacy WebhookSignatureService
+
+Security & Integrity
+- Implement webhook_event_ledger with unique(provider,event_id)
+- Add payload tampering detection via payload_hash comparison
+- Introduce payload_mismatch_detected forensic flag
+- Enforce deterministic event IDs (no synthetic fallbacks)
+- Normalize header handling via $request->header()
+
+Concurrency & Idempotency
+- Add replay guard middleware
+- Atomic insert protection for webhook ledger
+- Distributed lock protection in ProcessWebhookJob
+- Queue isolation for webhook processing
+
+Observability & Forensics
+- Extend webhook ledger into tamper-evident forensic audit trail
+- Reduce router logging noise (debug-level dispatch logging)
+- Log unhandled webhook events for monitoring
+
+Testing
+- Update tests to use WebhookVerifierRegistry + test signature generators
+- Add webhook security tests for payload tampering detection
+- Maintain full compatibility with existing webhook retry tests
+
+Result
+- Provider-agnostic webhook architecture
+- Replay-safe and race-condition safe processing
+- Event-driven handler routing
+- Forensic auditability for webhook ingestion"
 #----------------------
 
 function Get-GitCredential {

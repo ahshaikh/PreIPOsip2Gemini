@@ -266,9 +266,14 @@ Route::prefix('v1')->group(function () {
         Route::get('/context/separated', [App\Http\Controllers\Api\PlatformContextController::class, 'getSeparatedContext']);
     });
 
-    // --- Webhook Routes (V-SECURITY: Signature verification required) ---
+    // --- Webhook Routes (V-SECURITY: Replay protection & Signature verification) ---
+    // Generic webhook route for any supported provider
+    Route::post('/webhooks/{provider}', [WebhookController::class, 'handle'])
+        ->middleware(['webhook.replay', 'throttle:60,1']);
+
+    // Backward compatibility for legacy Razorpay route
     Route::post('/webhooks/razorpay', [WebhookController::class, 'handleRazorpay'])
-        ->middleware(['webhook.verify:razorpay', 'throttle:60,1']); // 60 requests per minute
+        ->middleware(['webhook.replay:razorpay', 'throttle:60,1']);
 
     // --- Authenticated User Routes ---
     Route::middleware(['auth:sanctum', 'mfa.verified'])->group(function () {

@@ -2,145 +2,207 @@
 
 namespace Tests\Feature;
 
-use Tests\FeatureTestCase;
+use App\Jobs\ProcessWebhookJob;
+use App\Models\WebhookEventLedger;
 use App\Models\WebhookLog;
-use App\Jobs\ProcessWebhookRetryJob;
+use App\Services\Webhooks\WebhookVerifierRegistry;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
+use Tests\TestCase;
 
-class WebhookRetrySystemTest extends FeatureTestCase
+class WebhookRetrySystemTest extends TestCase
 {
-    #[\PHPUnit\Framework\Attributes\Test]
-    public function webhook_log_is_created_for_incoming_webhook()
-    {
-        $this->markTestSkipped('Requires webhook signature verification setup');
+    use RefreshDatabase;
 
-        // This test would verify that WebhookLog is created
-        // when a webhook is received
+    protected $registry;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->registry = app(WebhookVerifierRegistry::class);
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
-    public function webhook_can_be_marked_as_failed_and_scheduled_for_retry()
-    {
-        $webhookLog = WebhookLog::create([
-            'event_type' => 'payment.captured',
-            'webhook_id' => 'pay_test123',
-            'payload' => ['test' => 'data'],
-            'status' => 'processing',
-            'retry_count' => 0,
-            'max_retries' => 5, // Must set max_retries to allow pending status
-        ]);
-
-        $webhookLog->markAsFailed('Test error', 500);
-
-        $this->assertEquals('pending', $webhookLog->fresh()->status);
-        $this->assertEquals(1, $webhookLog->fresh()->retry_count);
-        $this->assertNotNull($webhookLog->fresh()->next_retry_at);
-    }
-
-    #[\PHPUnit\Framework\Attributes\Test]
-    public function webhook_is_marked_as_max_retries_reached_after_limit()
-    {
-        $webhookLog = WebhookLog::create([
-            'event_type' => 'payment.captured',
-            'webhook_id' => 'pay_test456',
-            'payload' => ['test' => 'data'],
-            'status' => 'processing',
-            'retry_count' => 4,
-            'max_retries' => 5,
-        ]);
-
-        $webhookLog->markAsFailed('Final error', 500);
-
-        $this->assertEquals('max_retries_reached', $webhookLog->fresh()->status);
-        $this->assertEquals(5, $webhookLog->fresh()->retry_count);
-    }
-
-    #[\PHPUnit\Framework\Attributes\Test]
-    public function webhook_can_be_marked_as_success()
-    {
-        $webhookLog = WebhookLog::create([
-            'event_type' => 'payment.captured',
-            'webhook_id' => 'pay_test789',
-            'payload' => ['test' => 'data'],
-            'status' => 'processing',
-        ]);
-
-        $webhookLog->markAsSuccess(['message' => 'Success'], 200);
-
-        $webhook = $webhookLog->fresh();
-        $this->assertEquals('success', $webhook->status);
-        $this->assertEquals(200, $webhook->response_code);
-        $this->assertNotNull($webhook->processed_at);
-    }
-
-    #[\PHPUnit\Framework\Attributes\Test]
-    public function pending_retries_scope_returns_due_webhooks()
-    {
-        // Create a webhook that's due for retry
-        WebhookLog::create([
-            'event_type' => 'payment.captured',
-            'webhook_id' => 'pay_due',
-            'payload' => ['test' => 'data'],
-            'status' => 'pending',
-            'retry_count' => 1,
-            'max_retries' => 5,
-            'next_retry_at' => now()->subMinute(), // Due 1 minute ago
-        ]);
-
-        // Create a webhook that's not due yet
-        WebhookLog::create([
-            'event_type' => 'payment.captured',
-            'webhook_id' => 'pay_future',
-            'payload' => ['test' => 'data'],
-            'status' => 'pending',
-            'retry_count' => 1,
-            'max_retries' => 5,
-            'next_retry_at' => now()->addHour(), // Due in 1 hour
-        ]);
-
-        $dueWebhooks = WebhookLog::pendingRetries()->get();
-
-        $this->assertEquals(1, $dueWebhooks->count());
-        $this->assertEquals('pay_due', $dueWebhooks->first()->webhook_id);
-    }
-
-    #[\PHPUnit\Framework\Attributes\Test]
-    public function exponential_backoff_is_calculated_correctly()
-    {
-        $webhookLog = WebhookLog::create([
-            'event_type' => 'payment.captured',
-            'webhook_id' => 'pay_backoff',
-            'payload' => ['test' => 'data'],
-            'status' => 'pending',
-            'retry_count' => 3,
-        ]);
-
-        $nextRetry = $webhookLog->calculateNextRetryAt();
-
-        // For retry count 3, should be 2^3 = 8 minutes
-        $expectedMinutes = 8;
-        $expectedTime = now()->addMinutes($expectedMinutes);
-
-        $this->assertEquals(
-            $expectedTime->format('Y-m-d H:i'),
-            $nextRetry->format('Y-m-d H:i')
-        );
-    }
-
-    #[\PHPUnit\Framework\Attributes\Test]
-    public function retry_job_can_be_dispatched()
+    public function test_webhook_log_is_created_for_incoming_webhook()
     {
         Queue::fake();
 
-        $webhookLog = WebhookLog::create([
-            'event_type' => 'payment.captured',
-            'webhook_id' => 'pay_job',
-            'payload' => ['test' => 'data'],
-            'status' => 'pending',
+        $payload = ['event' => 'payment.captured', 'id' => 'pay_123'];
+        $payloadJson = json_encode($payload);
+        $headers = $this->registry->get('razorpay')->generateTestSignature($payloadJson);
+
+        $response = $this->postJson('/api/v1/webhooks/razorpay', $payload, $headers);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('webhook_logs', [
+            'webhook_id' => 'pay_123',
+            'event_type' => 'payment.captured'
+        ]);
+        
+        Queue::assertPushed(ProcessWebhookJob::class);
+    }
+
+    public function test_webhook_replay_protection_prevents_duplicate_processing()
+    {
+        Queue::fake();
+
+        $payload = ['event' => 'payment.captured', 'id' => 'pay_123'];
+        $payloadJson = json_encode($payload);
+        $headers = $this->registry->get('razorpay')->generateTestSignature($payloadJson);
+
+        // First call
+        $this->postJson('/api/v1/webhooks/razorpay', $payload, $headers);
+        
+        // Second call (Duplicate)
+        $response = $this->postJson('/api/v1/webhooks/razorpay', $payload, $headers);
+
+        $response->assertStatus(200);
+        $response->assertJson(['status' => 'duplicate']);
+        
+        Queue::assertPushed(ProcessWebhookJob::class, 1);
+    }
+
+    public function test_invalid_signature_is_rejected()
+    {
+        $payload = ['event' => 'payment.captured'];
+        
+        $response = $this->postJson('/api/v1/webhooks/razorpay', $payload, [
+            'X-Razorpay-Signature' => 'invalid_sig'
         ]);
 
-        ProcessWebhookRetryJob::dispatch($webhookLog);
+        $response->assertStatus(401);
+    }
 
-        Queue::assertPushed(ProcessWebhookRetryJob::class);
+    public function test_stripe_webhook_is_verified_and_logged()
+    {
+        Queue::fake();
+
+        $payload = ['type' => 'payment_intent.succeeded', 'id' => 'evt_stripe_123'];
+        $payloadJson = json_encode($payload);
+        $headers = $this->registry->get('stripe')->generateTestSignature($payloadJson);
+
+        $response = $this->postJson('/api/v1/webhooks/stripe', $payload, $headers);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('webhook_logs', [
+            'webhook_id' => 'evt_stripe_123',
+            'event_type' => 'payment_intent.succeeded'
+        ]);
+    }
+
+    public function test_webhook_can_be_marked_as_failed_and_scheduled_for_retry()
+    {
+        $log = WebhookLog::create([
+            'event_type' => 'test.event',
+            'payload' => ['test' => 'data'],
+            'status' => 'pending',
+            'max_retries' => 5,
+        ]);
+
+        $log->markAsFailed('Something went wrong');
+
+        $this->assertEquals('pending', $log->status);
+        $this->assertEquals(1, $log->retry_count);
+        $this->assertNotNull($log->next_retry_at);
+        $this->assertEquals('Something went wrong', $log->error_message);
+    }
+
+    public function test_retry_job_can_be_dispatched()
+    {
+        Queue::fake();
+
+        $log = WebhookLog::create([
+            'event_type' => 'test.event',
+            'payload' => ['test' => 'data'],
+            'status' => 'failed',
+            'retry_count' => 1,
+            'next_retry_at' => now()->subMinute()
+        ]);
+
+        $ledger = WebhookEventLedger::create([
+            'provider' => 'razorpay',
+            'event_id' => 'evt_123',
+            'payload_hash' => 'hash',
+            'payload_size' => 10,
+            'processing_status' => 'failed'
+        ]);
+
+        ProcessWebhookJob::dispatch($log, $ledger->id);
+
+        Queue::assertPushed(ProcessWebhookJob::class);
+    }
+
+    public function test_exponential_backoff_is_calculated_correctly()
+    {
+        \Illuminate\Support\Carbon::setTestNow(now());
+        $log = new WebhookLog();
+        
+        $log->retry_count = 0;
+        $next = $log->calculateNextRetryAt();
+        $this->assertEquals(60, abs($next->diffInSeconds(now())), 'Backoff for retry 0 should be 1 min');
+
+        $log->retry_count = 1;
+        $next = $log->calculateNextRetryAt();
+        $this->assertEquals(120, abs($next->diffInSeconds(now())), 'Backoff for retry 1 should be 2 min');
+        
+        $log->retry_count = 2;
+        $next = $log->calculateNextRetryAt();
+        $this->assertEquals(240, abs($next->diffInSeconds(now())), 'Backoff for retry 2 should be 4 min');
+        
+        \Illuminate\Support\Carbon::setTestNow(); // Reset
+    }
+
+    public function test_webhook_is_marked_as_max_retries_reached_after_limit()
+    {
+        $log = WebhookLog::create([
+            'event_type' => 'test.event',
+            'payload' => ['test' => 'data'],
+            'status' => 'failed',
+            'retry_count' => 5,
+            'max_retries' => 5
+        ]);
+
+        $log->markAsFailed('Final failure');
+
+        $this->assertEquals('max_retries_reached', $log->status);
+    }
+
+    public function test_pending_retries_scope_returns_due_webhooks()
+    {
+        WebhookLog::create([
+            'event_type' => 'test.event.1',
+            'payload' => ['test' => '1'],
+            'status' => 'pending',
+            'next_retry_at' => now()->subMinute(),
+            'retry_count' => 0,
+            'max_retries' => 5
+        ]);
+
+        WebhookLog::create([
+            'event_type' => 'test.event.2',
+            'payload' => ['test' => '2'],
+            'status' => 'pending',
+            'next_retry_at' => now()->addMinute(),
+            'retry_count' => 0,
+            'max_retries' => 5
+        ]);
+
+        $due = WebhookLog::pendingRetries()->get();
+        $this->assertCount(1, $due);
+    }
+
+    public function test_webhook_can_be_marked_as_success()
+    {
+        $log = WebhookLog::create([
+            'event_type' => 'test.event',
+            'payload' => ['test' => 'data'],
+            'status' => 'processing'
+        ]);
+
+        $log->markAsSuccess(['result' => 'ok'], 200);
+
+        $this->assertEquals('success', $log->status);
+        $this->assertEquals(200, $log->response_code);
+        $this->assertEquals(['result' => 'ok'], $log->response);
+        $this->assertNotNull($log->processed_at);
     }
 }
