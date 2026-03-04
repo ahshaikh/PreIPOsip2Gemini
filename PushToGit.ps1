@@ -8,46 +8,22 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "feat(webhooks): institutional-grade webhook architecture + security hardening
+$CommitMessage = "feat(webhooks): add Stripe-grade reliability layers
 
-Major webhook subsystem upgrade implementing provider-agnostic verification,
-replay protection, event routing, and forensic audit logging.
+- Implement 3-layer webhook protection architecture
+  1. Replay protection via WebhookReplayGuard (signature + timestamp + atomic ledger)
+  2. Event ordering protection using resource_id + event_timestamp
+  3. Business idempotency via processed_webhook_events table
 
-Architecture
-- Replace provider match logic with WebhookVerifier strategy pattern
-- Introduce WebhookVerifierRegistry for provider resolution
-- Implement EventRouter + WebhookEventHandler architecture
-- Move webhook event routing to config/webhook_events.php
-- Remove legacy WebhookSignatureService
+- Add payload_hash forensic tracking for duplicate event detection
+- Introduce WebhookIdempotency trait with transactional execution guard
+- Refactor handlers to strategy-based router architecture
+- Extend webhook_event_ledger with resource_id, resource_type, event_timestamp
+- Add ProcessWebhookJob ordering protection logic
+- Implement provider-agnostic verifier extraction (Stripe/Razorpay)
+- Add WebhookReliabilityTest for ordering and idempotency validation
 
-Security & Integrity
-- Implement webhook_event_ledger with unique(provider,event_id)
-- Add payload tampering detection via payload_hash comparison
-- Introduce payload_mismatch_detected forensic flag
-- Enforce deterministic event IDs (no synthetic fallbacks)
-- Normalize header handling via $request->header()
-
-Concurrency & Idempotency
-- Add replay guard middleware
-- Atomic insert protection for webhook ledger
-- Distributed lock protection in ProcessWebhookJob
-- Queue isolation for webhook processing
-
-Observability & Forensics
-- Extend webhook ledger into tamper-evident forensic audit trail
-- Reduce router logging noise (debug-level dispatch logging)
-- Log unhandled webhook events for monitoring
-
-Testing
-- Update tests to use WebhookVerifierRegistry + test signature generators
-- Add webhook security tests for payload tampering detection
-- Maintain full compatibility with existing webhook retry tests
-
-Result
-- Provider-agnostic webhook architecture
-- Replay-safe and race-condition safe processing
-- Event-driven handler routing
-- Forensic auditability for webhook ingestion"
+All webhook reliability tests passing."
 #----------------------
 
 function Get-GitCredential {

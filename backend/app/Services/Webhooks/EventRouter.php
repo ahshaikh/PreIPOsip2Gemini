@@ -15,9 +15,10 @@ class EventRouter
      * @param string $provider
      * @param string $eventType
      * @param array $payload
+     * @param array $metadata
      * @return void
      */
-    public function dispatch(string $provider, string $eventType, array $payload): void
+    public function dispatch(string $provider, string $eventType, array $payload, array $metadata = []): void
     {
         $key = "{$provider}.{$eventType}";
         $registry = Config::get('webhook_events', []);
@@ -35,7 +36,7 @@ class EventRouter
             
             Log::debug("EventRouter: Dispatching {$key} to " . get_class($handler));
             
-            $handler->handle($payload);
+            $handler->handle($payload, $metadata);
         } catch (\Exception $e) {
             Log::error("EventRouter Error dispatching {$key}: " . $e->getMessage(), [
                 'handler' => $handlerClass,

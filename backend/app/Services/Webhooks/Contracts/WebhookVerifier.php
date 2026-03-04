@@ -28,4 +28,20 @@ interface WebhookVerifier
      * Get the event type from the payload.
      */
     public function extractEventType(string $payload): string;
+
+    /**
+     * Extract the event creation timestamp from the payload.
+     * Returns Unix timestamp.
+     */
+    public function extractEventTimestamp(string $payload): int;
+
+    /**
+     * Extract the resource ID (e.g. payment ID, subscription ID) from the payload.
+     */
+    public function extractResourceId(string $payload): ?string;
+
+    /**
+     * Extract the resource type (e.g. 'payment', 'subscription') from the payload.
+     */
+    public function extractResourceType(string $payload): ?string;
 }

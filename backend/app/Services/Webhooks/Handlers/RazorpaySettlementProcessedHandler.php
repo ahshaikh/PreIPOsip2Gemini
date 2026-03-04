@@ -4,17 +4,20 @@ namespace App\Services\Webhooks\Handlers;
 
 use App\Services\Webhooks\Contracts\WebhookEventHandler;
 use App\Services\PaymentWebhookService;
+use App\Services\Webhooks\Traits\WebhookIdempotency;
 
 class RazorpaySettlementProcessedHandler implements WebhookEventHandler
 {
+    use WebhookIdempotency;
+
     public function __construct(
         protected PaymentWebhookService $paymentWebhookService
     ) {}
 
-    public function handle(array $payload): void
+    public function handle(array $payload, array $metadata): void
     {
-        // Razorpay settlement payload structure might differ, 
-        // but PaymentWebhookService expects specific fields.
-        $this->paymentWebhookService->handleSettlementProcessed($payload['payload']['settlement']['entity'] ?? $payload);
+        $this->runIdempotent($metadata, function () use ($payload) {
+            $this->paymentWebhookService->handleSettlementProcessed($payload['payload']['settlement']['entity'] ?? $payload);
+        });
     }
 }

@@ -91,4 +91,22 @@ class StripeWebhookVerifier implements WebhookVerifier
         $data = json_decode($payload, true);
         return $data['type'] ?? 'unknown';
     }
+
+    public function extractEventTimestamp(string $payload): int
+    {
+        $data = json_decode($payload, true);
+        return $data['created'] ?? time();
+    }
+
+    public function extractResourceId(string $payload): ?string
+    {
+        $data = json_decode($payload, true);
+        return $data['data']['object']['id'] ?? null;
+    }
+
+    public function extractResourceType(string $payload): ?string
+    {
+        $data = json_decode($payload, true);
+        return $data['data']['object']['object'] ?? 'unknown';
+    }
 }

@@ -14,9 +14,12 @@ class WebhookEventLedger extends Model
     protected $fillable = [
         'provider',
         'event_id',
+        'resource_type',
+        'resource_id',
         'payload_hash',
         'payload_size',
         'headers_hash',
+        'event_timestamp',
         'signature_verified',
         'timestamp_valid',
         'replay_detected',
@@ -31,6 +34,7 @@ class WebhookEventLedger extends Model
         'timestamp_valid' => 'boolean',
         'replay_detected' => 'boolean',
         'payload_mismatch_detected' => 'boolean',
+        'event_timestamp' => 'integer',
         'received_at' => 'datetime',
         'processed_at' => 'datetime',
     ];

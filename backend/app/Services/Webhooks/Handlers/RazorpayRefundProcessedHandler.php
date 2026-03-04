@@ -4,15 +4,20 @@ namespace App\Services\Webhooks\Handlers;
 
 use App\Services\Webhooks\Contracts\WebhookEventHandler;
 use App\Services\PaymentWebhookService;
+use App\Services\Webhooks\Traits\WebhookIdempotency;
 
 class RazorpayRefundProcessedHandler implements WebhookEventHandler
 {
+    use WebhookIdempotency;
+
     public function __construct(
         protected PaymentWebhookService $paymentWebhookService
     ) {}
 
-    public function handle(array $payload): void
+    public function handle(array $payload, array $metadata): void
     {
-        $this->paymentWebhookService->handleRefundProcessed($payload['payload']['refund']['entity']);
+        $this->runIdempotent($metadata, function () use ($payload) {
+            $this->paymentWebhookService->handleRefundProcessed($payload['payload']['refund']['entity']);
+        });
     }
 }

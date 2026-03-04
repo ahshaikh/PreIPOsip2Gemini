@@ -49,4 +49,22 @@ class GenericHmacWebhookVerifier implements WebhookVerifier
         $data = json_decode($payload, true);
         return $data['event'] ?? $data['type'] ?? 'unknown';
     }
+
+    public function extractEventTimestamp(string $payload): int
+    {
+        $data = json_decode($payload, true);
+        return $data['timestamp'] ?? $data['created_at'] ?? time();
+    }
+
+    public function extractResourceId(string $payload): ?string
+    {
+        $data = json_decode($payload, true);
+        return $data['resource_id'] ?? $data['id'] ?? null;
+    }
+
+    public function extractResourceType(string $payload): ?string
+    {
+        $data = json_decode($payload, true);
+        return $data['resource_type'] ?? 'unknown';
+    }
 }

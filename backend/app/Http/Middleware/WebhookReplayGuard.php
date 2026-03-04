@@ -59,14 +59,20 @@ class WebhookReplayGuard
         // 4. Atomic Event Ledger Entry (Anti-Replay)
         $eventId = $verifier->extractEventId($payload);
         $payloadHash = hash('sha256', $payload);
+        $eventTimestamp = $verifier->extractEventTimestamp($payload);
+        $resourceId = $verifier->extractResourceId($payload);
+        $resourceType = $verifier->extractResourceType($payload);
         
         // Use atomic firstOrCreate to check/record the event
         $ledgerEntry = WebhookEventLedger::firstOrCreate(
             ['provider' => $provider, 'event_id' => $eventId],
             [
+                'resource_type' => $resourceType,
+                'resource_id' => $resourceId,
                 'payload_hash' => $payloadHash,
                 'payload_size' => strlen($payload),
                 'headers_hash' => hash('sha256', json_encode($headersFlat)),
+                'event_timestamp' => $eventTimestamp,
                 'signature_verified' => true,
                 'timestamp_valid' => true,
                 'processing_status' => 'pending',

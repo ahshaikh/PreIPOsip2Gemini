@@ -41,14 +41,67 @@ class RazorpayWebhookVerifier implements WebhookVerifier
 
     public function extractEventId(string $payload): string
     {
-        // For Razorpay, we can use the entity ID or the event ID
         $data = json_decode($payload, true);
-        return $data['payload']['payment']['entity']['id'] ?? $data['payload']['refund']['entity']['id'] ?? $data['id'] ?? 'unknown_rzp_' . uniqid();
+        
+        // Prioritize actual Event ID from Razorpay
+        if (isset($data['id']) && str_starts_with($data['id'], 'evt_')) {
+            return $data['id'];
+        }
+
+        // Fallback to entity ID if event ID is not standard
+        return $data['id'] ?? 
+               $data['payload']['payment']['entity']['id'] ?? 
+               $data['payload']['refund']['entity']['id'] ?? 
+               'unknown_rzp_' . uniqid();
     }
 
     public function extractEventType(string $payload): string
     {
         $data = json_decode($payload, true);
         return $data['event'] ?? 'unknown';
+    }
+
+    public function extractEventTimestamp(string $payload): int
+    {
+        $data = json_decode($payload, true);
+        return $data['created_at'] ?? time();
+    }
+
+    public function extractResourceId(string $payload): ?string
+    {
+        $data = json_decode($payload, true);
+        
+        // Priority based on event type if available
+        $event = $data['event'] ?? '';
+        
+        if (str_contains($event, 'payment')) {
+            return $data['payload']['payment']['entity']['id'] ?? null;
+        }
+        
+        if (str_contains($event, 'subscription')) {
+            return $data['payload']['subscription']['entity']['id'] ?? $data['payload']['payment']['entity']['subscription_id'] ?? null;
+        }
+
+        if (str_contains($event, 'refund')) {
+            return $data['payload']['refund']['entity']['id'] ?? null;
+        }
+
+        return $data['payload']['payment']['entity']['id'] ?? 
+               $data['payload']['refund']['entity']['id'] ?? 
+               $data['id'] ?? null;
+    }
+
+    public function extractResourceType(string $payload): ?string
+    {
+        $data = json_decode($payload, true);
+        $event = $data['event'] ?? '';
+
+        if (str_contains($event, 'payment')) return 'payment';
+        if (str_contains($event, 'subscription')) return 'subscription';
+        if (str_contains($event, 'refund')) return 'refund';
+        if (str_contains($event, 'dispute')) return 'dispute';
+        if (str_contains($event, 'settlement')) return 'settlement';
+
+        return 'unknown';
     }
 }
