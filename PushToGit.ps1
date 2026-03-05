@@ -8,22 +8,21 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "feat(webhooks): add Stripe-grade reliability layers
+$CommitMessage = "feat(webhooks): harden webhook processing with replay protection, ordering locks, DLQ, and queue isolation
 
-- Implement 3-layer webhook protection architecture
-  1. Replay protection via WebhookReplayGuard (signature + timestamp + atomic ledger)
-  2. Event ordering protection using resource_id + event_timestamp
-  3. Business idempotency via processed_webhook_events table
+- Implement atomic replay guard for webhook ingestion (duplicate event protection)
+- Add resource-level concurrency control using Cache::lock to prevent ordering race conditions
+- Introduce webhook dead-letter queue (DLQ) with atomic insert and forensic tracking
+- Add business idempotency layer via processed_webhook_events
+- Implement event ordering protection using resource timestamp comparison
+- Add isolated processing queues per resource type (payments, subscriptions, refunds)
+- Improve webhook ledger with payload hash, resource metadata, and processing status
+- Fix DLQ payload handling and duplicate event detection logic
+- Add webhook hardening test suite (replay guard, ordering protection, resource locking, DLQ behavior)
+- Ensure full test suite passes with no regressions
 
-- Add payload_hash forensic tracking for duplicate event detection
-- Introduce WebhookIdempotency trait with transactional execution guard
-- Refactor handlers to strategy-based router architecture
-- Extend webhook_event_ledger with resource_id, resource_type, event_timestamp
-- Add ProcessWebhookJob ordering protection logic
-- Implement provider-agnostic verifier extraction (Stripe/Razorpay)
-- Add WebhookReliabilityTest for ordering and idempotency validation
-
-All webhook reliability tests passing."
+System now implements a 4-layer webhook reliability architecture:
+replay protection → ordering protection → idempotent processing → dead-letter recovery"
 #----------------------
 
 function Get-GitCredential {

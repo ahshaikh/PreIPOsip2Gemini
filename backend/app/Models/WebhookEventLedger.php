@@ -46,4 +46,12 @@ class WebhookEventLedger extends Model
     {
         return $query->where('processing_status', 'success');
     }
+
+    /**
+     * Scope to find dead letter events.
+     */
+    public function scopeDeadLetter($query)
+    {
+        return $query->where('processing_status', 'dead_letter');
+    }
 }

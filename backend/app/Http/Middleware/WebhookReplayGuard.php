@@ -63,10 +63,11 @@ class WebhookReplayGuard
         $resourceId = $verifier->extractResourceId($payload);
         $resourceType = $verifier->extractResourceType($payload);
         
-        // Use atomic firstOrCreate to check/record the event
-        $ledgerEntry = WebhookEventLedger::firstOrCreate(
-            ['provider' => $provider, 'event_id' => $eventId],
-            [
+        try {
+            // Atomic insertion to prevent race conditions
+            $ledgerEntry = WebhookEventLedger::create([
+                'provider' => $provider,
+                'event_id' => $eventId,
                 'resource_type' => $resourceType,
                 'resource_id' => $resourceId,
                 'payload_hash' => $payloadHash,
@@ -77,11 +78,28 @@ class WebhookReplayGuard
                 'timestamp_valid' => true,
                 'processing_status' => 'pending',
                 'received_at' => now(),
-            ]
-        );
+            ]);
+            $isNew = true;
+        } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+            // Duplicate event detection (Atomic)
+            // MySQL error code 1062 = Duplicate entry
+            if (isset($e->getPrevious()->errorInfo[1]) && $e->getPrevious()->errorInfo[1] != 1062) {
+                throw $e;
+            }
+
+            $ledgerEntry = WebhookEventLedger::where('provider', $provider)
+                ->where('event_id', $eventId)
+                ->first();
+
+            if (!$ledgerEntry) {
+                // If the constraint violation wasn't for (provider, event_id), re-throw
+                throw $e;
+            }
+            $isNew = false;
+        }
 
         // 5. Replay Detection
-        if (!$ledgerEntry->wasRecentlyCreated) {
+        if (!$isNew) {
             $ledgerEntry->update(['replay_detected' => true]);
             
             // Check for payload mismatch (Malicious tampering detection)

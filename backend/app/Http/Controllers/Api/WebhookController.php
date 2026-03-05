@@ -50,10 +50,19 @@ class WebhookController extends Controller
             'status' => 'pending',
         ]);
 
-        // 3. Dispatch isolated processing job
-        ProcessWebhookJob::dispatch($webhookLog, $ledgerId);
+        // 3. Resolve isolation queue based on resource type (Stripe-style isolation)
+        $resourceType = $verifier->extractResourceType($payload);
+        $queue = match($resourceType) {
+            'payment' => 'webhooks_payments',
+            'subscription' => 'webhooks_subscriptions',
+            'refund' => 'webhooks_refunds',
+            default => 'webhooks_default',
+        };
 
-        // 4. Return immediate 200 OK as per institutional standards
+        // 4. Dispatch isolated processing job
+        ProcessWebhookJob::dispatch($webhookLog, $ledgerId)->onQueue($queue);
+
+        // 5. Return immediate 200 OK as per institutional standards
         return response()->json([
             'status' => 'accepted',
             'message' => 'Webhook received and recorded'
