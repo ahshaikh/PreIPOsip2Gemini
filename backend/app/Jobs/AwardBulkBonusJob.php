@@ -50,11 +50,9 @@ class AwardBulkBonusJob implements ShouldQueue
      * Process the bonus award with proper TDS and ledger integration.
      */
     public function handle(
-        WalletService $walletService,
-        TdsCalculationService $tdsService,
-        DoubleEntryLedgerService $ledgerService
+        \App\Services\FinancialOrchestrator $orchestrator
     ): void {
-        $user = User::with('wallet')->find($this->userId);
+        $user = User::find($this->userId);
 
         if (!$user) {
             Log::warning("User not found for ID: {$this->userId}");
@@ -62,47 +60,13 @@ class AwardBulkBonusJob implements ShouldQueue
         }
 
         try {
-            DB::transaction(function () use ($user, $walletService, $tdsService, $ledgerService) {
-                // 1. Calculate TDS using centralized service
-                $tdsResult = $tdsService->calculate($this->amount, $this->bonusType);
-
-                // 2. Create Immutable Ledger Entry (with TDS tracking)
-                $bonusTransaction = BonusTransaction::create([
-                    'user_id' => $user->id,
-                    'type' => $this->bonusType,
-                    'amount' => $tdsResult->grossAmount, // Gross
-                    'tds_deducted' => $tdsResult->tdsAmount,
-                    'base_amount' => $this->amount,
-                    'multiplier_applied' => 1.0,
-                    'description' => "Bulk Bonus: {$this->reason}"
-                ]);
-
-                // 3. PHASE 4: Record bonus accrual in ledger FIRST
-                // DEBIT MARKETING_EXPENSE (gross), CREDIT BONUS_LIABILITY (net), CREDIT TDS_PAYABLE (tds)
-                $ledgerService->recordBonusWithTds(
-                    $bonusTransaction,
-                    $tdsResult->grossAmount,
-                    $tdsResult->tdsAmount
-                );
-
-                // 4. Transfer to wallet using WalletService
-                // This triggers recordBonusToWallet(): DEBIT BONUS_LIABILITY, CREDIT USER_WALLET_LIABILITY
-                $walletService->deposit(
-                    $user,
-                    $tdsResult->netAmount,
-                    'bonus_credit',
-                    $tdsResult->getDescription("Bulk Bonus: {$this->reason}"),
-                    $bonusTransaction
-                );
-
-                Log::info("Bulk Bonus with Ledger Integration Successful", [
-                    'user_id' => $user->id,
-                    'gross' => $tdsResult->grossAmount,
-                    'tds' => $tdsResult->tdsAmount,
-                    'net' => $tdsResult->netAmount,
-                    'type' => $this->bonusType,
-                ]);
-            });
+            // V-ORCHESTRATION-2026: Route via orchestrator for single transaction boundary
+            $orchestrator->awardBulkBonus(
+                $user,
+                $this->amount,
+                $this->reason,
+                $this->bonusType
+            );
 
             $user->notify(new BonusCredited($this->amount, $this->bonusType));
 

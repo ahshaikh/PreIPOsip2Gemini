@@ -1,6 +1,11 @@
 <?php
 // V-AUDIT-MODULE4-008 (Created) - Separate job for non-critical bonus processing
 // V-WALLET-FIRST-2026: Bonus credited as cash, user decides how to use it
+//
+// @deprecated V-ORCHESTRATION-2026: This job is DEPRECATED.
+// Bonus calculation is now handled synchronously within FinancialOrchestrator::processSuccessfulPayment()
+// as part of the single transaction boundary. This ensures bonuses are calculated with the
+// wallet already locked, preventing race conditions.
 
 namespace App\Jobs;
 
@@ -18,6 +23,10 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * ProcessPaymentBonusJob - Bonus Calculation and Wallet Credit
+ *
+ * @deprecated V-ORCHESTRATION-2026: Use FinancialOrchestrator::processSuccessfulPayment() instead.
+ * Bonus calculation is now part of the single-transaction payment lifecycle. This job remains
+ * for backward compatibility with queued items but should NOT be dispatched for new payments.
  *
  * V-WALLET-FIRST-2026:
  * - Calculate bonuses based on payment

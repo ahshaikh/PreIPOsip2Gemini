@@ -38,13 +38,15 @@ use Illuminate\Support\Facades\Cache; // Added for Atomic Locks
  *
  * @package App\Services
  */
+use App\Services\FinancialOrchestrator;
+
 class PaymentWebhookService
 {
-    protected $walletService;
+    protected $orchestrator;
 
-    public function __construct(WalletService $walletService)
+    public function __construct(FinancialOrchestrator $orchestrator)
     {
-        $this->walletService = $walletService;
+        $this->orchestrator = $orchestrator;
     }
 
     /**
@@ -503,128 +505,16 @@ class PaymentWebhookService
             return;
         }
 
-        // V-PAYMENT-INTEGRITY-2026: Idempotency check using refund_gateway_id
-        if ($refundGatewayId && $payment->refund_gateway_id === $refundGatewayId) {
-            Log::info("Refund {$refundGatewayId} already processed for Payment {$payment->id}. Skipping.");
-            return;
+        try {
+            // V-ORCHESTRATION-2026: Delegate to FinancialOrchestrator for atomic refund lifecycle
+            $this->orchestrator->processRefund($payment, "Refund processed via gateway (ID: {$refundGatewayId})");
+            
+            Log::info("Refund processed via Orchestrator for Payment #{$payment->id}");
+        } catch (\Exception $e) {
+            Log::error("Refund processing failed for Payment #{$payment->id}: " . $e->getMessage());
+            // Re-throw if it's a critical error that should trigger webhook retry
+            throw $e;
         }
-
-        // V-PAYMENT-INTEGRITY-2026 HARDENING: Refund ONLY allowed on paid/settled
-        // This prevents double reversal if refund webhook arrives AFTER chargeback confirmation
-        //
-        // Adversarial scenario:
-        // 1. Payment captured (paid)
-        // 2. Settlement webhook → paid → settled
-        // 3. Chargeback initiated → settled → chargeback_pending
-        // 4. Chargeback confirmed → chargeback_pending → chargeback_confirmed (TERMINAL)
-        // 5. Late refund webhook arrives → MUST BE REJECTED (funds already reversed by chargeback)
-        $refundableStatuses = [Payment::STATUS_PAID, Payment::STATUS_SETTLED];
-
-        if (!in_array($payment->status, $refundableStatuses)) {
-            Log::channel('financial_contract')->warning('REFUND REJECTED: Payment not in refundable state', [
-                'payment_id' => $payment->id,
-                'current_status' => $payment->status,
-                'refund_gateway_id' => $refundGatewayId,
-                'refund_amount_paise' => $refundAmountPaise,
-                'reason' => 'Refund only allowed on paid/settled payments. ' .
-                           'Chargeback or terminal state prevents refund.',
-            ]);
-            return;
-        }
-
-        // V-PAYMENT-INTEGRITY-2026: Check if payment already fully refunded
-        if ($payment->status === Payment::STATUS_REFUNDED) {
-            Log::info("Payment {$payment->id} already fully refunded. Skipping.");
-            return;
-        }
-
-        // V-PAYMENT-INTEGRITY-2026: Validate refund amount doesn't exceed remaining
-        $refundableAmountPaise = $payment->getRefundableAmountPaise();
-        if ($refundAmountPaise > $refundableAmountPaise) {
-            Log::critical('REFUND AMOUNT EXCEEDS PAYMENT', [
-                'payment_id' => $payment->id,
-                'gateway_payment_id' => $gatewayPaymentId,
-                'payment_amount_paise' => $payment->amount_paise,
-                'already_refunded_paise' => $payment->refund_amount_paise ?? 0,
-                'refundable_amount_paise' => $refundableAmountPaise,
-                'attempted_refund_paise' => $refundAmountPaise,
-            ]);
-
-            throw new \RuntimeException(
-                "Refund amount ({$refundAmountPaise} paise) exceeds refundable amount " .
-                "({$refundableAmountPaise} paise) for Payment #{$payment->id}"
-            );
-        }
-
-        $refundAmountRupees = $refundAmountPaise / 100;
-        $isFullRefund = ($refundAmountPaise === $refundableAmountPaise);
-
-        // CRITICAL: Perform refund in a transaction
-        DB::transaction(function () use (
-            $payment,
-            $refundAmountPaise,
-            $refundAmountRupees,
-            $refundGatewayId,
-            $isFullRefund
-        ) {
-            // Update refund tracking FIRST (before any operations that might fail)
-            $newTotalRefundPaise = ($payment->refund_amount_paise ?? 0) + $refundAmountPaise;
-            $newStatus = $isFullRefund ? Payment::STATUS_REFUNDED : $payment->status;
-
-            $payment->forceFill([
-                'refund_amount_paise' => $newTotalRefundPaise,
-                'refund_gateway_id' => $refundGatewayId,
-                'refunded_at' => now(),
-                'status' => $newStatus,
-            ])->saveQuietly(); // Bypass state machine for refund tracking
-
-            // 1. Reverse Share Allocation ONLY if full refund
-            // V-CHARGEBACK-SEMANTICS-2026: Use explicit ReversalSource::REFUND
-            // This reversal is SHARE-ONLY - wallet credit happens below
-            if ($isFullRefund) {
-                $allocationService = app(AllocationService::class);
-                $allocationService->reverseAllocationLegacy(
-                    $payment,
-                    'Full refund via gateway',
-                    ReversalSource::REFUND
-                );
-            }
-
-            // 2. Credit wallet with refunded amount (WalletService handles ledger)
-            // V-CHARGEBACK-SEMANTICS-2026: WalletService::deposit() handles both
-            // operational wallet credit AND double-entry ledger recordRefund().
-            if ($refundAmountRupees > 0 && $payment->user) {
-                $this->walletService->deposit(
-                    $payment->user,
-                    (string) $refundAmountRupees,
-                    \App\Enums\TransactionType::REFUND,
-                    ($isFullRefund ? "Full refund" : "Partial refund") . " for Payment #{$payment->id}",
-                    $payment
-                );
-
-                Log::info("Wallet credited ₹{$refundAmountRupees} for refund on Payment {$payment->id}", [
-                    'is_full_refund' => $isFullRefund,
-                    'total_refunded_paise' => $newTotalRefundPaise,
-                    'ledger_entry_created' => true,
-                ]);
-            }
-
-            // 3. Reset subscription consecutive payment counter (only for full refund)
-            if ($isFullRefund && $payment->subscription) {
-                $subscription = $payment->subscription;
-                $subscription->consecutive_payments_count = 0;
-                $subscription->save();
-
-                Log::info("Reset consecutive payment counter for Subscription #{$subscription->id}");
-            }
-
-            Log::info("Payment {$payment->id} refund processed", [
-                'refund_amount_paise' => $refundAmountPaise,
-                'total_refunded_paise' => $newTotalRefundPaise,
-                'is_full_refund' => $isFullRefund,
-                'new_status' => $newStatus,
-            ]);
-        });
     }
 
     /**
@@ -734,13 +624,21 @@ class PaymentWebhookService
                 });
 
                 if ($fulfilled) {
-                    // V-PASSBOOK-MODEL-2026: Dispatch lifecycle job AFTER payment status commits
-                    // Job handles ALL financial mutations: deposit → withdraw → allocate → bonus
-                    // This ensures perfect passbook ledger in ONE execution context
+                    // V-ORCHESTRATION-2026: Call FinancialOrchestrator synchronously
+                    // ALL financial mutations happen in ONE atomic transaction
+                    // Replaces async ProcessSuccessfulPaymentJob dispatch
                     $payment->refresh();
-                    ProcessSuccessfulPaymentJob::dispatch($payment)->afterCommit();
 
-                    Log::info("Payment {$payment->id} fulfilled successfully.");
+                    try {
+                        $this->orchestrator->processSuccessfulPayment($payment);
+                        Log::info("Payment {$payment->id} fulfilled via FinancialOrchestrator.");
+                    } catch (\Throwable $e) {
+                        // Log but don't fail - payment status is already 'paid'
+                        // The orchestrator handles its own idempotency via fulfilled_at
+                        Log::error("FinancialOrchestrator failed for Payment {$payment->id}: " . $e->getMessage(), [
+                            'exception' => $e,
+                        ]);
+                    }
                 }
 
                 return $fulfilled;
@@ -754,55 +652,6 @@ class PaymentWebhookService
         } finally {
             $lock->release();
         }
-    }
-
-    /**
-     * V-PAYMENT-INTEGRITY-2026: Credit wallet atomically within transaction.
-     *
-     * CORRECTION 2: NO DECIMAL FALLBACK. amount_paise MUST exist.
-     *
-     * This method MUST be called inside a DB::transaction().
-     * It directly credits the wallet without dispatching a job.
-     *
-     * @param Payment $payment
-     * @return void
-     * @throws \RuntimeException If amount_paise is null or user missing
-     */
-    private function creditWalletAtomically(Payment $payment): void
-    {
-        $user = $payment->user;
-
-        if (!$user) {
-            Log::error("Cannot credit wallet: Payment #{$payment->id} has no user");
-            throw new \RuntimeException("Payment #{$payment->id} has no associated user");
-        }
-
-        // Check if already credited (idempotency)
-        $existingCredit = DB::table('transactions')
-            ->where('reference_type', Payment::class)
-            ->where('reference_id', $payment->id)
-            ->where('type', 'deposit')
-            ->exists();
-
-        if ($existingCredit) {
-            Log::info("Wallet already credited for Payment #{$payment->id}. Skipping.");
-            return;
-        }
-
-        // CORRECTION 2: Use strict getter - NO FALLBACK to float conversion
-        // This will throw if amount_paise is NULL
-        $amountPaise = $payment->getAmountPaiseStrict();
-        $amountRupees = $amountPaise / 100;
-
-        $this->walletService->deposit(
-            $user,
-            $amountRupees,
-            \App\Enums\TransactionType::DEPOSIT,
-            "Payment received for SIP installment #{$payment->id}",
-            $payment
-        );
-
-        Log::info("ATOMIC WALLET CREDIT: Payment #{$payment->id}: ₹{$amountRupees} credited to wallet");
     }
 
     /**

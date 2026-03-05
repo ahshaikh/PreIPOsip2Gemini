@@ -63,19 +63,18 @@ class AllocationService
      * @param \App\Models\Payment $payment Payment is REQUIRED for user_investments.payment_id FK
      * @param string $source
      * @param bool $allowFractional
-     * @return bool Success status
+     * @return array Result summary including success status and refund_due
      * @throws RiskBlockedException If user is risk-blocked
      * @throws InsufficientInventoryException If insufficient inventory
      * @throws \InvalidArgumentException If payment is null
      */
-    public function allocateShares($user, $product, float $amount, $investment, Payment $payment, string $source = 'investment', bool $allowFractional = true): bool
+    public function allocateShares($user, $product, float $amount, $investment, Payment $payment, string $source = 'investment', bool $allowFractional = true): array
     {
         if ($amount <= 0) {
-            return false;
+            return ['success' => false, 'refund_due' => 0];
         }
 
         // V-DISPUTE-RISK-2026-006: Risk Guard - Block allocations to risk-blocked users
-        // This check happens BEFORE any DB transaction to prevent partial mutations
         $this->riskGuard->assertUserCanInvest($user, 'share_allocation', [
             'product_id' => $product->id,
             'amount' => $amount,
@@ -83,106 +82,66 @@ class AllocationService
             'source' => $source,
         ]);
 
-        // V-AUDIT-FIX-2026: Explicit pre-allocation balance check BEFORE transaction
-        // This provides clear exception typing for callers
+        // V-AUDIT-FIX-2026: Explicit pre-allocation balance check
         $this->assertSufficientInventory($product, $amount, $source);
 
-        return DB::transaction(function () use ($user, $product, $amount, $investment, $payment, $source, $allowFractional) {
+        // V-ORCHESTRATION-2026: Removed DB::transaction. Caller (Orchestrator) must wrap this.
 
-            // CONSERVATION CHECK: Verify allocation won't violate conservation law
-            $canAllocate = $this->conservationService->canAllocate($product, $amount);
-            if (!$canAllocate['can_allocate']) {
-                Log::warning("ALLOCATION BLOCKED: Conservation check failed", $canAllocate);
-                // V-AUDIT-FIX-2026: Throw typed exception instead of returning false
-                throw InsufficientInventoryException::forProduct(
-                    $product,
-                    $amount,
-                    $canAllocate['available'] ?? 0,
-                    $source
-                );
+        // CONSERVATION CHECK
+        $canAllocate = $this->conservationService->canAllocate($product, $amount);
+        if (!$canAllocate['can_allocate']) {
+            throw InsufficientInventoryException::forProduct($product, $amount, $canAllocate['available'] ?? 0, $source);
+        }
+
+        // V-ORCHESTRATION-2026: Caller should have already locked the inventory.
+        // We still fetch the batches here but without lockForUpdate.
+        $batches = $this->conservationService->getInventoryForAllocation($product);
+
+        $available = $batches->sum('value_remaining');
+        if ($available < $amount) {
+            throw InsufficientInventoryException::forProduct($product, $amount, $available, $source);
+        }
+
+        $remainingNeeded = $amount;
+        $totalRefundDue = 0;
+
+        foreach ($batches as $batch) {
+            if ($remainingNeeded <= 0.01) break;
+
+            $amountToTake = min($batch->value_remaining, $remainingNeeded);
+            if ($amountToTake < 0.01) continue;
+
+            $unitsCalculated = $amountToTake / $product->face_value_per_unit;
+
+            if (!$allowFractional) {
+                $unitsToAllocate = floor($unitsCalculated);
+                $actualAmountToDeduct = $unitsToAllocate * $product->face_value_per_unit;
+                $totalRefundDue += ($amountToTake - $actualAmountToDeduct);
+
+                if ($unitsToAllocate < 1) continue;
+                $amountToTake = $actualAmountToDeduct;
+            } else {
+                $unitsToAllocate = $unitsCalculated;
             }
 
-            // Lock inventory for this product (prevents concurrent allocation)
-            $batches = $this->conservationService->lockInventoryForAllocation($product);
+            $userInvestment = UserInvestment::create([
+                'user_id' => $user->id,
+                'product_id' => $product->id,
+                'payment_id' => $payment->id,
+                'subscription_id' => $payment->subscription_id,
+                'bulk_purchase_id' => $batch->id,
+                'units_allocated' => $unitsToAllocate,
+                'value_allocated' => $amountToTake,
+                'source' => $source,
+                'status' => 'active',
+                'is_reversed' => false,
+            ]);
 
-            $available = $batches->sum('value_remaining');
-            if ($available < $amount) {
-                Log::warning("ALLOCATION BLOCKED: Insufficient inventory", [
-                    'product_id' => $product->id,
-                    'requested' => $amount,
-                    'available' => $available,
-                ]);
-                // V-AUDIT-FIX-2026: Throw typed exception instead of returning false
-                throw InsufficientInventoryException::forProduct($product, $amount, $available, $source);
-            }
+            $batch->decrement('value_remaining', $amountToTake);
+            $remainingNeeded -= $amountToTake;
+        }
 
-            $remainingNeeded = $amount;
-            $totalRefundDue = 0;
-
-            foreach ($batches as $batch) {
-                if ($remainingNeeded <= 0.01) break;
-
-                $amountToTake = min($batch->value_remaining, $remainingNeeded);
-                if ($amountToTake < 0.01) continue;
-
-                // Calculate Units
-                $unitsCalculated = $amountToTake / $product->face_value_per_unit;
-
-                // Handle fractional shares
-                if (!$allowFractional) {
-                    $unitsToAllocate = floor($unitsCalculated);
-                    $actualAmountToDeduct = $unitsToAllocate * $product->face_value_per_unit;
-                    $totalRefundDue += ($amountToTake - $actualAmountToDeduct);
-
-                    if ($unitsToAllocate < 1) continue;
-                    $amountToTake = $actualAmountToDeduct;
-                } else {
-                    $unitsToAllocate = $unitsCalculated;
-                }
-
-                // Create UserInvestment record
-                // V-WAVE2-STRICT: Payment is explicit - no fallback resolution
-                // Financial systems must have deterministic payment context
-                $userInvestment = UserInvestment::create([
-                    'user_id' => $user->id,
-                    'product_id' => $product->id,
-                    'payment_id' => $payment->id,
-                    'subscription_id' => $payment->subscription_id,
-                    'bulk_purchase_id' => $batch->id,
-                    'units_allocated' => $unitsToAllocate,
-                    'value_allocated' => $amountToTake,
-                    'source' => $source,
-                    'status' => 'active',
-                    'is_reversed' => false,
-                ]);
-
-                // Atomic decrement of inventory
-                $batch->decrement('value_remaining', $amountToTake);
-                $remainingNeeded -= $amountToTake;
-            }
-
-            // Handle fractional refund if needed
-            if (!$allowFractional && $totalRefundDue > 0) {
-                $this->walletService->deposit(
-                    $user,
-                    $totalRefundDue,
-                    TransactionType::REFUND->value,
-                    "Refund for fractional remainder (Investment #{$investment->id})",
-                    'investment',
-                    $investment->id
-                );
-            }
-
-            // CONSERVATION VERIFICATION: Ensure conservation law still holds
-            $verificationResult = $this->conservationService->verifyConservation($product);
-            if (!$verificationResult['is_conserved']) {
-                // This should NEVER happen due to locking, but check anyway
-                Log::critical("CRITICAL: Allocation violated conservation law", $verificationResult);
-                throw new \Exception('Allocation violated inventory conservation law');
-            }
-
-            return true;
-        });
+        return ['success' => true, 'refund_due' => $totalRefundDue];
     }
 
     /**
@@ -193,13 +152,40 @@ class AllocationService
      * [DEPRECATED]: Use allocateShares(user, product, amount, investment, ...) for new code
      * [V-AUDIT-FIX-2026]: Now throws InsufficientInventoryException for consistency
      *
+     * V-ORCHESTRATION-2026: Supports two call patterns:
+     * 1. Legacy: allocateSharesLegacy($payment, $amount, $source) - acquires locks internally
+     * 2. Orchestrator: allocateSharesLegacy($payment, $lockedBatches, $amount) - uses pre-locked batches
+     *
+     * @param Payment $payment
+     * @param \Illuminate\Support\Collection|float $batchesOrValue Pre-locked batches (Collection) or amount (float)
+     * @param float|string|null $valueOrSource Amount when batches provided, or source when amount provided
+     * @return array Result summary including success status and refund_due
      * @throws RiskBlockedException If user is risk-blocked
      * @throws InsufficientInventoryException If insufficient global inventory
      */
-    public function allocateSharesLegacy(Payment $payment, float $totalInvestmentValue, string $source = null)
+    public function allocateSharesLegacy(
+        Payment $payment,
+        \Illuminate\Support\Collection|float $batchesOrValue,
+        float|string|null $valueOrSource = null
+    ): array
     {
+        // V-ORCHESTRATION-2026: Detect call pattern
+        $orchestratorMode = $batchesOrValue instanceof \Illuminate\Support\Collection;
+
+        if ($orchestratorMode) {
+            // Pattern 2: Orchestrator - batches already locked
+            $batches = $batchesOrValue;
+            $totalInvestmentValue = (float) $valueOrSource;
+            $source = InvestmentSource::INVESTMENT_AND_BONUS->value;
+        } else {
+            // Pattern 1: Legacy - float amount passed
+            $totalInvestmentValue = (float) $batchesOrValue;
+            $source = is_string($valueOrSource) ? $valueOrSource : InvestmentSource::INVESTMENT_AND_BONUS->value;
+            $batches = null; // Will be fetched and locked below
+        }
+
         if ($totalInvestmentValue <= 0) {
-            return;
+            return ['success' => false, 'refund_due' => 0];
         }
 
         $user = $payment->user;
@@ -211,24 +197,10 @@ class AllocationService
             'amount' => $totalInvestmentValue,
         ]);
 
-        $source = $source ?? InvestmentSource::INVESTMENT_AND_BONUS->value;
         $allowFractional = setting('allow_fractional_shares', true);
 
-        // [AUDIT FIX]: Wrap in transaction to ensure either ALL batches are updated or NONE.
-        DB::transaction(function () use ($user, $payment, $totalInvestmentValue, $source, $allowFractional) {
-
-            // 1. Fetch available inventory batches oldest first (FIFO)
-            // [AUDIT FIX]: lockForUpdate() prevents other requests from reading these rows until commit.
-            // V-WAVE2-STRICT: Only allocate from compliance-ready products.
-            // 'approved' = disclosures approved, compliance verified
-            // 'active' = legacy status for backward compatibility
-            // 'draft' is NEVER allocatable - not compliance-ready
-            $batches = BulkPurchase::where('value_remaining', '>', 0)
-                ->whereHas('product', fn($q) => $q->whereIn('status', ['approved', 'active']))
-                ->orderBy('purchase_date', 'asc')
-                ->lockForUpdate()
-                ->get();
-
+        // V-ORCHESTRATION-2026: Core allocation logic extracted for reuse
+        $doAllocation = function ($batches) use ($user, $payment, $totalInvestmentValue, $source, $allowFractional) {
             $available = $batches->sum('value_remaining');
             if ($available < $totalInvestmentValue) {
                 throw InsufficientInventoryException::forGlobalInventory($totalInvestmentValue, $available, 'legacy_allocation');
@@ -238,13 +210,13 @@ class AllocationService
             $totalRefundDue = 0;
 
             foreach ($batches as $batch) {
-                if ($remainingNeeded <= 0.01) break; 
+                if ($remainingNeeded <= 0.01) break;
 
                 $amountToTake = min($batch->value_remaining, $remainingNeeded);
                 if ($amountToTake < 0.01) continue;
 
                 $product = $batch->product;
-                
+
                 // Calculate Units
                 $unitsCalculated = $amountToTake / $product->face_value_per_unit;
 
@@ -298,18 +270,25 @@ class AllocationService
                 ]);
             }
 
-            // [AUDIT FIX]: Automated Fractional Refund
-            if (!$allowFractional && $totalRefundDue > 0) {
-                $this->walletService->deposit(
-                    $user,
-                    (string) $totalRefundDue,
-                    TransactionType::REFUND->value,
-                    "Refund for fractional remainder (Payment #{$payment->id})",
-                    $payment
-                );
-            }
-        });
-        // V-AUDIT-FIX-2026: Removed $allocationSuccess check - now throws exception on failure
+            return ['success' => true, 'refund_due' => $totalRefundDue];
+        };
+
+        // V-ORCHESTRATION-2026: Execute based on mode
+        if ($orchestratorMode) {
+            // Orchestrator mode: batches already locked, no new transaction needed
+            return $doAllocation($batches);
+        } else {
+            // Legacy mode: wrap in transaction with locking
+            return DB::transaction(function () use ($doAllocation) {
+                $batches = BulkPurchase::where('value_remaining', '>', 0)
+                    ->whereHas('product', fn($q) => $q->whereIn('status', ['approved', 'active']))
+                    ->orderBy('purchase_date', 'asc')
+                    ->lockForUpdate()
+                    ->get();
+
+                return $doAllocation($batches);
+            });
+        }
     }
 
     /**
@@ -326,67 +305,40 @@ class AllocationService
 
     /**
      * Reverse allocations for an investment (with conservation verification)
-     *
-     * [ORCHESTRATION-COMPATIBLE]: Used by saga compensation
-     * [CONSERVATION-ENFORCED]: Verifies conservation after reversal
-     *
-     * @param \App\Models\Investment $investment
-     * @param string $reason
-     * @return void
      */
     public function reverseAllocation($investment, string $reason): void
     {
-        DB::transaction(function () use ($investment, $reason) {
-            // Get all non-reversed user investments for this investment
-            $userInvestments = UserInvestment::where('investment_id', $investment->id)
-                ->where('is_reversed', false)
-                ->get();
+        // Get all non-reversed user investments for this investment
+        $userInvestments = UserInvestment::where('investment_id', $investment->id)
+            ->where('is_reversed', false)
+            ->get();
 
-            if ($userInvestments->isEmpty()) {
-                Log::warning("REVERSAL SKIPPED: No active allocations found", [
-                    'investment_id' => $investment->id,
-                ]);
-                return;
-            }
-
-            foreach ($userInvestments as $userInvestment) {
-                // Lock the bulk purchase and restore inventory
-                $bulkPurchase = $userInvestment->bulkPurchase()->lockForUpdate()->first();
-                if ($bulkPurchase) {
-                    $bulkPurchase->increment('value_remaining', $userInvestment->value_allocated);
-
-                    Log::info("REVERSAL: Inventory restored", [
-                        'bulk_purchase_id' => $bulkPurchase->id,
-                        'amount_restored' => $userInvestment->value_allocated,
-                    ]);
-                }
-
-                // V-CHARGEBACK-SEMANTICS-2026: Mark as reversed with explicit source
-                // Default to REFUND for non-legacy reversal method
-                $userInvestment->update([
-                    'is_reversed' => true,
-                    'reversed_at' => now(),
-                    'reversal_reason' => $reason,
-                    'reversal_source' => ReversalSource::REFUND->value,
-                ]);
-            }
-
-            // CONSERVATION VERIFICATION: Ensure conservation holds after reversal
-            $product = $userInvestments->first()->product;
-            $verificationResult = $this->conservationService->verifyConservation($product);
-
-            if (!$verificationResult['is_conserved']) {
-                Log::critical("CRITICAL: Reversal violated conservation law", $verificationResult);
-                // Don't throw - compensation must complete even if verification fails
-                // Alert will be raised by conservation service
-            }
-
-            Log::info("REVERSAL COMPLETE", [
+        if ($userInvestments->isEmpty()) {
+            Log::warning("REVERSAL SKIPPED: No active allocations found", [
                 'investment_id' => $investment->id,
-                'user_investments_reversed' => $userInvestments->count(),
-                'total_value_restored' => $userInvestments->sum('value_allocated'),
             ]);
-        });
+            return;
+        }
+
+        foreach ($userInvestments as $userInvestment) {
+            // Lock the bulk purchase and restore inventory
+            $bulkPurchase = $userInvestment->bulkPurchase; // Caller (orchestrator) should have locked this
+            if ($bulkPurchase) {
+                $bulkPurchase->increment('value_remaining', $userInvestment->value_allocated);
+
+                Log::info("REVERSAL: Inventory restored", [
+                    'bulk_purchase_id' => $bulkPurchase->id,
+                    'amount_restored' => $userInvestment->value_allocated,
+                ]);
+            }
+
+            $userInvestment->update([
+                'is_reversed' => true,
+                'reversed_at' => now(),
+                'reversal_reason' => $reason,
+                'reversal_source' => ReversalSource::REFUND->value,
+            ]);
+        }
     }
 
     /**
@@ -402,44 +354,65 @@ class AllocationService
      * - handleRefundProcessed(): Credits wallet AFTER calling this method
      * - handleChargebackConfirmed(): Debits wallet AFTER calling this method
      *
+     * V-ORCHESTRATION-2026: Supports two call patterns:
+     * 1. Legacy: reverseAllocationLegacy($payment, $reason, $source) - uses internal transaction
+     * 2. Orchestrator: reverseAllocationLegacy($payment, $investments, $lockedBatches, $reason, $source)
+     *
      * @param Payment $payment The payment whose investments to reverse
-     * @param string $reason Human-readable reason for audit trail
-     * @param ReversalSource|null $source Explicit reversal source (default: REFUND for backward compat)
+     * @param \Illuminate\Support\Collection|string $investmentsOrReason Pre-locked investments or reason string
+     * @param \Illuminate\Support\Collection|ReversalSource|null $batchesOrSource Pre-locked batches or source enum
+     * @param string|ReversalSource|null $reasonOrSource Reason (orchestrator) or source (legacy)
+     * @param ReversalSource|null $source Explicit reversal source (orchestrator only)
      */
     public function reverseAllocationLegacy(
         Payment $payment,
-        string $reason,
+        \Illuminate\Support\Collection|string $investmentsOrReason,
+        \Illuminate\Support\Collection|ReversalSource|null $batchesOrSource = null,
+        string|ReversalSource|null $reasonOrSource = null,
         ?ReversalSource $source = null
     ): void {
-        // Default to REFUND for backward compatibility with existing callers
-        $source = $source ?? ReversalSource::REFUND;
+        // V-ORCHESTRATION-2026: Detect call pattern
+        $orchestratorMode = $investmentsOrReason instanceof \Illuminate\Support\Collection;
 
-        // NOTE: No DB::transaction here - caller is responsible for transaction context
-        // This method is typically called from handleChargebackConfirmed which already wraps in transaction
-        $investments = $payment->investments()->where('is_reversed', false)->get();
+        if ($orchestratorMode) {
+            $investments = $investmentsOrReason;
+            $lockedBatches = $batchesOrSource instanceof \Illuminate\Support\Collection ? $batchesOrSource : collect();
+            $reason = is_string($reasonOrSource) ? $reasonOrSource : 'Reversal via orchestrator';
+            $reversalSource = $source ?? ($reasonOrSource instanceof ReversalSource ? $reasonOrSource : ReversalSource::REFUND);
+            
+            $this->executeReverseAllocationInternal($investments, $lockedBatches, $reason, $reversalSource);
+        } else {
+            $reason = $investmentsOrReason;
+            $reversalSource = $batchesOrSource instanceof ReversalSource ? $batchesOrSource : ReversalSource::REFUND;
+            
+            DB::transaction(function () use ($payment, $reason, $reversalSource) {
+                $investments = $payment->investments()->where('is_reversed', false)->lockForUpdate()->get();
+                $this->executeReverseAllocationInternal($investments, null, $reason, $reversalSource);
+            });
+        }
+    }
 
+    protected function executeReverseAllocationInternal($investments, $lockedBatches, $reason, $reversalSource)
+    {
         foreach ($investments as $investment) {
-            $purchase = $investment->bulkPurchase()->lockForUpdate()->first();
+            if ($lockedBatches !== null && isset($lockedBatches[$investment->bulk_purchase_id])) {
+                $purchase = $lockedBatches[$investment->bulk_purchase_id];
+            } else {
+                // If not in orchestrator mode, acquire lock manually
+                $purchase = $investment->bulkPurchase()->lockForUpdate()->first();
+            }
+
             if ($purchase) {
                 $purchase->increment('value_remaining', $investment->value_allocated);
             }
 
-            // V-CHARGEBACK-SEMANTICS-2026: Store explicit reversal source
             $investment->update([
                 'is_reversed' => true,
                 'reversed_at' => now(),
                 'reversal_reason' => $reason,
-                'reversal_source' => $source->value,
+                'reversal_source' => $reversalSource->value,
             ]);
         }
-
-        \Illuminate\Support\Facades\Log::info('ALLOCATION REVERSAL COMPLETE (share-only)', [
-            'payment_id' => $payment->id,
-            'investments_reversed' => $investments->count(),
-            'total_value_restored' => $investments->sum('value_allocated'),
-            'reversal_source' => $source->value,
-            'note' => 'Wallet mutations handled by calling service',
-        ]);
     }
 
     /**

@@ -29,12 +29,15 @@ use Illuminate\Support\Facades\Notification;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use App\Enums\TransactionType; // [AUDIT FIX] Added required Enum import
 
+use App\Services\FinancialOrchestrator;
+
 class AdminUserController extends Controller
 {
     protected $walletService;
     protected $emailService;
     protected $smsService;
     protected $allocationService;
+    protected $orchestrator;
 
     private const EXPECTED_CSV_HEADERS = ['username', 'email', 'mobile'];
 
@@ -43,12 +46,14 @@ class AdminUserController extends Controller
         WalletService $walletService,
         EmailService $emailService,
         SmsService $smsService,
-        AllocationService $allocationService
+        AllocationService $allocationService,
+        FinancialOrchestrator $orchestrator
     ) {
         $this->walletService = $walletService;
         $this->emailService = $emailService;
         $this->smsService = $smsService;
         $this->allocationService = $allocationService;
+        $this->orchestrator = $orchestrator;
     }
 
     /**
@@ -222,23 +227,21 @@ class AdminUserController extends Controller
 
         try {
             if ($validated['type'] === 'credit') {
-                $this->walletService->deposit(
+                $this->orchestrator->creditUserWallet(
                     $user, 
                     $amountPaise, 
                     TransactionType::DEPOSIT, 
                     $description, 
-                    $admin,
-                    true // [NEW]: bypassComplianceCheck = true for Admin actions
+                    $admin
                 );
             } else {
                 // Do not allow overdraft for standard adjustments to ensure clean error message
-                $this->walletService->withdraw(
+                $this->orchestrator->debitUserWallet(
                     $user, 
                     $amountPaise, 
                     TransactionType::WITHDRAWAL, 
                     $description, 
                     $admin, 
-                    false, // lockBalance
                     false  // allowOverdraft = false
                 ); 
             }
@@ -269,7 +272,7 @@ class AdminUserController extends Controller
 
             $users = User::whereIn('id', $validated['user_ids'])->get();
             foreach ($users as $user) {
-                $this->walletService->deposit(
+                $this->orchestrator->creditUserWallet(
                     $user, 
                     $amountPaise, 
                     TransactionType::DEPOSIT, 

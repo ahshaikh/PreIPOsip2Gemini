@@ -8,9 +8,8 @@ use App\Models\LuckyDraw;
 use App\Models\LuckyDrawEntry;
 use App\Models\Payment;
 use App\Models\Subscription;
-use App\Models\BonusTransaction;
 use App\Models\User;
-use App\Services\WalletService;
+use App\Services\FinancialOrchestrator;
 use App\Services\TdsCalculationService;
 use App\Services\DoubleEntryLedgerService;
 use Illuminate\Support\Facades\DB;
@@ -212,92 +211,71 @@ class LuckyDrawService
      * - TDS is calculated and deducted before crediting to wallet
      * - TDS amount is recorded for remittance to government
      */
-    public function distributePrizes(LuckyDraw $draw, array $winnerUserIds, WalletService $walletService): void
+    public function distributePrizes(LuckyDraw $draw, array $winnerUserIds, FinancialOrchestrator $orchestrator): void
     {
         $prizeIndex = 0;
 
-        DB::transaction(function () use ($draw, $winnerUserIds, &$prizeIndex, $walletService) {
+        foreach ($draw->prize_structure as $tier) {
+            $rank = (int)$tier['rank'];
+            $grossAmountPaise = (int) round((float)$tier['amount'] * 100);
+            $count = (int)$tier['count'];
 
-            foreach ($draw->prize_structure as $tier) {
-                $rank = (int)$tier['rank'];
-                $grossAmount = (float)$tier['amount'];
-                $count = (int)$tier['count'];
+            for ($i = 0; $i < $count; $i++) {
+                if (!isset($winnerUserIds[$prizeIndex])) break;
 
-                for ($i = 0; $i < $count; $i++) {
-                    // Safety check if we ran out of winners
-                    if (!isset($winnerUserIds[$prizeIndex])) break;
+                $winnerId = $winnerUserIds[$prizeIndex];
 
-                    $winnerId = $winnerUserIds[$prizeIndex];
-
-                    // Find the winner's entry record
-                    $entry = $draw->entries()->where('user_id', $winnerId)->with('user', 'payment.subscription')->first();
-
-                    if (!$entry || !$entry->user) {
-                        Log::error("LuckyDrawService: Winner User ID $winnerId not found or has no user record.");
-                        $prizeIndex++;
-                        continue;
-                    }
-
-                    $user = $entry->user;
-
-                    // 1. Mark Entry as Winner
-                    $entry->update([
-                        'is_winner' => true,
-                        'prize_rank' => $rank,
-                        'prize_amount' => $grossAmount
-                    ]);
-
-                    // 2. Calculate TDS (lucky draw winnings are taxable)
-                    $tdsResult = $this->tdsService->calculate($grossAmount, 'lucky_draw');
-
-                    // 3. Create Bonus Transaction (with TDS tracking)
-                    // Ensure subscription_id exists, fall back to null if payment deleted
-                    $subId = $entry->payment ? $entry->payment->subscription_id : null;
-
-                    $bonus = BonusTransaction::create([
-                        'user_id' => $winnerId,
-                        'subscription_id' => $subId,
-                        'type' => 'lucky_draw',
-                        'amount' => $tdsResult->grossAmount, // Gross amount
-                        'tds_deducted' => $tdsResult->tdsAmount, // TDS for compliance
-                        'base_amount' => $grossAmount,
-                        'multiplier_applied' => 1.0,
-                        'description' => "Lucky Draw Winner - Rank {$rank} ({$draw->name})",
-                    ]);
-
-                    // 4. PHASE 4: Record bonus accrual in ledger FIRST (Step 1)
-                    // DEBIT MARKETING_EXPENSE (gross), CREDIT BONUS_LIABILITY (net), CREDIT TDS_PAYABLE (tds)
-                    $this->ledgerService->recordBonusWithTds(
-                        $bonus,
-                        $tdsResult->grossAmount,
-                        $tdsResult->tdsAmount
-                    );
-
-                    // 5. Transfer to wallet (Step 2)
-                    // This triggers recordBonusToWallet(): DEBIT BONUS_LIABILITY, CREDIT USER_WALLET_LIABILITY
-                    $walletService->deposit(
-                        $user,
-                        $tdsResult->netAmount, // Net amount after TDS
-                        'bonus_credit',
-                        $tdsResult->getDescription("Lucky Draw Prize (Rank {$rank})"),
-                        $bonus
-                    );
-
-                    Log::info("Lucky draw prize distributed with TDS", [
-                        'user_id' => $winnerId,
-                        'rank' => $rank,
-                        'gross_amount' => $tdsResult->grossAmount,
-                        'tds_amount' => $tdsResult->tdsAmount,
-                        'net_amount' => $tdsResult->netAmount,
-                        'bonus_id' => $bonus->id,
-                    ]);
-
-                    $prizeIndex++;
+                try {
+                    $orchestrator->awardPrize($draw, $winnerId, $rank, $grossAmountPaise);
+                } catch (\Exception $e) {
+                    Log::error("LuckyDrawService: Failed to award prize to user #{$winnerId}: " . $e->getMessage());
                 }
-            }
 
-            $draw->update(['status' => 'completed']);
-        });
+                $prizeIndex++;
+            }
+        }
+
+        $draw->update(['status' => 'completed']);
+    }
+
+    /**
+     * V-ORCHESTRATION-2026: Mutation-free logic to prepare winner record.
+     */
+    public function preparePrizeWinner(LuckyDraw $draw, int $winnerId, int $rank, int $grossAmountPaise): array
+    {
+        // 1. Calculate TDS
+        $tdsResult = $this->tdsService->calculate($grossAmountPaise / 100, 'lucky_draw');
+
+        // 2. Find entry
+        $entry = $draw->entries()
+            ->where('user_id', $winnerId)
+            ->firstOrFail();
+
+        // 3. Mark Entry as Winner
+        $entry->update([
+            'is_winner' => true,
+            'prize_rank' => $rank,
+            'prize_amount' => $grossAmountPaise / 100
+        ]);
+
+        // 4. Create Bonus Transaction record
+        $subId = $entry->payment ? $entry->payment->subscription_id : null;
+
+        $bonus = \App\Models\BonusTransaction::create([
+            'user_id' => $winnerId,
+            'subscription_id' => $subId,
+            'type' => 'lucky_draw',
+            'amount' => $tdsResult->grossAmount,
+            'tds_deducted' => $tdsResult->tdsAmount,
+            'base_amount' => $grossAmountPaise / 100,
+            'multiplier_applied' => 1.0,
+            'description' => "Lucky Draw Winner - Rank {$rank} ({$draw->name})",
+        ]);
+
+        return [
+            'bonus' => $bonus,
+            'tds_result' => $tdsResult,
+        ];
     }
 
     /**

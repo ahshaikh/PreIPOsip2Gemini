@@ -9,7 +9,7 @@ use App\Models\BonusTransaction;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\UserProfitShare;
-use App\Services\WalletService;
+use App\Services\FinancialOrchestrator;
 use App\Services\DoubleEntryLedgerService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -342,136 +342,39 @@ class ProfitShareService
 
     /**
      * FSD-REPORT-021: Distribute the funds.
-     * * --- MODULE 11 AUDIT FIX: RACE CONDITION PREVENTION ---
-     * Problem: If two admins clicked "Distribute" at the same time, or if the request timed out
-     * and was retried, users could receive double payouts.
-     * * The Fix:
-     * 1. Use `lockForUpdate()` on the ProfitShare model row. This forces any other process
-     * trying to distribute this specific ID to wait until the first one commits.
-     * 2. Re-check the status INSIDE the lock to ensure it hasn't already been marked distributed.
-     * -----------------------------------------------------
+     * 
+     * V-ORCHESTRATION-2026: Financial mutations moved to FinancialOrchestrator.
      */
-    public function distributeToWallets(ProfitShare $profitShare, User $admin)
+    public function distributeToWallets(ProfitShare $profitShare, User $admin, FinancialOrchestrator $orchestrator)
     {
-        // Wrap entire distribution in a transaction with pessimistic locking
-        return DB::transaction(function () use ($profitShare, $admin) {
-            
-            // 1. ACQUIRE LOCK (Pessimistic Lock)
-            // This waits for any other transaction on this row to finish.
-            $lockedPeriod = ProfitShare::lockForUpdate()->find($profitShare->id);
-            
-            // 2. STATUS CHECK (Inside Lock)
-            if ($lockedPeriod->status !== 'calculated') {
-                throw new \Exception("Distribution aborted: Period status is '{$lockedPeriod->status}' (Expected: calculated). It may have already been distributed.");
-            }
+        return $orchestrator->distributeProfitShare($profitShare, $admin);
+    }
 
-            $distributions = $lockedPeriod->distributions()->with('user.wallet', 'user.kyc', 'user.subscription')->get();
-            if ($distributions->isEmpty()) throw new \Exception('No distributions to process.');
+    /**
+     * V-ORCHESTRATION-2026: Mutation-free logic to prepare distribution record.
+     */
+    public function prepareDistributionRecord(UserProfitShare $dist, ProfitShare $period): array
+    {
+        $user = $dist->user;
+        $grossAmount = $dist->amount;
 
-            // FIX 29: Additional duplicate distribution check
-            // Verify that distributions haven't already been processed (bonus_transaction_id should be null)
-            $alreadyDistributed = $distributions->filter(fn($d) => !is_null($d->bonus_transaction_id));
-            if ($alreadyDistributed->isNotEmpty()) {
-                $count = $alreadyDistributed->count();
-                $sampleIds = $alreadyDistributed->take(5)->pluck('id')->implode(', ');
+        // 1. Calculate TDS
+        $tdsResult = $this->tdsService->calculate($grossAmount, 'profit_share');
 
-                Log::error('Duplicate profit share distribution attempt detected', [
-                    'profit_share_id' => $lockedPeriod->id,
-                    'already_distributed_count' => $count,
-                    'sample_distribution_ids' => $sampleIds,
-                    'attempted_by_admin' => $admin->id,
-                ]);
+        // 2. Create Bonus Record
+        $bonus = BonusTransaction::create([
+            'user_id' => $user->id,
+            'subscription_id' => $user->subscription?->id,
+            'type' => 'profit_share',
+            'amount' => $grossAmount,
+            'tds_deducted' => $tdsResult->tdsAmount,
+            'description' => "Profit Share: {$period->period_name}",
+        ]);
 
-                throw new \Exception(
-                    "Distribution aborted: {$count} distributions have already been processed " .
-                    "(have bonus_transaction_id set). This indicates a duplicate distribution attempt. " .
-                    "Period ID: {$lockedPeriod->id}"
-                );
-            }
-            
-            // V-AUDIT-MODULE10-004 (MEDIUM): TDS Configuration
-            $tdsRate = (float) setting('tds_rate', 0.10); // Standard 10% TDS
-            $penalTdsRate = (float) setting('penal_tds_rate', 0.20); // V-AUDIT-MODULE10-004: 20% penal TDS for missing PAN
-            $tdsThreshold = (float) setting('tds_threshold', 5000);
-
-            foreach ($distributions as $dist) {
-                $user = $dist->user;
-                if (!$user) continue;
-
-                $wallet = $user->wallet;
-                $grossAmount = $dist->amount;
-
-                // V-AUDIT-MODULE10-004 (MEDIUM): Penal TDS for Missing PAN
-                //
-                // Previous Issue:
-                // - TDS was only deducted if PAN exists
-                // - Missing PAN = 0% TDS (non-compliant)
-                // - In India, missing PAN mandates higher "Penal TDS" rate (typically 20%)
-                //
-                // Fix:
-                // - Check if PAN exists
-                // - If PAN exists: Apply standard TDS (10%)
-                // - If PAN missing: Apply penal TDS (20%)
-                // - Only apply if amount exceeds threshold
-                // V-AUDIT-MODULE10-003 & MODULE10-004: Use bcmath for TDS calculation precision
-                $tdsDeducted = 0;
-                if ($grossAmount > $tdsThreshold) {
-                    if ($user->kyc?->pan_number) {
-                        // PAN exists: Apply standard TDS with bcmath precision
-                        $tdsDeducted = (float) $this->bcMul($grossAmount, $tdsRate);
-                    } else {
-                        // V-AUDIT-MODULE10-004: PAN missing: Apply penal TDS with bcmath precision
-                        $tdsDeducted = (float) $this->bcMul($grossAmount, $penalTdsRate);
-                        Log::warning("Penal TDS applied for User {$user->id}: Missing PAN. TDS={$tdsDeducted} (20%)");
-                    }
-                }
-                // V-AUDIT-MODULE10-003: Use bcmath for precise net amount calculation
-                $netAmount = (float) $this->bcSub($grossAmount, $tdsDeducted);
-
-                // TODO V-AUDIT-MODULE10-003: Convert all amount calculations in calculateDistribution()
-                // to use bcmath helpers (lines 134-150, 194-204) for complete precision
-
-                // 1. Create Bonus Record
-                $bonus = BonusTransaction::create([
-                    'user_id' => $user->id,
-                    'subscription_id' => $user->subscription?->id,
-                    'type' => 'profit_share',
-                    'amount' => $grossAmount,
-                    'tds_deducted' => $tdsDeducted,
-                    'description' => "Profit Share: {$lockedPeriod->period_name}",
-                ]);
-
-                // 2. LEDGER INTEGRATION: Record profit share accrual with TDS separation
-                // Step 1: DEBIT MARKETING_EXPENSE (gross), CREDIT BONUS_LIABILITY (net), CREDIT TDS_PAYABLE (tds)
-                // This records the platform's expense and creates the user's entitlement
-                $this->ledgerService->recordProfitShareWithTds(
-                    $dist->id,
-                    $grossAmount,
-                    $tdsDeducted,
-                    $user->id
-                );
-
-                // 3. Credit Wallet - transfers from BONUS_LIABILITY to USER_WALLET_LIABILITY
-                // Step 2: WalletService::deposit triggers recordBonusToWallet() which:
-                //         DEBIT BONUS_LIABILITY, CREDIT USER_WALLET_LIABILITY
-                // This two-step flow matches the bonus accounting pattern
-                if ($netAmount > 0) {
-                    $this->walletService->deposit(
-                        $user,
-                        $netAmount,
-                        'bonus_credit',
-                        "Profit Share: {$lockedPeriod->period_name}",
-                        $bonus
-                    );
-                }
-                $dist->update(['bonus_transaction_id' => $bonus->id]);
-            }
-            
-            // 3. UPDATE STATUS (Mark as complete)
-            $lockedPeriod->update(['status' => 'distributed', 'admin_id' => $admin->id]);
-            
-            Log::info("Profit Share Period #{$profitShare->id} distributed successfully by Admin #{$admin->id}");
-        });
+        return [
+            'bonus' => $bonus,
+            'tds_result' => $tdsResult,
+        ];
     }
 
     /**
@@ -497,26 +400,9 @@ class ProfitShareService
     /**
      * V-AUDIT-MODULE10-002 (HIGH): Partial Reversal with Graceful Error Handling
      *
-     * Reverse Distribution with "Skip-and-Report" Strategy
-     *
-     * Previous Issue:
-     * - All reversals were wrapped in a single DB transaction
-     * - If User #999 out of 1000 had insufficient balance, entire transaction rolled back
-     * - Admin couldn't reverse the 999 valid cases due to one failure
-     * - "All-or-Nothing" approach was a UX pitfall
-     *
-     * Fix:
-     * - Process each reversal individually in its own transaction
-     * - Track successes and failures separately
-     * - Log failed reversals for admin review
-     * - Mark profit share as 'partially_reversed' if some failed
-     * - Return detailed report of what succeeded and what failed
-     *
-     * @param ProfitShare $profitShare
-     * @param string $reason
-     * @return array Report with success/failure details
+     * V-ORCHESTRATION-2026: Financial mutations moved to FinancialOrchestrator.
      */
-    public function reverseDistribution(ProfitShare $profitShare, string $reason): array
+    public function reverseDistribution(ProfitShare $profitShare, string $reason, FinancialOrchestrator $orchestrator): array
     {
         if ($profitShare->status !== 'distributed') {
             throw new \Exception("Only distributed periods can be reversed.");
@@ -530,65 +416,31 @@ class ProfitShareService
         $totalAmount = 0;
         $reversedAmount = 0;
 
-        // V-AUDIT-MODULE10-002: Process each reversal individually (not in global transaction)
         foreach ($distributions as $dist) {
-            if (!$dist->bonusTransaction) {
-                $failedReversals[] = [
-                    'user_id' => $dist->user_id,
-                    'username' => $dist->user->username ?? 'Unknown',
-                    'amount' => $dist->amount,
-                    'reason' => 'No bonus transaction found',
-                ];
-                continue;
+            $netAmount = 0;
+            if ($dist->bonusTransaction) {
+                $netAmount = $dist->bonusTransaction->amount - $dist->bonusTransaction->tds_deducted;
             }
-
-            $user = $dist->user;
-            $wallet = $user->wallet;
-            $bonus = $dist->bonusTransaction;
-            $netAmount = $bonus->amount - $bonus->tds_deducted;
             $totalAmount += $netAmount;
 
-            // Check wallet balance before attempting reversal
-            if ($wallet->balance < $netAmount) {
-                // V-AUDIT-MODULE10-002: Skip and log failure, don't throw exception
-                Log::warning("Reversal skipped: User {$user->id} has insufficient balance (₹{$wallet->balance}) to reverse ₹{$netAmount}");
-
-                $failedReversals[] = [
-                    'user_id' => $user->id,
-                    'username' => $user->username ?? 'Unknown',
-                    'amount' => $netAmount,
-                    'wallet_balance' => $wallet->balance,
-                    'reason' => 'Insufficient wallet balance',
-                ];
-                continue;
-            }
-
-            // Attempt reversal in individual transaction
             try {
-                DB::transaction(function () use ($user, $netAmount, $reason, $dist, $bonus) {
-                    // 1. Debit from wallet
-                    // Use 'admin_adjustment' because 'reversal' is categorized as a CREDIT in TransactionType
-                    // and would fail the DB balance conservation constraint for a withdrawal.
-                    $this->walletService->withdraw($user, $netAmount, 'admin_adjustment', "Reversal: {$reason}", $dist);
-
-                    // 2. Mark bonus transaction as reversed
-                    $bonus->update(['description' => $bonus->description . " [REVERSED]"]);
-                });
+                // All financial mutations (locking, wallet debit, bonus update)
+                // happen inside FinancialOrchestrator
+                $orchestrator->reverseProfitShareDistribution($dist, $reason);
 
                 $successCount++;
                 $reversedAmount += $netAmount;
 
-                Log::info("Reversal successful for User {$user->id}: ₹{$netAmount}");
+                Log::info("Reversal successful for User {$dist->user_id}: ₹{$netAmount}");
 
             } catch (\Exception $e) {
-                // V-AUDIT-MODULE10-002: Catch and log error, continue processing others
-                Log::error("Reversal failed for User {$user->id}: " . $e->getMessage());
+                Log::error("Reversal failed for User {$dist->user_id}: " . $e->getMessage());
 
                 $failedReversals[] = [
-                    'user_id' => $user->id,
-                    'username' => $user->username ?? 'Unknown',
+                    'user_id' => $dist->user_id,
+                    'username' => $dist->user->username ?? 'Unknown',
                     'amount' => $netAmount,
-                    'reason' => 'Transaction error: ' . $e->getMessage(),
+                    'reason' => $e->getMessage(),
                 ];
             }
         }
@@ -599,7 +451,7 @@ class ProfitShareService
             $finalStatus = $successCount > 0 ? 'partially_reversed' : 'reversal_failed';
         }
 
-        // Update profit share status
+        // Update profit share status (record management stays in service for now)
         $profitShare->update([
             'status' => $finalStatus,
             'reversal_metadata' => [
@@ -615,7 +467,6 @@ class ProfitShareService
 
         Log::info("Profit Share {$profitShare->id} reversal completed: {$successCount} succeeded, " . count($failedReversals) . " failed");
 
-        // V-AUDIT-MODULE10-002: Return detailed report for admin
         return [
             'success' => $successCount > 0,
             'status' => $finalStatus,

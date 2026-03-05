@@ -138,6 +138,7 @@ class Payment extends Model
         'retry_count',
         'failure_reason',
         'payment_type',
+        'fulfilled_at', // V-ORCHESTRATION-2026: When payment lifecycle completed
     ];
 
     protected $casts = [
@@ -147,6 +148,7 @@ class Payment extends Model
         'paid_at' => 'datetime',
         'settled_at' => 'datetime',
         'refunded_at' => 'datetime',
+        'fulfilled_at' => 'datetime', // V-ORCHESTRATION-2026
         'chargeback_initiated_at' => 'datetime', // HARDENING #6
         'chargeback_confirmed_at' => 'datetime', // HARDENING #6
         'is_on_time' => 'boolean',

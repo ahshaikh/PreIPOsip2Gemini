@@ -14,7 +14,6 @@ use App\Models\EmailTemplate;
 use App\Models\Setting;
 use App\Services\PaymentWebhookService;
 use App\Services\FileUploadService;
-use App\Jobs\ProcessSuccessfulPaymentJob;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
@@ -39,11 +38,14 @@ class ServiceIntegrationTest extends FeatureTestCase
         $this->seed(\Database\Seeders\ProductSeeder::class);
     }
 
+    /**
+     * V-ORCHESTRATION-2026: Updated to verify orchestrator pattern
+     * Instead of asserting job dispatch, verify payment was fulfilled synchronously
+     */
     #[\PHPUnit\Framework\Attributes\Test]
     public function test_payment_webhook_service_triggers_bonus_and_allocation()
     {
         // 1. Setup
-        Queue::fake(); // We don't want jobs to run, just to be queued
         $user = User::factory()->create();
         $sub = Subscription::factory()->create(['user_id' => $user->id]);
         $payment = Payment::factory()->create([
@@ -56,15 +58,17 @@ class ServiceIntegrationTest extends FeatureTestCase
         ]);
 
         $service = $this->app->make(PaymentWebhookService::class);
-        
+
         // 2. Act
         $service->handleSuccessfulPayment([
             'order_id' => 'order_123',
             'id' => 'pay_123'
         ]);
 
-        // 3. Assert
-        Queue::assertPushed(ProcessSuccessfulPaymentJob::class);
+        // 3. Assert: V-ORCHESTRATION-2026 - verify synchronous fulfillment
+        $payment->refresh();
+        $this->assertEquals('paid', $payment->status);
+        $this->assertNotNull($payment->fulfilled_at, 'Orchestrator should set fulfilled_at synchronously');
     }
 
     #[\PHPUnit\Framework\Attributes\Test]

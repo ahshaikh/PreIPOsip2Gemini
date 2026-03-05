@@ -16,20 +16,25 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
+use App\Services\FinancialOrchestrator;
+
 class InvestmentController extends Controller
 {
     protected $walletService;
     protected $allocationService;
     protected $campaignService;
+    protected $orchestrator;
 
     public function __construct(
         WalletService $walletService,
         AllocationService $allocationService,
-        CampaignService $campaignService
+        CampaignService $campaignService,
+        FinancialOrchestrator $orchestrator
     ) {
         $this->walletService = $walletService;
         $this->allocationService = $allocationService;
         $this->campaignService = $campaignService;
+        $this->orchestrator = $orchestrator;
     }
     /**
      * Get user's investments
@@ -225,19 +230,19 @@ class InvestmentController extends Controller
         try {
             DB::beginTransaction();
 
-            // 1. Debit wallet for share purchase (using final amount after discount)
+            // 1. Debit wallet for share purchase (using final amount after discount) via ORCHESTRATOR
             $description = "Share purchase: {$validated['shares_allocated']} shares of {$deal->product->name}";
             if ($discount > 0) {
                 $description .= " (₹" . number_format($discount, 2) . " discount applied)";
             }
 
-            $this->walletService->withdraw(
+            $this->orchestrator->debitUserWallet(
                 $user,
-                $finalAmount,
+                (int) round($finalAmount * 100), // Convert to paise
                 TransactionType::INVESTMENT,
                 $description,
                 null,
-                false // Not locked, immediate debit
+                false // allowOverdraft = false
             );
 
             // 2. Create investment record

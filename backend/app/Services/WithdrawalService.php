@@ -31,91 +31,60 @@ class WithdrawalService
     
     /**
      * Rename createWithdrawalRecord to requestWithdrawal for test compatibility.
+     * V-ORCHESTRATION-2026: Now routes through FinancialOrchestrator.
      */
     public function requestWithdrawal(User $user, $amount, array $bankDetails, ?string $idempotencyKey = null): Withdrawal
     {
-        return $this->createWithdrawalRecord($user, $amount, $bankDetails, $idempotencyKey);
+        $amountPaise = (int) round((float)$amount * 100);
+        return app(FinancialOrchestrator::class)->requestWithdrawal($user, $amountPaise, $bankDetails, $idempotencyKey);
     }
 
     /**
      * Creates the Withdrawal Record and calculates TDS.
+     * V-ORCHESTRATION-2026: Mutation-free (ledger only, no wallet).
+     * Called by FinancialOrchestrator within a transaction.
      */
-    public function createWithdrawalRecord(User $user, $amount, array $bankDetails, ?string $idempotencyKey = null): Withdrawal
+    public function createWithdrawalRecordInternal(User $user, int $amountPaise, array $bankDetails, ?string $idempotencyKey = null): Withdrawal
     {
-        // CRITICAL: Convert to string for financial precision
-        $amount = (string) $amount;
-
-        // 1. Validations (KYC, Min Amount, Balance)
+        // 1. Validations
         if ($user->kyc->status !== 'verified') throw new \Exception("KYC must be verified.");
 
-        $min = (string) setting('min_withdrawal_amount', 1000);
-        if (bccomp($amount, $min, 2) < 0) {
-            throw new \Exception("Minimum withdrawal amount is ₹{$min}");
+        $minPaise = (int) setting('min_withdrawal_amount', 1000) * 100;
+        if ($amountPaise < $minPaise) {
+            throw new \Exception("Minimum withdrawal amount is ₹" . ($minPaise / 100));
         }
 
-        if (!$user->wallet->hasSufficientFunds($amount)) {
+        if ($user->wallet->balance_paise < $amountPaise) {
             throw new \Exception("Insufficient wallet balance.");
         }
 
         // 2. Fees & TDS Calculation
-        $fee = '0.00';
-        $tdsRate = setting('tds_rate', 5);
-        $tdsDeducted = bcmul($amount, bcdiv($tdsRate, '100', 4), 2);
-        $netAmount = bcsub(bcsub($amount, $fee, 2), $tdsDeducted, 2);
+        $tdsRate = (float) setting('tds_rate', 5);
+        $tdsDeductedPaise = (int) round($amountPaise * ($tdsRate / 100));
+        $netAmountPaise = $amountPaise - $tdsDeductedPaise;
 
         // 3. Auto-Approval Rules
-        $autoApproveLimit = (string) setting('auto_approval_max_amount', 5000);
-        $isSmallAmount = bccomp($amount, $autoApproveLimit, 2) <= 0;
+        $autoApproveLimitPaise = (int) setting('auto_approval_max_amount', 5000) * 100;
+        $isSmallAmount = $amountPaise <= $autoApproveLimitPaise;
         $isTrustedUser = $user->payments()->where('status', 'paid')->count() >= 5;
         $initialStatus = ($isSmallAmount && $isTrustedUser) ? 'approved' : 'pending';
 
-        return DB::transaction(function () use ($user, $amount, $fee, $tdsDeducted, $netAmount, $initialStatus, $bankDetails, $idempotencyKey) {
-            // 4. Create withdrawal record
-            $amountPaise = (int) bcmul($amount, '100', 0);
-            $withdrawal = Withdrawal::create([
-                'user_id' => $user->id,
-                'wallet_id' => $user->wallet->id,
-                'amount_paise' => $amountPaise,
-                'fee_paise' => 0,
-                'tds_deducted_paise' => (int) bcmul($tdsDeducted, '100', 0),
-                'net_amount_paise' => (int) bcmul($netAmount, '100', 0),
-                'status' => $initialStatus,
-                'bank_details' => $bankDetails,
-                'idempotency_key' => $idempotencyKey,
-            ]);
+        // 4. Create withdrawal record
+        $withdrawal = Withdrawal::create([
+            'user_id' => $user->id,
+            'wallet_id' => $user->wallet->id,
+            'amount_paise' => $amountPaise,
+            'fee_paise' => 0,
+            'tds_deducted_paise' => $tdsDeductedPaise,
+            'net_amount_paise' => $netAmountPaise,
+            'status' => $initialStatus,
+            'bank_details' => $bankDetails,
+            'idempotency_key' => $idempotencyKey,
+        ]);
 
-            // 5. Lock funds immediately (Service-layer handles both balance and FundLock record)
-            if ($initialStatus === 'pending') {
-                $this->walletService->withdraw(
-                    user: $user,
-                    amount: $amount,
-                    type: 'withdrawal_request',
-                    description: "Withdrawal Request #{$withdrawal->id}",
-                    reference: $withdrawal,
-                    lockBalance: true,
-                    allowOverdraft: false
-                );
+        $user->notify(new WithdrawalRequested($withdrawal));
 
-                // Create explicit FundLock for audit trail (V-PRECISION-2026)
-                // Note: We bypass Wallet::lockFunds() to prevent double-incrementing balance
-                FundLock::create([
-                    'user_id' => $user->id,
-                    'lock_type' => 'withdrawal',
-                    'lockable_type' => Withdrawal::class,
-                    'lockable_id' => $withdrawal->id,
-                    'amount_paise' => $amountPaise,
-                    'status' => 'active',
-                    'locked_at' => now(),
-                    'locked_by' => auth()->id(),
-                ]);
-
-                $withdrawal->update(['funds_locked' => true, 'funds_locked_at' => now()]);
-            }
-
-            $user->notify(new WithdrawalRequested($withdrawal));
-
-            return $withdrawal;
-        });
+        return $withdrawal;
     }
 
     /**
@@ -139,140 +108,28 @@ class WithdrawalService
 
     /**
      * Admin rejects the withdrawal.
+     * V-ORCHESTRATION-2026: Now routes through FinancialOrchestrator.
      */
     public function rejectWithdrawal(Withdrawal $withdrawal, User $admin, string $reason)
     {
-        if (!in_array($withdrawal->status, ['pending', 'approved'])) {
-            throw new \Exception("Cannot reject a withdrawal in '{$withdrawal->status}' state.");
-        }
-
-        return DB::transaction(function () use ($withdrawal, $admin, $reason) {
-            $withdrawal->update([
-                'status' => 'rejected',
-                'admin_id' => $admin->id,
-                'rejection_reason' => $reason
-            ]);
-
-            // Unlock funds via WalletService
-            $this->walletService->unlockFunds(
-                $withdrawal->user,
-                $withdrawal->amount,
-                "Withdrawal Request #{$withdrawal->id} Rejected by Admin: {$reason}",
-                $withdrawal
-            );
-
-            // Release FundLock record
-            $lock = FundLock::where('lockable_type', Withdrawal::class)
-                ->where('lockable_id', $withdrawal->id)
-                ->where('status', 'active')
-                ->first();
-            
-            if ($lock) {
-                // Mark as released but don't call $lock->release() to avoid double-decrement
-                $lock->update(['status' => 'released', 'released_at' => now(), 'released_by' => $admin->id]);
-            }
-
-            // Mark the PENDING transaction as failed
-            Transaction::where('reference_type', Withdrawal::class)
-                ->where('reference_id', $withdrawal->id)
-                ->where('status', 'pending')
-                ->update(['status' => 'failed']);
-
-            return $withdrawal;
-        });
+        return app(FinancialOrchestrator::class)->rejectWithdrawal($withdrawal, $admin, $reason);
     }
 
     /**
      * Admin marks withdrawal as completed after bank transfer.
+     * V-ORCHESTRATION-2026: Now routes through FinancialOrchestrator.
      */
     public function completeWithdrawal(Withdrawal $withdrawal, User $admin, string $utr)
     {
-        if ($withdrawal->status !== 'approved') {
-            throw new \Exception("Only approved withdrawals can be marked as completed.");
-        }
-
-        return DB::transaction(function () use ($withdrawal, $admin, $utr) {
-            $withdrawal->update([
-                'status' => 'completed',
-                'admin_id' => $admin->id,
-                'utr_number' => $utr
-            ]);
-
-            // Debit the ALREADY LOCKED funds via WalletService
-            $this->walletService->debitLockedFunds(
-                $withdrawal->user,
-                $withdrawal->amount,
-                \App\Enums\TransactionType::WITHDRAWAL,
-                "Withdrawal Completed (UTR: {$utr})",
-                $withdrawal
-            );
-
-            // Release FundLock record
-            $lock = FundLock::where('lockable_type', Withdrawal::class)
-                ->where('lockable_id', $withdrawal->id)
-                ->where('status', 'active')
-                ->first();
-            
-            if ($lock) {
-                // Mark as released but don't call $lock->release() to avoid double-decrement
-                // (debitLockedFunds already decremented locked_balance_paise)
-                $lock->update(['status' => 'released', 'released_at' => now(), 'released_by' => $admin->id]);
-            }
-
-            // Mark the PENDING transaction as completed
-            Transaction::where('reference_type', Withdrawal::class)
-                ->where('reference_id', $withdrawal->id)
-                ->where('status', 'pending')
-                ->update(['status' => 'completed']);
-
-            return $withdrawal;
-        });
+        return app(FinancialOrchestrator::class)->completeWithdrawal($withdrawal, $admin, $utr);
     }
 
     /**
      * User cancels their own pending withdrawal request.
+     * V-ORCHESTRATION-2026: Now routes through FinancialOrchestrator.
      */
     public function cancelUserWithdrawal(User $user, Withdrawal $withdrawal)
     {
-        if ($withdrawal->user_id !== $user->id) {
-            throw new \Exception("You can only cancel your own withdrawal requests.");
-        }
-
-        if ($withdrawal->status !== 'pending') {
-            throw new \Exception("Only pending withdrawals can be cancelled. Current status: {$withdrawal->status}");
-        }
-
-        return DB::transaction(function () use ($withdrawal, $user) {
-            $withdrawal->update([
-                'status' => 'cancelled',
-                'cancelled_at' => now()
-            ]);
-
-            // Unlock funds and restore balance
-            $this->walletService->unlockFunds(
-                $withdrawal->user,
-                $withdrawal->amount,
-                "Withdrawal Request #{$withdrawal->id} Cancelled by User",
-                $withdrawal
-            );
-
-            // Release FundLock record
-            $lock = FundLock::where('lockable_type', Withdrawal::class)
-                ->where('lockable_id', $withdrawal->id)
-                ->where('status', 'active')
-                ->first();
-            
-            if ($lock) {
-                $lock->update(['status' => 'released', 'released_at' => now(), 'released_by' => $user->id]);
-            }
-
-            // Mark the PENDING transaction as cancelled
-            Transaction::where('reference_type', Withdrawal::class)
-                ->where('reference_id', $withdrawal->id)
-                ->where('status', 'pending')
-                ->update(['status' => 'cancelled']);
-
-            return $withdrawal;
-        });
+        return app(FinancialOrchestrator::class)->cancelWithdrawal($user, $withdrawal);
     }
 }

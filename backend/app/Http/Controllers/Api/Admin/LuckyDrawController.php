@@ -15,15 +15,20 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
 
+use App\Services\FinancialOrchestrator;
+use App\Enums\TransactionType;
+
 class LuckyDrawController extends Controller
 {
     protected $service;
     protected $walletService;
+    protected $orchestrator;
 
-    public function __construct(LuckyDrawService $service, WalletService $walletService)
+    public function __construct(LuckyDrawService $service, WalletService $walletService, FinancialOrchestrator $orchestrator)
     {
         $this->service = $service;
         $this->walletService = $walletService;
+        $this->orchestrator = $orchestrator;
     }
 
     /**
@@ -356,17 +361,15 @@ class LuckyDrawController extends Controller
             $amount = $entry->prize_amount;
 
             // --- 1. RECLAIM FUNDS (Financial Integrity Fix) ---
-            // We attempt to withdraw the prize amount from the disqualified user's wallet.
-            // If they have already withdrawn the money to their bank, this might result in a 
-            // negative balance (depending on wallet config), but we must record the debt.
+            // We attempt to withdraw the prize amount from the disqualified user's wallet via ORCHESTRATOR.
             try {
-                $this->walletService->withdraw(
+                $this->orchestrator->debitUserWallet(
                     $entry->user,
-                    $amount,
-                    'admin_reversal', // Special type for reversals
+                    (int) round($amount * 100), // Convert to paise
+                    TransactionType::REVERSAL,
                     "Disqualified from Lucky Draw #{$draw->id}: " . $validated['reason'],
                     $entry,
-                    false // false = Immediate debit (do not lock)
+                    true // Allow overdraft for reversals
                 );
             } catch (\Exception $e) {
                 // Log failure but proceed with disqualification logic.
@@ -399,11 +402,11 @@ class LuckyDrawController extends Controller
                     'prize_amount' => $amount,
                 ]);
 
-                // Credit wallet for replacement winner
-                $this->walletService->deposit(
+                // Credit wallet for replacement winner via ORCHESTRATOR
+                $this->orchestrator->creditUserWallet(
                     $replacement->user,
-                    $amount,
-                    'bonus_credit',
+                    (int) round($amount * 100),
+                    TransactionType::BONUS_CREDIT,
                     "Lucky Draw Prize (Rank {$rank}) - Replacement Winner",
                     null
                 );

@@ -1,5 +1,6 @@
 <?php
 // V-FINAL-1730-315
+// V-ORCHESTRATION-2026: Updated to test single-transaction orchestrator pattern
 
 namespace Tests\Feature;
 
@@ -11,10 +12,7 @@ use App\Models\Subscription;
 use App\Models\Payment;
 use App\Models\BulkPurchase;
 use App\Services\PaymentWebhookService;
-use App\Jobs\ProcessSuccessfulPaymentJob;
-use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Http;
 
 class PaymentLifecycleTest extends FeatureTestCase
 {
@@ -61,36 +59,24 @@ class PaymentLifecycleTest extends FeatureTestCase
         $this->assertEquals(1000, $payment->amount);
 
         // 3. Act 2: Simulate Razorpay Webhook
-        Queue::fake(); // Tell Laravel to hold jobs
-        
+        // V-ORCHESTRATION-2026: No Queue::fake() - orchestrator processes synchronously
         $service = $this->app->make(PaymentWebhookService::class);
         $service->handleSuccessfulPayment([
             'order_id' => $payment->gateway_order_id, // This is null, but logic handles it
             'id' => 'pay_mock_12345'
         ]);
 
-        // 4. Assert: Check that the payment was marked 'paid'
+        // 4. Assert: Check that the payment was marked 'paid' and fulfilled
+        // V-ORCHESTRATION-2026: fulfilled_at marks when orchestrator completed lifecycle
         $this->assertDatabaseHas('payments', [
             'id' => $payment->id,
             'status' => 'paid',
             'gateway_payment_id' => 'pay_mock_12345'
         ]);
 
-        // 5. Assert: Check that the main Job was pushed to the queue
-        Queue::assertPushed(ProcessSuccessfulPaymentJob::class);
-
-        // CRITICAL: Refresh payment model to get updated status from database
-        // Without this, the job sees 'pending' status and skips processing
+        // V-ORCHESTRATION-2026: Verify payment was fulfilled synchronously
         $payment->refresh();
-
-        // 6. Act 3: Now, *actually run* the job
-        // (We must resolve dependencies from the container)
-        $job = new ProcessSuccessfulPaymentJob($payment);
-        app()->call([$job, 'handle']);
-
-        // 6b. Also run the ProcessPaymentBonusJob (it was dispatched inside the main job)
-        $bonusJob = new \App\Jobs\ProcessPaymentBonusJob($payment);
-        app()->call([$bonusJob, 'handle']);
+        $this->assertNotNull($payment->fulfilled_at, 'Payment should have fulfilled_at set after orchestrator processing');
 
         // 7. Assert: Check the final database state (The Payoff)
         // Bonus created?

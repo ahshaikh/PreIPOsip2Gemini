@@ -8,16 +8,56 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "feat(webhooks): strengthen webhook reliability, recovery, and queue routing
+$CommitMessage = "feat(financial-core): implement single FinancialOrchestrator mutation boundary and complete lifecycle consolidation
+Major architectural refactor introducing a centralized financial mutation boundary via FinancialOrchestrator.
 
-- add provider, resource_type, resource_id columns to webhook_logs
-- replace JSON header lookups with indexed column queries
-- move webhook queue routing to config/webhooks.php
-- implement atomic stuck-event recovery to prevent double dispatch
-- refactor recovery and replay commands to use reliable ledger lookups
-- update WebhookLog model fillable fields
-- fix webhook reliability tests and timestamp handling
-- ensure webhook hardening and reliability test suites pass"
+Key achievements:
+• Introduced FinancialOrchestrator as the single authority for:
+* DB transactions
+* row locking
+* wallet mutations
+* ledger mutations
+* lifecycle orchestration
+
+• Completed lifecycle consolidation across the system:
+* Payment lifecycle
+* Bonus lifecycle
+* Referral lifecycle
+* Withdrawal lifecycle
+* Prize lifecycle (LuckyDraw)
+* Profit share lifecycle
+* Allocation lifecycle
+* Chargeback lifecycle
+* Dispute settlement lifecycle
+
+• Refactored services to pure domain logic:
+* BonusCalculatorService
+* CelebrationBonusService
+* ReferralService
+* ProfitShareService
+* LuckyDrawService
+* AllocationService
+* WithdrawalService
+  Services now perform calculations and validations only.
+
+• Removed direct financial mutations from:
+* Controllers
+* Jobs
+* Domain services
+* Legacy sagas
+
+• Eliminated nested transaction ownership and moved lock acquisition to orchestrator.
+
+• Fixed monetary precision regression:
+* removed float usage
+* enforced paise-based integer values for financial operations.
+
+• Resolved lock ownership violations and centralized lock ordering.
+• Consolidated celebration bonus pathways to a single orchestrated mutation flow.
+• Updated StaticAnalysisHelper to enforce mutation governance rules.
+
+Result:
+System now enforces a **single financial orchestration boundary**, dramatically reducing race conditions, deadlocks, and parallel mutation pathways while improving auditability and lifecycle determinism."
 #----------------------
 
 function Get-GitCredential {

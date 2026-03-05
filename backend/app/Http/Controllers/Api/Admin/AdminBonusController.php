@@ -18,11 +18,15 @@ use App\Services\TdsCalculationService;
 use App\Services\DoubleEntryLedgerService;
 use App\Services\Accounting\AdminLedger; // FIX 24: Admin ledger for bonus reversal tracking (DEPRECATED)
 
+use App\Services\FinancialOrchestrator;
+use App\Enums\TransactionType;
+
 class AdminBonusController extends Controller
 {
     protected WalletService $walletService;
     protected TdsCalculationService $tdsService;
     protected DoubleEntryLedgerService $ledgerService;
+    protected FinancialOrchestrator $orchestrator;
 
     // FIX 24: Property for AdminLedger (DEPRECATED - use ledgerService instead)
     protected $adminLedger;
@@ -31,12 +35,14 @@ class AdminBonusController extends Controller
         WalletService $walletService,
         TdsCalculationService $tdsService,
         DoubleEntryLedgerService $ledgerService,
-        AdminLedger $adminLedger
+        AdminLedger $adminLedger,
+        FinancialOrchestrator $orchestrator
     ) {
         $this->walletService = $walletService;
         $this->tdsService = $tdsService;
         $this->ledgerService = $ledgerService;
         $this->adminLedger = $adminLedger; // FIX 24 (DEPRECATED)
+        $this->orchestrator = $orchestrator;
     }
 
     /**
@@ -194,14 +200,15 @@ class AdminBonusController extends Controller
                 // Assuming $bonus->reverse() returns the new BonusTransaction model
                 $reversalTxn = $bonus->reverse($validated['reason']);
 
-                // 2. [ADDED] Actually withdraw the money from the user's wallet
+                // 2. [ADDED] Actually withdraw the money from the user's wallet via ORCHESTRATOR
                 // This is critical. Without this, the user keeps the money.
-                $this->walletService->withdraw(
+                $this->orchestrator->debitUserWallet(
                     $bonus->user,
-                    $bonus->amount, // Amount to remove
-                    'bonus_reversal',
+                    (int) round($bonus->amount * 100), // Convert to paise
+                    TransactionType::CHARGEBACK,
                     "Reversal of Bonus #{$bonus->id}: " . $validated['reason'],
-                    $reversalTxn // Link this withdrawal to the reversal transaction
+                    $reversalTxn, // Link this withdrawal to the reversal transaction
+                    true // Allow overdraft for reversals
                 );
 
                 // 3. FIX 24: Record in AdminLedger for complete audit trail
@@ -296,59 +303,26 @@ class AdminBonusController extends Controller
         $reason = $validated['reason'];
 
         try {
-            $bonus = DB::transaction(function () use ($user, $grossAmount, $reason) {
+            // V-ORCHESTRATION-2026: Route via orchestrator for single transaction boundary
+            $this->orchestrator->awardBulkBonus(
+                $user,
+                $grossAmount,
+                $reason,
+                'special_bonus'
+            );
 
-                // 1. Calculate TDS on the bonus amount
-                $tdsResult = $this->tdsService->calculate($grossAmount, 'special_bonus');
-
-                // 2. Create special bonus transaction record (with TDS tracking)
-                $bonusTransaction = BonusTransaction::create([
-                    'user_id' => $user->id,
-                    'subscription_id' => $user->subscriptions()->latest()->first()?->id,
-                    'payment_id' => null, // No specific payment associated
-                    'type' => 'special_bonus',
-                    'amount' => $tdsResult->grossAmount, // Gross amount
-                    'tds_deducted' => $tdsResult->tdsAmount, // TDS for compliance
-                    'multiplier_applied' => 1.0,
-                    'base_amount' => $grossAmount,
-                    'description' => "Special Bonus: {$reason}"
-                ]);
-
-                // 3. PHASE 4: Record bonus accrual in ledger FIRST (Step 1)
-                // DEBIT MARKETING_EXPENSE (gross), CREDIT BONUS_LIABILITY (net), CREDIT TDS_PAYABLE (tds)
-                $this->ledgerService->recordBonusWithTds(
-                    $bonusTransaction,
-                    $tdsResult->grossAmount,
-                    $tdsResult->tdsAmount
-                );
-
-                // 4. Transfer to wallet (Step 2)
-                // This triggers recordBonusToWallet(): DEBIT BONUS_LIABILITY, CREDIT USER_WALLET_LIABILITY
-                $this->walletService->deposit(
-                    $user,
-                    $tdsResult->netAmount, // Net amount after TDS
-                    'bonus_credit',
-                    $tdsResult->getDescription("Special Bonus: {$reason}"),
-                    $bonusTransaction
-                );
-
-                return $bonusTransaction;
-            });
-
-            // Send notification to user (gross amount shown, TDS info in details)
+            // Send notification to user
             $user->notify(new BonusCredited($grossAmount, 'Special'));
 
-            Log::info("Admin awarded special bonus with TDS", [
+            Log::info("Admin awarded special bonus via orchestrator", [
                 'user_id' => $user->id,
                 'gross_amount' => $grossAmount,
                 'reason' => $reason,
-                'bonus_id' => $bonus->id,
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => "Special bonus of ₹{$grossAmount} awarded to {$user->username} (Net after TDS: ₹" . ($bonus->amount - $bonus->tds_deducted) . ")",
-                'bonus' => $bonus,
+                'message' => "Special bonus of ₹{$grossAmount} awarded to {$user->username}",
             ]);
 
         } catch (\Exception $e) {
@@ -465,50 +439,20 @@ class AdminBonusController extends Controller
                 try {
                     $grossAmount = (float) $amount;
 
-                    // PHASE 4: Added DB::transaction with TDS and ledger integration
-                    DB::transaction(function () use ($user, $grossAmount, $reason) {
-
-                        // 1. Calculate TDS on the bonus amount
-                        $tdsResult = $this->tdsService->calculate($grossAmount, 'special_bonus');
-
-                        // 2. Create Record (with TDS tracking)
-                        $bonusTransaction = BonusTransaction::create([
-                            'user_id' => $user->id,
-                            'subscription_id' => $user->subscriptions()->latest()->first()?->id,
-                            'payment_id' => null,
-                            'type' => 'special_bonus',
-                            'amount' => $tdsResult->grossAmount,
-                            'tds_deducted' => $tdsResult->tdsAmount,
-                            'multiplier_applied' => 1.0,
-                            'base_amount' => $grossAmount,
-                            'description' => "Bulk Bonus (CSV): {$reason}"
-                        ]);
-
-                        // 3. PHASE 4: Record bonus accrual in ledger FIRST
-                        // DEBIT MARKETING_EXPENSE (gross), CREDIT BONUS_LIABILITY (net), CREDIT TDS_PAYABLE (tds)
-                        $this->ledgerService->recordBonusWithTds(
-                            $bonusTransaction,
-                            $tdsResult->grossAmount,
-                            $tdsResult->tdsAmount
-                        );
-
-                        // 4. Transfer to wallet
-                        // This triggers recordBonusToWallet(): DEBIT BONUS_LIABILITY, CREDIT USER_WALLET_LIABILITY
-                        $this->walletService->deposit(
-                            $user,
-                            $tdsResult->netAmount,
-                            'bonus_credit',
-                            $tdsResult->getDescription("Bulk Bonus (CSV): {$reason}"),
-                            $bonusTransaction
-                        );
-                    });
+                    // V-ORCHESTRATION-2026: Route via orchestrator for single transaction boundary
+                    $this->orchestrator->awardBulkBonus(
+                        $user,
+                        $grossAmount,
+                        "Bulk Bonus (CSV): {$reason}",
+                        'special_bonus'
+                    );
 
                     $user->notify(new BonusCredited($grossAmount, 'Special'));
                     $successCount++;
                 } catch (\Exception $e) {
                     $failedRows[] = [
                         'row' => $rowNumber,
-                        'reason' => 'Database error: ' . $e->getMessage(),
+                        'reason' => 'Orchestrator error: ' . $e->getMessage(),
                     ];
                 }
             }
@@ -526,4 +470,5 @@ class AdminBonusController extends Controller
             'failed_rows' => $failedRows,
         ]);
     }
+}
 }

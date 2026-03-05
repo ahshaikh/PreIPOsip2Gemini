@@ -218,8 +218,9 @@ class Wallet extends Model
 
         // DOMAIN CONTRACT: Force float to trigger WalletService rupee→paise conversion
         // WalletService::normalizeAmount treats int as paise, float as rupees
+        // V-ORCHESTRATION-2026: Pass wallet directly (not user) for new signature
         return $service->deposit(
-            user: $this->user,
+            walletOrUser: $this,
             amount: (float) $amountRupees,
             type: $type,
             description: $description,
@@ -255,8 +256,9 @@ class Wallet extends Model
 
         // DOMAIN CONTRACT: Force float to trigger WalletService rupee→paise conversion
         // WalletService::normalizeAmount treats int as paise, float as rupees
+        // V-ORCHESTRATION-2026: Pass wallet directly (not user) for new signature
         return $service->withdraw(
-            user: $this->user,
+            walletOrUser: $this,
             amount: (float) $amountRupees,
             type: $type,
             description: $description,

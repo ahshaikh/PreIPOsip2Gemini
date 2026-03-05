@@ -80,113 +80,113 @@ class WalletService
     /**
      * Safely deposit funds into a user's wallet.
      * [AUDIT FIX]: Uses integer-based Paise math to eliminate float errors.
-     * [BACKWARD COMPATIBLE]: Accepts both float (Rupees) and int (Paise) amounts
-     * [C.8 FIX]: KYC enforcement for external cash ingress
+     *
+     * V-ORCHESTRATION-2026:
+     * - Requires pre-locked Wallet instance.
+     * - Does NOT open transactions.
      */
     public function deposit(
-        User $user,
-        int|float|string $amount,
+        Wallet $wallet,
+        int $amountPaise,
         TransactionType|string $type,
         string $description = '',
-        ?Model $reference = null,
-        bool $bypassComplianceCheck = false
+        ?Model $reference = null
     ): Transaction {
-        $amountPaise = $this->normalizeAmount($amount);
-
         if ($amountPaise <= 0) {
             throw new \InvalidArgumentException("Deposit amount must be positive.");
         }
 
-        // [BACKWARD COMPATIBLE]: Convert string to TransactionType enum if needed
         if (is_string($type)) {
             $type = TransactionType::from($type);
         }
 
-        // [C.8 FIX]: COMPLIANCE GATE
-        if (!$bypassComplianceCheck) {
-            $this->enforceComplianceGate($user, $type);
+        return $this->executeDeposit($wallet, $wallet->user, $amountPaise, $type, $description, $reference);
+    }
+
+    /**
+     * Legacy deposit path for non-refactored callers.
+     * @deprecated Use deposit() with pre-locked wallet instead.
+     */
+    public function depositLegacy(
+        User $user,
+        int|float|string $amount,
+        TransactionType|string $type,
+        string $description = '',
+        ?Model $reference = null
+    ): Transaction {
+        $amountPaise = $this->normalizeAmount($amount);
+        
+        return DB::transaction(function () use ($user, $amountPaise, $type, $description, $reference) {
+            $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->firstOrCreate(['user_id' => $user->id]);
+            return $this->deposit($wallet, $amountPaise, $type, $description, $reference);
+        });
+    }
+
+    /**
+     * V-ORCHESTRATION-2026: Core deposit logic extracted for reuse.
+     * Assumes wallet is already locked by caller.
+     */
+    private function executeDeposit(
+        Wallet $wallet,
+        User $user,
+        int $amountPaise,
+        TransactionType $type,
+        string $description,
+        ?Model $reference
+    ): Transaction {
+        $balanceBefore = $wallet->balance_paise;
+
+        Log::debug("WALLET_DEPOSIT_TRACE", [
+            'user_id' => $user->id,
+            'type' => $type->value,
+            'amount' => $amountPaise,
+            'before' => $balanceBefore,
+        ]);
+
+        // [AUDIT FIX]: Atomic increment at the database level.
+        $wallet->increment('balance_paise', $amountPaise);
+        $wallet->refresh();
+
+        // [PATCH]: Runtime invariant
+        if ($wallet->balance_paise < 0) {
+            throw new \RuntimeException('Invariant violation: negative balance after deposit');
         }
 
-        return DB::transaction(function () use ($user, $amountPaise, $type, $description, $reference) {
-            // V-FIX-WALLET-LOOKUP-2026: Fixed wallet lookup to prevent creating duplicate wallets.
-            // Use explicit query by user_id instead of relationship accessor to ensure
-            // we find the wallet regardless of relationship caching state.
-            //
-            // The previous issue: $user->wallet relationship accessor may not find existing
-            // wallet when called on fresh User instances in some contexts.
-            $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->first();
-            if (!$wallet) {
-                $wallet = Wallet::create([
-                    'user_id' => $user->id,
-                    'balance_paise' => 0,
-                    'locked_balance_paise' => 0,
-                ]);
-                // Re-acquire lock after creation
-                $wallet = Wallet::where('id', $wallet->id)->lockForUpdate()->first();
-            }
+        // Create the immutable ledger entry (user wallet transaction)
+        $transaction = $wallet->transactions()->create([
+            'user_id' => $user->id,
+            'type' => $type->value,
+            'status' => 'completed',
+            'amount_paise' => $amountPaise,
+            'balance_before_paise' => $balanceBefore,
+            'balance_after_paise' => $wallet->balance_paise,
+            'description' => $description,
+            'reference_type' => $reference ? get_class($reference) : null,
+            'reference_id' => $reference?->id,
+            'transaction_id' => (string) Str::uuid(),
+        ]);
 
-            $balanceBefore = $wallet->balance_paise;
+        // PHASE 4.1: Record in double-entry ledger
+        if ($type === TransactionType::DEPOSIT || $type === TransactionType::SUBSCRIPTION_PAYMENT) {
+            $amountRupees = $amountPaise / 100;
+            $payment = $reference instanceof Payment ? $reference : null;
+            $this->ledgerService->recordUserDeposit($user, $payment ?? $transaction->id, $amountRupees);
+        }
 
-            Log::debug("WALLET_DEPOSIT_TRACE", [
-                'user_id' => $user->id,
-                'type' => $type instanceof TransactionType ? $type->value : $type,
-                'amount' => $amountPaise,
-                'before' => $balanceBefore,
-            ]);
+        // PHASE 4.1: Record refund in ledger
+        if ($type === TransactionType::REFUND) {
+            $amountRupees = $amountPaise / 100;
+            $this->ledgerService->recordRefund($reference?->id ?? $transaction->id, $amountRupees);
+        }
 
-            // [AUDIT FIX]: Atomic increment at the database level.
-            $wallet->increment('balance_paise', $amountPaise);
-            $wallet->refresh();
+        // PHASE 4 SECTION 7.2: Bonus credit to wallet
+        if ($type === TransactionType::BONUS_CREDIT) {
+            $amountRupees = $amountPaise / 100;
+            $bonusType = 'bonus_credit';
+            $this->ledgerService->recordBonusToWallet($transaction->id, $amountRupees, $bonusType);
+        }
 
-            // [PATCH]: Runtime invariant
-            if ($wallet->balance_paise < 0) {
-                throw new \RuntimeException('Invariant violation: negative balance after deposit');
-            }
-
-            // 3. Create the immutable ledger entry (user wallet transaction)
-            $transaction = $wallet->transactions()->create([
-                'user_id' => $user->id,
-                'type' => $type->value,
-                'status' => 'completed',
-                'amount_paise' => $amountPaise, // [PATCH]: ALWAYS POSITIVE
-                'balance_before_paise' => $balanceBefore,
-                'balance_after_paise' => $wallet->balance_paise,
-                'description' => $description,
-                'reference_type' => $reference ? get_class($reference) : null,
-                'reference_id' => $reference?->id,
-                'transaction_id' => (string) Str::uuid(),
-            ]);
-
-            // PHASE 4.1: Record in double-entry ledger
-            // DEBIT BANK (cash received), CREDIT USER_WALLET_LIABILITY (we owe user)
-            // Only for actual deposits (not internal transfers like bonus conversions)
-            //
-            // V-AUDIT-REVENUE-2026: Subscription payments are NOT revenue.
-            // Treat SUBSCRIPTION_PAYMENT exactly like DEPOSIT (user-owned capital).
-            if ($type === TransactionType::DEPOSIT || $type === TransactionType::SUBSCRIPTION_PAYMENT) {
-                $amountRupees = $amountPaise / 100;
-                $payment = $reference instanceof Payment ? $reference : null;
-                $this->ledgerService->recordUserDeposit($user, $payment ?? $transaction->id, $amountRupees);
-            }
-
-            // PHASE 4.1: Record refund in ledger
-            // DEBIT SHARE_SALE_INCOME (reverse revenue), CREDIT USER_WALLET_LIABILITY
-            if ($type === TransactionType::REFUND) {
-                $amountRupees = $amountPaise / 100;
-                $this->ledgerService->recordRefund($reference?->id ?? $transaction->id, $amountRupees);
-            }
-
-            // PHASE 4 SECTION 7.2: Step 7.2 - Bonus credit to wallet
-            // Transfer from BONUS_LIABILITY to USER_WALLET_LIABILITY
-            // recordBonusWithTds() has already credited BONUS_LIABILITY, now we transfer to wallet
-            if ($type === TransactionType::BONUS_CREDIT) {
-                $amountRupees = $amountPaise / 100;
-                $bonusType = 'bonus_credit'; // Generic type, actual type tracked in BonusTransaction
-                $this->ledgerService->recordBonusToWallet($transaction->id, $amountRupees, $bonusType);
-            }
-
-            return $transaction;
-        });
+        return $transaction;
     }
 
     /**
@@ -225,9 +225,11 @@ class WalletService
     /**
      * [PROTOCOL 1 FIX]: Deposit taxable funds with TDS enforcement.
      * STRUCTURALLY IMPOSSIBLE to bypass TDS.
+     *
+     * V-ORCHESTRATION-2026: Accepts Wallet|User for backward compatibility.
      */
     public function depositTaxable(
-        User $user,
+        Wallet|User $walletOrUser,
         TdsResult $tdsResult,
         TransactionType|string $type,
         string $baseDescription = '',
@@ -238,7 +240,7 @@ class WalletService
         }
 
         return $this->deposit(
-            user: $user,
+            walletOrUser: $walletOrUser,
             amount: $tdsResult->netAmount,
             type: $type,
             description: $tdsResult->getDescription($baseDescription),
@@ -248,27 +250,20 @@ class WalletService
 
     /**
      * Safely withdraw funds from a user's wallet.
-     * [AUDIT FIX]: Added $allowOverdraft parameter to support Admin corrections/recoveries.
-     *
-     * PHASE 4 SECTION 7.2: Added $bonusAmountPaise parameter for bonus usage accounting.
-     * When shares are purchased using bonus funds, the caller must specify the bonus portion.
-     * This triggers the required ledger entry: DEBIT BONUS_LIABILITY, CREDIT COST_OF_SHARES.
-     *
-     * V-WAVE3-REVERSAL: Added $bypassRecoveryCheck parameter for internal operations.
+     * V-ORCHESTRATION-2026:
+     * - Requires pre-locked Wallet instance.
+     * - Does NOT open transactions.
      */
     public function withdraw(
-        User $user,
-        int|float|string $amount,
+        Wallet $wallet,
+        int $amountPaise,
         TransactionType|string $type,
         string $description,
         ?Model $reference = null,
         bool $lockBalance = false,
         bool $allowOverdraft = false,
-        int $bonusAmountPaise = 0, // PHASE 4 SECTION 7.2: Portion of withdrawal from bonus funds
-        bool $bypassRecoveryCheck = false // V-WAVE3-REVERSAL: For internal reversal operations
+        int $bonusAmountPaise = 0
     ): Transaction {
-        $amountPaise = $this->normalizeAmount($amount);
-
         if ($amountPaise <= 0) {
             throw new \InvalidArgumentException("Withdrawal amount must be positive.");
         }
@@ -277,25 +272,14 @@ class WalletService
             $type = TransactionType::from($type);
         }
 
-        // V-WAVE3-REVERSAL: Block withdrawals if account is in recovery mode
-        // Recovery mode is set when user owes money after bonus reversal shortfall
-        // Only deposits are allowed until receivable is settled
-        if (!$bypassRecoveryCheck) {
-            $wallet = Wallet::where('user_id', $user->id)->first();
-            if ($wallet && $wallet->is_recovery_mode) {
-                throw new \App\Exceptions\Financial\AccountRecoveryModeException(
-                    "Account is in financial recovery mode. Withdrawals are blocked until outstanding receivables are settled."
-                );
-            }
-        }
-
         // PHASE 4 SECTION 7.2: Validate bonus amount doesn't exceed total
         if ($bonusAmountPaise > $amountPaise) {
             throw new \InvalidArgumentException("Bonus amount cannot exceed withdrawal amount.");
         }
 
-        return DB::transaction(function () use (
-            $user,
+        return $this->executeWithdraw(
+            $wallet,
+            $wallet->user,
             $amountPaise,
             $type,
             $description,
@@ -303,290 +287,225 @@ class WalletService
             $lockBalance,
             $allowOverdraft,
             $bonusAmountPaise
-        ) {
-            // V-FIX-WALLET-LOOKUP-2026: Use explicit query by user_id (see deposit method comment)
-            $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->first();
-            if (!$wallet) {
-                $wallet = Wallet::create([
-                    'user_id' => $user->id,
-                    'balance_paise' => 0,
-                    'locked_balance_paise' => 0,
-                ]);
-                $wallet = Wallet::where('id', $wallet->id)->lockForUpdate()->first();
-            }
+        );
+    }
 
-            Log::debug("WALLET_WITHDRAW_TRACE", [
-                'user_id' => $user->id,
-                'type' => $type instanceof TransactionType ? $type->value : $type,
-                'amount' => $amountPaise,
-                'balance' => $wallet->balance_paise,
-                'locked' => $wallet->locked_balance_paise,
-            ]);
-
-            if (!$allowOverdraft && $wallet->balance_paise < $amountPaise) {
-                $availableRupees = (string) ($wallet->balance_paise / 100);
-                $requestedRupees = (string) ($amountPaise / 100);
-                throw new InsufficientBalanceException($availableRupees, $requestedRupees);
-            }
-
-            $balanceBefore = $wallet->balance_paise;
-            $status = 'completed';
-
-            if ($lockBalance) {
-                // Move funds to locked balance for pending debit.
-                // balance_paise stays the same (total), locked_balance_paise increases.
-                // available_balance = balance_paise - locked_balance_paise (auto-computed).
-                $wallet->increment('locked_balance_paise', $amountPaise);
-                $status = 'pending';
-            } else {
-                // Direct withdrawal: decrement total balance
-                $wallet->decrement('balance_paise', $amountPaise);
-            }
-
-            $wallet->refresh();
-
-            // [PATCH]: Runtime invariants
-            if (!$allowOverdraft && $wallet->balance_paise < 0) {
-                throw new \RuntimeException('Invariant violation: negative balance');
-            }
-
-            if ($wallet->locked_balance_paise < 0) {
-                throw new \RuntimeException('Invariant violation: negative locked balance');
-            }
-
-            $transaction = $wallet->transactions()->create([
-                'user_id' => $user->id,
-                'type' => $type->value,
-                'status' => $status,
-                'amount_paise' => $amountPaise, // [PATCH]: POSITIVE, direction via type
-                'balance_before_paise' => $balanceBefore,
-                'balance_after_paise' => $wallet->balance_paise,
-                'description' => $description,
-                'reference_type' => $reference ? get_class($reference) : null,
-                'reference_id' => $reference?->id,
-                'transaction_id' => (string) Str::uuid(),
-            ]);
-
-            // PHASE 4.1: Record in double-entry ledger for completed withdrawals
-            // DEBIT USER_WALLET_LIABILITY (we owe less), CREDIT BANK (cash paid out)
-            // Only for actual withdrawals that are completed (not locked/pending)
-            if ($type === TransactionType::WITHDRAWAL && $status === 'completed') {
-                $amountRupees = $amountPaise / 100;
-                $withdrawal = $reference instanceof Withdrawal ? $reference : null;
-                // Use transaction ID as fallback if Withdrawal model is missing
-                $this->ledgerService->recordWithdrawal($withdrawal ?? $transaction->id, $amountRupees);
-            }
-
-            // PHASE 4 SECTION 7.2: Record investment ledger entries
-            // Subscription grants entitlement (access rights of the PreIPOsip platform),
-            // but subscription payments do not constitute platform revenue.
-            // All subscription funds remain user-owned capital until used for investments.
-
-            if ($type === TransactionType::INVESTMENT && $status === 'completed') {
-                $cashAmountPaise = $amountPaise - $bonusAmountPaise;
-
-                // Record share sale income for cash portion
-                // DEBIT USER_WALLET_LIABILITY, CREDIT SHARE_SALE_INCOME
-                if ($cashAmountPaise > 0) {
-                    $cashAmountRupees = $cashAmountPaise / 100;
-                    $this->ledgerService->recordShareSaleFromWallet(
-                        $transaction->id,
-                        $cashAmountRupees
-                    );
-                }
-
-                // Step 7.3: Record bonus usage for bonus portion
-                // DEBIT BONUS_LIABILITY, CREDIT COST_OF_SHARES
-                // Note: Does NOT credit SHARE_SALE_INCOME (as per requirement)
-                if ($bonusAmountPaise > 0) {
-                    $bonusAmountRupees = $bonusAmountPaise / 100;
-                    $this->ledgerService->recordBonusUsage(
-                        $transaction->id,
-                        $bonusAmountRupees,
-                        'investment' // Bonus used for share purchase
-                    );
-                }
-
-                Log::info('PHASE 4 SECTION 7.2: Investment ledger entries recorded', [
-                    'user_id' => $user->id,
-                    'transaction_id' => $transaction->id,
-                    'total_amount_paise' => $amountPaise,
-                    'bonus_amount_paise' => $bonusAmountPaise,
-                    'cash_amount_paise' => $cashAmountPaise,
-                ]);
-            }
-
-            // V-DISPUTE-REMEDIATION-2026: Record chargeback in double-entry ledger
-            // Chargebacks are BANK-INITIATED reversals that reduce both:
-            // - USER_WALLET_LIABILITY (we no longer owe user)
-            // - BANK (funds clawed back by gateway)
-            //
-            // This MUST be recorded inside the transaction to ensure atomicity.
-            // If ledger entry fails, the entire withdrawal is rolled back.
-            if ($type === TransactionType::CHARGEBACK && $status === 'completed') {
-                // Reference must be a Payment for chargebacks
-                $payment = $reference instanceof Payment ? $reference : null;
-                $amountRupees = $amountPaise / 100;
-
-                // Use transaction ID as fallback if Payment model is missing
-                $this->ledgerService->recordChargeback($payment ?? $transaction->id, $amountRupees);
-
-                Log::channel('financial_contract')->info('V-DISPUTE-REMEDIATION-2026: Chargeback ledger entry recorded', [
-                    'user_id' => $user->id,
-                    'payment_id' => $payment?->id,
-                    'transaction_id' => $transaction->id,
-                    'amount_paise' => $amountPaise,
-                ]);
-            }
-
-            // PHASE 4.1: Record TDS deduction in ledger
-            // DEBIT USER_WALLET_LIABILITY (decrease user debt), CREDIT TDS_PAYABLE
-            if ($type === TransactionType::TDS_DEDUCTION && $status === 'completed') {
-                $amountRupees = $amountPaise / 100;
-                $this->ledgerService->recordTdsDeduction($reference?->id ?? $transaction->id, $amountRupees);
-            }
-
-            return $transaction;
+    /**
+     * Legacy withdraw path.
+     * @deprecated Use withdraw() with pre-locked wallet.
+     */
+    public function withdrawLegacy(
+        User $user,
+        int|float|string $amount,
+        TransactionType|string $type,
+        string $description,
+        ?Model $reference = null,
+        bool $lockBalance = false,
+        bool $allowOverdraft = false
+    ): Transaction {
+        $amountPaise = $this->normalizeAmount($amount);
+        return DB::transaction(function () use ($user, $amountPaise, $type, $description, $reference, $lockBalance, $allowOverdraft) {
+            $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->firstOrFail();
+            return $this->withdraw($wallet, $amountPaise, $type, $description, $reference, $lockBalance, $allowOverdraft);
         });
+    }
+
+    /**
+     * V-ORCHESTRATION-2026: Core withdraw logic extracted for reuse.
+     * Assumes wallet is already locked by caller.
+     */
+    private function executeWithdraw(
+        Wallet $wallet,
+        User $user,
+        int $amountPaise,
+        TransactionType $type,
+        string $description,
+        ?Model $reference,
+        bool $lockBalance,
+        bool $allowOverdraft,
+        int $bonusAmountPaise
+    ): Transaction {
+        Log::debug("WALLET_WITHDRAW_TRACE", [
+            'user_id' => $user->id,
+            'type' => $type->value,
+            'amount' => $amountPaise,
+            'balance' => $wallet->balance_paise,
+            'locked' => $wallet->locked_balance_paise,
+        ]);
+
+        if (!$allowOverdraft && $wallet->balance_paise < $amountPaise) {
+            $availableRupees = (string) ($wallet->balance_paise / 100);
+            $requestedRupees = (string) ($amountPaise / 100);
+            throw new InsufficientBalanceException($availableRupees, $requestedRupees);
+        }
+
+        $balanceBefore = $wallet->balance_paise;
+        $status = 'completed';
+
+        if ($lockBalance) {
+            $wallet->increment('locked_balance_paise', $amountPaise);
+            $status = 'pending';
+        } else {
+            $wallet->decrement('balance_paise', $amountPaise);
+        }
+
+        $wallet->refresh();
+
+        // Runtime invariants
+        if (!$allowOverdraft && $wallet->balance_paise < 0) {
+            throw new \RuntimeException('Invariant violation: negative balance');
+        }
+
+        if ($wallet->locked_balance_paise < 0) {
+            throw new \RuntimeException('Invariant violation: negative locked balance');
+        }
+
+        $transaction = $wallet->transactions()->create([
+            'user_id' => $user->id,
+            'type' => $type->value,
+            'status' => $status,
+            'amount_paise' => $amountPaise,
+            'balance_before_paise' => $balanceBefore,
+            'balance_after_paise' => $wallet->balance_paise,
+            'description' => $description,
+            'reference_type' => $reference ? get_class($reference) : null,
+            'reference_id' => $reference?->id,
+            'transaction_id' => (string) Str::uuid(),
+        ]);
+
+        // PHASE 4.1: Record in double-entry ledger for completed withdrawals
+        if ($type === TransactionType::WITHDRAWAL && $status === 'completed') {
+            $amountRupees = $amountPaise / 100;
+            $withdrawal = $reference instanceof Withdrawal ? $reference : null;
+            $this->ledgerService->recordWithdrawal($withdrawal ?? $transaction->id, $amountRupees);
+        }
+
+        // PHASE 4 SECTION 7.2: Record investment ledger entries
+        if ($type === TransactionType::INVESTMENT && $status === 'completed') {
+            $cashAmountPaise = $amountPaise - $bonusAmountPaise;
+
+            if ($cashAmountPaise > 0) {
+                $cashAmountRupees = $cashAmountPaise / 100;
+                $this->ledgerService->recordShareSaleFromWallet($transaction->id, $cashAmountRupees);
+            }
+
+            if ($bonusAmountPaise > 0) {
+                $bonusAmountRupees = $bonusAmountPaise / 100;
+                $this->ledgerService->recordBonusUsage($transaction->id, $bonusAmountRupees, 'investment');
+            }
+
+            Log::info('PHASE 4 SECTION 7.2: Investment ledger entries recorded', [
+                'user_id' => $user->id,
+                'transaction_id' => $transaction->id,
+                'total_amount_paise' => $amountPaise,
+                'bonus_amount_paise' => $bonusAmountPaise,
+                'cash_amount_paise' => $cashAmountPaise,
+            ]);
+        }
+
+        // V-DISPUTE-REMEDIATION-2026: Record chargeback in double-entry ledger
+        if ($type === TransactionType::CHARGEBACK && $status === 'completed') {
+            $payment = $reference instanceof Payment ? $reference : null;
+            $amountRupees = $amountPaise / 100;
+            $this->ledgerService->recordChargeback($payment ?? $transaction->id, $amountRupees);
+
+            Log::channel('financial_contract')->info('V-DISPUTE-REMEDIATION-2026: Chargeback ledger entry recorded', [
+                'user_id' => $user->id,
+                'payment_id' => $payment?->id,
+                'transaction_id' => $transaction->id,
+                'amount_paise' => $amountPaise,
+            ]);
+        }
+
+        // PHASE 4.1: Record TDS deduction in ledger
+        if ($type === TransactionType::TDS_DEDUCTION && $status === 'completed') {
+            $amountRupees = $amountPaise / 100;
+            $this->ledgerService->recordTdsDeduction($reference?->id ?? $transaction->id, $amountRupees);
+        }
+
+        return $transaction;
     }
 
     /**
      * FIX 1 (P0): Lock funds for pending operation (e.g., withdrawal request)
-     * Prevents user from spending reserved funds.
-     *
-     * @throws InsufficientBalanceException if available balance insufficient
      */
     public function lockFunds(
-        User $user,
-        int|float|string $amount,
+        Wallet $wallet,
+        int $amountPaise,
         string $reason,
         ?Model $reference = null
     ): void {
-        $amountPaise = $this->normalizeAmount($amount);
-
         if ($amountPaise <= 0) {
             throw new \InvalidArgumentException("Lock amount must be positive.");
         }
 
-        DB::transaction(function () use ($user, $amountPaise, $reason, $reference) {
-            // V-FIX-WALLET-LOOKUP-2026: Use explicit query by user_id (see deposit method comment)
-            $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->first();
-            if (!$wallet) {
-                $wallet = Wallet::create([
-                    'user_id' => $user->id,
-                    'balance_paise' => 0,
-                    'locked_balance_paise' => 0,
-                ]);
-                $wallet = Wallet::where('id', $wallet->id)->lockForUpdate()->first();
-            }
+        // Check available balance (balance - locked)
+        $availableBalance = $wallet->balance_paise - $wallet->locked_balance_paise;
 
-            // Check available balance (balance - locked)
-            $availableBalance = $wallet->balance_paise - $wallet->locked_balance_paise;
+        if ($availableBalance < $amountPaise) {
+            $availableRupees = (string) ($availableBalance / 100);
+            $requestedRupees = (string) ($amountPaise / 100);
+            throw new InsufficientBalanceException($availableRupees, $requestedRupees);
+        }
 
-            if ($availableBalance < $amountPaise) {
-                $availableRupees = (string) ($availableBalance / 100);
-                $requestedRupees = (string) ($amountPaise / 100);
-                throw new InsufficientBalanceException($availableRupees, $requestedRupees);
-            }
+        // Move to locked balance
+        $wallet->increment('locked_balance_paise', $amountPaise);
+        $wallet->refresh();
 
-            // Move to locked balance
-            $wallet->increment('locked_balance_paise', $amountPaise);
-            $wallet->refresh();
-
-            // Log to audit
-            \App\Models\AuditLog::create([
-                'action' => 'wallet.lock_funds',
-                'actor_id' => auth()->id() ?? $user->id,
-                'actor_type' => auth()->user() ? get_class(auth()->user()) : User::class,
-                'description' => $reason,
-                'metadata' => [
-                    'wallet_id' => $wallet->id,
-                    'user_id' => $user->id,
-                    'transaction_id' => null,
-                    'amount_paise' => $amountPaise,
-                    'amount_rupees' => $amountPaise / 100,
-                    'reference_type' => $reference ? get_class($reference) : null,
-                    'reference_id' => $reference?->id,
-                    'new_locked_balance_paise' => $wallet->locked_balance_paise,
-                ],
-            ]);
-
-            Log::info('Wallet funds locked', [
-                'user_id' => $user->id,
+        // Log to audit
+        \App\Models\AuditLog::create([
+            'action' => 'wallet.lock_funds',
+            'actor_id' => auth()->id() ?? $wallet->user_id,
+            'actor_type' => auth()->user() ? get_class(auth()->user()) : User::class,
+            'description' => $reason,
+            'metadata' => [
+                'wallet_id' => $wallet->id,
+                'user_id' => $wallet->user_id,
                 'amount_paise' => $amountPaise,
-                'reason' => $reason,
-                'transaction_id' => null,
-            ]);
-        });
+                'reference_type' => $reference ? get_class($reference) : null,
+                'reference_id' => $reference?->id,
+            ],
+        ]);
     }
 
     /**
      * FIX 1 (P0): Unlock funds after cancellation/rejection
-     *
-     * @throws \RuntimeException if locked balance insufficient
      */
     public function unlockFunds(
-        User $user,
-        int|float|string $amount,
+        Wallet $wallet,
+        int $amountPaise,
         string $reason,
         ?Model $reference = null
     ): void {
-        $amountPaise = $this->normalizeAmount($amount);
-
         if ($amountPaise <= 0) {
             throw new \InvalidArgumentException("Unlock amount must be positive.");
         }
 
-        DB::transaction(function () use ($user, $amountPaise, $reason, $reference) {
-            // V-FIX-WALLET-LOOKUP-2026: Use explicit query by user_id (see deposit method comment)
-            $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->first();
-            if (!$wallet) {
-                $wallet = Wallet::create([
-                    'user_id' => $user->id,
-                    'balance_paise' => 0,
-                    'locked_balance_paise' => 0,
-                ]);
-                $wallet = Wallet::where('id', $wallet->id)->lockForUpdate()->first();
-            }
+        if ($wallet->locked_balance_paise < $amountPaise) {
+            throw new \RuntimeException(
+                "Cannot unlock ₹" . ($amountPaise / 100) .
+                ". Locked balance is only ₹" . ($wallet->locked_balance_paise / 100)
+            );
+        }
 
-            if ($wallet->locked_balance_paise < $amountPaise) {
-                throw new \RuntimeException(
-                    "Cannot unlock ₹" . ($amountPaise / 100) .
-                    ". Locked balance is only ₹" . ($wallet->locked_balance_paise / 100)
-                );
-            }
+        // Release from locked balance
+        $wallet->decrement('locked_balance_paise', $amountPaise);
+        $wallet->refresh();
 
-            $balanceBefore = $wallet->balance_paise;
-
-            // Release from locked balance
-            $wallet->decrement('locked_balance_paise', $amountPaise);
-            $wallet->refresh();
-
-            // Log to audit
-            \App\Models\AuditLog::create([
-                'action' => 'wallet.unlock_funds',
-                'actor_id' => auth()->id() ?? $user->id,
-                'actor_type' => auth()->user() ? get_class(auth()->user()) : User::class,
-                'description' => $reason,
-                'metadata' => [
-                    'wallet_id' => $wallet->id,
-                    'user_id' => $user->id,
-                    'transaction_id' => null,
-                    'amount_paise' => $amountPaise,
-                    'amount_rupees' => $amountPaise / 100,
-                    'reference_type' => $reference ? get_class($reference) : null,
-                    'reference_id' => $reference?->id,
-                    'new_locked_balance_paise' => $wallet->locked_balance_paise,
-                ],
-            ]);
-
-            Log::info('Wallet funds unlocked', [
-                'user_id' => $user->id,
+        // Log to audit
+        \App\Models\AuditLog::create([
+            'action' => 'wallet.unlock_funds',
+            'actor_id' => auth()->id() ?? $wallet->user_id,
+            'actor_type' => auth()->user() ? get_class(auth()->user()) : User::class,
+            'description' => $reason,
+            'metadata' => [
+                'wallet_id' => $wallet->id,
+                'user_id' => $wallet->user_id,
                 'amount_paise' => $amountPaise,
-                'reason' => $reason,
-                'transaction_id' => null,
-            ]);
-        });
+                'reference_type' => $reference ? get_class($reference) : null,
+                'reference_id' => $reference?->id,
+            ],
+        ]);
     }
 
     /**
@@ -609,19 +528,34 @@ class WalletService
      * - recordChargeback(): For bank clawbacks
      * - recordChargebackReceivable(): For shortfalls
      *
-     * @param User $user The user whose wallet to adjust
+     * V-ORCHESTRATION-2026: Accepts Wallet|User for backward compatibility.
+     * When Wallet is passed, assumes already locked by orchestrator.
+     *
+     * @param Wallet|User $walletOrUser The wallet or user whose wallet to adjust
      * @param int $netChangePaise Net change in paise (negative = debit, positive = credit)
      * @param Payment $payment The payment being charged back (for audit trail)
      * @return array{transaction: Transaction|null, shortfall_paise: int} Result with optional shortfall
      * @throws \RuntimeException If wallet cannot be found
      */
     public function processChargebackAdjustment(
-        User $user,
+        Wallet|User $walletOrUser,
         int $netChangePaise,
         Payment $payment
     ): array {
+        // V-ORCHESTRATION-2026: Resolve wallet from input
+        if ($walletOrUser instanceof Wallet) {
+            $wallet = $walletOrUser;
+            $user = $wallet->user;
+        } else {
+            $user = $walletOrUser;
+            // Legacy path: acquire lock (caller should have done this in orchestrator pattern)
+            $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->first();
+            if (!$wallet) {
+                throw new \RuntimeException("Wallet not found for user #{$user->id} during chargeback adjustment");
+            }
+        }
+
         // SINGLE SOURCE OF TRUTH: Derive investment revenue from database, not parameters.
-        // This prevents drift if allocation logic changes elsewhere.
         $investmentReversedPaise = (int) ($payment->investments()
             ->where('is_reversed', true)
             ->sum('value_allocated') * 100);
@@ -634,19 +568,11 @@ class WalletService
         ]);
 
         if ($netChangePaise === 0) {
-            // No adjustment needed (most common: full unwind where investment == chargeback)
             Log::channel('financial_contract')->debug('Chargeback wallet adjustment: no change needed', [
                 'user_id' => $user->id,
                 'payment_id' => $payment->id,
             ]);
             return ['transaction' => null, 'shortfall_paise' => 0];
-        }
-
-        // CRITICAL: Acquire row-level lock on wallet
-        // V-FIX-WALLET-LOOKUP-2026: Use explicit query by user_id (see deposit method comment)
-        $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->first();
-        if (!$wallet) {
-            throw new \RuntimeException("Wallet not found for user #{$user->id} during chargeback adjustment");
         }
 
         $balanceBefore = $wallet->balance_paise;
@@ -823,8 +749,9 @@ class WalletService
             }
 
             // Call withdraw internally
+            // V-ORCHESTRATION-2026: Updated parameter name
             $transaction = $this->withdraw(
-                user: $user,
+                walletOrUser: $user,
                 amount: $amount,
                 type: $transactionType,
                 description: $description,
@@ -877,18 +804,14 @@ class WalletService
     /**
      * FIX 1 (P0): Debit locked funds (final processing of withdrawal/payment)
      * Moves funds from both balance and locked_balance simultaneously.
-     *
-     * @throws \RuntimeException if locked balance insufficient
      */
     public function debitLockedFunds(
-        User $user,
-        int|float|string $amount,
+        Wallet $wallet,
+        int $amountPaise,
         TransactionType|string $type,
         string $description,
         ?Model $reference = null
     ): Transaction {
-        $amountPaise = $this->normalizeAmount($amount);
-
         if ($amountPaise <= 0) {
             throw new \InvalidArgumentException("Debit amount must be positive.");
         }
@@ -897,85 +820,51 @@ class WalletService
             $type = TransactionType::from($type);
         }
 
-        return DB::transaction(function () use (
-            $user,
-            $amountPaise,
-            $type,
-            $description,
-            $reference
-        ) {
-            // V-FIX-WALLET-LOOKUP-2026: Use explicit query by user_id (see deposit method comment)
-            $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->first();
-            if (!$wallet) {
-                $wallet = Wallet::create([
-                    'user_id' => $user->id,
-                    'balance_paise' => 0,
-                    'locked_balance_paise' => 0,
-                ]);
-                $wallet = Wallet::where('id', $wallet->id)->lockForUpdate()->first();
+        if ($wallet->locked_balance_paise < $amountPaise) {
+            throw new \RuntimeException(
+                "Cannot debit locked funds. Locked balance: ₹" .
+                ($wallet->locked_balance_paise / 100) .
+                ", Requested: ₹" . ($amountPaise / 100)
+            );
+        }
+
+        if ($wallet->balance_paise < $amountPaise) {
+            $availableRupees = (string) ($wallet->balance_paise / 100);
+            $requestedRupees = (string) ($amountPaise / 100);
+            throw new InsufficientBalanceException($availableRupees, $requestedRupees);
+        }
+
+        $balanceBefore = $wallet->balance_paise;
+
+        // Debit from both balances atomically
+        $wallet->decrement('balance_paise', $amountPaise);
+        $wallet->decrement('locked_balance_paise', $amountPaise);
+        $wallet->refresh();
+
+        $transaction = $wallet->transactions()->create([
+            'user_id' => $wallet->user_id,
+            'type' => $type->value,
+            'status' => 'completed',
+            'amount_paise' => $amountPaise,
+            'balance_before_paise' => $balanceBefore,
+            'balance_after_paise' => $wallet->balance_paise,
+            'description' => $description,
+            'reference_type' => $reference ? get_class($reference) : null,
+            'reference_id' => $reference?->id,
+            'transaction_id' => (string) Str::uuid(),
+        ]);
+
+        // PHASE 4.1: Record in double-entry ledger
+        if ($type === TransactionType::WITHDRAWAL) {
+            $amountRupees = $amountPaise / 100;
+            $withdrawal = $reference instanceof Withdrawal ? $reference : null;
+            $tdsRupees = 0;
+            if ($withdrawal) {
+                $tdsRupees = ($withdrawal->tds_deducted_paise ?? 0) / 100;
             }
+            $this->ledgerService->recordWithdrawal($withdrawal ?? $transaction->id, $amountRupees, $tdsRupees);
+        }
 
-            if ($wallet->locked_balance_paise < $amountPaise) {
-                throw new \RuntimeException(
-                    "Cannot debit locked funds. Locked balance: ₹" .
-                    ($wallet->locked_balance_paise / 100) .
-                    ", Requested: ₹" . ($amountPaise / 100)
-                );
-            }
-
-            if ($wallet->balance_paise < $amountPaise) {
-                $availableRupees = (string) ($wallet->balance_paise / 100);
-                $requestedRupees = (string) ($amountPaise / 100);
-                throw new InsufficientBalanceException($availableRupees, $requestedRupees);
-            }
-
-            $balanceBefore = $wallet->balance_paise;
-
-            // Debit from both balances atomically
-            // balance_paise = Total, locked_balance_paise = portion of total that is locked
-            $wallet->decrement('balance_paise', $amountPaise);
-            $wallet->decrement('locked_balance_paise', $amountPaise);
-            $wallet->refresh();
-
-            // Runtime invariants
-            if ($wallet->balance_paise < 0) {
-                throw new \RuntimeException('Invariant violation: negative balance after debit');
-            }
-
-            if ($wallet->locked_balance_paise < 0) {
-                throw new \RuntimeException('Invariant violation: negative locked balance after debit');
-            }
-
-            // V-WALLET-FIRST-2026: This is a DEBIT operation (balance IS decremented),
-            // so the DB constraint will pass correctly. No workaround needed.
-            $transaction = $wallet->transactions()->create([
-                'user_id' => $user->id,
-                'type' => $type->value,
-                'status' => 'completed',
-                'amount_paise' => $amountPaise,
-                'balance_before_paise' => $balanceBefore,
-                'balance_after_paise' => $wallet->balance_paise,
-                'description' => $description,
-                'reference_type' => $reference ? get_class($reference) : null,
-                'reference_id' => $reference?->id,
-                'transaction_id' => (string) Str::uuid(),
-            ]);
-
-            // PHASE 4.1: Record in double-entry ledger for completed withdrawals
-            // DEBIT USER_WALLET_LIABILITY (gross amount - we owe less)
-            // CREDIT BANK (net payout), CREDIT TDS_PAYABLE (government liability)
-            if ($type === TransactionType::WITHDRAWAL) {
-                $amountRupees = $amountPaise / 100;
-                $withdrawal = $reference instanceof Withdrawal ? $reference : null;
-                $tdsRupees = 0;
-                if ($withdrawal) {
-                    $tdsRupees = ($withdrawal->tds_deducted_paise ?? 0) / 100;
-                }
-                // Use transaction ID as fallback if Withdrawal model is missing
-                $this->ledgerService->recordWithdrawal($withdrawal ?? $transaction->id, $amountRupees, $tdsRupees);
-            }
-
-            return $transaction;
-        });
+        return $transaction;
     }
 }

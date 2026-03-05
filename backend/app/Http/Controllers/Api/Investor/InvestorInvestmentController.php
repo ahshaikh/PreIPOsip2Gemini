@@ -35,35 +35,38 @@ use Illuminate\Validation\ValidationException;
  *
  * AUDIT GAP FIX: This controller addresses GAP 1 from Protocol-1 audit
  */
+use App\Services\FinancialOrchestrator;
+use App\Enums\TransactionType;
+
 class InvestorInvestmentController extends Controller
 {
     protected BuyEnablementGuardService $buyGuard;
     protected InvestmentSnapshotService $snapshotService;
-    protected WalletService $walletService;
     protected PlatformSupremacyGuard $platformGuard;
     protected AdminLedger $adminLedger;
     protected CompanyShareAllocationService $allocationService;
     protected InvestorJourneyStateMachine $journeyStateMachine;
     protected InvestmentSecurityGuard $securityGuard;
+    protected FinancialOrchestrator $orchestrator;
 
     public function __construct(
         BuyEnablementGuardService $buyGuard,
         InvestmentSnapshotService $snapshotService,
-        WalletService $walletService,
         PlatformSupremacyGuard $platformGuard,
         AdminLedger $adminLedger,
         CompanyShareAllocationService $allocationService,
         InvestorJourneyStateMachine $journeyStateMachine,
-        InvestmentSecurityGuard $securityGuard
+        InvestmentSecurityGuard $securityGuard,
+        FinancialOrchestrator $orchestrator
     ) {
         $this->buyGuard = $buyGuard;
         $this->snapshotService = $snapshotService;
-        $this->walletService = $walletService;
         $this->platformGuard = $platformGuard;
         $this->adminLedger = $adminLedger;
         $this->allocationService = $allocationService;
         $this->journeyStateMachine = $journeyStateMachine;
         $this->securityGuard = $securityGuard;
+        $this->orchestrator = $orchestrator;
     }
 
     /**
@@ -407,24 +410,14 @@ class InvestorInvestmentController extends Controller
                     'status' => 'active',
                 ]);
 
-                // 9. DEBIT WALLET (ATOMIC)
-                $walletResult = $this->walletService->debit(
-                    $user->id,
-                    $amount,
+                // 9. DEBIT WALLET (ATOMIC) via ORCHESTRATOR
+                $this->orchestrator->debitUserWallet(
+                    $user,
+                    (int) round($amount * 100), // Convert to paise
+                    TransactionType::INVESTMENT,
                     "Investment in {$company->name}",
-                    'company_investment',
                     ['company_id' => $companyId, 'snapshot_id' => $snapshotId, 'investment_id' => $investment->id]
                 );
-
-                if (!$walletResult['success']) {
-                    DB::rollBack();
-                    return $this->errorResponse(
-                        'WALLET_DEBIT_FAILED',
-                        'Wallet debit failed: ' . ($walletResult['error'] ?? 'Unknown error'),
-                        500,
-                        ['company_id' => $companyId, 'wallet_error' => $walletResult['error'] ?? null]
-                    );
-                }
 
                 // 10. P0 FIX: RECORD SHARE SALE IN ADMIN LEDGER
                 // CRITICAL: This creates the platform cash credit entry
@@ -460,18 +453,18 @@ class InvestorInvestmentController extends Controller
                     // Reconciliation job should catch and fix these gaps
                 }
 
-                // 11. P0 FIX: ALLOCATE SHARES FROM INVENTORY (PROVENANCE CHAIN)
+                // 11. P0 FIX: ALLOCATE SHARES FROM INVENTORY (PROVENANCE CHAIN) via ORCHESTRATOR
                 // CRITICAL: This creates the immutable audit trail proving:
                 // BulkPurchase (platform inventory) → CompanyInvestment (subscriber ownership)
                 // Without this, we cannot prove which inventory lot funded which investment
                 try {
-                    $allocationResult = $this->allocationService->allocateForInvestment(
+                    $allocationResult = $this->orchestrator->allocateInvestmentShares(
                         investment: $investment,
                         company: $company,
                         user: $user,
                         adminLedgerEntryId: $adminLedgerEntryId
                     );
-
+                ...
                     if ($allocationResult['success']) {
                         Log::info('[INVESTMENT] Share allocation successful', [
                             'investment_id' => $investment->id,

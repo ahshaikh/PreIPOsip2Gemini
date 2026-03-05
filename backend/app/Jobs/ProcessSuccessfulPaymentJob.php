@@ -1,6 +1,12 @@
 <?php
 // V-PHASE3-1730-082 (Created) | V-FINAL-1730-455 (WalletService Refactor)
 // V-WALLET-FIRST-2026: Wallet-first architecture - user controls investment decisions
+//
+// @deprecated V-ORCHESTRATION-2026: This job is DEPRECATED.
+// Use FinancialOrchestrator::processSuccessfulPayment() for synchronous processing
+// within the single transaction boundary. This job remains for backward compatibility
+// with existing queued items but should NOT be dispatched for new payments.
+// PaymentWebhookService now calls the orchestrator directly.
 
 namespace App\Jobs;
 
@@ -20,6 +26,11 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * ProcessSuccessfulPaymentJob - Payment Processing (Wallet-First Model)
+ *
+ * @deprecated V-ORCHESTRATION-2026: Use FinancialOrchestrator::processSuccessfulPayment() instead.
+ * This job remains for backward compatibility with queued items but should NOT be dispatched
+ * for new payments. The orchestrator provides single-transaction boundary with proper
+ * lock ordering to prevent deadlocks and double-spends.
  *
  * V-WALLET-FIRST-2026:
  * - Payment credits wallet, user decides when/where to invest
@@ -70,53 +81,16 @@ class ProcessSuccessfulPaymentJob implements ShouldQueue
         }
 
         $idempotency->executeOnce($idempotencyKey, function () {
-            Log::info("Processing payment #{$this->payment->id}");
+            Log::info("Processing payment #{$this->payment->id} via Orchestrator (Legacy Job)");
 
-            $user = $this->payment->user;
-            if (!$user) {
-                throw new \RuntimeException("Payment #{$this->payment->id} has no associated user");
-            }
+            $orchestrator = app(\App\Services\FinancialOrchestrator::class);
+            $orchestrator->processSuccessfulPayment($this->payment);
 
-            $amountPaise = $this->payment->getAmountPaiseStrict();
-            $amountRupees = $amountPaise / 100;
-            $walletService = app(WalletService::class);
-
-            // 1. CREDIT PRINCIPAL TO WALLET
-            // V-WALLET-FIRST-2026: User receives funds in wallet, decides what to do
-            $walletService->deposit(
-                $user,
-                $amountPaise,
-                TransactionType::DEPOSIT,
-                "Payment received for SIP installment #{$this->payment->id}",
-                $this->payment
-            );
-            Log::info("WALLET +₹{$amountRupees}: Payment #{$this->payment->id} credited to user #{$user->id}");
-
-            // 2. CALCULATE AND CREDIT BONUSES
-            // V-WALLET-FIRST-2026: Bonus credited as cash, user decides how to use it
-            ProcessPaymentBonusJob::dispatch($this->payment);
-
-            // 3. PROCESS REFERRALS (if first payment)
-            $this->processReferralIfFirstPayment();
-
-            // 4. GENERATE LUCKY DRAW ENTRIES
-            GenerateLuckyDrawEntryJob::dispatch($this->payment);
-
-            // 5. SEND NOTIFICATIONS
-            SendPaymentConfirmationEmailJob::dispatch($this->payment);
-
-            Log::info("Payment #{$this->payment->id} processed. User wallet credited ₹{$amountRupees}");
-
-            // NOTE: No auto-investment. User will:
-            // - Browse available companies
-            // - Click "Buy Shares" on chosen company
-            // - That triggers withdrawal + share allocation
-
+            Log::info("Payment #{$this->payment->id} processed via Orchestrator.");
         }, [
             'job_class' => self::class,
             'input_data' => [
                 'payment_id' => $this->payment->id,
-                'amount_paise' => $this->payment->amount_paise ?? (int) round($this->payment->amount * 100),
                 'user_id' => $this->payment->user_id,
             ],
         ]);

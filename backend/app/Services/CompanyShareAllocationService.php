@@ -49,124 +49,71 @@ class CompanyShareAllocationService
         User $user,
         ?int $adminLedgerEntryId = null
     ): array {
+        $orchestrator = app(\App\Services\FinancialOrchestrator::class);
+        return $orchestrator->executeCompanyAllocation($investment, $company, $user, $adminLedgerEntryId);
+    }
+
+    /**
+     * V-ORCHESTRATION-2026: Core allocation logic using pre-locked batches.
+     */
+    public function executeAllocationLogic(
+        CompanyInvestment $investment,
+        Company $company,
+        User $user,
+        \Illuminate\Support\Collection $batches,
+        ?int $adminLedgerEntryId = null
+    ): array {
+        $totalAvailable = $batches->sum('value_remaining');
         $amount = (float) $investment->amount;
 
-        if ($amount <= 0) {
-            return ['success' => false, 'error' => 'Investment amount must be positive'];
+        if ($totalAvailable < $amount) {
+            throw new \Exception("Insufficient inventory for company #{$company->id}. Requested: {$amount}, Available: {$totalAvailable}");
         }
 
-        return DB::transaction(function () use ($investment, $company, $user, $amount, $adminLedgerEntryId) {
-            // P0 FIX (GAP 24): Set REPEATABLE READ isolation to prevent phantom reads
-            // This ensures consistent inventory reads within the transaction
-            DB::statement('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
+        $remainingToAllocate = $amount;
+        $allocationLogs = [];
 
-            // 1. Find available inventory for this company (FIFO)
-            // P0 FIX (GAP 22): lockForUpdate() prevents concurrent allocation race conditions
-            $batches = BulkPurchase::where('company_id', $company->id)
-                ->where('value_remaining', '>', 0)
-                ->orderBy('purchase_date', 'asc')
-                ->lockForUpdate()
-                ->get();
+        foreach ($batches as $batch) {
+            if ($remainingToAllocate <= 0.01) break;
 
-            $totalAvailable = $batches->sum('value_remaining');
+            $allocateFromBatch = min($batch->value_remaining, $remainingToAllocate);
+            if ($allocateFromBatch < 0.01) continue;
 
-            if ($totalAvailable < $amount) {
-                Log::warning('[ALLOCATION] Insufficient inventory for company investment', [
-                    'investment_id' => $investment->id,
-                    'company_id' => $company->id,
-                    'requested' => $amount,
-                    'available' => $totalAvailable,
-                ]);
+            $inventoryBefore = $batch->value_remaining;
+            $batch->decrement('value_remaining', $allocateFromBatch);
+            $inventoryAfter = $batch->value_remaining;
 
-                return [
-                    'success' => false,
-                    'error' => "Insufficient inventory. Requested: ₹{$amount}, Available: ₹{$totalAvailable}",
-                    'available' => $totalAvailable,
-                ];
-            }
-
-            $remainingToAllocate = $amount;
-            $allocationLogs = [];
-            $totalAllocated = 0;
-
-            foreach ($batches as $batch) {
-                if ($remainingToAllocate <= 0.01) {
-                    break;
-                }
-
-                $allocateFromBatch = min($batch->value_remaining, $remainingToAllocate);
-                if ($allocateFromBatch < 0.01) {
-                    continue;
-                }
-
-                $inventoryBefore = $batch->value_remaining;
-
-                // 2. Decrement inventory
-                $batch->decrement('value_remaining', $allocateFromBatch);
-                $batch->refresh();
-
-                $inventoryAfter = $batch->value_remaining;
-
-                // 3. Create immutable allocation log
-                $allocationLog = ShareAllocationLog::create([
-                    'bulk_purchase_id' => $batch->id,
-                    'allocatable_type' => CompanyInvestment::class,
-                    'allocatable_id' => $investment->id,
-                    'value_allocated' => $allocateFromBatch,
-                    'units_allocated' => null, // Company investments don't have unit granularity
-                    'inventory_before' => $inventoryBefore,
-                    'inventory_after' => $inventoryAfter,
-                    'admin_ledger_entry_id' => $adminLedgerEntryId,
-                    'company_id' => $company->id,
-                    'user_id' => $user->id,
-                    'allocated_by' => null, // Auto-allocation
-                    'ip_address' => request()->ip(),
-                    'user_agent' => request()->userAgent(),
-                    'metadata' => [
-                        'batch_purchase_date' => $batch->purchase_date?->toDateString(),
-                        'batch_discount_percentage' => $batch->discount_percentage,
-                    ],
-                ]);
-
-                $allocationLogs[] = $allocationLog;
-                $totalAllocated += $allocateFromBatch;
-                $remainingToAllocate -= $allocateFromBatch;
-
-                Log::info('[ALLOCATION] Share allocation from batch', [
-                    'allocation_log_id' => $allocationLog->id,
-                    'investment_id' => $investment->id,
-                    'bulk_purchase_id' => $batch->id,
-                    'amount' => $allocateFromBatch,
-                    'inventory_before' => $inventoryBefore,
-                    'inventory_after' => $inventoryAfter,
-                ]);
-            }
-
-            // 4. Update investment with allocation info
-            // Use the first batch for the primary link (most significant allocation)
-            $primaryBatchId = $allocationLogs[0]->bulk_purchase_id ?? null;
-
-            $investment->update([
-                'bulk_purchase_id' => $primaryBatchId,
+            // Create immutable log
+            $allocationLog = ShareAllocationLog::create([
+                'bulk_purchase_id' => $batch->id,
+                'allocatable_type' => CompanyInvestment::class,
+                'allocatable_id' => $investment->id,
+                'value_allocated' => $allocateFromBatch,
+                'inventory_before' => $inventoryBefore,
+                'inventory_after' => $inventoryAfter,
                 'admin_ledger_entry_id' => $adminLedgerEntryId,
-                'allocation_status' => $totalAllocated >= $amount ? 'allocated' : 'partially_allocated',
-                'allocated_value' => $totalAllocated,
+                'company_id' => $company->id,
+                'user_id' => $user->id,
+                'metadata' => [
+                    'batch_id' => $batch->id,
+                ],
             ]);
 
-            Log::info('[ALLOCATION] Company investment allocation complete', [
-                'investment_id' => $investment->id,
-                'total_allocated' => $totalAllocated,
-                'allocation_logs_count' => count($allocationLogs),
-                'primary_batch_id' => $primaryBatchId,
-            ]);
+            $allocationLogs[] = $allocationLog;
+            $remainingToAllocate -= $allocateFromBatch;
+        }
 
-            return [
-                'success' => true,
-                'allocation_log_ids' => collect($allocationLogs)->pluck('id')->toArray(),
-                'total_allocated' => $totalAllocated,
-                'batches_used' => count($allocationLogs),
-            ];
-        });
+        // Update investment status
+        $investment->update([
+            'allocation_status' => 'allocated',
+            'allocated_value' => $amount,
+            'admin_ledger_entry_id' => $adminLedgerEntryId,
+        ]);
+
+        return [
+            'success' => true,
+            'allocation_log_ids' => collect($allocationLogs)->pluck('id')->toArray(),
+        ];
     }
 
     /**
@@ -239,77 +186,10 @@ class CompanyShareAllocationService
      */
     public function reverseAllocation(CompanyInvestment $investment, string $reason): array
     {
-        return DB::transaction(function () use ($investment, $reason) {
-            $allocationLogs = ShareAllocationLog::where('allocatable_type', CompanyInvestment::class)
-                ->where('allocatable_id', $investment->id)
-                ->where('is_reversed', false)
-                ->get();
-
-            if ($allocationLogs->isEmpty()) {
-                return ['success' => true, 'restored_value' => 0, 'message' => 'No active allocations to reverse'];
-            }
-
-            $totalRestored = 0;
-
-            foreach ($allocationLogs as $log) {
-                // Lock and restore inventory
-                $batch = BulkPurchase::lockForUpdate()->find($log->bulk_purchase_id);
-                if ($batch) {
-                    $batch->increment('value_remaining', $log->value_allocated);
-                }
-
-                // Create compensating log entry
-                $reversalLog = ShareAllocationLog::create([
-                    'bulk_purchase_id' => $log->bulk_purchase_id,
-                    'allocatable_type' => CompanyInvestment::class,
-                    'allocatable_id' => $investment->id,
-                    'value_allocated' => -$log->value_allocated, // Negative for reversal
-                    'units_allocated' => $log->units_allocated ? -$log->units_allocated : null,
-                    'inventory_before' => $batch?->value_remaining - $log->value_allocated,
-                    'inventory_after' => $batch?->value_remaining,
-                    'admin_ledger_entry_id' => null,
-                    'company_id' => $log->company_id,
-                    'user_id' => $log->user_id,
-                    'allocated_by' => auth()->id(),
-                    'ip_address' => request()->ip(),
-                    'user_agent' => request()->userAgent(),
-                    'metadata' => [
-                        'reversal_of_log_id' => $log->id,
-                        'reason' => $reason,
-                    ],
-                ]);
-
-                // Mark original as reversed
-                $log->update([
-                    'is_reversed' => true,
-                    'reversed_at' => now(),
-                    'reversal_reason' => $reason,
-                    'reversal_log_id' => $reversalLog->id,
-                ]);
-
-                $totalRestored += $log->value_allocated;
-            }
-
-            // Update investment
-            $investment->update([
-                'allocation_status' => 'unallocated',
-                'allocated_value' => 0,
-                'bulk_purchase_id' => null,
-            ]);
-
-            Log::info('[ALLOCATION] Investment allocation reversed', [
-                'investment_id' => $investment->id,
-                'total_restored' => $totalRestored,
-                'logs_reversed' => $allocationLogs->count(),
-                'reason' => $reason,
-            ]);
-
-            return [
-                'success' => true,
-                'restored_value' => $totalRestored,
-                'logs_reversed' => $allocationLogs->count(),
-            ];
-        });
+        $orchestrator = app(\App\Services\FinancialOrchestrator::class);
+        $orchestrator->reverseCompanyAllocation($investment, $reason);
+        
+        return ['success' => true];
     }
 
     /**

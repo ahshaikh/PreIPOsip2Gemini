@@ -194,7 +194,8 @@ class UserService
             $amount = $data['amount'] ?? 0;
             if ($amount <= 0) throw new \InvalidArgumentException('Invalid bonus amount');
             foreach ($users as $user) {
-                $this->walletService->deposit($user, $amount, 'manual_bonus', 'Bulk Bonus Award', $admin);
+                $amountPaise = (int) round($amount * 100);
+                app(\App\Services\FinancialOrchestrator::class)->awardBulkBonus($user, $amountPaise, 'Bulk Bonus Award', 'manual_bonus');
             }
             return ['message' => "Bonus of $amount awarded to $count users."];
         }

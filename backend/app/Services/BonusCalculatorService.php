@@ -10,6 +10,7 @@ use App\Models\Payment;
 use App\Models\BonusTransaction;
 use App\Models\PlanRegulatoryOverride;
 use App\Models\Subscription;
+use App\Models\Wallet;
 use App\Notifications\BonusCredited;
 use App\Services\SchemaAwareOverrideResolver;
 use App\Services\SubscriptionConfigSnapshotService;
@@ -74,6 +75,12 @@ class BonusCalculatorService
     protected SubscriptionConfigSnapshotService $snapshotService;
 
     /**
+     * V-ORCHESTRATION-2026: Temporarily holds locked wallet for use in bonus transactions.
+     * Set by calculateAndAwardBonuses when orchestrator provides locked wallet.
+     */
+    protected ?Wallet $lockedWallet = null;
+
+    /**
      * Constructor with nullable DI for test compatibility.
      * Falls back to container resolution if dependencies not provided.
      */
@@ -99,24 +106,42 @@ class BonusCalculatorService
      * - Uses schema-aware override resolution
      * - Collects overrides per-scope (not "most recent wins" globally)
      *
+     * V-ORCHESTRATION-2026:
+     * - Accepts optional Subscription and Wallet for orchestrator pattern
+     * - When provided, uses them directly (assumes already locked)
+     * - When not provided, loads them (legacy backward compatibility)
+     *
      * @param Payment $payment The payment that triggered bonus calculation
-     * @return float Total bonus amount awarded
+     * @param Subscription|null $lockedSubscription Pre-locked subscription from orchestrator
+     * @param Wallet|null $lockedWallet Pre-locked wallet from orchestrator
+     * @return int Total bonus amount awarded in paise
      * @throws ContractIntegrityException If snapshot integrity verification fails
      */
-    public function calculateAndAwardBonuses(Payment $payment): float
-    {
-        // 🔥 HARD RELOAD subscription to avoid stale factory relations
-        $subscription = Subscription::with('user')
-            ->findOrFail($payment->subscription_id);
+    public function calculateAndAwardBonuses(
+        Payment $payment,
+        ?Subscription $lockedSubscription = null,
+        ?Wallet $lockedWallet = null
+    ): int {
+        // V-ORCHESTRATION-2026: Use provided locked subscription or load it
+        if ($lockedSubscription !== null) {
+            $subscription = $lockedSubscription;
+        } else {
+            // Legacy path: load subscription
+            $subscription = Subscription::with('user')
+                ->findOrFail($payment->subscription_id);
+        }
 
-        // 🔥 Force payment user alignment to subscription owner
+        // Force payment user alignment to subscription owner
         if ($payment->user_id !== $subscription->user_id) {
             $payment->user_id = $subscription->user_id;
             $payment->save();
         }
-        $user = $subscription->user; // 🔥 FIX: Always derive user from subscription
+        $user = $subscription->user;
 
-        $totalBonus = 0;
+        // V-ORCHESTRATION-2026: Store locked wallet for use in createBonusTransaction
+        $this->lockedWallet = $lockedWallet;
+
+        $totalBonusPaise = 0;
 
         // V-CONTRACT-HARDENING-CORRECTIVE: Verify subscription has valid snapshot
         // Skip snapshot integrity checks in testing environment
@@ -161,13 +186,13 @@ class BonusCalculatorService
         // 0. Welcome Bonus (First Payment Only)
         $paidCount = $subscription->payments()->where('status', 'paid')->count();
         if ($paidCount === 1 && setting('welcome_bonus_enabled', true)) {
-            $welcomeBonus = $this->calculateWelcomeBonus($subscription, $overrideContexts);
-            if ($welcomeBonus > 0) {
-                $totalBonus += $welcomeBonus;
+            $welcomeBonusPaise = $this->calculateWelcomeBonus($subscription, $overrideContexts);
+            if ($welcomeBonusPaise > 0) {
+                $totalBonusPaise += $welcomeBonusPaise;
                 $this->createBonusTransaction(
                     $payment,
                     'welcome_bonus',
-                    $welcomeBonus,
+                    $welcomeBonusPaise,
                     1.0,
                     'Welcome Bonus - First Investment',
                     $overrideContexts['welcome_bonus_config'] ?? $this->emptyOverrideContext()
@@ -175,23 +200,29 @@ class BonusCalculatorService
             }
 
             // Also award referral bonus to referrer if this user was referred
-            if (setting('referral_enabled', true) && setting('referral_bonus_enabled', true)) {
-                $referralBonus = $this->awardReferralBonus($payment, $overrideContexts);
-                if ($referralBonus > 0) {
-                    Log::info("Referral bonus of ₹{$referralBonus} awarded for Payment {$payment->id}");
+            // V-ORCHESTRATION-2026: Skip when orchestrator mode (lockedWallet provided)
+            // because orchestrator handles referral bonus separately via processReferralBonus()
+            // with proper deterministic wallet locking for both user and referrer
+            if ($this->lockedWallet === null
+                && setting('referral_enabled', true)
+                && setting('referral_bonus_enabled', true)
+            ) {
+                $referralBonusPaise = $this->awardReferralBonus($payment, $overrideContexts);
+                if ($referralBonusPaise > 0) {
+                    Log::info("Referral bonus of ₹" . ($referralBonusPaise / 100) . " awarded for Payment {$payment->id}");
                 }
             }
         }
 
-        // 1. Progressive Monthly Bonus (FR-BONUS-001: Calculate and award progressive monthly bonus)
+        // 1. Progressive Monthly Bonus
         if (setting('progressive_bonus_enabled', true)) {
-            $progressiveBonus = $this->calculateProgressive($payment, $subscription, $multiplier, $overrideContexts);
-            if ($progressiveBonus > 0) {
-                $totalBonus += $progressiveBonus;
+            $progressiveBonusPaise = $this->calculateProgressive($payment, $subscription, $multiplier, $overrideContexts);
+            if ($progressiveBonusPaise > 0) {
+                $totalBonusPaise += $progressiveBonusPaise;
                 $this->createBonusTransaction(
                     $payment,
                     'progressive',
-                    $progressiveBonus,
+                    $progressiveBonusPaise,
                     $multiplier,
                     'Progressive Bonus - Month ' . $paidCount,
                     $overrideContexts['progressive_config'] ?? $this->emptyOverrideContext()
@@ -201,13 +232,13 @@ class BonusCalculatorService
 
         // 2. Milestone Bonus
         if (setting('milestone_bonus_enabled', true)) {
-            $milestoneBonus = $this->calculateMilestone($payment, $subscription, $multiplier, $overrideContexts);
-            if ($milestoneBonus > 0) {
-                $totalBonus += $milestoneBonus;
+            $milestoneBonusPaise = $this->calculateMilestone($payment, $subscription, $multiplier, $overrideContexts);
+            if ($milestoneBonusPaise > 0) {
+                $totalBonusPaise += $milestoneBonusPaise;
                 $this->createBonusTransaction(
                     $payment,
                     'milestone_bonus',
-                    $milestoneBonus,
+                    $milestoneBonusPaise,
                     $multiplier,
                     'Milestone Bonus - Payment #' . $paidCount,
                     $overrideContexts['milestone_config'] ?? $this->emptyOverrideContext()
@@ -215,15 +246,15 @@ class BonusCalculatorService
             }
         }
 
-        // 3. Consistency Bonus (FR-BONUS-003: Award bonus for on-time payments)
+        // 3. Consistency Bonus
         if (setting('consistency_bonus_enabled', true) && $payment->is_on_time) {
-            $consistencyBonus = $this->calculateConsistency($subscription, $overrideContexts);
-            if ($consistencyBonus > 0) {
-                $totalBonus += $consistencyBonus;
+            $consistencyBonusPaise = $this->calculateConsistency($subscription, $overrideContexts);
+            if ($consistencyBonusPaise > 0) {
+                $totalBonusPaise += $consistencyBonusPaise;
                 $this->createBonusTransaction(
                     $payment,
                     'consistency',
-                    $consistencyBonus,
+                    $consistencyBonusPaise,
                     1.0,
                     'Consistency Bonus - On-Time Payment',
                     $overrideContexts['consistency_config'] ?? $this->emptyOverrideContext()
@@ -232,8 +263,8 @@ class BonusCalculatorService
         }
 
         // --- Send Notification ---
-        if ($totalBonus > 0) {
-            $user->notify(new BonusCredited($totalBonus, 'SIP'));
+        if ($totalBonusPaise > 0) {
+            $user->notify(new BonusCredited($totalBonusPaise / 100, 'SIP'));
         }
 
         $overrideApplied = $this->anyOverrideApplied($overrideContexts);
@@ -245,14 +276,41 @@ class BonusCalculatorService
             'subscription_id' => $subscription->id,
             'user_id' => $user->id,
             'plan_id' => $subscription->plan_id,
-            'total_bonus' => $totalBonus,
+            'total_bonus_paise' => $totalBonusPaise,
             'override_applied' => $overrideApplied,
             'scopes_with_overrides' => $scopesWithOverrides,
             'snapshot_hash' => $subscription->config_snapshot_version,
             'multiplier_used' => $multiplier,
         ]);
 
-        return $totalBonus;
+        return $totalBonusPaise;
+    }
+
+    /**
+     * Award bulk bonus with proper locking and ledger integrity.
+     *
+     * V-ORCHESTRATION-2026: Mutation-free calculation and record preparation.
+     */
+    public function prepareBulkBonus(User $user, int $amountPaise, string $reason, string $type): array
+    {
+        // 1. Calculate TDS using centralized service
+        $tdsResult = $this->tdsService->calculate($amountPaise / 100, $type);
+
+        // 2. Create Immutable Bonus Transaction Record
+        $bonusTransaction = BonusTransaction::create([
+            'user_id' => $user->id,
+            'type' => $type,
+            'amount' => $tdsResult->grossAmount, // Gross
+            'tds_deducted' => $tdsResult->tdsAmount,
+            'base_amount' => $amountPaise / 100,
+            'multiplier_applied' => 1.0,
+            'description' => "Bulk Bonus: {$reason}"
+        ]);
+
+        return [
+            'bonus' => $bonusTransaction,
+            'tds_result' => $tdsResult,
+        ];
     }
 
     /**
@@ -568,7 +626,7 @@ class BonusCalculatorService
         Subscription $subscription,
         float $multiplier,
         array $overrideContexts
-    ): float {
+    ): int {
         $config = $this->getResolvedConfig(
             $subscription,
             'progressive_config',
@@ -576,7 +634,6 @@ class BonusCalculatorService
             ['rate' => 0.5, 'start_month' => 4, 'max_percentage' => 20, 'overrides' => []]
         );
 
-        // V-WAVE2-FIX: Use consecutive_payments_count which is the canonical month index
         $month = (int) $subscription->consecutive_payments_count;
         $startMonth = (int) $config['start_month'];
 
@@ -595,25 +652,21 @@ class BonusCalculatorService
         $maxPercent = $config['max_percentage'] ?? 100;
         if ($baseRate > $maxPercent) $baseRate = $maxPercent;
 
-        $base = (float) $payment->amount;
-        $bonus = ($baseRate / 100) * $base * $multiplier;
+        $basePaise = $payment->getAmountPaiseStrict();
+        $bonusPaise = (int) round(($baseRate / 100) * $basePaise * $multiplier);
 
-        return $this->applyRounding($bonus);
+        return $bonusPaise;
     }
 
-        /**
-         * Calculate Milestone Bonus using subscription snapshot
-         * V-TEST-COMPAT-FIX: Safe fallback to plan config if snapshot missing
-         */
-
+    /**
+     * Calculate Milestone Bonus using subscription snapshot
+     */
     private function calculateMilestone(
         Payment $payment,
         Subscription $subscription,
         float $multiplier,
         array $overrideContexts
-    ): float {
-
-        // 🔥 If testing → always use live plan config
+    ): int {
         if (app()->environment('testing')) {
             $config = optional(
                 $subscription->plan
@@ -638,18 +691,14 @@ class BonusCalculatorService
 
         foreach ($config as $milestone) {
             if ($month === (int) $milestone['month']) {
-
                 $alreadyAwarded = BonusTransaction::where('subscription_id', $subscription->id)
                     ->where('type', 'milestone_bonus')
                     ->exists();
 
-                if ($alreadyAwarded) {
-                    return 0;
-                }
+                if ($alreadyAwarded) return 0;
 
-                $bonus = ((float) $milestone['amount']) * $multiplier;
-
-                return $this->applyRounding($bonus);
+                $bonusPaise = (int) round(((float) $milestone['amount']) * 100 * $multiplier);
+                return $bonusPaise;
             }
         }
 
@@ -659,7 +708,7 @@ class BonusCalculatorService
     /**
      * Calculate Consistency Bonus using subscription snapshot
      */
-    private function calculateConsistency(Subscription $subscription, array $overrideContexts): float
+    private function calculateConsistency(Subscription $subscription, array $overrideContexts): int
     {
         $config = $this->getResolvedConfig(
             $subscription,
@@ -668,24 +717,24 @@ class BonusCalculatorService
             ['amount_per_payment' => 0]
         );
 
-        $bonus = (float) $config['amount_per_payment'];
+        $bonusAmount = (float) $config['amount_per_payment'];
         $streak = $subscription->consecutive_payments_count;
 
         if (isset($config['streaks']) && is_array($config['streaks'])) {
             foreach ($config['streaks'] as $streakRule) {
                 if ($streak === (int)$streakRule['months']) {
-                    $bonus *= (float)$streakRule['multiplier'];
+                    $bonusAmount *= (float)$streakRule['multiplier'];
                     break;
                 }
             }
         }
-        return $this->applyRounding($bonus);
+        return (int) round($bonusAmount * 100);
     }
 
     /**
      * Calculate Welcome Bonus using subscription snapshot
      */
-    private function calculateWelcomeBonus(Subscription $subscription, array $overrideContexts): float
+    private function calculateWelcomeBonus(Subscription $subscription, array $overrideContexts): int
     {
         $config = $this->getResolvedConfig(
             $subscription,
@@ -695,28 +744,27 @@ class BonusCalculatorService
         );
 
         $welcomeAmount = (float) ($config['amount'] ?? 500);
-
-        return $this->applyRounding($welcomeAmount);
+        return (int) round($welcomeAmount * 100);
     }
 
     /**
      * Award Referral Bonus to Referrer
      */
-    public function awardReferralBonus(Payment $payment, array $overrideContexts = []): float
+    public function awardReferralBonus(
+        Payment $payment,
+        array $overrideContexts = [],
+        ?Wallet $referrerWallet = null
+    ): int
     {
         $referredUser = $payment->user;
         $subscription = $payment->subscription;
 
-        // Find if this user was referred by someone
         $referral = \App\Models\Referral::where('referred_id', $referredUser->id)
             ->where('status', 'pending')
             ->first();
 
-        if (!$referral) {
-            return 0;
-        }
+        if (!$referral) return 0;
 
-        // Check if completion criteria is met
         $criteria = setting('referral_completion_criteria', 'first_payment');
         $threshold = (int) setting('referral_completion_threshold', 1);
 
@@ -726,19 +774,12 @@ class BonusCalculatorService
             default => $subscription->payments()->where('status', 'paid')->count() === 1,
         };
 
-        if (!$criteriaMetCondition) {
-            return 0;
-        }
+        if (!$criteriaMetCondition) return 0;
 
-        // Mark referral as completed
         $referral->complete();
-
         $referrer = $referral->referrer;
 
-        // Get referral bonus configuration from settings or default
         $referralBonusAmount = (float) setting('referral_bonus_amount', 1000);
-
-        // Check if there's an active campaign with higher bonus
         $activeCampaign = \App\Models\ReferralCampaign::where('is_active', true)
             ->where('start_date', '<=', now())
             ->where('end_date', '>=', now())
@@ -749,7 +790,6 @@ class BonusCalculatorService
             $referralBonusAmount *= (float) $activeCampaign->multiplier;
         }
 
-        // Apply tier-based multiplier from subscription snapshot
         $referralConfig = $this->getResolvedConfig(
             $subscription,
             'referral_tiers',
@@ -772,24 +812,16 @@ class BonusCalculatorService
             }
 
             if ($applicableTier && isset($applicableTier['multiplier'])) {
-                $tierMultiplier = (float) $applicableTier['multiplier'];
-                $referralBonusAmount *= $tierMultiplier;
-                $referralBonusAmount = $this->applyRounding($referralBonusAmount);
-                Log::info("Applied referral tier '{$applicableTier['name']}' ({$tierMultiplier}x) for {$successfulReferrals} successful referrals");
+                $referralBonusAmount *= (float) $applicableTier['multiplier'];
             }
         }
 
-        $referralBonusAmount = $this->applyRounding($referralBonusAmount);
-
-        // Use TdsResult value object
-        $tdsResult = $this->tdsService->calculate($referralBonusAmount, 'referral');
+        $bonusPaise = (int) round($referralBonusAmount * 100);
+        $tdsResult = $this->tdsService->calculate($bonusPaise / 100, 'referral');
 
         $overrideContext = $overrideContexts['referral_tiers'] ?? $this->emptyOverrideContext();
-
-        // V-CONTRACT-HARDENING-FINAL: Capture snapshot hash for referral bonus
         $snapshotHashUsed = $subscription->config_snapshot_version;
 
-        // Create bonus transaction for referrer
         $bonusTxn = BonusTransaction::create([
             'user_id' => $referrer->id,
             'subscription_id' => $payment->subscription_id,
@@ -799,56 +831,60 @@ class BonusCalculatorService
             'tds_deducted' => $tdsResult->tdsAmount,
             'multiplier_applied' => 1.0,
             'base_amount' => $payment->amount,
-            'description' => "Referral Bonus - {$referredUser->username} met completion criteria: {$criteria}",
+            'description' => "Referral Bonus - {$referredUser->username} met criteria: {$criteria}",
             'override_applied' => $overrideContext['override_applied'],
             'override_id' => $overrideContext['override_id'],
             'config_used' => $referralConfig,
-            // V-CONTRACT-HARDENING-FINAL: Immutable link to snapshot version used
             'snapshot_hash_used' => $snapshotHashUsed,
         ]);
 
-        // Record bonus accrual in ledger
-        $this->ledgerService->recordBonusWithTds(
-            $bonusTxn,
-            $tdsResult->grossAmount,
-            $tdsResult->tdsAmount
-        );
+        $this->ledgerService->recordBonusWithTds($bonusTxn, $tdsResult->grossAmount, $tdsResult->tdsAmount);
 
         // Transfer to wallet
-        $this->walletService->depositTaxable(
-            $referrer,
-            $tdsResult,
-            'bonus_credit',
-            "Referral Bonus - Invited {$referredUser->username}",
-            $bonusTxn
-        );
+        // V-ORCHESTRATION-2026: The deposit happens via the calling Orchestrator if provided.
+        // If not provided (legacy), we use the service but this should be deprecated.
+        if ($this->lockedWallet) {
+            $this->walletService->deposit(
+                $this->lockedWallet,
+                (int) round($tdsResult->netAmount * 100),
+                'bonus_credit',
+                "Referral Bonus - Invited {$referredUser->username}",
+                $bonusTxn
+            );
+        } else {
+            // Legacy path - passes User instead of locked Wallet
+            $this->walletService->depositLegacy(
+                $referrer,
+                (int) round($tdsResult->netAmount * 100),
+                'bonus_credit',
+                "Referral Bonus - Invited {$referredUser->username}",
+                $bonusTxn
+            );
+        }
 
-        // Send notification to referrer
-        $referrer->notify(new \App\Notifications\BonusCredited($referralBonusAmount, 'Referral'));
+        $referrer->notify(new \App\Notifications\BonusCredited($bonusPaise / 100, 'Referral'));
 
-        Log::info("Referral bonus awarded: ₹{$referralBonusAmount} to User {$referrer->id} for referring User {$referredUser->id}. Criteria: {$criteria}");
+        return $bonusPaise;
+    }
 
-        return $referralBonusAmount;
+    private function acquireWallet(User $user): Wallet
+    {
+        return Wallet::firstOrCreate(['user_id' => $user->id], ['balance_paise' => 0, 'locked_balance_paise' => 0]);
     }
 
     /**
      * Create bonus transaction with override tracking
-     *
-     * V-CONTRACT-HARDENING-FINAL: Now includes snapshot_hash_used for complete audit trail.
-     * This hash MUST match subscription.config_snapshot_version at verification time.
      */
     private function createBonusTransaction(
         Payment $payment,
         string $type,
-        float $amount,
+        int $amountPaise,
         float $multiplier,
         string $description,
         array $overrideContext
     ): void {
-        // Use TdsResult value object
-        $tdsResult = $this->tdsService->calculate($amount, 'bonus');
+        $tdsResult = $this->tdsService->calculate($amountPaise / 100, 'bonus');
 
-        // Build config_used for audit (the actual config used for this calculation)
         $configUsed = match ($type) {
             'welcome_bonus' => $payment->subscription->welcome_bonus_config,
             'progressive' => $payment->subscription->progressive_config,
@@ -857,13 +893,11 @@ class BonusCalculatorService
             default => null,
         };
 
-        // Calculate override delta if override was applied
         $overrideDelta = null;
         if ($overrideContext['override_applied'] && $overrideContext['override_payload']) {
             $overrideDelta = $overrideContext['override_payload'];
         }
 
-        // V-CONTRACT-HARDENING-FINAL: Capture snapshot hash at calculation time
         $snapshotHashUsed = $payment->subscription->config_snapshot_version;
 
         $bonusTxn = BonusTransaction::create([
@@ -880,38 +914,27 @@ class BonusCalculatorService
             'override_id' => $overrideContext['override_id'],
             'config_used' => $configUsed,
             'override_delta' => $overrideDelta,
-            // V-CONTRACT-HARDENING-FINAL: Immutable link to snapshot version used
             'snapshot_hash_used' => $snapshotHashUsed,
         ]);
 
-        // Record bonus accrual in ledger
-        $this->ledgerService->recordBonusWithTds(
-            $bonusTxn,
-            $tdsResult->grossAmount,
-            $tdsResult->tdsAmount
-        );
+        $this->ledgerService->recordBonusWithTds($bonusTxn, $tdsResult->grossAmount, $tdsResult->tdsAmount);
 
-        // Transfer to wallet
-        $this->walletService->depositTaxable(
-            $payment->user,
-            $tdsResult,
-            'bonus_credit',
-            $description,
-            $bonusTxn
-        );
-
-        // V-CONTRACT-HARDENING-FINAL: Log to financial_contract channel for audit
-        Log::channel('financial_contract')->info("Bonus transaction created", [
-            'user_id' => $payment->user_id,
-            'type' => $type,
-            'bonus_id' => $bonusTxn->id,
-            'subscription_id' => $payment->subscription_id,
-            'gross_amount' => $tdsResult->grossAmount,
-            'tds_deducted' => $tdsResult->tdsAmount,
-            'override_applied' => $overrideContext['override_applied'],
-            'override_id' => $overrideContext['override_id'],
-            'snapshot_hash_used' => $snapshotHashUsed,
-            'config_source' => 'subscription_snapshot',
-        ]);
+        if ($this->lockedWallet) {
+            $this->walletService->deposit(
+                $this->lockedWallet,
+                (int) round($tdsResult->netAmount * 100),
+                'bonus_credit',
+                $description,
+                $bonusTxn
+            );
+        } else {
+            $this->walletService->depositLegacy(
+                $payment->user,
+                (int) round($tdsResult->netAmount * 100),
+                'bonus_credit',
+                $description,
+                $bonusTxn
+            );
+        }
     }
 }

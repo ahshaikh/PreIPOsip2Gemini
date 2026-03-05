@@ -131,15 +131,6 @@ class CelebrationBonusService
 
     /**
      * Award a milestone bonus to a subscriber.
-     *
-     * LEDGER INTEGRATION (Phase 4):
-     * 1. Calculate TDS on gross bonus amount
-     * 2. Record in double-entry ledger: DEBIT MARKETING_EXPENSE, CREDIT BONUS_LIABILITY + TDS_PAYABLE
-     * 3. Transfer to wallet: DEBIT BONUS_LIABILITY, CREDIT USER_WALLET_LIABILITY
-     *
-     * @param Subscription $subscription
-     * @param array $milestone
-     * @return array
      */
     protected function awardMilestoneBonus(Subscription $subscription, array $milestone): array
     {
@@ -148,81 +139,27 @@ class CelebrationBonusService
         $bonusValue = (float) ($milestone['bonus_amount'] ?? 0);
         $milestoneName = $milestone['name'] ?? 'Milestone Bonus';
 
-        // Calculate actual bonus amount (GROSS)
         if ($bonusType === 'percentage') {
             $grossBonusAmount = $subscription->investment_amount * ($bonusValue / 100);
         } else {
             $grossBonusAmount = $bonusValue;
         }
 
-        return DB::transaction(function () use ($user, $subscription, $milestone, $milestoneName, $bonusType, $grossBonusAmount) {
-            // 1. Calculate TDS on gross bonus (type 'celebration' as per config/tds.php)
-            $tdsResult = $this->tdsService->calculate($grossBonusAmount, 'celebration');
+        $amountPaise = (int) round($grossBonusAmount * 100);
 
-            // 2. Create BonusTransaction record
-            $bonusTxn = \App\Models\BonusTransaction::create([
-                'user_id' => $user->id,
-                'subscription_id' => $subscription->id,
-                'type' => 'celebration',
-                'amount' => $tdsResult->netAmount, // Net amount after TDS
-                'base_amount' => $grossBonusAmount,
-                'tds_deducted' => $tdsResult->tdsAmount,
-                'multiplier_applied' => 1.0,
-                'description' => $milestoneName,
-                'metadata' => [
-                    'milestone_type' => $milestone['type'] ?? null,
-                    'milestone_threshold' => $milestone['threshold'] ?? null,
-                    'bonus_type' => $bonusType,
-                    'plan_id' => $subscription->plan_id,
-                ],
-            ]);
+        // V-ORCHESTRATION-2026: Route via orchestrator
+        app(\App\Services\FinancialOrchestrator::class)->awardBulkBonus(
+            $user,
+            $amountPaise,
+            $milestoneName,
+            'celebration'
+        );
 
-            // 3. Record in double-entry ledger with TDS separation
-            // DEBIT MARKETING_EXPENSE (gross), CREDIT BONUS_LIABILITY (net), CREDIT TDS_PAYABLE (tds)
-            $this->ledgerService->recordBonusWithTds(
-                $bonusTxn,
-                $grossBonusAmount,
-                $tdsResult->tdsAmount
-            );
-
-            // 4. Deposit net amount to user wallet (triggers recordBonusToWallet)
-            // DEBIT BONUS_LIABILITY, CREDIT USER_WALLET_LIABILITY
-            $transaction = $this->walletService->deposit(
-                $user,
-                $tdsResult->netAmount * 100, // Convert to paise
-                \App\Enums\TransactionType::BONUS_CREDIT,
-                $tdsResult->getDescription($milestoneName),
-                $bonusTxn
-            );
-
-            // 5. Update transaction with metadata
-            $transaction->update([
-                'metadata' => array_merge($transaction->metadata ?? [], [
-                    'bonus_transaction_id' => $bonusTxn->id,
-                    'milestone_name' => $milestoneName,
-                    'gross_amount' => $grossBonusAmount,
-                    'tds_amount' => $tdsResult->tdsAmount,
-                ])
-            ]);
-
-            Log::info("Celebration Bonus Awarded with TDS", [
-                'user_id' => $user->id,
-                'gross_amount' => $grossBonusAmount,
-                'tds_amount' => $tdsResult->tdsAmount,
-                'net_amount' => $tdsResult->netAmount,
-                'milestone' => $milestoneName,
-            ]);
-
-            return [
-                'milestone_name' => $milestoneName,
-                'milestone_type' => $milestone['type'] ?? null,
-                'gross_amount' => $grossBonusAmount,
-                'tds_amount' => $tdsResult->tdsAmount,
-                'net_amount' => $tdsResult->netAmount,
-                'transaction_id' => $transaction->id,
-                'bonus_transaction_id' => $bonusTxn->id,
-            ];
-        });
+        return [
+            'milestone_name' => $milestoneName,
+            'gross_amount' => $grossBonusAmount,
+            'status' => 'awarded'
+        ];
     }
 
     /**

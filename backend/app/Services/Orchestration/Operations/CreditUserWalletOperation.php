@@ -36,12 +36,12 @@ class CreditUserWalletOperation implements OperationInterface
             // WalletService::deposit() expects: (User, amount, TransactionType, description, ?Model reference, bool bypassCheck)
             // Previous call was passing wrong parameter types
             // Credit wallet (atomic operation)
-            $transaction = $this->walletService->deposit(
+            $transaction = $this->walletService->depositLegacy(
                 $this->user,
                 $this->amount,
-                TransactionType::DEPOSIT,  // V-FIX: Use enum instead of 'payment_received' string
+                TransactionType::DEPOSIT,
                 "Payment #{$this->payment->id} received",
-                $this->payment  // V-FIX: Pass Payment model (not string 'payment' and id separately)
+                $this->payment
             );
 
             // Store transaction ID for potential compensation
@@ -82,13 +82,12 @@ class CreditUserWalletOperation implements OperationInterface
 
         try {
             // Reverse the credit by debiting the same amount
-            $this->walletService->withdraw(
+            $this->walletService->withdrawLegacy(
                 $this->user,
                 $this->amount,
                 'payment_reversal',
                 "Payment #{$this->payment->id} reversed (saga compensation)",
-                'payment',
-                $this->payment->id
+                $this->payment
             );
 
             Log::info("COMPENSATION: Wallet credit reversed", [

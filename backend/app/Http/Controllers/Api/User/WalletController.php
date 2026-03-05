@@ -240,24 +240,20 @@ class WalletController extends Controller
         }
 
         try {
-            $withdrawal = DB::transaction(function () use ($user, $amount, $amountPaise, $validated, $idempotencyKey) {
+            $safeBankDetails = [
+                'account_number' => $validated['bank_details']['account'] ?? $validated['bank_details']['account_number'] ?? null,
+                'ifsc_code' => $validated['bank_details']['ifsc'] ?? $validated['bank_details']['ifsc_code'] ?? null,
+                'account_holder_name' => $validated['bank_details']['account_holder_name'] ?? null,
+                'bank_name' => $validated['bank_details']['bank_name'] ?? null,
+            ];
 
-                $safeBankDetails = [
-                    'account_number' => $validated['bank_details']['account'] ?? $validated['bank_details']['account_number'] ?? null,
-                    'ifsc_code' => $validated['bank_details']['ifsc'] ?? $validated['bank_details']['ifsc_code'] ?? null,
-                    'account_holder_name' => $validated['bank_details']['account_holder_name'] ?? null,
-                    'bank_name' => $validated['bank_details']['bank_name'] ?? null,
-                ];
-
-                $withdrawal = $this->withdrawalService->createWithdrawalRecord(
-                    $user,
-                    $amount,
-                    $safeBankDetails,
-                    $idempotencyKey
-                );
-
-                return $withdrawal;
-            });
+            // V-ORCHESTRATION-2026: Route via service which delegates to orchestrator
+            $withdrawal = $this->withdrawalService->requestWithdrawal(
+                $user,
+                $amount,
+                $safeBankDetails,
+                $idempotencyKey
+            );
 
             if ($withdrawal->status === 'approved') {
                 event(new \App\Events\WithdrawalApproved($withdrawal));
