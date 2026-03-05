@@ -45,7 +45,7 @@ class ProcessWebhookJob implements ShouldQueue
             }
 
             // 2. Check current status in ledger (Audit Protection)
-            if ($ledgerEntry->processing_status === 'success') {
+            if ($ledgerEntry->processing_status === 'PROCESSED') {
                 Log::info("ProcessWebhookJob: Event {$ledgerEntry->event_id} already processed successfully. Skipping.");
                 return;
             }
@@ -80,7 +80,7 @@ class ProcessWebhookJob implements ShouldQueue
                             ]);
                             
                             $ledgerEntry->update([
-                                'processing_status' => 'success',
+                                'processing_status' => 'PROCESSED',
                                 'processed_at' => now(),
                             ]);
                             $this->webhookLog->markAsSuccess(['message' => 'Ignored due to event ordering protection (Layer 2)'], 200);
@@ -88,8 +88,8 @@ class ProcessWebhookJob implements ShouldQueue
                         }
                     }
 
-                    // 4. Update status to processing
-                    $ledgerEntry->update(['processing_status' => 'processing']);
+                    // Step 4: PROCESSING
+                    $ledgerEntry->update(['processing_status' => 'PROCESSING']);
                     $this->webhookLog->markAsProcessing();
 
                     // 5. Resolve provider and process
@@ -112,9 +112,9 @@ class ProcessWebhookJob implements ShouldQueue
                     // Use the EventRouter for decoupled processing
                     $eventRouter->dispatch($provider, $event, $data, $metadata);
 
-                    // 6. Success Tracking
+                    // Step 5: PROCESSED
                     $ledgerEntry->update([
-                        'processing_status' => 'success',
+                        'processing_status' => 'PROCESSED',
                         'processed_at' => now(),
                     ]);
                     $this->webhookLog->markAsSuccess(['message' => 'Institutional processing complete'], 200);
@@ -134,6 +134,7 @@ class ProcessWebhookJob implements ShouldQueue
 
             // DLQ Handling (Layer 4 Reliability)
             if ($this->attempts() >= 5) {
+                // Step 7: DEAD_LETTER
                 // Fix: Atomic insertion to prevent race conditions in DLQ.
                 // Do not use json_encode here if the model casts 'payload' to array/json.
                 // Even for insertOrIgnore, Laravel's Query Builder handles the array if the DB supports JSON.
@@ -150,14 +151,15 @@ class ProcessWebhookJob implements ShouldQueue
                     'updated_at' => now(),
                 ]);
 
-                $ledgerEntry->update(['processing_status' => 'dead_letter']);
+                $ledgerEntry->update(['processing_status' => 'DEAD_LETTER']);
                 $this->webhookLog->markAsFailed($e->getMessage() . " (Moved to DLQ)", 500);
                 
                 // Do not re-throw if moved to DLQ (stops the retry cycle)
                 return;
             }
 
-            $ledgerEntry->update(['processing_status' => 'failed']);
+            // Step 6: FAILED (Retryable)
+            $ledgerEntry->update(['processing_status' => 'FAILED']);
             $this->webhookLog->markAsFailed($e->getMessage(), 500);
 
             // Re-throw to trigger queue retry if needed

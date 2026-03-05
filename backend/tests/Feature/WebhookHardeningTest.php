@@ -61,7 +61,7 @@ class WebhookHardeningTest extends TestCase
             'event_id' => 'evt_failed_123',
             'payload_hash' => 'hash',
             'payload_size' => 100,
-            'processing_status' => 'pending',
+            'processing_status' => 'RECEIVED',
             'resource_id' => 'res_123',
             'resource_type' => 'payment',
         ]);
@@ -88,7 +88,7 @@ class WebhookHardeningTest extends TestCase
 
         // After failure, check DLQ
         $this->assertEquals(1, WebhookDeadLetter::where('event_id', 'evt_failed_123')->count());
-        $this->assertEquals('dead_letter', WebhookEventLedger::where('event_id', 'evt_failed_123')->first()->processing_status);
+        $this->assertEquals('DEAD_LETTER', WebhookEventLedger::where('event_id', 'evt_failed_123')->first()->processing_status);
         $this->assertEquals('Final Failure (Moved to DLQ)', $webhookLog->fresh()->error_message);
     }
 
@@ -108,7 +108,7 @@ class WebhookHardeningTest extends TestCase
             'event_timestamp' => 300,
             'payload_hash' => 'hash_concurrent',
             'payload_size' => 100,
-            'processing_status' => 'pending',
+            'processing_status' => 'RECEIVED',
         ]);
 
         $webhookLog = WebhookLog::create([
@@ -134,8 +134,8 @@ class WebhookHardeningTest extends TestCase
         Log::shouldHaveReceived('warning')
             ->with("ProcessWebhookJob: Could not acquire lock for resource {$resourceType} {$resourceId}. Re-queueing.");
         
-        // Assert: Status should still be pending since it was re-queued
-        $this->assertEquals('pending', $ledger->fresh()->processing_status);
+        // Assert: Status should still be RECEIVED since it was re-queued
+        $this->assertEquals('RECEIVED', $ledger->fresh()->processing_status);
         
         $lock->release();
     }
@@ -168,7 +168,7 @@ class WebhookHardeningTest extends TestCase
             'event_timestamp' => 100,
             'payload_hash' => 'hash_old',
             'payload_size' => 100,
-            'processing_status' => 'pending',
+            'processing_status' => 'RECEIVED',
         ]);
 
         $webhookLog = WebhookLog::create([
@@ -187,7 +187,7 @@ class WebhookHardeningTest extends TestCase
         Log::shouldHaveReceived('warning')
             ->with("ORDERING PROTECTION: Out-of-order event ignored for payment {$resourceId}. [Incoming Timestamp: 100] < [Latest Processed: 200]. Provider: razorpay, Event: evt_old. Skipping processing to prevent state regression.", \Mockery::type('array'));
         
-        $this->assertEquals('success', $ledger->fresh()->processing_status);
+        $this->assertEquals('PROCESSED', $ledger->fresh()->processing_status);
         $this->assertEquals('Ignored due to event ordering protection (Layer 2)', $webhookLog->fresh()->response['message']);
     }
 }

@@ -38,4 +38,19 @@ return [
         'razorpay' => 'test_razorpay_secret',
         'hmac' => 'test_hmac_secret',
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Webhook Queues
+    |--------------------------------------------------------------------------
+    |
+    | Map resource types to isolated queues.
+    |
+    */
+    'queues' => [
+        'payment' => 'webhooks_payments',
+        'subscription' => 'webhooks_subscriptions',
+        'refund' => 'webhooks_refunds',
+        'default' => 'webhooks_default',
+    ],
 ];

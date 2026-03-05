@@ -76,7 +76,7 @@ class WebhookReplayGuard
                 'event_timestamp' => $eventTimestamp,
                 'signature_verified' => true,
                 'timestamp_valid' => true,
-                'processing_status' => 'pending',
+                'processing_status' => 'RECEIVED', // Step 1: RECEIVED
                 'received_at' => now(),
             ]);
             $isNew = true;
@@ -98,20 +98,23 @@ class WebhookReplayGuard
             $isNew = false;
         }
 
-        // 5. Replay Detection
+        // 5. Replay & Integrity Detection (Payload Integrity Enforcement)
         if (!$isNew) {
             $ledgerEntry->update(['replay_detected' => true]);
             
             // Check for payload mismatch (Malicious tampering detection)
             if ($ledgerEntry->payload_hash !== $payloadHash) {
                 $ledgerEntry->update(['payload_mismatch_detected' => true]);
-                Log::critical("SECURITY ALERT: Webhook payload mismatch detected for replay. Possible tampering attempt.", [
+                Log::critical("SECURITY ALERT: Webhook payload mismatch detected for replay. Possible tampering attempt. Event ID: {$eventId}, Provider: {$provider}", [
                     'provider' => $provider,
                     'event_id' => $eventId,
                     'original_hash' => $ledgerEntry->payload_hash,
                     'new_hash' => $payloadHash,
                     'ip' => $request->ip()
                 ]);
+
+                // Requirement: Do NOT process the event on payload mismatch
+                return response()->json(['error' => 'Security integrity failure', 'message' => 'Payload mismatch detected'], 403);
             }
 
             Log::info("WebhookReplayGuard: Duplicate event detected for {$provider}: {$eventId}");
@@ -119,6 +122,9 @@ class WebhookReplayGuard
             // For idempotency, we return 200 OK for replays but skip processing
             return response()->json(['status' => 'duplicate', 'message' => 'Event already received'], 200);
         }
+
+        // Step 2: VALIDATED (Signature and Timestamp verified, and it's a new unique event)
+        $ledgerEntry->update(['processing_status' => 'VALIDATED']);
 
         // Attach ledger entry and verifier info to request for controller use
         $request->attributes->set('webhook_ledger_id', $ledgerEntry->id);

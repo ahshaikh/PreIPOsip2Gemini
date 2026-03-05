@@ -35,14 +35,18 @@ class WebhookController extends Controller
         // 1. Extract event metadata
         $event = $verifier->extractEventType($payload);
         $eventId = $verifier->extractEventId($payload);
+        $resourceId = $verifier->extractResourceId($payload);
+        $resourceType = $verifier->extractResourceType($payload);
 
         // 2. Create WebhookLog for backward-compatible forensic trace & retry capability
         $webhookLog = WebhookLog::create([
             'event_type' => $event,
             'webhook_id' => $eventId,
+            'provider' => $provider,
+            'resource_type' => $resourceType,
+            'resource_id' => $resourceId,
             'payload' => $data,
             'headers' => [
-                'provider' => $provider,
                 'user_agent' => $request->header('User-Agent'),
                 'ip' => $request->ip(),
                 'ledger_id' => $ledgerId,
@@ -51,13 +55,11 @@ class WebhookController extends Controller
         ]);
 
         // 3. Resolve isolation queue based on resource type (Stripe-style isolation)
-        $resourceType = $verifier->extractResourceType($payload);
-        $queue = match($resourceType) {
-            'payment' => 'webhooks_payments',
-            'subscription' => 'webhooks_subscriptions',
-            'refund' => 'webhooks_refunds',
-            default => 'webhooks_default',
-        };
+        $queues = config('webhooks.queues');
+        $queue = $queues[$resourceType] ?? $queues['default'];
+
+        // Step 3: ENQUEUED
+        \App\Models\WebhookEventLedger::where('id', $ledgerId)->update(['processing_status' => 'ENQUEUED']);
 
         // 4. Dispatch isolated processing job
         ProcessWebhookJob::dispatch($webhookLog, $ledgerId)->onQueue($queue);
