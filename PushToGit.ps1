@@ -8,56 +8,21 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "feat(financial-core): implement single FinancialOrchestrator mutation boundary and complete lifecycle consolidation
-Major architectural refactor introducing a centralized financial mutation boundary via FinancialOrchestrator.
+$CommitMessage = "fix(financial-architecture): correct lifecycle misroutes and reinforce FinancialOrchestrator mutation boundary
 
-Key achievements:
-• Introduced FinancialOrchestrator as the single authority for:
-* DB transactions
-* row locking
-* wallet mutations
-* ledger mutations
-* lifecycle orchestration
+- Fix ProcessAllocationJob lifecycle misroute:
+  replaced processSuccessfulPayment() with executePaymentAllocationSaga() to ensure allocation jobs trigger allocation lifecycle only.
 
-• Completed lifecycle consolidation across the system:
-* Payment lifecycle
-* Bonus lifecycle
-* Referral lifecycle
-* Withdrawal lifecycle
-* Prize lifecycle (LuckyDraw)
-* Profit share lifecycle
-* Allocation lifecycle
-* Chargeback lifecycle
-* Dispute settlement lifecycle
+- Fix ProcessPaymentBonusJob lifecycle misroute:
+  removed incorrect processSuccessfulPayment() call and restored bonus-only execution via BonusCalculatorService.
 
-• Refactored services to pure domain logic:
-* BonusCalculatorService
-* CelebrationBonusService
-* ReferralService
-* ProfitShareService
-* LuckyDrawService
-* AllocationService
-* WithdrawalService
-  Services now perform calculations and validations only.
+- Introduce Financial Lifecycle Guard in FinancialOrchestrator documenting rules preventing cross-lifecycle invocation.
 
-• Removed direct financial mutations from:
-* Controllers
-* Jobs
-* Domain services
-* Legacy sagas
+- Preserve Single Financial Mutation Boundary by ensuring jobs delegate lifecycle execution appropriately.
 
-• Eliminated nested transaction ownership and moved lock acquisition to orchestrator.
+- Clarify ProcessPaymentBonusJob role with stronger deprecation guidance to prevent misuse by developers or LLM refactors.
 
-• Fixed monetary precision regression:
-* removed float usage
-* enforced paise-based integer values for financial operations.
-
-• Resolved lock ownership violations and centralized lock ordering.
-• Consolidated celebration bonus pathways to a single orchestrated mutation flow.
-• Updated StaticAnalysisHelper to enforce mutation governance rules.
-
-Result:
-System now enforces a **single financial orchestration boundary**, dramatically reducing race conditions, deadlocks, and parallel mutation pathways while improving auditability and lifecycle determinism."
+These changes restore correct lifecycle semantics and prevent duplicate wallet mutations or ledger entries."
 #----------------------
 
 function Get-GitCredential {

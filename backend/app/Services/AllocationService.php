@@ -26,7 +26,6 @@ use App\Enums\ReversalSource;
 use App\Exceptions\RiskBlockedException;
 use App\Exceptions\InsufficientInventoryException;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
 
 class AllocationService
 {
@@ -152,9 +151,8 @@ class AllocationService
      * [DEPRECATED]: Use allocateShares(user, product, amount, investment, ...) for new code
      * [V-AUDIT-FIX-2026]: Now throws InsufficientInventoryException for consistency
      *
-     * V-ORCHESTRATION-2026: Supports two call patterns:
-     * 1. Legacy: allocateSharesLegacy($payment, $amount, $source) - acquires locks internally
-     * 2. Orchestrator: allocateSharesLegacy($payment, $lockedBatches, $amount) - uses pre-locked batches
+     * V-ORCHESTRATION-2026: Supports orchestrator call pattern only:
+     * allocateSharesLegacy($payment, $lockedBatches, $amount)
      *
      * @param Payment $payment
      * @param \Illuminate\Support\Collection|float $batchesOrValue Pre-locked batches (Collection) or amount (float)
@@ -173,15 +171,14 @@ class AllocationService
         $orchestratorMode = $batchesOrValue instanceof \Illuminate\Support\Collection;
 
         if ($orchestratorMode) {
-            // Pattern 2: Orchestrator - batches already locked
+            // Orchestrator pattern: batches already locked by caller
             $batches = $batchesOrValue;
             $totalInvestmentValue = (float) $valueOrSource;
             $source = InvestmentSource::INVESTMENT_AND_BONUS->value;
         } else {
-            // Pattern 1: Legacy - float amount passed
-            $totalInvestmentValue = (float) $batchesOrValue;
-            $source = is_string($valueOrSource) ? $valueOrSource : InvestmentSource::INVESTMENT_AND_BONUS->value;
-            $batches = null; // Will be fetched and locked below
+            throw new \RuntimeException(
+                'Legacy allocation mutation path is disabled. Route through FinancialOrchestrator with pre-locked batches.'
+            );
         }
 
         if ($totalInvestmentValue <= 0) {
@@ -273,22 +270,7 @@ class AllocationService
             return ['success' => true, 'refund_due' => $totalRefundDue];
         };
 
-        // V-ORCHESTRATION-2026: Execute based on mode
-        if ($orchestratorMode) {
-            // Orchestrator mode: batches already locked, no new transaction needed
-            return $doAllocation($batches);
-        } else {
-            // Legacy mode: wrap in transaction with locking
-            return DB::transaction(function () use ($doAllocation) {
-                $batches = BulkPurchase::where('value_remaining', '>', 0)
-                    ->whereHas('product', fn($q) => $q->whereIn('status', ['approved', 'active']))
-                    ->orderBy('purchase_date', 'asc')
-                    ->lockForUpdate()
-                    ->get();
-
-                return $doAllocation($batches);
-            });
-        }
+        return $doAllocation($batches);
     }
 
     /**
@@ -354,9 +336,8 @@ class AllocationService
      * - handleRefundProcessed(): Credits wallet AFTER calling this method
      * - handleChargebackConfirmed(): Debits wallet AFTER calling this method
      *
-     * V-ORCHESTRATION-2026: Supports two call patterns:
-     * 1. Legacy: reverseAllocationLegacy($payment, $reason, $source) - uses internal transaction
-     * 2. Orchestrator: reverseAllocationLegacy($payment, $investments, $lockedBatches, $reason, $source)
+     * V-ORCHESTRATION-2026: Supports orchestrator call pattern only:
+     * reverseAllocationLegacy($payment, $investments, $lockedBatches, $reason, $source)
      *
      * @param Payment $payment The payment whose investments to reverse
      * @param \Illuminate\Support\Collection|string $investmentsOrReason Pre-locked investments or reason string
@@ -376,19 +357,17 @@ class AllocationService
 
         if ($orchestratorMode) {
             $investments = $investmentsOrReason;
-            $lockedBatches = $batchesOrSource instanceof \Illuminate\Support\Collection ? $batchesOrSource : collect();
+            $lockedBatches = $batchesOrSource instanceof \Illuminate\Support\Collection
+                ? $batchesOrSource->keyBy('id')
+                : collect();
             $reason = is_string($reasonOrSource) ? $reasonOrSource : 'Reversal via orchestrator';
             $reversalSource = $source ?? ($reasonOrSource instanceof ReversalSource ? $reasonOrSource : ReversalSource::REFUND);
             
             $this->executeReverseAllocationInternal($investments, $lockedBatches, $reason, $reversalSource);
         } else {
-            $reason = $investmentsOrReason;
-            $reversalSource = $batchesOrSource instanceof ReversalSource ? $batchesOrSource : ReversalSource::REFUND;
-            
-            DB::transaction(function () use ($payment, $reason, $reversalSource) {
-                $investments = $payment->investments()->where('is_reversed', false)->lockForUpdate()->get();
-                $this->executeReverseAllocationInternal($investments, null, $reason, $reversalSource);
-            });
+            throw new \RuntimeException(
+                'Legacy allocation reversal path is disabled. Route through FinancialOrchestrator with pre-locked investments and batches.'
+            );
         }
     }
 
@@ -398,8 +377,8 @@ class AllocationService
             if ($lockedBatches !== null && isset($lockedBatches[$investment->bulk_purchase_id])) {
                 $purchase = $lockedBatches[$investment->bulk_purchase_id];
             } else {
-                // If not in orchestrator mode, acquire lock manually
-                $purchase = $investment->bulkPurchase()->lockForUpdate()->first();
+                // Orchestrator mode should pass locked batches; fallback is read-only relation fetch.
+                $purchase = $investment->bulkPurchase()->first();
             }
 
             if ($purchase) {

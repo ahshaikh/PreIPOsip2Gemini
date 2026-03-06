@@ -31,7 +31,6 @@ use Illuminate\Database\Eloquent\Model; // [AUDIT FIX]: Use Eloquent base model 
 use App\Enums\TransactionType; // [AUDIT FIX]: Use strict Enums
 use App\Exceptions\Financial\InsufficientBalanceException;
 use App\Exceptions\Financial\ComplianceBlockedException; // [C.8]: KYC enforcement
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -115,11 +114,13 @@ class WalletService
         ?Model $reference = null
     ): Transaction {
         $amountPaise = $this->normalizeAmount($amount);
-        
-        return DB::transaction(function () use ($user, $amountPaise, $type, $description, $reference) {
-            $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->firstOrCreate(['user_id' => $user->id]);
-            return $this->deposit($wallet, $amountPaise, $type, $description, $reference);
-        });
+
+        $wallet = Wallet::firstOrCreate(
+            ['user_id' => $user->id],
+            ['balance_paise' => 0, 'locked_balance_paise' => 0]
+        );
+
+        return $this->deposit($wallet, $amountPaise, $type, $description, $reference);
     }
 
     /**
@@ -304,10 +305,8 @@ class WalletService
         bool $allowOverdraft = false
     ): Transaction {
         $amountPaise = $this->normalizeAmount($amount);
-        return DB::transaction(function () use ($user, $amountPaise, $type, $description, $reference, $lockBalance, $allowOverdraft) {
-            $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->firstOrFail();
-            return $this->withdraw($wallet, $amountPaise, $type, $description, $reference, $lockBalance, $allowOverdraft);
-        });
+        $wallet = Wallet::where('user_id', $user->id)->firstOrFail();
+        return $this->withdraw($wallet, $amountPaise, $type, $description, $reference, $lockBalance, $allowOverdraft);
     }
 
     /**

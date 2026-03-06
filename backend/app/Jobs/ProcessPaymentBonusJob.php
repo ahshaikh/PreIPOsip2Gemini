@@ -3,30 +3,24 @@
 // V-WALLET-FIRST-2026: Bonus credited as cash, user decides how to use it
 //
 // @deprecated V-ORCHESTRATION-2026: This job is DEPRECATED.
-// Bonus calculation is now handled synchronously within FinancialOrchestrator::processSuccessfulPayment()
-// as part of the single transaction boundary. This ensures bonuses are calculated with the
-// wallet already locked, preventing race conditions.
+// Bonus handling belongs to the bonus lifecycle and should not trigger full payment lifecycle execution.
 
 namespace App\Jobs;
 
 use App\Models\Payment;
 use App\Services\BonusCalculatorService;
-use App\Services\AllocationService;
-use App\Services\WalletService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
  * ProcessPaymentBonusJob - Bonus Calculation and Wallet Credit
  *
- * @deprecated V-ORCHESTRATION-2026: Use FinancialOrchestrator::processSuccessfulPayment() instead.
- * Bonus calculation is now part of the single-transaction payment lifecycle. This job remains
- * for backward compatibility with queued items but should NOT be dispatched for new payments.
+ * @deprecated V-ORCHESTRATION-2026: Use orchestrated bonus lifecycle in active payment flows.
+ * This job remains for backward compatibility with queued items but should NOT be dispatched for new payments.
  *
  * V-WALLET-FIRST-2026:
  * - Calculate bonuses based on payment
@@ -79,26 +73,25 @@ class ProcessPaymentBonusJob implements ShouldQueue
         }
 
         try {
-            $user = $this->payment->user;
-
-            // Calculate and Credit Bonuses to Wallet
-            // BonusCalculatorService::calculateAndAwardBonuses() handles:
-            // - Bonus eligibility calculation
-            // - TDS deduction
-            // - Wallet credit via depositTaxable()
-            $totalGrossBonus = $bonusService->calculateAndAwardBonuses($this->payment);
-
-            if ($totalGrossBonus <= 0) {
-                Log::info("No bonus calculated for Payment {$this->payment->id}.");
+            $payment = Payment::find($this->payment->id);
+            if (!$payment) {
+                Log::warning("Bonus job skipped: Payment {$this->payment->id} not found.");
                 return;
             }
 
-            // Calculate NET bonus (after TDS)
-            $netBonusTotal = $user->bonuses()
-                ->where('payment_id', $this->payment->id)
-                ->sum(DB::raw('amount - tds_deducted'));
+            $totalGrossBonus = $bonusService->calculateAndAwardBonuses($payment);
 
-            Log::info("WALLET +₹{$netBonusTotal}: Bonus credited for Payment #{$this->payment->id} (Gross: ₹{$totalGrossBonus})");
+            if ($totalGrossBonus <= 0) {
+                Log::info("No bonus calculated for Payment {$payment->id}.");
+                return;
+            }
+
+            $netBonusTotal = $payment->user->bonuses()
+                ->where('payment_id', $payment->id)
+                ->get()
+                ->sum(fn($bonus) => (float) $bonus->amount - (float) ($bonus->tds_deducted ?? 0));
+
+            Log::info("Bonus lifecycle processed for Payment #{$payment->id} (Gross: ₹{$totalGrossBonus}, Net: ₹{$netBonusTotal})");
 
             // V-WALLET-FIRST-2026: Bonus remains as cash in wallet
             // User can:

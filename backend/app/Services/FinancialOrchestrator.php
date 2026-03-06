@@ -36,6 +36,27 @@ use Illuminate\Support\Collection;
  */
 class FinancialOrchestrator
 {
+    /*
+    |--------------------------------------------------------------------------
+    | Financial Lifecycle Guard
+    |--------------------------------------------------------------------------
+    |
+    | Rule 1: Jobs must never call lifecycle methods that represent a different
+    | financial phase (payment -> allocation -> bonus -> refund).
+    |
+    | Rule 2: Jobs may only call the orchestrator method that corresponds to
+    | the lifecycle stage they represent.
+    |
+    | Rule 3: Services must never call orchestrator lifecycle methods.
+    | Lifecycle entrypoints must originate only from Controllers, Webhooks,
+    | or Jobs.
+    |
+    | Violating these rules causes:
+    | - duplicate ledger entries
+    | - wallet double mutations
+    | - broken financial invariants
+    |
+    */
     private ?SagaCoordinator $sagaCoordinator;
     private ?CompensationService $compensationService;
     private ?AdminLedger $adminLedger;

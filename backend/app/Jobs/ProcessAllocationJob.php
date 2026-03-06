@@ -28,13 +28,12 @@ namespace App\Jobs;
 
 use App\Models\Investment;
 use App\Models\Payment;
-use App\Services\AllocationService;
+use App\Services\FinancialOrchestrator;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class ProcessAllocationJob implements ShouldQueue
@@ -80,7 +79,7 @@ class ProcessAllocationJob implements ShouldQueue
      * [G.23 FIX]: Added workflow state tracking for partial completion detection
      */
     public function handle(
-        AllocationService $allocationService,
+        FinancialOrchestrator $orchestrator,
         \App\Services\IdempotencyService $idempotency,
         \App\Services\JobStateTrackerService $stateTracker
     ): void {
@@ -113,36 +112,34 @@ class ProcessAllocationJob implements ShouldQueue
 
         try {
             // [G.22]: Execute with idempotency protection
-            $idempotency->executeOnce($idempotencyKey, function () use ($allocationService, $stateTracker) {
-                DB::transaction(function () use ($allocationService, $stateTracker) {
+            $idempotency->executeOnce($idempotencyKey, function () use ($orchestrator, $stateTracker) {
+                $payment = Payment::where('user_id', $this->investment->user_id)
+                    ->where('subscription_id', $this->investment->subscription_id)
+                    ->where('status', Payment::STATUS_PAID)
+                    ->whereNull('fulfilled_at')
+                    ->latest('id')
+                    ->first();
 
-                    // Create a Payment record for allocation tracking
-                    // Note: This links the share allocation to the original payment
-                    $dummyPayment = new Payment([
-                        'id' => null,
-                        'user_id' => $this->investment->user_id,
-                        'subscription_id' => $this->investment->subscription_id,
-                        'amount' => $this->investment->total_amount,
-                    ]);
-
-                    // [P2.2]: Allocate shares (creates UserInvestment records)
-                    $allocationService->allocateShares(
-                        $dummyPayment,
-                        $this->investment->total_amount
+                if (!$payment) {
+                    throw new \RuntimeException(
+                        "No pending paid payment found for investment #{$this->investment->id}."
                     );
+                }
 
-                    // [P2.2]: Mark as completed
-                    $this->investment->update([
-                        'allocation_status' => 'completed',
-                        'allocated_at' => now(),
-                        'status' => 'active', // Also mark investment as active
-                    ]);
+                // Allocation jobs must run allocation lifecycle only.
+                $orchestrator->executePaymentAllocationSaga($payment);
 
-                    // [G.23]: Mark step completed
-                    $stateTracker->completeStep('investment_flow', 'investment', $this->investment->id, 'share_allocation');
+                // [P2.2]: Mark as completed
+                $this->investment->update([
+                    'allocation_status' => 'completed',
+                    'allocated_at' => now(),
+                    'status' => 'active', // Also mark investment as active
+                ]);
 
-                    Log::info("[P2.2] Allocation completed for Investment #{$this->investment->id}");
-                });
+                // [G.23]: Mark step completed
+                $stateTracker->completeStep('investment_flow', 'investment', $this->investment->id, 'share_allocation');
+
+                Log::info("[P2.2] Allocation completed for Investment #{$this->investment->id}");
             }, [
                 'job_class' => self::class,
                 'input_data' => [

@@ -969,8 +969,20 @@ class PaymentWebhookService
             // The reversal is SHARE-ONLY - no wallet mutation in AllocationService.
             // Wallet debit happens BELOW via processChargebackAdjustment().
             $allocationService = app(AllocationService::class);
+            $investments = $payment->investments()
+                ->where('is_reversed', false)
+                ->lockForUpdate()
+                ->get();
+
+            $lockedBatches = \App\Models\BulkPurchase::whereIn('id', $investments->pluck('bulk_purchase_id')->filter()->unique())
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
             $allocationService->reverseAllocationLegacy(
                 $payment,
+                $investments,
+                $lockedBatches,
                 "Chargeback confirmed: {$payment->chargeback_reason}",
                 ReversalSource::CHARGEBACK
             );
