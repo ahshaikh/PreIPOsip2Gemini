@@ -8,21 +8,61 @@
 
 # --- Configuration ---
 $GithubRepoURL = "https://github.com/ahshaikh/PreIPOsip2Gemini"
-$CommitMessage = "fix(financial-architecture): correct lifecycle misroutes and reinforce FinancialOrchestrator mutation boundary
+$CommitMessage = "feat(architecture): introduce Single Financial Orchestration Boundary blueprint and stabilization audit
 
-- Fix ProcessAllocationJob lifecycle misroute:
-  replaced processSuccessfulPayment() with executePaymentAllocationSaga() to ensure allocation jobs trigger allocation lifecycle only.
+Summary
 
-- Fix ProcessPaymentBonusJob lifecycle misroute:
-  removed incorrect processSuccessfulPayment() call and restored bonus-only execution via BonusCalculatorService.
+* Completed deep architectural audit of financial lifecycle flows.
+* Identified multiple competing lifecycle engines causing nondeterministic behavior.
+* Established final blueprint for a Single Financial Orchestration Boundary.
 
-- Introduce Financial Lifecycle Guard in FinancialOrchestrator documenting rules preventing cross-lifecycle invocation.
+Key Findings
 
-- Preserve Single Financial Mutation Boundary by ensuring jobs delegate lifecycle execution appropriately.
+* Multiple lifecycle engines detected:
 
-- Clarify ProcessPaymentBonusJob role with stronger deprecation guidance to prevent misuse by developers or LLM refactors.
+  * PaymentWebhookService lifecycle
+  * FinancialOrchestrator lifecycle
+  * executePaymentAllocationSaga() flow
+  * Legacy lifecycle jobs
+* Overlapping paths can trigger duplicate wallet credits, allocations, or bonuses.
+* Saga infrastructure exists but is mostly dormant and contributes to architecture drift.
 
-These changes restore correct lifecycle semantics and prevent duplicate wallet mutations or ledger entries."
+Architecture Decision
+
+* FinancialOrchestrator becomes the single financial mutation boundary.
+* PaymentWebhookService will be reduced to a thin gateway adapter.
+* Legacy lifecycle jobs will be converted into orchestrator adapters.
+* Saga-based lifecycle (executePaymentAllocationSaga) will be deprecated and removed.
+
+Design Principles Finalized
+
+* Integer-only monetary system using paise (BigInt).
+* Money Value Object for all financial operations.
+* Strict lock ordering: Product → User → Wallet → Subscription.
+* Single DB transaction per payment lifecycle.
+* Deterministic unit-of-work model for all financial mutations.
+
+Migration Plan Defined
+Phase 0 – Architecture guardrails and invariant tests
+Phase 1 – Money Value Object + float elimination
+Phase 2 – Single transaction boundary in FinancialOrchestrator
+Phase 3 – O(1) allocation refactor for inventory updates
+Phase 4 – Lifecycle consolidation and saga removal
+Phase 5 – Refund / chargeback negative saga
+Phase 6 – Side-effect purge (post-commit jobs)
+
+Safety Controls
+
+* Planned CI guardrails:
+
+  * Float elimination test
+  * Single transaction boundary test
+  * Rogue wallet mutation test
+  * Ledger invariant verification
+
+Notes
+
+* No functional changes applied yet; this commit documents the finalized migration blueprint and audit conclusions to guide phased implementation."
 #----------------------
 
 function Get-GitCredential {
