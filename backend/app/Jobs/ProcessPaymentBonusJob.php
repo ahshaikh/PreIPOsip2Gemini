@@ -17,19 +17,26 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
 /**
- * ProcessPaymentBonusJob - Bonus Calculation and Wallet Credit
+ * @deprecated V-ORCHESTRATION-2026
  *
- * @deprecated V-ORCHESTRATION-2026: Use orchestrated bonus lifecycle in active payment flows.
- * This job remains for backward compatibility with queued items but should NOT be dispatched for new payments.
+ * This job exists only to process legacy queued bonus tasks created
+ * before the FinancialOrchestrator lifecycle consolidation.
  *
- * V-WALLET-FIRST-2026:
- * - Calculate bonuses based on payment
- * - Credit bonus to user's wallet as CASH
- * - NO automatic share purchase - user decides
+ * New payment flows MUST NOT dispatch this job.
  *
- * User can then:
- * - Use bonus to buy shares (via "Buy Shares" button)
- * - Or withdraw bonus to bank account
+ * The correct architecture is:
+ *
+ * PaymentWebhookService
+ *
+ * FinancialOrchestrator::processSuccessfulPayment()
+ *
+ * BonusCalculatorService
+ *
+ * This job remains solely for backward compatibility with existing
+ * queue items and should eventually be removed once all legacy jobs
+ * have been drained.
+ *
+ * DO NOT modify this job to trigger payment lifecycle methods.
  */
 class ProcessPaymentBonusJob implements ShouldQueue
 {

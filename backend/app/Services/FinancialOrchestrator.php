@@ -143,6 +143,7 @@ class FinancialOrchestrator
         if ($amountPaise <= 0) throw new \Exception('Refund amount must be positive');
 
         $this->walletService->deposit($wallet, $amountPaise, TransactionType::REFUND, "Dispute #{$dispute->id} refund", $dispute);
+        $this->debugFinancialInvariant($wallet);
         $this->ledgerService->recordDisputeSettlement($dispute->id, $amountPaise / 100, 'refund', "Dispute #{$dispute->id} refund");
 
         return ['type' => 'refund', 'amount_paise' => $amountPaise];
@@ -153,6 +154,7 @@ class FinancialOrchestrator
         if ($amountPaise <= 0) throw new \Exception('Credit amount must be positive');
 
         $this->walletService->deposit($wallet, $amountPaise, TransactionType::BONUS_CREDIT, "Dispute #{$dispute->id} goodwill credit", $dispute);
+        $this->debugFinancialInvariant($wallet);
         $this->ledgerService->recordDisputeSettlement($dispute->id, $amountPaise / 100, 'goodwill_credit', "Dispute #{$dispute->id} goodwill");
 
         return ['type' => 'credit', 'amount_paise' => $amountPaise];
@@ -250,11 +252,31 @@ class FinancialOrchestrator
                     "Payment #{$payment->id} credited (Saga)",
                     $payment
                 );
+                $this->debugFinancialInvariant($wallet);
                 $this->markSagaStep($saga, 'credit_wallet', ['payment_id' => $payment->id]);
 
                 // Step 2: Bonus
                 if ($subscription) {
                     $bonusResultPaise = $this->bonusService->calculateAndAwardBonuses($payment, $subscription, $wallet);
+
+                    if ($bonusResultPaise > 0) {
+                        $bonusTransaction = \App\Models\BonusTransaction::where('payment_id', $payment->id)
+                            ->where('user_id', $payment->user_id)
+                            ->latest()
+                            ->first();
+
+                        if ($bonusTransaction) {
+                            $this->walletService->deposit(
+                                $wallet,
+                                $bonusResultPaise,
+                                TransactionType::BONUS_CREDIT,
+                                $bonusTransaction->description,
+                                $bonusTransaction
+                            );
+                            $this->debugFinancialInvariant($wallet);
+                        }
+                    }
+
                     if ($bonusResultPaise > 0) {
                         $this->markSagaStep($saga, 'credit_bonus', ['amount_paise' => $bonusResultPaise]);
                     }
@@ -284,6 +306,7 @@ class FinancialOrchestrator
                                 "Fractional refund (Saga #{$payment->id})",
                                 $payment
                             );
+                            $this->debugFinancialInvariant($wallet);
                         }
                     }
                 }
@@ -349,6 +372,7 @@ class FinancialOrchestrator
                         "Profit Share: {$lockedPeriod->period_name}",
                         $bonus
                     );
+                    $this->debugFinancialInvariant($wallet);
                 }
                 $dist->update(['bonus_transaction_id' => $bonus->id]);
             }
@@ -378,6 +402,7 @@ class FinancialOrchestrator
             }
 
             $this->walletService->withdraw($wallet, $netAmountPaise, TransactionType::CHARGEBACK, "Reversal: {$reason}", $dist);
+            $this->debugFinancialInvariant($wallet);
             $bonus->update(['description' => $bonus->description . " [REVERSED]"]);
             Log::info("ORCHESTRATOR: Reversed profit share distribution #{$dist->id} for user #{$user->id}");
         });
@@ -406,6 +431,7 @@ class FinancialOrchestrator
                 $tdsResult->getDescription("Lucky Draw Prize (Rank {$rank})"),
                 $bonus
             );
+            $this->debugFinancialInvariant($wallet);
 
             Log::info("ORCHESTRATOR: Lucky draw prize awarded to user #{$winnerId}. Rank: {$rank}, Gross: {$grossAmountPaise}");
         });
@@ -431,6 +457,7 @@ class FinancialOrchestrator
                 $tdsResult->getDescription("Bulk Bonus: {$reason}"),
                 $bonusTransaction
             );
+            $this->debugFinancialInvariant($wallet);
 
             Log::info("ORCHESTRATOR: Bulk Bonus awarded to user #{$user->id}. Gross: {$tdsResult->grossAmount}, Net: {$tdsResult->netAmount}");
         });
@@ -480,6 +507,7 @@ class FinancialOrchestrator
                 $tdsResult->getDescription($bonusData['description']),
                 $bonus
             );
+            $this->debugFinancialInvariant($wallet);
 
             $referralService->updateReferrerMultiplier($referrer);
             Log::info("ORCHESTRATOR: Referral bonus awarded for referred user #{$referredUser->id} to referrer #{$referrer->id}");
@@ -498,6 +526,7 @@ class FinancialOrchestrator
 
             if ($withdrawal->status === 'pending') {
                 $this->walletService->lockFunds($wallet, $amountPaise, "Withdrawal Request #{$withdrawal->id}", $withdrawal);
+                $this->debugFinancialInvariant($wallet);
                 \App\Models\FundLock::create([
                     'user_id' => $user->id,
                     'lock_type' => 'withdrawal',
@@ -527,6 +556,7 @@ class FinancialOrchestrator
             $withdrawal->update(['status' => 'rejected', 'admin_id' => $admin->id, 'rejection_reason' => $reason]);
 
             $this->walletService->unlockFunds($wallet, $withdrawal->amount_paise, "Withdrawal Request #{$withdrawal->id} Rejected by Admin: {$reason}", $withdrawal);
+            $this->debugFinancialInvariant($wallet);
 
             $lock = \App\Models\FundLock::where('lockable_type', \App\Models\Withdrawal::class)->where('lockable_id', $withdrawal->id)->where('status', 'active')->first();
             if ($lock) $lock->update(['status' => 'released', 'released_at' => now(), 'released_by' => $admin->id]);
@@ -548,6 +578,7 @@ class FinancialOrchestrator
             $withdrawal->update(['status' => 'completed', 'admin_id' => $admin->id, 'utr_number' => $utr, 'completed_at' => now()]);
 
             $this->walletService->debitLockedFunds($wallet, $withdrawal->amount_paise, TransactionType::WITHDRAWAL, "Withdrawal Completed (UTR: {$utr})", $withdrawal);
+            $this->debugFinancialInvariant($wallet);
 
             $lock = \App\Models\FundLock::where('lockable_type', \App\Models\Withdrawal::class)->where('lockable_id', $withdrawal->id)->where('status', 'active')->first();
             if ($lock) $lock->update(['status' => 'released', 'released_at' => now(), 'released_by' => $admin->id]);
@@ -569,6 +600,7 @@ class FinancialOrchestrator
             $withdrawal->update(['status' => 'cancelled']);
 
             $this->walletService->unlockFunds($wallet, $withdrawal->amount_paise, "Withdrawal Request #{$withdrawal->id} cancelled by user", $withdrawal);
+            $this->debugFinancialInvariant($wallet);
 
             $lock = \App\Models\FundLock::where('lockable_type', \App\Models\Withdrawal::class)->where('lockable_id', $withdrawal->id)->where('status', 'active')->first();
             if ($lock) $lock->update(['status' => 'released', 'released_at' => now(), 'released_by' => $user->id]);
@@ -583,6 +615,7 @@ class FinancialOrchestrator
         DB::transaction(function () use ($user, $amountPaise, $type, $description, $reference) {
             $wallet = $this->acquireLockedWallet($user->id);
             $this->walletService->deposit($wallet, $amountPaise, $type, $description, $reference);
+            $this->debugFinancialInvariant($wallet);
             Log::info("ORCHESTRATOR: Credited user #{$user->id} with {$amountPaise} paise. Type: {$type->value}");
         });
     }
@@ -595,6 +628,7 @@ class FinancialOrchestrator
         DB::transaction(function () use ($user, $amountPaise, $type, $description, $reference, $allowOverdraft) {
             $wallet = $this->acquireLockedWallet($user->id);
             $this->walletService->withdraw($wallet, $amountPaise, $type, $description, $reference, false, $allowOverdraft);
+            $this->debugFinancialInvariant($wallet);
             Log::info("ORCHESTRATOR: Debited user #{$user->id} for {$amountPaise} paise. Type: {$type->value}");
         });
     }
@@ -612,6 +646,23 @@ class FinancialOrchestrator
     {
         $wallet = Wallet::firstOrCreate(['user_id' => $userId], ['balance_paise' => 0, 'locked_balance_paise' => 0]);
         return Wallet::where('id', $wallet->id)->lockForUpdate()->firstOrFail();
+    }
+    private function debugFinancialInvariant(\App\Models\Wallet $wallet): void
+    {
+        $walletTotal = \App\Models\Wallet::sum('balance_paise');
+
+        $account = \App\Models\LedgerAccount::byCode(
+            \App\Models\LedgerAccount::CODE_USER_WALLET_LIABILITY
+        );
+
+        $ledgerTotal = (int) round($account->balance * 100);
+
+        if ($walletTotal !== $ledgerTotal) {
+            throw new \RuntimeException(
+                "FINANCIAL INVARIANT BROKEN: ".
+                "WalletTotal={$walletTotal} LedgerTotal={$ledgerTotal}"
+            );
+        }
     }
 
     private function requiresAllocation(Payment $payment, Subscription $subscription): bool
@@ -649,7 +700,25 @@ class FinancialOrchestrator
             $wallets[$userId] = ($userId === $user->id) ? $userWallet : $this->acquireLockedWallet($userId);
         }
 
-        $this->bonusService->awardReferralBonus($payment, [], $wallets[$referral->referrer_id]);
+        $awardedPaise = $this->bonusService->awardReferralBonus($payment, [], $wallets[$referral->referrer_id]);
+        if ($awardedPaise > 0) {
+            $referralBonus = \App\Models\BonusTransaction::where('payment_id', $payment->id)
+                ->where('user_id', $referral->referrer_id)
+                ->where('type', 'referral_bonus')
+                ->orderByDesc('id')
+                ->first();
+
+            if ($referralBonus) {
+                $this->walletService->deposit(
+                    $wallets[$referral->referrer_id],
+                    (int) round(($referralBonus->amount - ($referralBonus->tds_deducted ?? 0)) * 100),
+                    TransactionType::BONUS_CREDIT,
+                    $referralBonus->description,
+                    $referralBonus
+                );
+                $this->debugFinancialInvariant($wallets[$referral->referrer_id]);
+            }
+        }
         Log::info("Referral bonus processed for Payment #{$payment->id}, Referrer #{$referral->referrer_id}");
     }
 
@@ -669,7 +738,10 @@ class FinancialOrchestrator
 
         if ($totalNetToRecoverPaise > 0) {
             $actualDebit = min($wallet->balance_paise, $totalNetToRecoverPaise);
-            if ($actualDebit > 0) $this->walletService->withdraw($wallet, $actualDebit, TransactionType::CHARGEBACK, "Bonus recovery for Payment #{$payment->id}: {$reason}", $payment, false, true);
+            if ($actualDebit > 0) {
+                $this->walletService->withdraw($wallet, $actualDebit, TransactionType::CHARGEBACK, "Bonus recovery for Payment #{$payment->id}: {$reason}", $payment, false, true);
+                $this->debugFinancialInvariant($wallet);
+            }
         }
         return ['reversed_bonuses' => $reversedBonuses, 'total_debited_paise' => $totalNetToRecoverPaise];
     }
@@ -696,15 +768,36 @@ class FinancialOrchestrator
 
             $amountPaise = $payment->getAmountPaiseStrict();
             $this->walletService->deposit($wallet, $amountPaise, TransactionType::DEPOSIT, "Payment received for SIP installment #{$payment->id}", $payment);
+            $this->debugFinancialInvariant($wallet);
 
             if ($lockedBatches !== null && $lockedBatches->isNotEmpty()) {
                 $allocationResult = $this->allocationService->allocateSharesLegacy($payment, $lockedBatches, (float) $payment->amount);
                 if (($allocationResult['refund_due'] ?? 0) > 0) {
                     $this->walletService->deposit($wallet, (int) round($allocationResult['refund_due'] * 100), TransactionType::REFUND, "Refund for fractional remainder (Payment #{$payment->id})", $payment);
+                    $this->debugFinancialInvariant($wallet);
                 }
             }
 
             $totalBonusPaise = $this->bonusService->calculateAndAwardBonuses($payment, $subscription, $wallet);
+
+            if ($totalBonusPaise > 0) {
+                $bonusTransaction = \App\Models\BonusTransaction::where('payment_id', $payment->id)
+                    ->where('user_id', $payment->user_id)
+                    ->latest()
+                    ->first();
+
+                if ($bonusTransaction) {
+                    $this->walletService->deposit(
+                        $wallet,
+                        $totalBonusPaise,
+                        TransactionType::BONUS_CREDIT,
+                        $bonusTransaction->description,
+                        $bonusTransaction
+                    );
+                    $this->debugFinancialInvariant($wallet);
+                }
+            }
+
             if ($this->isFirstPayment($subscription)) $this->processReferralBonus($payment, $subscription, $wallet);
 
             $payment->update(['fulfilled_at' => now()]);

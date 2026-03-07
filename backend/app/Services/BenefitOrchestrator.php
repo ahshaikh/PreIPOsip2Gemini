@@ -430,37 +430,35 @@ class BenefitOrchestrator
             return;
         }
 
-        DB::transaction(function () use ($result, $investment) {
-            // Record campaign usage
-            $usageId = DB::table('campaign_usages')->insertGetId([
-                'campaign_id' => $result->getCampaignId(),
-                'referral_id' => $result->getReferralId(),
-                'user_id' => $investment->user_id,
-                'investment_id' => $investment->id,
-                'benefit_type' => $result->getBenefitType(),
-                'benefit_amount' => $result->getBenefitAmount(),
-                'eligibility_reason' => $result->getEligibilityReason(),
-                'metadata' => json_encode($result->getMetadata()),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+        // Record campaign usage
+        $usageId = DB::table('campaign_usages')->insertGetId([
+            'campaign_id' => $result->getCampaignId(),
+            'referral_id' => $result->getReferralId(),
+            'user_id' => $investment->user_id,
+            'investment_id' => $investment->id,
+            'benefit_type' => $result->getBenefitType(),
+            'benefit_amount' => $result->getBenefitAmount(),
+            'eligibility_reason' => $result->getEligibilityReason(),
+            'metadata' => json_encode($result->getMetadata()),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
-            // [D.15]: Record in AdminLedger as EXPENSE and LIABILITY
-            // Campaign discount is admin COST (foregone revenue)
-            $this->adminLedger->recordCampaignDiscount(
-                discountAmount: $result->getBenefitAmount(),
-                campaignUsageId: $usageId,
-                investmentId: $investment->id,
-                description: "Campaign benefit: {$result->getBenefitType()} for investment #{$investment->id}"
-            );
+        // [D.15]: Record in AdminLedger as EXPENSE and LIABILITY
+        // Campaign discount is admin COST (foregone revenue)
+        $this->adminLedger->recordCampaignDiscount(
+            discountAmount: $result->getBenefitAmount(),
+            campaignUsageId: $usageId,
+            investmentId: $investment->id,
+            description: "Campaign benefit: {$result->getBenefitType()} for investment #{$investment->id}"
+        );
 
-            Log::info("CAMPAIGN COST RECORDED", [
-                'usage_id' => $usageId,
-                'benefit_type' => $result->getBenefitType(),
-                'benefit_amount' => $result->getBenefitAmount(),
-                'investment_id' => $investment->id,
-                'admin_expense' => true,
-            ]);
-        });
+        Log::info("CAMPAIGN COST RECORDED", [
+            'usage_id' => $usageId,
+            'benefit_type' => $result->getBenefitType(),
+            'benefit_amount' => $result->getBenefitAmount(),
+            'investment_id' => $investment->id,
+            'admin_expense' => true,
+        ]);
     }
 }

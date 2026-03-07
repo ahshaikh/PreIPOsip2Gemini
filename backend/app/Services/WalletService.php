@@ -547,8 +547,8 @@ class WalletService
             $user = $wallet->user;
         } else {
             $user = $walletOrUser;
-            // Legacy path: acquire lock (caller should have done this in orchestrator pattern)
-            $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->first();
+            // Legacy path: orchestrator should provide locked wallet context.
+            $wallet = Wallet::where('user_id', $user->id)->first();
             if (!$wallet) {
                 throw new \RuntimeException("Wallet not found for user #{$user->id} during chargeback adjustment");
             }

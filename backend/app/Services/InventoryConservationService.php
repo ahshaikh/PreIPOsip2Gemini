@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\BulkPurchase;
 use App\Models\Product;
 use App\Models\UserInvestment;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -48,9 +47,8 @@ class InventoryConservationService
      */
     public function verifyConservation(Product $product): array
     {
-        // Lock bulk purchases for this product to get consistent snapshot
+        // Fetch bulk purchases for a consistency snapshot (locking is orchestrator-owned).
         $bulkPurchases = BulkPurchase::where('product_id', $product->id)
-            ->lockForUpdate()
             ->get();
 
         // Calculate from bulk purchases
@@ -131,65 +129,61 @@ class InventoryConservationService
      */
     public function canAllocate(Product $product, float $amountToAllocate): array
     {
-        return DB::transaction(function () use ($product, $amountToAllocate) {
-            // Lock bulk purchases to prevent concurrent allocation
-            $bulkPurchases = BulkPurchase::where('product_id', $product->id)
-                ->where('value_remaining', '>', 0)
-                ->lockForUpdate()
-                ->get();
+        $bulkPurchases = BulkPurchase::where('product_id', $product->id)
+            ->where('value_remaining', '>', 0)
+            ->get();
 
-            $totalAvailable = $bulkPurchases->sum('value_remaining');
+        $totalAvailable = $bulkPurchases->sum('value_remaining');
 
-            if ($totalAvailable < $amountToAllocate) {
-                return [
-                    'can_allocate' => false,
-                    'reason' => "Insufficient inventory. Requested: ₹{$amountToAllocate}, Available: ₹{$totalAvailable}",
-                    'available' => $totalAvailable,
-                    'requested' => $amountToAllocate,
-                ];
-            }
+        if ($totalAvailable < $amountToAllocate) {
+            return [
+                'can_allocate' => false,
+                'reason' => "Insufficient inventory. Requested: ₹{$amountToAllocate}, Available: ₹{$totalAvailable}",
+                'available' => $totalAvailable,
+                'requested' => $amountToAllocate,
+            ];
+        }
 
-            // Verify conservation would hold after allocation
-            $totalReceived = BulkPurchase::where('product_id', $product->id)->sum('total_value_received');
-            $currentAllocated = UserInvestment::where('product_id', $product->id)
-                ->where('is_reversed', false)
-                ->sum('value_allocated');
+        // Verify conservation would hold after allocation
+        $totalReceived = BulkPurchase::where('product_id', $product->id)->sum('total_value_received');
+        $currentAllocated = UserInvestment::where('product_id', $product->id)
+            ->where('is_reversed', false)
+            ->sum('value_allocated');
 
-            $futureAllocated = $currentAllocated + $amountToAllocate;
-            $futureRemaining = $totalAvailable - $amountToAllocate;
+        $futureAllocated = $currentAllocated + $amountToAllocate;
+        $futureRemaining = $totalAvailable - $amountToAllocate;
 
-            // Check: futureAllocated + futureRemaining = totalReceived
-            $futureSum = $futureAllocated + $futureRemaining;
-            $conservationHolds = abs($futureSum - $totalReceived) < 0.01;
+        // Check: futureAllocated + futureRemaining = totalReceived
+        $futureSum = $futureAllocated + $futureRemaining;
+        $conservationHolds = abs($futureSum - $totalReceived) < 0.01;
 
-            if (!$conservationHolds) {
-                Log::critical("ALLOCATION WOULD VIOLATE CONSERVATION", [
-                    'product_id' => $product->id,
+        if (!$conservationHolds) {
+            Log::critical("ALLOCATION WOULD VIOLATE CONSERVATION", [
+                'product_id' => $product->id,
+                'total_received' => $totalReceived,
+                'future_allocated' => $futureAllocated,
+                'future_remaining' => $futureRemaining,
+                'future_sum' => $futureSum,
+                'discrepancy' => $futureSum - $totalReceived,
+            ]);
+
+            return [
+                'can_allocate' => false,
+                'reason' => 'Allocation would violate inventory conservation law',
+                'conservation_check' => [
                     'total_received' => $totalReceived,
                     'future_allocated' => $futureAllocated,
                     'future_remaining' => $futureRemaining,
-                    'future_sum' => $futureSum,
                     'discrepancy' => $futureSum - $totalReceived,
-                ]);
-
-                return [
-                    'can_allocate' => false,
-                    'reason' => 'Allocation would violate inventory conservation law',
-                    'conservation_check' => [
-                        'total_received' => $totalReceived,
-                        'future_allocated' => $futureAllocated,
-                        'future_remaining' => $futureRemaining,
-                        'discrepancy' => $futureSum - $totalReceived,
-                    ],
-                ];
-            }
-
-            return [
-                'can_allocate' => true,
-                'reason' => 'Allocation preserves conservation law',
-                'available' => $totalAvailable,
+                ],
             ];
-        });
+        }
+
+        return [
+            'can_allocate' => true,
+            'reason' => 'Allocation preserves conservation law',
+            'available' => $totalAvailable,
+        ];
     }
 
     /**
@@ -275,7 +269,6 @@ class InventoryConservationService
         return BulkPurchase::where('product_id', $product->id)
             ->where('value_remaining', '>', 0)
             ->orderBy('purchase_date', 'asc') // FIFO
-            ->lockForUpdate() // Pessimistic lock
             ->get();
     }
 

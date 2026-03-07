@@ -840,27 +840,8 @@ class BonusCalculatorService
 
         $this->ledgerService->recordBonusWithTds($bonusTxn, $tdsResult->grossAmount, $tdsResult->tdsAmount);
 
-        // Transfer to wallet
-        // V-ORCHESTRATION-2026: The deposit happens via the calling Orchestrator if provided.
-        // If not provided (legacy), we use the service but this should be deprecated.
-        if ($this->lockedWallet) {
-            $this->walletService->deposit(
-                $this->lockedWallet,
-                (int) round($tdsResult->netAmount * 100),
-                'bonus_credit',
-                "Referral Bonus - Invited {$referredUser->username}",
-                $bonusTxn
-            );
-        } else {
-            // Legacy path - passes User instead of locked Wallet
-            $this->walletService->depositLegacy(
-                $referrer,
-                (int) round($tdsResult->netAmount * 100),
-                'bonus_credit',
-                "Referral Bonus - Invited {$referredUser->username}",
-                $bonusTxn
-            );
-        }
+        // V-ORCHESTRATION-2026: Wallet mutation ownership is in FinancialOrchestrator.
+        // This service records bonus transactions and ledger entries only.
 
         $referrer->notify(new \App\Notifications\BonusCredited($bonusPaise / 100, 'Referral'));
 
@@ -919,22 +900,7 @@ class BonusCalculatorService
 
         $this->ledgerService->recordBonusWithTds($bonusTxn, $tdsResult->grossAmount, $tdsResult->tdsAmount);
 
-        if ($this->lockedWallet) {
-            $this->walletService->deposit(
-                $this->lockedWallet,
-                (int) round($tdsResult->netAmount * 100),
-                'bonus_credit',
-                $description,
-                $bonusTxn
-            );
-        } else {
-            $this->walletService->depositLegacy(
-                $payment->user,
-                (int) round($tdsResult->netAmount * 100),
-                'bonus_credit',
-                $description,
-                $bonusTxn
-            );
-        }
+        // V-ORCHESTRATION-2026: Wallet mutation ownership is in FinancialOrchestrator.
+        // This service records bonus transactions and ledger entries only.
     }
 }

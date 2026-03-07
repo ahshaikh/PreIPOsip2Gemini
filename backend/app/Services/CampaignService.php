@@ -6,7 +6,6 @@ use App\Models\Campaign;
 use App\Models\CampaignUsage;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Services\Accounting\AdminLedger; // FIX 30: Track campaign costs in AdminLedger
 
@@ -182,130 +181,121 @@ class CampaignService
         bool $disclaimerAcknowledged = true
     ): array {
         try {
-            return DB::transaction(function () use ($campaign, $user, $applicable, $originalAmount, $termsAccepted, $disclaimerAcknowledged) {
-                // Lock campaign for update to prevent race conditions
-                $campaign = Campaign::where('id', $campaign->id)
-                    ->lockForUpdate()
-                    ->first();
+            $campaign = Campaign::find($campaign->id);
 
-                if (!$campaign) {
-                    return [
-                        'success' => false,
-                        'usage' => null,
-                        'discount' => 0,
-                        'message' => 'Campaign not found'
-                    ];
-                }
+            if (!$campaign) {
+                return [
+                    'success' => false,
+                    'usage' => null,
+                    'discount' => 0,
+                    'message' => 'Campaign not found'
+                ];
+            }
 
-                // Re-validate applicability with locked campaign
-                $applicabilityCheck = $this->isApplicable($campaign, $user, $originalAmount);
-                if (!$applicabilityCheck['applicable']) {
-                    return [
-                        'success' => false,
-                        'usage' => null,
-                        'discount' => 0,
-                        'message' => $applicabilityCheck['reason']
-                    ];
-                }
+            // Re-validate applicability
+            $applicabilityCheck = $this->isApplicable($campaign, $user, $originalAmount);
+            if (!$applicabilityCheck['applicable']) {
+                return [
+                    'success' => false,
+                    'usage' => null,
+                    'discount' => 0,
+                    'message' => $applicabilityCheck['reason']
+                ];
+            }
 
-                // FIX 25: Check for campaign stacking prevention
-                // Prevent ANY campaign (not just the same one) from being applied multiple times
-                $anyExistingUsage = CampaignUsage::where('applicable_type', get_class($applicable))
-                    ->where('applicable_id', $applicable->id)
-                    ->first();
+            // FIX 25: Check for campaign stacking prevention
+            $anyExistingUsage = CampaignUsage::where('applicable_type', get_class($applicable))
+                ->where('applicable_id', $applicable->id)
+                ->first();
 
-                if ($anyExistingUsage) {
-                    $existingCampaign = Campaign::find($anyExistingUsage->campaign_id);
-                    $existingCode = $existingCampaign ? $existingCampaign->code : $anyExistingUsage->campaign_code;
-
-                    return [
-                        'success' => false,
-                        'usage' => $anyExistingUsage,
-                        'discount' => $anyExistingUsage->discount_applied,
-                        'message' => "A campaign ({$existingCode}) has already been applied to this investment. Campaign stacking is not allowed."
-                    ];
-                }
-
-                // Legacy check (now redundant, but kept for backwards compatibility)
-                $existingUsage = CampaignUsage::where('campaign_id', $campaign->id)
-                    ->where('applicable_type', get_class($applicable))
-                    ->where('applicable_id', $applicable->id)
-                    ->first();
-
-                if ($existingUsage) {
-                    return [
-                        'success' => false,
-                        'usage' => $existingUsage,
-                        'discount' => $existingUsage->discount_applied,
-                        'message' => 'Campaign has already been applied to this transaction'
-                    ];
-                }
-
-                // Calculate discount
-                $discount = $this->calculateDiscount($campaign, $originalAmount);
-                $finalAmount = $originalAmount - $discount;
-
-                // Create campaign usage record
-                $usage = CampaignUsage::create([
-                    'campaign_id' => $campaign->id,
-                    'user_id' => $user->id,
-                    'applicable_type' => get_class($applicable),
-                    'applicable_id' => $applicable->id,
-                    'original_amount' => $originalAmount,
-                    'discount_applied' => $discount,
-                    'final_amount' => $finalAmount,
-                    'campaign_code' => $campaign->code,
-                    'campaign_snapshot' => $campaign->toArray(),
-                    'ip_address' => request()->ip(),
-                    'user_agent' => request()->userAgent(),
-                    'used_at' => now(),
-                    'terms_accepted' => $termsAccepted,
-                    'terms_accepted_at' => $termsAccepted ? now() : null,
-                    'terms_acceptance_ip' => $termsAccepted ? request()->ip() : null,
-                    'disclaimer_acknowledged' => $disclaimerAcknowledged,
-                    'disclaimer_acknowledged_at' => $disclaimerAcknowledged ? now() : null,
-                ]);
-
-                // Increment campaign usage count
-                $campaign->increment('usage_count');
-
-                // FIX 30: Record campaign discount in AdminLedger for financial tracking
-                // Campaign discounts are admin expenses (lost revenue)
-                if ($discount > 0) {
-                    try {
-                        $investmentId = $applicable->id ?? 0;
-                        $this->adminLedger->recordCampaignDiscount(
-                            $discount,
-                            $usage->id,
-                            $investmentId,
-                            "Campaign {$campaign->code} applied to {$usage->applicable_type} #{$investmentId}"
-                        );
-                    } catch (\Exception $e) {
-                        Log::error('Failed to record campaign discount in AdminLedger', [
-                            'campaign_usage_id' => $usage->id,
-                            'discount' => $discount,
-                            'error' => $e->getMessage(),
-                        ]);
-                        // Don't fail the entire transaction, but log the error
-                    }
-                }
-
-                Log::info('Campaign applied successfully', [
-                    'campaign_id' => $campaign->id,
-                    'campaign_code' => $campaign->code,
-                    'user_id' => $user->id,
-                    'applicable_type' => get_class($applicable),
-                    'applicable_id' => $applicable->id,
-                    'discount' => $discount,
-                ]);
+            if ($anyExistingUsage) {
+                $existingCampaign = Campaign::find($anyExistingUsage->campaign_id);
+                $existingCode = $existingCampaign ? $existingCampaign->code : $anyExistingUsage->campaign_code;
 
                 return [
-                    'success' => true,
-                    'usage' => $usage,
-                    'discount' => $discount,
-                    'message' => 'Campaign applied successfully'
+                    'success' => false,
+                    'usage' => $anyExistingUsage,
+                    'discount' => $anyExistingUsage->discount_applied,
+                    'message' => "A campaign ({$existingCode}) has already been applied to this investment. Campaign stacking is not allowed."
                 ];
-            });
+            }
+
+            $existingUsage = CampaignUsage::where('campaign_id', $campaign->id)
+                ->where('applicable_type', get_class($applicable))
+                ->where('applicable_id', $applicable->id)
+                ->first();
+
+            if ($existingUsage) {
+                return [
+                    'success' => false,
+                    'usage' => $existingUsage,
+                    'discount' => $existingUsage->discount_applied,
+                    'message' => 'Campaign has already been applied to this transaction'
+                ];
+            }
+
+            // Calculate discount
+            $discount = $this->calculateDiscount($campaign, $originalAmount);
+            $finalAmount = $originalAmount - $discount;
+
+            // Create campaign usage record
+            $usage = CampaignUsage::create([
+                'campaign_id' => $campaign->id,
+                'user_id' => $user->id,
+                'applicable_type' => get_class($applicable),
+                'applicable_id' => $applicable->id,
+                'original_amount' => $originalAmount,
+                'discount_applied' => $discount,
+                'final_amount' => $finalAmount,
+                'campaign_code' => $campaign->code,
+                'campaign_snapshot' => $campaign->toArray(),
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+                'used_at' => now(),
+                'terms_accepted' => $termsAccepted,
+                'terms_accepted_at' => $termsAccepted ? now() : null,
+                'terms_acceptance_ip' => $termsAccepted ? request()->ip() : null,
+                'disclaimer_acknowledged' => $disclaimerAcknowledged,
+                'disclaimer_acknowledged_at' => $disclaimerAcknowledged ? now() : null,
+            ]);
+
+            // Increment campaign usage count
+            $campaign->increment('usage_count');
+
+            // FIX 30: Record campaign discount in AdminLedger for financial tracking
+            if ($discount > 0) {
+                try {
+                    $investmentId = $applicable->id ?? 0;
+                    $this->adminLedger->recordCampaignDiscount(
+                        $discount,
+                        $usage->id,
+                        $investmentId,
+                        "Campaign {$campaign->code} applied to {$usage->applicable_type} #{$investmentId}"
+                    );
+                } catch (\Exception $e) {
+                    Log::error('Failed to record campaign discount in AdminLedger', [
+                        'campaign_usage_id' => $usage->id,
+                        'discount' => $discount,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            Log::info('Campaign applied successfully', [
+                'campaign_id' => $campaign->id,
+                'campaign_code' => $campaign->code,
+                'user_id' => $user->id,
+                'applicable_type' => get_class($applicable),
+                'applicable_id' => $applicable->id,
+                'discount' => $discount,
+            ]);
+
+            return [
+                'success' => true,
+                'usage' => $usage,
+                'discount' => $discount,
+                'message' => 'Campaign applied successfully'
+            ];
         } catch (\Exception $e) {
             Log::error('Failed to apply campaign', [
                 'campaign_id' => $campaign->id,

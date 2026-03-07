@@ -2,10 +2,9 @@
 
 namespace App\Services\Orchestration\Operations;
 
+use App\Services\FinancialOrchestrator;
 use App\Services\Orchestration\Saga\SagaContext;
-use App\Services\WalletService;
-use App\Services\Accounting\AdminLedger;
-use App\Enums\TransactionType; // V-FIX: Import TransactionType enum
+use App\Enums\TransactionType;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -19,43 +18,37 @@ use Illuminate\Support\Facades\Log;
  */
 class CreditUserWalletOperation implements OperationInterface
 {
-    private WalletService $walletService;
+    private FinancialOrchestrator $financialOrchestrator;
 
     public function __construct(
         private $user,
         private float $amount,
         private $payment
     ) {
-        $this->walletService = app(WalletService::class);
+        $this->financialOrchestrator = app(FinancialOrchestrator::class);
     }
 
     public function execute(SagaContext $context): OperationResult
     {
         try {
-            // V-FIX-WALLET-NOT-REFLECTING: Fix deposit() call signature
-            // WalletService::deposit() expects: (User, amount, TransactionType, description, ?Model reference, bool bypassCheck)
-            // Previous call was passing wrong parameter types
-            // Credit wallet (atomic operation)
-            $transaction = $this->walletService->depositLegacy(
+            $amountPaise = (int) round($this->amount * 100);
+            $this->financialOrchestrator->creditUserWallet(
                 $this->user,
-                $this->amount,
+                $amountPaise,
                 TransactionType::DEPOSIT,
                 "Payment #{$this->payment->id} received",
                 $this->payment
             );
 
-            // Store transaction ID for potential compensation
-            $context->setShared('wallet_credit_transaction_id', $transaction->id);
+            $context->setShared('wallet_credit_applied', true);
 
             Log::info("OPERATION: Wallet credited", [
                 'user_id' => $this->user->id,
-                'amount' => $this->amount,
-                'transaction_id' => $transaction->id,
+                'amount_paise' => $amountPaise,
             ]);
 
             return OperationResult::success('Wallet credited', [
-                'transaction_id' => $transaction->id,
-                'new_balance' => $this->user->wallet->balance,
+                'amount_paise' => $amountPaise,
             ]);
 
         } catch (\Throwable $e) {
@@ -73,27 +66,25 @@ class CreditUserWalletOperation implements OperationInterface
 
     public function compensate(SagaContext $context): void
     {
-        $transactionId = $context->getShared('wallet_credit_transaction_id');
-
-        if (!$transactionId) {
-            Log::warning("COMPENSATION SKIPPED: No transaction ID found for wallet credit");
+        if (!$context->getShared('wallet_credit_applied')) {
+            Log::warning("COMPENSATION SKIPPED: No wallet credit marker found");
             return;
         }
 
         try {
-            // Reverse the credit by debiting the same amount
-            $this->walletService->withdrawLegacy(
+            $amountPaise = (int) round($this->amount * 100);
+            $this->financialOrchestrator->debitUserWallet(
                 $this->user,
-                $this->amount,
-                'payment_reversal',
+                $amountPaise,
+                TransactionType::CHARGEBACK,
                 "Payment #{$this->payment->id} reversed (saga compensation)",
-                $this->payment
+                $this->payment,
+                true
             );
 
             Log::info("COMPENSATION: Wallet credit reversed", [
                 'user_id' => $this->user->id,
-                'amount' => $this->amount,
-                'original_transaction_id' => $transactionId,
+                'amount_paise' => $amountPaise,
             ]);
 
         } catch (\Throwable $e) {

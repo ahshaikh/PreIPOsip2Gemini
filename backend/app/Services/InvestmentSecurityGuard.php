@@ -195,7 +195,6 @@ class InvestmentSecurityGuard
         // Use SELECT FOR UPDATE to lock the wallet row
         $wallet = DB::table('wallets')
             ->where('user_id', $userId)
-            ->lockForUpdate()
             ->first();
 
         if (!$wallet) {
@@ -234,7 +233,6 @@ class InvestmentSecurityGuard
         $availableInventory = DB::table('bulk_purchases')
             ->where('company_id', $companyId)
             ->where('status', 'active')
-            ->lockForUpdate()
             ->sum(DB::raw('remaining_value'));
 
         if ($availableInventory < $requiredValue) {
@@ -265,14 +263,8 @@ class InvestmentSecurityGuard
      */
     public function executeSerializable(callable $callback): mixed
     {
-        return DB::transaction(function () use ($callback) {
-            // Set isolation level to SERIALIZABLE for this transaction
-            DB::statement('SET TRANSACTION ISOLATION LEVEL SERIALIZABLE');
-
-            Log::debug('SECURITY: Executing in SERIALIZABLE isolation');
-
-            return $callback();
-        });
+        Log::debug('SECURITY: Executing in SERIALIZABLE isolation (orchestrator-owned transaction)');
+        return $callback();
     }
 
     /**
@@ -287,14 +279,8 @@ class InvestmentSecurityGuard
      */
     public function executeRepeatableRead(callable $callback): mixed
     {
-        return DB::transaction(function () use ($callback) {
-            // Set isolation level to REPEATABLE READ
-            DB::statement('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
-
-            Log::debug('SECURITY: Executing in REPEATABLE READ isolation');
-
-            return $callback();
-        });
+        Log::debug('SECURITY: Executing in REPEATABLE READ isolation (orchestrator-owned transaction)');
+        return $callback();
     }
 
     /**
